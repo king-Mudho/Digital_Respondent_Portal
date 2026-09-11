@@ -21,6 +21,13 @@ work — resolve them with the PI before or during the phase noted, not silently
   real confirmation later — same convention as the sibling ABI project. POTRAZ/DPO
   determination and Meta template approval remain genuinely open and block Phase 11
   go-live only, not early development (`docs/28_DEFINITION_OF_DONE.md`).
+- **Phase 2 — actor_family/value_chain/size_class/entity_type category lists.**
+  Neither `docs/05_DATABASE_ARCHITECTURE.md` nor the original blueprint enumerate these
+  (only "CharField (choices)"). Implemented with a provisional placeholder set in
+  `backend/apps/sampling/models.py` so migrations/tests/UI have something concrete;
+  must be confirmed or replaced against the actual approved sampling register before
+  real Main-400 import — this directly affects stratum definitions and is a sampling-
+  design decision, not an engineering one.
 - **Kobo production asset UID and WhatsApp Business Platform account.** Not yet
   provisioned — these require the PI/sponsor to create real external accounts
   (KoboToolbox, Meta Business). Development proceeds against the documented API
@@ -108,18 +115,33 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 ## Phase 2 — Core backend models & identifier/sampling control
 
-- [ ] Implement `accounts`, `sampling`, `contacts`, `consent`, `invitations` apps' models
-      per `05_DATABASE_ARCHITECTURE.md`.
-- [ ] Implement `sampling.services.is_invitable()` and the reserve-lock enforcement path
-      (`09_IDENTIFIER_AND_SAMPLING_CONTROL.md`, `AGENTS.md` ground rule 4).
-- [ ] Implement Master_ID/Sample_ID generation exactly per
-      `09_IDENTIFIER_AND_SAMPLING_CONTROL.md`.
-- [ ] Implement the S00–S16 workflow status state-transition table.
-- [ ] Implement invitation token generation/hashing/expiry/revocation
-      (`10_INVITATION_AND_CONSENT.md`).
-- [ ] Run and commit initial migrations.
-- [ ] Write the reserve-lock and token-lifecycle unit tests from
-      `22_TESTING_STRATEGY.md` — these must pass before continuing.
+- [x] Implement `accounts`, `sampling`, `contacts`, `consent`, `invitations` apps' models
+      per `05_DATABASE_ARCHITECTURE.md`. `kii.KIIRecord` also pulled forward from Phase 7
+      (full field set, per docs) since `contacts.Appointment.kii_record` FKs to it.
+      **Open item**: `actor_family`/`value_chain`/`size_class`/`entity_type` choice lists
+      are not enumerated anywhere in `docs/05` or the original blueprint (only "CharField
+      (choices)") — implemented with a placeholder provisional set (see docstring in
+      `apps/sampling/models.py`) for engineering purposes. The PI must confirm or replace
+      these against the actual approved sampling register before real Main-400 import;
+      Province (10 Zimbabwe provinces + 2-letter codes) is objective fact, not a
+      placeholder.
+- [x] Implement `sampling.services.is_invitable()` and the reserve-lock enforcement path
+      (`09_IDENTIFIER_AND_SAMPLING_CONTROL.md`, `AGENTS.md` ground rule 4). Also wired
+      into `invitations.services.issue_invitation()` (raises `TokenNotInvitable`).
+- [x] Implement Master_ID/Sample_ID generation exactly per
+      `09_IDENTIFIER_AND_SAMPLING_CONTROL.md` (DB-sequence + `select_for_update`,
+      verified race-free under 20 concurrent threads).
+- [x] Implement the S00–S16 workflow status state-transition table
+      (`apps/sampling/services.py` `WORKFLOW_TRANSITIONS`) — invalid transitions rejected
+      and audit-logged.
+- [x] Implement invitation token generation/hashing/expiry/revocation
+      (`10_INVITATION_AND_CONSENT.md`) — 32-byte CSPRNG + 8-char manual code, both salted
+      SHA-256, single-valid-token supersession, revocation.
+- [x] Run and commit initial migrations.
+- [x] Write the reserve-lock and token-lifecycle unit tests from
+      `22_TESTING_STRATEGY.md` — these must pass before continuing. *(24/24 passing,
+      2026-09-11: reserve lock, Master_ID/Sample_ID format+uniqueness+concurrency,
+      workflow transitions, token lifecycle, consent gating.)*
 
 ## Phase 3 — Kobo integration & reconciliation
 
