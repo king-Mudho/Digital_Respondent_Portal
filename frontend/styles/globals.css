@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens per docs/21_UI_UX_GUIDELINES.md -- a calm, institutional
+ * blue/neutral academic palette, deliberately distinct from the sibling ABI
+ * project's green/gold branding, so the two are visually distinguishable if
+ * a user somehow has both open. Do not invent ad hoc colours in components.
+ * Provisional pending PI/sponsor confirmation (see
+ * docs/27_AGENT_EXECUTION_PLAN.md "Open questions").
+ */
+:root {
+  --color-header: #1c3a5e;
+  --color-accent: #4a7bab;
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-border: #dde3ea;
+  --color-success: #3f8f5f;
+  --color-warning: #c98a2c;
+  --color-danger: #b23b3b;
+  --color-text: #1a2733;
+  --color-text-muted: #5b6b7a;
+
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

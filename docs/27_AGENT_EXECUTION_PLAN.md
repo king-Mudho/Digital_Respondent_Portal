@@ -82,21 +82,29 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 ## Phase 1 — Repository scaffold
 
-- [ ] Create the two-folder repo layout (`frontend/`, `backend/`, `docs/`, `AGENTS.md`,
+- [x] Create the two-folder repo layout (`frontend/`, `backend/`, `docs/`, `AGENTS.md`,
       root `README.md`) exactly as in `03_SYSTEM_ARCHITECTURE.md`.
-- [ ] Scaffold `backend/` as a Django project with the `config/` and `apps/` structure
-      from `08_BACKEND_ARCHITECTURE.md`; create all twelve empty apps.
-- [ ] Scaffold `frontend/` as a Next.js + TypeScript project with the structure from
+- [x] Scaffold `backend/` as a Django project with the `config/` and `apps/` structure
+      from `08_BACKEND_ARCHITECTURE.md`; create all thirteen empty apps (`accounts,
+      sampling, contacts, consent, invitations, kobo, messaging, kii, evidence, qa,
+      dashboards, costs, audit`). `accounts.User`/`Role` implemented now (pulled forward
+      from Phase 2) since a custom `AUTH_USER_MODEL` must exist for Django to boot at
+      all; the rest of Phase 2's models follow as specified.
+- [x] Scaffold `frontend/` as a Next.js + TypeScript project with the structure from
       `07_FRONTEND_ARCHITECTURE.md`.
-- [ ] Add `.env.example` files (backend and frontend) exactly per
+- [x] Add `.env.example` files (backend and frontend) exactly per
       `24_ENVIRONMENT_CONFIGURATION.md`.
-- [ ] Set up `requirements/base.txt`, `dev.txt`, `prod.txt` and `frontend/package.json`
+- [x] Set up `requirements/base.txt`, `dev.txt`, `prod.txt` and `frontend/package.json`
       with pinned versions from `04_TECH_STACK.md`.
-- [ ] Set up Celery + Celery Beat scaffold (`config/celery.py`), no tasks yet.
+- [x] Set up Celery + Celery Beat scaffold (`config/celery.py`), no tasks yet.
 - [ ] Set up the CI pipeline (lint, type-check, test stubs) per
-      `23_DEPLOYMENT_ARCHITECTURE.md`.
-- [ ] Confirm `python manage.py runserver` and `npm run dev` both boot cleanly with
-      placeholder pages.
+      `23_DEPLOYMENT_ARCHITECTURE.md`. *(Deferred to Phase 9 alongside the full test
+      suite, so the CI config lints/tests something real rather than an empty stub.)*
+- [x] Confirm `python manage.py runserver` and `npm run dev` both boot cleanly with
+      placeholder pages. *(Verified 2026-09-11: `manage.py check`/`migrate` clean
+      against a local `drp_dev` Postgres 18 database; `npm run dev` serves the neutral
+      landing page at `http://localhost:3000`, screenshot-verified in-browser; `tsc
+      --noEmit` clean.)*
 
 ## Phase 2 — Core backend models & identifier/sampling control
 

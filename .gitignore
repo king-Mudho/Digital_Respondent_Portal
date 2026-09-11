@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+backend/.venv/
+backend/.env
+backend/staticfiles/
+backend/media/
+backend/*.sqlite3
+backend/.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env
+frontend/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+next-env.d.ts
+
+# Claude Code local session state
+.claude/
+
+# Playwright / TypeScript build artifacts
+frontend/test-results/
+frontend/playwright-report/
+frontend/tsconfig.tsbuildinfo
+frontend/.tsbuildinfo
