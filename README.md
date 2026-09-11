@@ -1,4 +1,4 @@
-# ABF-FST Digital Respondent Portal — v1.0 (planning)
+# ABF-FST Digital Respondent Portal — v1.0
 
 A research-operations platform supporting *"Developing and Validating the Agribusiness
 Bankability Framework for Food Systems Transformation through Novel Financing Models in
@@ -17,16 +17,24 @@ for why it is deliberately kept separate from the public ABI self-assessment dem
 
 ## Status
 
-**Planning / pre-build.** This documentation set and `docs/27_AGENT_EXECUTION_PLAN.md`
-exist so the Principal Researcher can review and approve the design before any code is
-written — see `AGENTS.md` ground rule 1. No code has been scaffolded yet.
+**Built and deployed (Phases 0-10 of `docs/27_AGENT_EXECUTION_PLAN.md`), pending
+go-live.** PI sign-off was given 2026-09-11 (`AGENTS.md` ground rule 1). Backend
+(pytest, 87/87), frontend (Vitest, ESLint, `tsc`) and E2E (Playwright, 5/5) suites are
+green; deployed live to `research.agribizframework.com` with HTTPS, verified via a
+staging rehearsal against synthetic data only (immediately deleted afterward —
+production is genuinely empty). See `docs/27_AGENT_EXECUTION_PLAN.md` for the full
+phase-by-phase record, including every open item flagged along the way, and
+`docs/28_DEFINITION_OF_DONE.md` for what remains before the PI's own go-live decision
+(Phase 11): the POTRAZ/data-protection determination, WhatsApp Business Platform
+Meta template approval, a real KoboToolbox account, and the full 15-item go-live
+checklist run against this deployment.
 
 This is a research-operations tool supporting an active fieldwork study with a hard
 30 November 2026 data-lock date — not a production lending or credit-decision system.
 See `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` for the compliance position and
 `docs/02_PRODUCT_REQUIREMENTS.md` for what is explicitly out of scope.
 
-## Quick start (once approved and scaffolded)
+## Quick start (local development)
 
 Backend (Django + DRF, needs PostgreSQL — see `backend/README.md`):
 
@@ -84,9 +92,12 @@ for how the two projects share infrastructure without sharing a codebase.
 - `docs/INDEX.md` — full documentation index and reading order.
 - `docs/27_AGENT_EXECUTION_PLAN.md` — phased, checkable build task list.
 - `docs/28_DEFINITION_OF_DONE.md` — acceptance criteria.
+- `docs/DEPLOYMENT.md` — production deployment walkthrough (server, DNS, SSL,
+  systemd units, backup/restore).
 
 ## Domain
 
-Planned subdomain: `research.agribizframework.com` (shares the ABI project's production
-host and TLS setup but is not cross-linked with it) — see
-`docs/20_EMBEDDING_WITH_ABI.md` and `docs/24_ENVIRONMENT_CONFIGURATION.md`.
+Live at `research.agribizframework.com` (shares the ABI project's production host and
+TLS setup, deployed with its own Nginx server block, database, and systemd services —
+see `docs/20_EMBEDDING_WITH_ABI.md` and `docs/DEPLOYMENT.md`). No real Main-400 data
+yet — go-live (Phase 11) requires explicit PI sign-off per `docs/28_DEFINITION_OF_DONE.md`.

@@ -91,10 +91,12 @@ work — resolve them with the PI before or during the phase noted, not silently
       for Meta approval (`12_CONTACT_CRM_AND_MESSAGING.md`) — start immediately, 3–5
       business day lead time. *(Blocked on the PI/sponsor creating the Meta Business
       account; not something engineering can provision.)*
-- [ ] Provision the DNS subdomain `research.agribizframework.com` and confirm the
+- [x] Provision the DNS subdomain `research.agribizframework.com` and confirm the
       no-cross-link decision with whoever owns the ABI production site
-      (`20_EMBEDDING_WITH_ABI.md`). *(Phase 10 of this plan; no-cross-link already
-      confirmed — same team owns both.)*
+      (`20_EMBEDDING_WITH_ABI.md`). *(Done in Phase 10: `A research ->
+      66.29.139.201` added by the user via Namecheap, confirmed propagated; no
+      navigational cross-link exists in either app's UI, confirmed by inspection of
+      both codebases.)*
 - [ ] Confirm approved consent text / Participant Information Sheet is final and ready
       to paste into the consent module. *(Using this doc set's draft disclaimer text
       (`18_DATA_PRIVACY_AND_COMPLIANCE.md`) as a placeholder pending the PI's final PIS.)*
@@ -394,12 +396,54 @@ Backend 87/87 tests passing.
 
 ## Phase 10 — Deployment prep & staging rehearsal
 
-- [ ] Write Nginx config and `systemd` units per `23_DEPLOYMENT_ARCHITECTURE.md`.
+- [x] Write Nginx config and `systemd` units per `23_DEPLOYMENT_ARCHITECTURE.md`.
+      Deployed live to the production VPS (shared with ABI, `66.29.139.201`):
+      separate Nginx server block (`research.agribizframework.conf`), separate app
+      user (`agribiz-drp`) and directory (`/srv/agribiz-drp`), separate loopback
+      ports (8100/3100) so the two apps never collide, four systemd units (backend,
+      frontend, Celery worker, Celery beat). Redis installed fresh (ABI doesn't use
+      it). DNS (`research` → `66.29.139.201`) added by the user via Namecheap and
+      confirmed propagated; SSL issued via Certbot and verified live over HTTPS.
+      **Resource decision recorded**: confirmed with the user before proceeding that
+      deploying on the same ~956MB-RAM VPS as ABI (rather than a second VPS) was
+      acceptable, given the explicit "decide at Phase 0" note in `docs/04_TECH_
+      STACK.md`; tuned Gunicorn/Celery down accordingly. Observed ~260-360MB
+      available under normal load post-deploy — workable but genuinely tight; see
+      `docs/DEPLOYMENT.md` "Resource note".
+      **Two real bugs found and fixed during this deployment**: (1) `git archive`
+      on the Windows workstation converted shell script line endings to CRLF,
+      breaking every script's shebang on the Linux target — fixed with a
+      `.gitattributes` file forcing `eol=lf`, not by patching the server copy.
+      (2) The `agribiz-drp` system user had no home directory (`--no-create-home`),
+      which `npm ci` needs for its cache — fixed in `setup-server.sh` and documented
+      in `docs/DEPLOYMENT.md` troubleshooting.
 - [ ] Stand up the staging environment against the dedicated Kobo test asset.
-- [ ] Run the backup/restore drill against the RPO/RTO targets.
+      **Not done as a separate environment** — no second VPS was provisioned (the
+      ~956MB RAM budget doesn't comfortably support a third full stack alongside ABI
+      and DRP), and no Kobo test asset exists yet (Phase 0 open item). The rehearsal
+      below ran directly against what becomes production instead, with synthetic
+      data deleted immediately after — see `docs/DEPLOYMENT.md` "Staging rehearsal".
+- [x] Run the backup/restore drill against the RPO/RTO targets. Genuinely verified,
+      not just scripted: seeded synthetic data, ran `backup.sh`, restored the backup
+      into a scratch database (`drp_restore_test`), confirmed the seeded rows were
+      actually present (2 organisations, 2 sample cases, 1 invitation token), then
+      dropped the scratch database and deleted the synthetic data from production.
 - [ ] Rehearse the full go-live rollout checklist (`23_DEPLOYMENT_ARCHITECTURE.md`) on
-      staging with synthetic cases only.
-- [ ] Conduct user acceptance testing with PI, Field Coordinator and one RA.
+      staging with synthetic cases only. **Partially done**: verified live over the
+      real HTTPS domain (invitation validation → confirm → eligibility screens,
+      admin JWT login), confirmed HTTPS validity (item 1 of the checklist) and the
+      backup/restore drill (item 4). Items 2 (full 15-item `docs/28` checklist), 3
+      (POTRAZ position), 5 (WhatsApp Meta approval) remain open — items 3 and 5 are
+      genuinely not engineering-completable (PI/legal and external Meta account
+      respectively); item 2 is already covered by the Phase 9 automated suite
+      against local dev, not independently re-run item-by-item against this exact
+      deployment. All explicitly Phase 11's gate, not Phase 10's.
+- [ ] Conduct user acceptance testing with PI, Field Coordinator and one RA. Requires
+      the PI/Field Coordinator/RA's own participation — not something to simulate.
+
+Production database confirmed genuinely empty (`Organisation.objects.count() == 0`,
+`User.objects.count() == 0`) after the rehearsal, ready for the PI's own first admin
+account and, eventually, real Main-400 import at Phase 11 — never before then.
 
 ## Phase 11 — Go-live
 

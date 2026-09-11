@@ -30,6 +30,17 @@ systemctl restart redis
 log "Creating the agribiz-drp system user (no login shell, no password)"
 id agribiz-drp >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin agribiz-drp
 
+# --no-create-home leaves /etc/passwd pointing at /home/agribiz-drp without
+# the directory existing. Harmless until something needs a real writable
+# HOME -- npm does, for its cache (~/.npm) during `npm ci`/`npm install`.
+# Found the hard way during Phase 10's first deploy attempt: EACCES: mkdir
+# '/home/agribiz-drp'. Create it explicitly rather than relying on a tool
+# to fail loudly every time.
+log "Creating a home directory for agribiz-drp (needed by npm's cache, not for login)"
+mkdir -p /home/agribiz-drp
+chown agribiz-drp:agribiz-drp /home/agribiz-drp
+chmod 700 /home/agribiz-drp
+
 log "Creating /srv/agribiz-drp directory structure"
 mkdir -p /srv/agribiz-drp/{backend,frontend/releases,logs,backups}
 chown -R agribiz-drp:agribiz-drp /srv/agribiz-drp
