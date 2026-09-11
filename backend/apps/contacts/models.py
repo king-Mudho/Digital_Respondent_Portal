@@ -20,7 +20,10 @@ class Respondent(models.Model):
         "sampling.SampleCase", on_delete=models.CASCADE, related_name="respondents"
     )
     full_name = models.CharField(max_length=255)
-    role_category = models.CharField(max_length=32, choices=RoleCategory.choices)
+    # Blank when the eligibility gate determined the respondent doesn't fit
+    # any category on the fixed list (ineligible) -- never coerced to a
+    # placeholder category (docs/10_INVITATION_AND_CONSENT.md).
+    role_category = models.CharField(max_length=32, choices=RoleCategory.choices, blank=True)
     is_eligible = models.BooleanField(null=True, blank=True)
     eligibility_checked_by = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,

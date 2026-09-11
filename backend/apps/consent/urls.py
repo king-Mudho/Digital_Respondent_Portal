@@ -1,7 +1,9 @@
 from django.urls import path
 
+from .views import ConsentSubmitView
+
 app_name = "consent"
 
 urlpatterns = [
-    # Routes land alongside this app's views -- see docs/06_API_ARCHITECTURE.md.
+    path("consent/", ConsentSubmitView.as_view(), name="submit"),
 ]

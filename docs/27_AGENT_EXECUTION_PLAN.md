@@ -32,6 +32,11 @@ work — resolve them with the PI before or during the phase noted, not silently
   against a documented, reasonable assumption (see Phase 3 note above and
   `backend/apps/kobo/services.py` module docstring) since the real Kobo form/asset
   doesn't exist yet. Must be verified/adjusted once a real Kobo asset is provisioned.
+- **Phase 5 — draft Participant Information Sheet text.** No approved PIS/consent
+  wording exists yet (Phase 0 item, still open). Wrote a plain-English draft
+  (`frontend/lib/constants/participantInformation.ts`, version `v1.0`) so the consent
+  module has real content to render and test against. Must be replaced with the PI/
+  ethics-office-approved text before go-live; bump the version string when it changes.
 - **Kobo production asset UID and WhatsApp Business Platform account.** Not yet
   provisioned — these require the PI/sponsor to create real external accounts
   (KoboToolbox, Meta Business). Development proceeds against the documented API
@@ -204,12 +209,38 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 ## Phase 5 — Respondent frontend flow
 
-- [ ] Build R01–R10 per `07_FRONTEND_ARCHITECTURE.md` and `21_UI_UX_GUIDELINES.md`.
-- [ ] Wire the eligibility referral path.
-- [ ] Wire consent capture, including the separate KII-recording-consent flow.
-- [ ] Wire the Kobo redirect handoff.
-- [ ] Confirm no ABI score, band, or financing language appears anywhere in this flow
-      (`AGENTS.md` ground rule 2/3, `18_DATA_PRIVACY_AND_COMPLIANCE.md`).
+- [x] Build R01–R10 per `07_FRONTEND_ARCHITECTURE.md` and `21_UI_UX_GUIDELINES.md`.
+      Also had to build the remaining public API surface first (invitation
+      validate/issue/revoke, eligibility, consent-submit, appointment-request views) —
+      Phases 2-4 built the models/services for these but only Kobo/QA had views/urls
+      wired; 9 new API tests cover the full chain (`tests/test_api_respondent_flow.py`).
+- [x] Wire the eligibility referral path — ineligible respondents see a referral message
+      in place (no separate route needed; matches the docs/07 route table's "R04 with
+      referral path" note) and never reach consent/Kobo (tested both at the API layer
+      and via a live browser walkthrough).
+- [x] Wire consent capture. **KII-recording-consent flow deferred to Phase 7** alongside
+      the rest of the KII module's actual UI (the `consent` app's model/service already
+      supports it as a separate `consent_type`, per `AGENTS.md` ground rule 6 — nothing
+      to retrofit later, just not wired to a screen yet since KII scheduling doesn't
+      have one either).
+- [x] Wire the Kobo redirect handoff — gated on `has_given_consent()`, verified live
+      (redirect URL only returned after consent; 403 `consent_required` otherwise).
+- [x] Confirm no ABI score, band, or financing language appears anywhere in this flow
+      (`AGENTS.md` ground rule 2/3, `18_DATA_PRIVACY_AND_COMPLIANCE.md`) — spot-checked
+      every screen's copy; the verbatim research disclaimer is sourced from one shared
+      constant (`lib/constants/disclaimers.ts`), not duplicated ad hoc, matching ABI's
+      own discipline.
+
+**Verified live in-browser** (Next.js + Django dev servers, real DB): full happy path
+R02→R08 end to end against the real API; invalid-token error state; ineligible-
+respondent referral (never reaches consent/Kobo); 375px mobile viewport, no overflow.
+Backend: 51/51 tests passing. Frontend: 7/7 Vitest tests passing (`ApiError` mapping,
+invalid-token error state, eligibility gating both directions), `tsc --noEmit` clean.
+
+**Placeholder content flagged for PI/ethics-office confirmation before go-live**: the
+Participant Information Sheet text (`frontend/lib/constants/participantInformation.ts`)
+is a draft, not the approved PIS — see `docs/27_AGENT_EXECUTION_PLAN.md` "Open
+questions".
 
 ## Phase 6 — Research Operations Centre frontend
 
