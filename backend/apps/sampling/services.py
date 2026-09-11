@@ -7,10 +7,9 @@ than checking SampleCase.status inline elsewhere.
 """
 
 from django.db import models, transaction
+from django.utils import timezone
 
 from apps.audit.utils import log_action
-
-from django.utils import timezone
 
 from .models import (
     PROVINCE_CODE,

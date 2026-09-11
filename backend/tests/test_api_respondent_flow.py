@@ -122,7 +122,8 @@ def test_ineligible_respondent_never_reaches_kobo_redirect(client, issued_token)
 
 
 def test_locked_reserve_cannot_be_validated_for_invitation(client, locked_reserve_case):
-    from apps.invitations.services import TokenNotInvitable, issue_invitation as issue
+    from apps.invitations.services import TokenNotInvitable
+    from apps.invitations.services import issue_invitation as issue
 
     with pytest.raises(TokenNotInvitable):
         issue(locked_reserve_case)

@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils/cn";
 
 const LINKS = [
   { href: "/admin/dashboard", label: "Executive" },
+  { href: "/admin/dashboard/sampling", label: "Sampling" },
+  { href: "/admin/dashboard/contact", label: "Contact" },
+  { href: "/admin/dashboard/kii-documents", label: "KII/Doc Dashboard" },
   { href: "/admin/sample", label: "Main-400 Register" },
   { href: "/admin/appointments", label: "Appointments" },
   { href: "/admin/qa", label: "QA Queue" },

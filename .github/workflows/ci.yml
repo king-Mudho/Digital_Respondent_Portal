@@ -1,0 +1,135 @@
+name: CI
+
+# docs/23_DEPLOYMENT_ARCHITECTURE.md: lint, type-check, backend pytest,
+# frontend Vitest on every push/PR; the Playwright E2E suite additionally
+# on merge to the staging/production-tracking branch. Adjust `main` below
+# once the actual branch names are confirmed (docs/23 says "staging/
+# production-tracking branches" without naming them yet).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: drp_user
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: drp_dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements/dev.txt
+      - run: pip install -r requirements/dev.txt
+      - run: ruff check .
+      - run: python manage.py check
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+          DATABASE_URL: postgres://drp_user:devpassword@localhost:5432/drp_dev
+      - run: pytest
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+          DATABASE_URL: postgres://drp_user:devpassword@localhost:5432/drp_dev
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm run test
+
+  e2e:
+    # Only on merge to the tracking branch, not every PR -- the full E2E
+    # suite needs both servers up and a fresh database, per docs/23.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: drp_user
+          POSTGRES_PASSWORD: devpassword
+          POSTGRES_DB: drp_dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      DATABASE_URL: postgres://drp_user:devpassword@localhost:5432/drp_dev
+      CELERY_TASK_ALWAYS_EAGER: "True"
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install backend deps
+        working-directory: backend
+        run: pip install -r requirements/dev.txt
+      - name: Migrate
+        working-directory: backend
+        run: python manage.py migrate --noinput
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Start backend
+        working-directory: backend
+        run: nohup python manage.py runserver 8000 > backend.log 2>&1 &
+      - name: Start frontend
+        working-directory: frontend
+        run: nohup npm run dev > frontend.log 2>&1 &
+      - name: Wait for servers
+        run: |
+          npx wait-on http://localhost:8000/api/schema/ http://localhost:3000/ -t 60000
+      - name: Run Playwright E2E suite
+        working-directory: frontend
+        run: npx playwright test
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: |
+            backend/backend.log
+            frontend/frontend.log

@@ -7,7 +7,12 @@ from api.permissions import IsQAOrAdmin
 
 from .models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord
 from .serializers import DocumentRecordSerializer
-from .services import DocumentWorkflowError, generate_document_id, record_authenticity_assessment, set_qa_status
+from .services import (
+    DocumentWorkflowError,
+    generate_document_id,
+    record_authenticity_assessment,
+    set_qa_status,
+)
 
 
 class DocumentRecordListCreateView(generics.ListCreateAPIView):

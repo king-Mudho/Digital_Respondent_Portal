@@ -11,23 +11,15 @@ import pytest
 from django.db import connection
 
 from apps.sampling.models import (
-    ActorFamily,
-    EntityType,
     Province,
-    SampleType,
-    SizeClass,
-    ValueChain,
     WorkflowStatus,
 )
 from apps.sampling.services import (
     InvalidWorkflowTransition,
-    create_organisation,
     generate_master_id,
-    generate_sample_id,
     is_invitable,
     transition_workflow_status,
 )
-
 
 # --- Reserve lock (docs/22_TESTING_STRATEGY.md "highest priority") --------
 

@@ -362,10 +362,35 @@ Backend 87/87 tests passing.
 
 ## Phase 9 — Testing pass
 
-- [ ] Run the full backend test suite; all green.
-- [ ] Run the full frontend component test suite; all green.
-- [ ] Run the Playwright E2E suite (happy path, reserve-lock, ineligible-respondent,
-      dashboard privacy) from `22_TESTING_STRATEGY.md`; all green.
+- [x] Run the full backend test suite; all green. *(87/87, plus `ruff check .` clean and
+      `manage.py check` clean — ruff added this phase, deferred from Phase 1's CI item.)*
+- [x] Run the full frontend component test suite; all green. *(8/8 Vitest, `eslint .`
+      clean, `tsc --noEmit` clean.)*
+- [x] Run the Playwright E2E suite (happy path, reserve-lock, ineligible-respondent,
+      dashboard privacy) from `22_TESTING_STRATEGY.md`; all green. Also added the fifth
+      scenario `22_TESTING_STRATEGY.md` lists (the "consistency check": case-detail
+      workflow status matches the API exactly). Happy path is scoped to what a browser
+      can actually exercise — the reconciliation/QA-queue/QA_PASSED tail has no browser
+      UI trigger (no real Kobo submission arrives during a test run) and is already
+      covered by `tests/test_kobo.py`/`tests/test_qa.py` on the backend, not duplicated
+      here as a fake step. **5/5 passing** against real dev servers.
+      Built `apps/sampling/management/commands/seed_drp_dev.py` (idempotent, synthetic
+      data only, per `docs/23_DEPLOYMENT_ARCHITECTURE.md`'s "test/synthetic cases only"
+      rule) to give the suite deterministic fixtures — this was referenced in the root
+      README's quick-start since Phase 1 but never actually built until now.
+      **Gap found and fixed this phase**: only 2 of the 6 documented dashboards
+      (Executive, Cost) had frontend pages after Phase 6 — Sampling, Contact and KII/
+      Document existed as API endpoints only, with no page to visit. Added the three
+      missing pages (`/admin/dashboard/sampling`, `/admin/dashboard/contact`,
+      `/admin/dashboard/kii-documents`) so the dashboard-privacy E2E scenario could
+      actually cover "every dashboard," not just two of six.
+      Also set up the CI pipeline (`.github/workflows/ci.yml`, deferred from Phase 1) --
+      lint (ruff/eslint) + type-check + pytest + Vitest on every push/PR, Playwright E2E
+      on merge to `main` (rename once the actual staging/production branch is decided —
+      `docs/23` doesn't name it yet). **Not yet verified against a real GitHub Actions
+      run** — this repository has no remote yet (local git only this session); YAML
+      syntax validated, and every step mirrors a command already run and passing
+      locally.
 
 ## Phase 10 — Deployment prep & staging rehearsal
 

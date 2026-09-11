@@ -22,8 +22,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.utils import log_action
-from apps.sampling.models import SampleType, WorkflowStatus
-from apps.sampling.models import SampleCase
+from apps.sampling.models import SampleCase, SampleType, WorkflowStatus
 from apps.sampling.services import is_invitable, transition_workflow_status
 
 from .models import Channel, InvitationToken, TokenStatus

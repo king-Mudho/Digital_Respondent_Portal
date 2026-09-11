@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.contacts.models import Respondent, RoleCategory
 from apps.invitations.services import issue_invitation
-from apps.messaging.models import MessageLog, MessageStatus, ReminderSequenceStep
+from apps.messaging.models import MessageLog, MessageStatus
 from apps.messaging.services import dispatch_due_reminders, exhaust_nonresponse_cases
 from apps.sampling.models import WorkflowStatus
 

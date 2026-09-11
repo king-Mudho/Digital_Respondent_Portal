@@ -6,14 +6,13 @@ recorded; a DISPUTED document is retained, never deleted.
 
 import pytest
 
-from apps.evidence.models import AuthenticityAssessment, DocumentQAStatus
+from apps.evidence.models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord, DocumentType
 from apps.evidence.services import (
     DocumentWorkflowError,
     generate_document_id,
     record_authenticity_assessment,
     set_qa_status,
 )
-from apps.evidence.models import DocumentRecord, DocumentType
 
 
 @pytest.fixture

@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from api.permissions import IsFieldCoordinatorOrAdmin
 from api.throttling import PerTokenThrottle
 
+from .models import InvitationToken
 from .services import (
     TokenNotInvitable,
     TokenValidationError,
@@ -14,7 +15,6 @@ from .services import (
     validate_manual_code,
     validate_token,
 )
-from .models import InvitationToken
 
 
 class InvitationValidateView(APIView):

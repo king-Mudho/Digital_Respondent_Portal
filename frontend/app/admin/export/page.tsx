@@ -18,6 +18,7 @@ export default function ExportPage() {
             sharing with the wider research team. Available to Analysts,
             Field Coordinators and the PI/Admin.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- this is a file download from an API route, not page navigation; <Link> would try to client-route it. */}
           <a
             href="/api/proxy/export/analysis/"
             className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium"
@@ -33,6 +34,7 @@ export default function ExportPage() {
             Internal operations use only -- never distributed externally.
             PI/Admin only.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
           <a
             href="/api/proxy/export/operational/"
             className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium"

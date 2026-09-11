@@ -9,12 +9,12 @@ import csv
 import io
 
 import pytest
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, User
 from apps.contacts.models import Respondent, RoleCategory
 from apps.kobo.models import AdministrationMode, QAStatus, QUANSubmission
-from django.utils import timezone
 
 
 @pytest.fixture

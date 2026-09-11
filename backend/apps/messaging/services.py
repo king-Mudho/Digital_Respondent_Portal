@@ -8,9 +8,9 @@ this automated path.
 
 from django.utils import timezone
 
+from apps.invitations.models import InvitationToken
 from apps.sampling.models import SampleCase, SampleType, WorkflowStatus
 from apps.sampling.services import transition_workflow_status
-from apps.invitations.models import InvitationToken
 
 from .models import MessageChannel, MessageLog, MessageStatus, ReminderSequenceStep
 from .whatsapp_client import WhatsAppClient, WhatsAppNotConfigured
