@@ -1,0 +1,37 @@
+# Next.js SSR server (Node), standalone production build.
+# Install to: /etc/systemd/system/drp-frontend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drp-frontend
+
+[Unit]
+Description=DRP (research.agribizframework.com) - Next.js frontend (Node, standalone)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/frontend/current
+
+Environment=NODE_ENV=production
+Environment=PORT=3100
+Environment=HOSTNAME=127.0.0.1
+# Lower cap than ABI's 320MB -- two Next.js runtimes now share this box's
+# ~956MB total (docs/27_AGENT_EXECUTION_PLAN.md Phase 10).
+Environment=NODE_OPTIONS=--max-old-space-size=200
+
+ExecStart=/usr/bin/node /srv/agribiz-drp/frontend/current/server.js
+
+KillMode=mixed
+TimeoutStopSec=10
+Restart=always
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

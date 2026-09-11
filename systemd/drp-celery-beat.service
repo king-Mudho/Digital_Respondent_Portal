@@ -1,0 +1,42 @@
+# Celery Beat -- scheduler only, dispatches tasks per the PeriodicTask rows
+# seeded by kobo/migrations/0002_seed_reconciliation_schedule.py and
+# messaging/migrations/0003_seed_dispatch_schedule.py (DB-driven per
+# AGENTS.md ground rule 7, editable via Django admin without a redeploy).
+# A separate, lightweight process from drp-celery-worker -- it never
+# executes tasks itself, only enqueues them.
+#
+# Install to: /etc/systemd/system/drp-celery-beat.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drp-celery-beat
+
+[Unit]
+Description=DRP - Celery Beat (scheduler)
+After=network-online.target redis.service postgresql.service
+Wants=network-online.target
+Requires=redis.service postgresql.service
+
+[Service]
+Type=simple
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/backend
+
+EnvironmentFile=/srv/agribiz-drp/backend/.env
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config beat \
+    --scheduler django_celery_beat.schedulers:DatabaseScheduler --loglevel=info
+
+KillMode=mixed
+TimeoutStopSec=10
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/agribiz-drp/logs
+
+[Install]
+WantedBy=multi-user.target

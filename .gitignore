@@ -23,6 +23,11 @@ next-env.d.ts
 # Claude Code local session state
 .claude/
 
+# Live production credentials -- never commit to git history.
+.vps_root_password_DO_NOT_COMMIT.txt
+.drp_db_password_DO_NOT_COMMIT.txt
+*.env.production
+
 # Playwright / TypeScript build artifacts
 frontend/test-results/
 frontend/playwright-report/

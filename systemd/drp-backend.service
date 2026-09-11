@@ -1,0 +1,39 @@
+# Django API via gunicorn.
+# Install to: /etc/systemd/system/drp-backend.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drp-backend
+
+[Unit]
+Description=DRP (research.agribizframework.com) - Django API (gunicorn)
+After=network-online.target postgresql.service redis.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/backend
+
+EnvironmentFile=/srv/agribiz-drp/backend/.env
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+ExecStart=/srv/agribiz-drp/backend/venv/bin/gunicorn \
+    --config /srv/agribiz-drp/deploy/gunicorn.conf.py \
+    config.wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=10
+Restart=always
+RestartSec=3
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/agribiz-drp/backend/staticfiles /srv/agribiz-drp/backend/media /srv/agribiz-drp/logs
+
+[Install]
+WantedBy=multi-user.target

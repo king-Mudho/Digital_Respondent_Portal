@@ -1,0 +1,43 @@
+# Celery worker -- runs the Kobo reconciliation and reminder-dispatch tasks
+# (docs/04_TECH_STACK.md: "the one place this project needs what ABI
+# explicitly deferred"). --pool=solo, concurrency=1: this workload is
+# genuinely low-throughput (two periodic tasks, not request-driven), and
+# solo pool is the lightest-weight option on a memory-constrained box
+# running two full application stacks (docs/27_AGENT_EXECUTION_PLAN.md
+# Phase 10). Raise concurrency only if task backlog is actually observed.
+#
+# Install to: /etc/systemd/system/drp-celery-worker.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drp-celery-worker
+
+[Unit]
+Description=DRP - Celery worker (Kobo reconciliation, reminder dispatch)
+After=network-online.target redis.service postgresql.service
+Wants=network-online.target
+Requires=redis.service postgresql.service
+
+[Service]
+Type=simple
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/backend
+
+EnvironmentFile=/srv/agribiz-drp/backend/.env
+Environment=PYTHONUNBUFFERED=1
+
+ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config worker \
+    --pool=solo --concurrency=1 --loglevel=info
+
+KillMode=mixed
+TimeoutStopSec=15
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/agribiz-drp/backend/media /srv/agribiz-drp/logs
+
+[Install]
+WantedBy=multi-user.target
