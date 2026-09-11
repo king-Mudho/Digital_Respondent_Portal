@@ -1,0 +1,64 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { AdminShell } from "@/components/admin/AdminShell";
+import { Card } from "@/components/ui/card";
+import { adminFetch } from "@/lib/api/admin";
+
+interface KIIRecord {
+  id: number;
+  kii_id: string;
+  stakeholder_category: string;
+  participant_role: string;
+  status: string;
+  transcript_status: string;
+  coding_status: string;
+}
+
+/**
+ * A basic register view -- scheduling, consent and transcript workflow UI
+ * land in Phase 7 alongside the rest of the KII module's build-out
+ * (docs/27_AGENT_EXECUTION_PLAN.md Phase 7).
+ */
+export default function KIIRegisterPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["kii-records"],
+    queryFn: () => adminFetch<{ results: KIIRecord[] }>("/kii/"),
+  });
+
+  return (
+    <AdminShell>
+      <h2 className="font-semibold text-xl mb-4">KII Register</h2>
+      <Card>
+        {isLoading || !data ? (
+          <p className="text-text-muted">Loading…</p>
+        ) : data.results.length === 0 ? (
+          <p className="text-text-muted text-sm">No KII records yet.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-text-muted">
+                <th className="py-2 pr-4">KII ID</th>
+                <th className="py-2 pr-4">Stakeholder category</th>
+                <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">Transcript</th>
+                <th className="py-2">Coding</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.results.map((k) => (
+                <tr key={k.id} className="border-t border-border">
+                  <td className="py-2 pr-4 font-mono text-xs">{k.kii_id}</td>
+                  <td className="py-2 pr-4">{k.stakeholder_category}</td>
+                  <td className="py-2 pr-4">{k.status}</td>
+                  <td className="py-2 pr-4">{k.transcript_status}</td>
+                  <td className="py-2">{k.coding_status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+    </AdminShell>
+  );
+}

@@ -102,6 +102,36 @@ def transition_workflow_status(sample_case: SampleCase, new_status: str, *, user
     return sample_case
 
 
+@transaction.atomic
+def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evidence_note: str = "") -> SampleCase:
+    """Reserve activation always requires an authorised reason, records the
+    authoriser, and writes an AuditEvent in the same transaction -- never as
+    separate, potentially-skipped steps (docs/09_IDENTIFIER_AND_SAMPLING_
+    CONTROL.md). No "swap" escape hatch: `reason` must be one of the five
+    authorised ActivationReason values, enforced by SampleCase.clean() via
+    full_clean() below.
+    """
+    if reserve_case.sample_type != SampleType.RESERVE:
+        raise ValueError("Only a RESERVE case can be activated.")
+    if reserve_case.status == ReserveStatus.ACTIVATED:
+        raise ValueError("This reserve case is already activated.")
+
+    reserve_case.status = ReserveStatus.ACTIVATED
+    reserve_case.activation_reason = reason
+    reserve_case.activated_by = activated_by
+    reserve_case.activated_at = timezone.now()
+    reserve_case.activation_evidence_note = evidence_note
+    reserve_case.full_clean()
+    reserve_case.save()
+
+    log_action(
+        "reserve.activated",
+        reserve_case,
+        {"reason": reason, "activated_by_id": getattr(activated_by, "id", None), "sample_id": reserve_case.sample_id},
+    )
+    return reserve_case
+
+
 def is_invitable(sample_case: SampleCase) -> bool:
     """The single enforcement point for the Main-400/Reserve-400 integrity
     rule (AGENTS.md ground rule 4). Every invitation-issuing code path must

@@ -1,7 +1,9 @@
 from django.urls import path
 
+from .views import CostEventListCreateView
+
 app_name = "costs"
 
 urlpatterns = [
-    # Routes land alongside this app's views -- see docs/06_API_ARCHITECTURE.md.
+    path("costs/", CostEventListCreateView.as_view(), name="costs"),
 ]

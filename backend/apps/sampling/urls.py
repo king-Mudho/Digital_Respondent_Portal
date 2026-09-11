@@ -1,7 +1,11 @@
 from django.urls import path
 
+from .views import ReserveActivateView, SampleCaseDetailView, SampleCaseListCreateView
+
 app_name = "sampling"
 
 urlpatterns = [
-    # Routes land alongside this app's views -- see docs/06_API_ARCHITECTURE.md.
+    path("sample-cases/", SampleCaseListCreateView.as_view(), name="list"),
+    path("sample-cases/<str:sample_id>/", SampleCaseDetailView.as_view(), name="detail"),
+    path("sample-cases/<str:sample_id>/activate-reserve/", ReserveActivateView.as_view(), name="activate-reserve"),
 ]

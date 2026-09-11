@@ -1,7 +1,10 @@
 from django.urls import path
 
+from .views import KIIRecordDetailView, KIIRecordListCreateView
+
 app_name = "kii"
 
 urlpatterns = [
-    # Routes land alongside this app's views -- see docs/06_API_ARCHITECTURE.md.
+    path("kii/", KIIRecordListCreateView.as_view(), name="list"),
+    path("kii/<int:pk>/", KIIRecordDetailView.as_view(), name="detail"),
 ]

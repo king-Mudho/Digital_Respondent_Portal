@@ -244,10 +244,37 @@ questions".
 
 ## Phase 6 — Research Operations Centre frontend
 
-- [ ] Build A01–A12 per `07_FRONTEND_ARCHITECTURE.md`.
-- [ ] Wire the six dashboards (`16_DASHBOARDS_AND_REPORTING.md`), confirming no
-      identifying data leaks into any aggregate view.
-- [ ] Wire the QA queue, reserve-activation flow, and audit log views.
+- [x] Build A01–A12 per `07_FRONTEND_ARCHITECTURE.md`. Also built the JWT auth relay
+      (`app/api/auth/{login,logout,me}`, `app/api/proxy/[...path]`) per the docs/07
+      directory-structure note ("app/api/ -- Next.js route handlers, auth cookie relay
+      only"): the JWT lives only in an httpOnly cookie, never in client-readable
+      storage; every internal API call goes through the proxy route, which attaches the
+      Bearer token server-side and transparently refreshes on a 401. Also built the
+      remaining backend API surface these pages needed: `sample-cases`
+      list/detail/activate-reserve, `costs`, `kii`/`documents` list-create, `audit` log
+      — Phases 2-5 built the underlying models/services but not all the views/urls.
+      A07 (KII register) and A08 (documents) are basic list views for now; full
+      scheduling/transcript/provenance workflow UI is Phase 7, alongside those apps'
+      full build-out. A12 (data-lock export) is Phase 8, per its own DoD dependency on
+      the de-identified export existing first.
+- [x] Wire the six dashboards (`16_DASHBOARDS_AND_REPORTING.md`), confirming no
+      identifying data leaks into any aggregate view — automated test
+      (`test_dashboards_and_reserve.py::test_dashboard_never_exposes_identifying_fields`,
+      parametrised across all six) asserts the organisation name and `full_name` never
+      appear in any dashboard response, not just a visual check.
+- [x] Wire the QA queue, reserve-activation flow, and audit log views — reserve
+      activation requires selecting one of the five authorised reasons plus a note (no
+      free-text "other" escape hatch in the UI, matching the backend's own constraint);
+      verified live that activation writes `activated_by`/`activated_at` and an
+      `AuditEvent` in one transaction.
+
+**Verified live in-browser** against real dev servers: login (JWT cookie set/read
+correctly), executive dashboard (real aggregate counts), Main-400 register + case
+detail + contact timeline, QA queue (empty-state correct), audit log (showed every
+action from the Phase 5 respondent-flow walkthrough: `invitation.issued`,
+`eligibility.checked`, `consent.recorded`, correctly attributed and timestamped).
+
+Backend 62/62, frontend 8/8 tests passing; `tsc --noEmit` clean.
 
 ## Phase 7 — Contact/CRM, KII & documentary evidence
 

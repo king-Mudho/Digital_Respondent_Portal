@@ -1,7 +1,9 @@
 from django.urls import path
 
+from .views import AuditLogView
+
 app_name = "audit"
 
 urlpatterns = [
-    # Routes land alongside this app's views -- see docs/06_API_ARCHITECTURE.md.
+    path("audit/", AuditLogView.as_view(), name="audit-log"),
 ]
