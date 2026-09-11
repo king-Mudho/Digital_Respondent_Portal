@@ -176,11 +176,31 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 ## Phase 4 — QA engine
 
-- [ ] Implement `qa` app: `QARuleThreshold` (seeded from `15_QA_AND_DATA_QUALITY.md`
-      defaults, pending PI confirmation), `QAEvent`.
-- [ ] Implement hard-stop vs. soft-flag evaluation logic.
-- [ ] Implement the QA queue API and human decision-recording flow.
-- [ ] Unit test every threshold's hard-stop/soft-flag behaviour.
+- [x] Implement `qa` app: `QARuleThreshold` (seeded from `15_QA_AND_DATA_QUALITY.md`
+      defaults via migration, pending PI confirmation — see Phase 2's flagged
+      provisional-defaults item), `QAEvent`. `evidence.DocumentRecord` pulled forward
+      from Phase 7 (full field set per docs) since `QAEvent.document_record` FKs to it,
+      same reasoning as `kii.KIIRecord` in Phase 2.
+- [x] Implement hard-stop vs. soft-flag evaluation logic
+      (`apps/qa/services.py evaluate_submission()`), wired into
+      `kobo.services.reconcile()` so every new/updated `QUANSubmission` is evaluated
+      automatically, per `15_QA_AND_DATA_QUALITY.md` QA decision flow step 1.
+      `logic_violation_hard_stop_rules`/`logic_violation_soft_flag_rules` and
+      `required_field_names`/`optional_field_names` are seeded empty as extension
+      points — genuinely can't be populated for real until a real Kobo form/asset exists
+      (same open item as Phase 3's hidden-field-name assumption).
+- [x] Implement the QA queue API (`GET /api/v1/qa/queue/`) and human decision-recording
+      flow (`POST /api/v1/qa/submission/{id}/decision/`, mandatory note enforced).
+      Scoped to `QUANSubmission` for now; KII/documentary-evidence queue items extend
+      this in Phase 7 alongside those apps' full workflow wiring.
+- [x] Unit test every threshold's hard-stop/soft-flag behaviour. *(12/12 passing:
+      duration min/max, missing required field hard-stop, missing-optional-percent,
+      duplicate-window, human ACCEPT/REJECT/QUERY flow, note-required validation,
+      confirms a hard stop never auto-resolves without a human `QAEvent`.)* Full suite:
+      42/42 passing — this pass also caught and fixed a real bug in
+      `kobo.services.reconcile()` (an in-memory `QUANSubmission.submitted_at` stayed a
+      raw string until DB round-trip, breaking `qa.services`' duplicate-window datetime
+      arithmetic; fixed by parsing Kobo timestamps explicitly before `.create()`).
 
 ## Phase 5 — Respondent frontend flow
 

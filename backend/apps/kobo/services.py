@@ -29,6 +29,7 @@ import os
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from apps.audit.utils import log_action
 from apps.consent.services import has_given_consent
@@ -90,6 +91,24 @@ EXPECTED_HIDDEN_FIELDS = (
 )
 
 
+def _parse_kobo_datetime(value):
+    """Kobo timestamps arrive as ISO 8601 strings. Parse explicitly here
+    rather than relying on the ORM's implicit str->datetime conversion on
+    save -- that conversion only happens on the way to the database, so an
+    in-memory model instance (as returned by .objects.create()) would
+    otherwise still hold a raw string, breaking any code (e.g.
+    qa.services.evaluate_submission's duplicate-window check) that does
+    datetime arithmetic on it in the same request/task."""
+    if not value:
+        return None
+    if isinstance(value, str):
+        parsed = parse_datetime(value)
+        if parsed and timezone.is_naive(parsed):
+            parsed = timezone.make_aware(parsed)
+        return parsed
+    return value
+
+
 def _content_hash(payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -133,14 +152,15 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
         content_hash = _content_hash(payload)
         existing = QUANSubmission.objects.filter(kobo_submission_uuid=kobo_uuid).first()
 
+        submission = None
         if existing is None:
             raw_payload_ref = _store_payload(kobo_uuid, payload)
-            QUANSubmission.objects.create(
+            submission = QUANSubmission.objects.create(
                 sample_case=sample_case,
                 kobo_submission_uuid=kobo_uuid,
                 administration_mode=payload.get("administration_mode", "01"),
-                started_at=payload.get("start"),
-                submitted_at=payload.get("_submission_time") or run_started_at,
+                started_at=_parse_kobo_datetime(payload.get("start")),
+                submitted_at=_parse_kobo_datetime(payload.get("_submission_time")) or run_started_at,
                 raw_payload_ref=raw_payload_ref,
                 payload_content_hash=content_hash,
                 qa_status=QAStatus.PENDING,
@@ -159,6 +179,16 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
                 "raw_payload_ref", "payload_content_hash", "last_edited_at", "qa_status",
             ])
             updated_submissions += 1
+            submission = existing
+
+        if submission is not None:
+            # "On reconciliation, every new/updated QUANSubmission is
+            # evaluated against every active QARuleThreshold"
+            # (docs/15_QA_AND_DATA_QUALITY.md). Imported lazily to avoid a
+            # kobo<->qa import cycle at module load time.
+            from apps.qa.services import evaluate_submission
+
+            evaluate_submission(submission)
 
     log = ReconciliationLog.objects.create(
         run_started_at=run_started_at,

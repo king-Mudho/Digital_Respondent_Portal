@@ -1,2 +1,73 @@
-# Models for this app land in Phase 2+ of docs/27_AGENT_EXECUTION_PLAN.md,
-# per the field-level spec in docs/05_DATABASE_ARCHITECTURE.md.
+"""
+DocumentRecord model. Pulled forward from Phase 7 (docs/27_AGENT_EXECUTION_
+PLAN.md) because qa.QAEvent (Phase 4) has a nullable FK to it
+(docs/05_DATABASE_ARCHITECTURE.md). Full field set per docs/05 and
+docs/14_DOCUMENTARY_EVIDENCE_MODULE.md; the frontend/workflow wiring itself
+still lands in Phase 7.
+"""
+
+from django.contrib.postgres.fields import ArrayField
+from django.db import models
+
+
+class DocumentType(models.TextChoices):
+    OFFICIAL = "OFFICIAL", "Official"
+    SECONDARY = "SECONDARY", "Secondary"
+    PLATFORM = "PLATFORM", "Platform"
+
+
+class AuthenticityAssessment(models.TextChoices):
+    UNVERIFIED = "UNVERIFIED", "Unverified"
+    VERIFIED = "VERIFIED", "Verified"
+    DISPUTED = "DISPUTED", "Disputed"
+
+
+class DocumentQAStatus(models.TextChoices):
+    PENDING = "PENDING", "Pending"
+    INCLUDED = "INCLUDED", "Included"
+    EXCLUDED = "EXCLUDED", "Excluded"
+
+
+class DocumentRecord(models.Model):
+    """A provenance-controlled evidence repository, not a general file dump
+    (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md). construct_tags may reference
+    ABI dimensions as relevance tags only -- never a score
+    (AGENTS.md ground rule 3, docs/25_FUTURE_ABI_ENGINE_PHASE4.md)."""
+
+    document_id = models.CharField(max_length=32, unique=True, editable=False)
+    organisation = models.ForeignKey(
+        "sampling.Organisation", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="document_records",
+    )
+    title = models.CharField(max_length=512)
+    author_or_speaker = models.CharField(max_length=255, blank=True)
+    publication_or_event_date = models.DateField(null=True, blank=True)
+    source_url_or_reference = models.CharField(max_length=1024, blank=True)
+    document_type = models.CharField(max_length=16, choices=DocumentType.choices)
+    authenticity_assessment = models.CharField(
+        max_length=16, choices=AuthenticityAssessment.choices, default=AuthenticityAssessment.UNVERIFIED
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    geographic_scope = models.CharField(max_length=255, blank=True)
+    value_chain = models.CharField(max_length=32, blank=True)
+    # NFM, BANK, DGR, AGC, INS, FST + ABI-dimension relevance tags -- tags
+    # only, never a score (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md).
+    construct_tags = ArrayField(models.CharField(max_length=64), default=list, blank=True)
+    evidence_extract = models.TextField(blank=True)
+    interpretive_memo = models.TextField(blank=True)
+    triangulation_quan_submissions = models.ManyToManyField(
+        "kobo.QUANSubmission", blank=True, related_name="triangulated_documents"
+    )
+    triangulation_kii_records = models.ManyToManyField(
+        "kii.KIIRecord", blank=True, related_name="triangulated_documents"
+    )
+    reviewer = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="reviewed_documents",
+    )
+    qa_status = models.CharField(max_length=16, choices=DocumentQAStatus.choices, default=DocumentQAStatus.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.document_id} — {self.title}"
