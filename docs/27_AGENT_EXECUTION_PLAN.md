@@ -28,6 +28,10 @@ work — resolve them with the PI before or during the phase noted, not silently
   must be confirmed or replaced against the actual approved sampling register before
   real Main-400 import — this directly affects stratum definitions and is a sampling-
   design decision, not an engineering one.
+- **Phase 3 — Kobo hidden-field names and edit-detection mechanism.** Implemented
+  against a documented, reasonable assumption (see Phase 3 note above and
+  `backend/apps/kobo/services.py` module docstring) since the real Kobo form/asset
+  doesn't exist yet. Must be verified/adjusted once a real Kobo asset is provisioned.
 - **Kobo production asset UID and WhatsApp Business Platform account.** Not yet
   provisioned — these require the PI/sponsor to create real external accounts
   (KoboToolbox, Meta Business). Development proceeds against the documented API
@@ -145,13 +149,30 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 ## Phase 3 — Kobo integration & reconciliation
 
-- [ ] Implement the `kobo` app: `QUANSubmission`, `ReconciliationLog`, Kobo API client.
-- [ ] Implement the scheduled reconciliation Celery Beat task per
-      `11_KOBOTOOLBOX_INTEGRATION.md`.
-- [ ] Implement the webhook receiver as a heads-up trigger only, never a direct write.
-- [ ] Write the edited-submission reconciliation test from `22_TESTING_STRATEGY.md`.
-- [ ] Confirm the Kobo redirect URL is generated correctly with all hidden fields
-      (`06_API_ARCHITECTURE.md`).
+- [x] Implement the `kobo` app: `QUANSubmission`, `ReconciliationLog`, Kobo API client.
+      **Open item**: the exact hidden-field names as echoed back in a real Kobo
+      submission payload are not yet frozen (no Kobo account provisioned) — implemented
+      assuming the payload echoes the same field names used to populate the launch URL
+      (`master_id`, `sample_id`, etc.); see `EXPECTED_HIDDEN_FIELDS` docstring in
+      `backend/apps/kobo/services.py`. Must be verified against the real Kobo form once
+      it exists.
+- [x] Implement the scheduled reconciliation Celery Beat task per
+      `11_KOBOTOOLBOX_INTEGRATION.md` — seeded as `django_celery_beat` `PeriodicTask`
+      rows (15 min active-hours / 60 min overnight crontabs), DB-config-driven per
+      `AGENTS.md` ground rule 7 rather than hardcoded. Active-hours window (06:00-22:00)
+      is a placeholder pending PI confirmation of actual fieldwork hours.
+- [x] Implement the webhook receiver as a heads-up trigger only, never a direct write.
+      Validates `X-Kobo-Shared-Secret` against `KOBO_WEBHOOK_SHARED_SECRET`.
+- [x] Write the edited-submission reconciliation test from `22_TESTING_STRATEGY.md`.
+      *(Passing: same `kobo_submission_uuid`, changed field, confirms update not
+      duplicate, confirms `qa_status` re-enters `PENDING` rather than staying at its
+      prior value.)* Edit detection uses a content-hash diff of the full payload each
+      pull rather than depending on any specific Kobo metadata field for "last edited"
+      — see the design-decision docstring in `kobo/services.py`; robust regardless of
+      which Kobo deployment/version is eventually used.
+- [x] Confirm the Kobo redirect URL is generated correctly with all hidden fields
+      (`06_API_ARCHITECTURE.md`) — gated on `consent.services.has_given_consent()`, the
+      single enforcement point (raises `KoboRedirectDenied` otherwise, tested).
 
 ## Phase 4 — QA engine
 
