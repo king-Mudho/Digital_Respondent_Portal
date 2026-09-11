@@ -15,6 +15,7 @@ const LINKS = [
   { href: "/admin/reserve", label: "Reserve Activation" },
   { href: "/admin/cost", label: "Cost" },
   { href: "/admin/audit", label: "Audit Log" },
+  { href: "/admin/export", label: "Export" },
 ];
 
 export function AdminNav() {

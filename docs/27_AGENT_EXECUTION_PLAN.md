@@ -330,14 +330,35 @@ creation, status transition (INVITED→SCHEDULED→COMPLETED), document creation
 
 ## Phase 8 — Privacy, audit & exports
 
-- [ ] Confirm every disclaimer from `18_DATA_PRIVACY_AND_COMPLIANCE.md` appears on every
-      required screen.
-- [ ] Confirm consent capture blocks data persistence until given.
-- [ ] Confirm `AuditEvent` entries are created for every action listed in
-      `18_DATA_PRIVACY_AND_COMPLIANCE.md`.
-- [ ] Implement the de-identified analysis export and the full operational export
+- [x] Confirm every disclaimer from `18_DATA_PRIVACY_AND_COMPLIANCE.md` appears on every
+      required screen. docs/18 requires it on "the consent step, the completion page,
+      and any export" (narrower than ABI's list, which also requires a results screen
+      and certificate panel this portal doesn't have — no score is ever shown here).
+      Verified present, sourced from the one shared `RESEARCH_DISCLAIMER` constant, on
+      `/i/[token]/consent`, `/i/[token]/done`, and `/admin/export`.
+- [x] Confirm consent capture blocks data persistence until given — structural, not just
+      checked: `kobo.services.build_redirect_url()` calls
+      `consent.services.has_given_consent()` as its only gate (tested since Phase 3/5).
+- [x] Confirm `AuditEvent` entries are created for every action listed in
+      `18_DATA_PRIVACY_AND_COMPLIANCE.md` ("invitation issuance/revocation, consent
+      change, QA decision, reserve activation, data lock"). **Bug found and fixed**: QA
+      decisions were never audit-logged (`qa.services.record_human_decision()` created
+      only the `QAEvent`, no `AuditEvent`) — fixed, tested
+      (`test_exports.py::test_qa_decision_is_audited`). The other four were already
+      covered (Phases 2/6). "Data lock" itself has no dedicated model/endpoint anywhere
+      in `docs/05`/`docs/06` — it names the Phase 11 go-live event (freezing further
+      collection), which is an operational PI decision at data-lock time, not a Phase 8
+      engineering deliverable; nothing to build here yet.
+- [x] Implement the de-identified analysis export and the full operational export
       (`06_API_ARCHITECTURE.md`), with an automated test asserting no identifying field
-      appears in the de-identified one.
+      appears in the de-identified one. `GET /api/v1/export/analysis/`
+      (`IsAnalystOrAdmin`) vs. `GET /api/v1/export/operational/` (`IsAdminOnly`) — CSV,
+      documented schema difference (contact fields present only in the operational one).
+      Frontend: `/admin/export` (A12), verified live end to end including the
+      role-permission split (Analyst can reach the de-identified export, not the
+      operational one).
+
+Backend 87/87 tests passing.
 
 ## Phase 9 — Testing pass
 

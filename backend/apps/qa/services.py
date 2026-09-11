@@ -24,6 +24,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.utils import timezone
 
+from apps.audit.utils import log_action
 from apps.kobo.models import QAStatus, QUANSubmission
 
 from .models import QADecision, QAEvent, QARuleThreshold
@@ -161,4 +162,14 @@ def record_human_decision(
         submission.qa_status = QAStatus.QUERY
     submission.save(update_fields=["qa_status"])
 
+    log_action(
+        "qa.decision",
+        event,
+        {
+            "decision": decision,
+            "submission_id": submission.id,
+            "reviewer_id": getattr(reviewer, "id", None),
+            "resulting_qa_status": submission.qa_status,
+        },
+    )
     return event

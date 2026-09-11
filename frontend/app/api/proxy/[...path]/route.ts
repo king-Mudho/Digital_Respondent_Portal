@@ -48,10 +48,14 @@ async function proxy(request: NextRequest, path: string[]) {
   }
 
   const responseBody = await upstream.text();
-  const response = new NextResponse(responseBody, {
-    status: upstream.status,
-    headers: { "Content-Type": upstream.headers.get("Content-Type") ?? "application/json" },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
+  };
+  // CSV export downloads rely on this to name/save the file correctly.
+  const disposition = upstream.headers.get("Content-Disposition");
+  if (disposition) headers["Content-Disposition"] = disposition;
+
+  const response = new NextResponse(responseBody, { status: upstream.status, headers });
 
   if (refreshedAccessToken) {
     const isProd = process.env.NEXT_PUBLIC_APP_ENV === "production";
