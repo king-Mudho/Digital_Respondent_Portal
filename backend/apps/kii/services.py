@@ -1,12 +1,22 @@
+"""
+KII scheduling, consent gating and status-flow transitions
+(docs/13_KII_MODULE.md). Status flow: INVITED -> SCHEDULED -> COMPLETED (or
+DECLINED/NO_SHOW), independent of transcript_status and coding_status,
+which progress after the interview itself is complete.
+"""
+
+from apps.audit.utils import log_action
+from apps.consent.models import ConsentType
+from apps.consent.services import has_given_consent
 from apps.sampling.services import next_sequence
 
-from .models import KIIRecord
+from .models import CodingStatus, KIIRecord, KIIStatus, TranscriptStatus
 
 
 def generate_kii_id() -> str:
     """KII-<sequence(4)>, e.g. KII-0042. System-generated, never user-entered,
-    same DB-sequence approach as Master_ID/Sample_ID
-    (docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md)."""
+    same DB-sequence approach as Master_ID/Sample_ID (docs/09_IDENTIFIER_
+    AND_SAMPLING_CONTROL.md)."""
     seq = next_sequence("KII_ID")
     return f"KII-{seq:04d}"
 
@@ -15,4 +25,60 @@ def create_kii_record(**fields) -> KIIRecord:
     record = KIIRecord(kii_id=generate_kii_id(), **fields)
     record.full_clean()
     record.save()
+    return record
+
+
+KII_STATUS_TRANSITIONS = {
+    KIIStatus.INVITED: {KIIStatus.SCHEDULED, KIIStatus.DECLINED},
+    KIIStatus.SCHEDULED: {KIIStatus.COMPLETED, KIIStatus.NO_SHOW, KIIStatus.DECLINED},
+    KIIStatus.COMPLETED: set(),
+    KIIStatus.DECLINED: set(),
+    KIIStatus.NO_SHOW: {KIIStatus.SCHEDULED},  # can be rescheduled
+}
+
+
+class InvalidKIITransition(Exception):
+    pass
+
+
+class KIIRecordingConsentRequired(Exception):
+    pass
+
+
+def transition_kii_status(record: KIIRecord, new_status: str) -> KIIRecord:
+    allowed = KII_STATUS_TRANSITIONS.get(record.status, set())
+    if new_status not in allowed:
+        raise InvalidKIITransition(f"Cannot transition {record.status} -> {new_status}.")
+    record.status = new_status
+    record.save(update_fields=["status"])
+    log_action("kii.status_changed", record, {"new_status": new_status})
+    return record
+
+
+def mark_completed(record: KIIRecord, *, with_recording: bool) -> KIIRecord:
+    """Recording consent is always a separate, explicit decision from
+    participation consent (AGENTS.md ground rule 6) -- a KII cannot be
+    marked completed with a recording unless that separate consent was
+    given."""
+    if with_recording and not has_given_consent(record, ConsentType.KII_RECORDING):
+        raise KIIRecordingConsentRequired("Recording consent was not given for this KII.")
+
+    return transition_kii_status(record, KIIStatus.COMPLETED)
+
+
+def advance_transcript_status(record: KIIRecord, new_status: str) -> KIIRecord:
+    order = [TranscriptStatus.NOT_STARTED, TranscriptStatus.IN_PROGRESS, TranscriptStatus.VERIFIED, TranscriptStatus.ANONYMISED]
+    if order.index(new_status) < order.index(record.transcript_status):
+        raise InvalidKIITransition("Transcript status cannot move backwards.")
+    record.transcript_status = new_status
+    record.save(update_fields=["transcript_status"])
+    return record
+
+
+def advance_coding_status(record: KIIRecord, new_status: str) -> KIIRecord:
+    order = [CodingStatus.NOT_STARTED, CodingStatus.IN_PROGRESS, CodingStatus.COMPLETE]
+    if order.index(new_status) < order.index(record.coding_status):
+        raise InvalidKIITransition("Coding status cannot move backwards.")
+    record.coding_status = new_status
+    record.save(update_fields=["coding_status"])
     return record

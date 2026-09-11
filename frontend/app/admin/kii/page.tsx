@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 
@@ -28,7 +30,12 @@ export default function KIIRegisterPage() {
 
   return (
     <AdminShell>
-      <h2 className="font-semibold text-xl mb-4">KII Register</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-xl">KII Register</h2>
+        <Link href="/admin/kii/new">
+          <Button>New KII record</Button>
+        </Link>
+      </div>
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>
@@ -42,7 +49,8 @@ export default function KIIRegisterPage() {
                 <th className="py-2 pr-4">Stakeholder category</th>
                 <th className="py-2 pr-4">Status</th>
                 <th className="py-2 pr-4">Transcript</th>
-                <th className="py-2">Coding</th>
+                <th className="py-2 pr-4">Coding</th>
+                <th className="py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -52,7 +60,12 @@ export default function KIIRegisterPage() {
                   <td className="py-2 pr-4">{k.stakeholder_category}</td>
                   <td className="py-2 pr-4">{k.status}</td>
                   <td className="py-2 pr-4">{k.transcript_status}</td>
-                  <td className="py-2">{k.coding_status}</td>
+                  <td className="py-2 pr-4">{k.coding_status}</td>
+                  <td className="py-2">
+                    <Link href={`/admin/kii/${k.id}`} className="text-header underline text-xs">
+                      Manage
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

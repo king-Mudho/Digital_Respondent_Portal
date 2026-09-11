@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 
@@ -14,8 +16,7 @@ interface DocumentRecord {
   qa_status: string;
 }
 
-/** Basic register view -- full provenance/tagging workflow UI lands in
- * Phase 7 (docs/27_AGENT_EXECUTION_PLAN.md). */
+/** docs/14_DOCUMENTARY_EVIDENCE_MODULE.md. */
 export default function DocumentsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["document-records"],
@@ -24,7 +25,12 @@ export default function DocumentsPage() {
 
   return (
     <AdminShell>
-      <h2 className="font-semibold text-xl mb-4">Documentary Evidence Corpus</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-xl">Documentary Evidence Corpus</h2>
+        <Link href="/admin/documents/new">
+          <Button>New document</Button>
+        </Link>
+      </div>
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>
@@ -38,7 +44,8 @@ export default function DocumentsPage() {
                 <th className="py-2 pr-4">Title</th>
                 <th className="py-2 pr-4">Type</th>
                 <th className="py-2 pr-4">Authenticity</th>
-                <th className="py-2">QA status</th>
+                <th className="py-2 pr-4">QA status</th>
+                <th className="py-2"></th>
               </tr>
             </thead>
             <tbody>
@@ -48,7 +55,12 @@ export default function DocumentsPage() {
                   <td className="py-2 pr-4">{d.title}</td>
                   <td className="py-2 pr-4">{d.document_type}</td>
                   <td className="py-2 pr-4">{d.authenticity_assessment}</td>
-                  <td className="py-2">{d.qa_status}</td>
+                  <td className="py-2 pr-4">{d.qa_status}</td>
+                  <td className="py-2">
+                    <Link href={`/admin/documents/${d.id}`} className="text-header underline text-xs">
+                      Manage
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -22,8 +22,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.utils import log_action
+from apps.sampling.models import SampleType, WorkflowStatus
 from apps.sampling.models import SampleCase
-from apps.sampling.services import is_invitable
+from apps.sampling.services import is_invitable, transition_workflow_status
 
 from .models import Channel, InvitationToken, TokenStatus
 
@@ -117,7 +118,23 @@ def issue_invitation(
         token,
         {"sample_id": sample_case.sample_id, "channel": channel, "issued_by_id": getattr(issued_by, "id", None)},
     )
+    _advance_to_invitation_sent(sample_case)
     return raw_token, raw_manual_code, token
+
+
+def _advance_to_invitation_sent(sample_case: SampleCase) -> None:
+    """Issuing an invitation is what actually sends it, so drive the S00-S16
+    workflow status forward to S05 (Invitation sent) -- without this,
+    nothing ever moves a case off S03/S04, and the reminder sequence
+    (messaging.services) would have no cases to act on. A resend to a case
+    already past S05 (opened/started/etc.) must never regress its status,
+    so this only acts on MAIN cases still at S03 or S04."""
+    if sample_case.sample_type != SampleType.MAIN:
+        return
+    if sample_case.workflow_status == WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED:
+        transition_workflow_status(sample_case, WorkflowStatus.S04_INVITATION_PREPARED)
+    if sample_case.workflow_status == WorkflowStatus.S04_INVITATION_PREPARED:
+        transition_workflow_status(sample_case, WorkflowStatus.S05_INVITATION_SENT)
 
 
 def _validate_common(token: InvitationToken) -> None:

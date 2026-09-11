@@ -37,6 +37,12 @@ work — resolve them with the PI before or during the phase noted, not silently
   (`frontend/lib/constants/participantInformation.ts`, version `v1.0`) so the consent
   module has real content to render and test against. Must be replaced with the PI/
   ethics-office-approved text before go-live; bump the version string when it changes.
+- **Phase 7 — ConsentRecord.sample_case made nullable, kii_record added.** `docs/05`
+  models `ConsentRecord.sample_case` as required, but KII participants drawn from
+  stakeholder categories often have no Main-400 `SampleCase`. Closed by making the FK
+  nullable and adding an alternative `kii_record` FK (exactly one of the two required at
+  the model level). Flagging per `AGENTS.md`'s doc-schema-gap convention, same as the
+  actor_family/value_chain placeholder in Phase 2.
 - **Kobo production asset UID and WhatsApp Business Platform account.** Not yet
   provisioned — these require the PI/sponsor to create real external accounts
   (KoboToolbox, Meta Business). Development proceeds against the documented API
@@ -278,12 +284,49 @@ Backend 62/62, frontend 8/8 tests passing; `tsc --noEmit` clean.
 
 ## Phase 7 — Contact/CRM, KII & documentary evidence
 
-- [ ] Implement `contacts`/`messaging` reminder queue per
+- [x] Implement `contacts`/`messaging` reminder queue per
       `12_CONTACT_CRM_AND_MESSAGING.md` (queued, never auto-sent beyond the approved
-      sequence).
-- [ ] Implement WhatsApp Business Platform integration once templates are Meta-approved.
-- [ ] Implement `kii` app and frontend per `13_KII_MODULE.md`.
-- [ ] Implement `evidence` app and frontend per `14_DOCUMENTARY_EVIDENCE_MODULE.md`.
+      sequence). `ReminderSequenceStep` (day_offset, channel, template) is config-driven
+      per `AGENTS.md` ground rule 7, seeded with Day 2/Day 7 WhatsApp steps via
+      migration. **Design note**: Day 0 "invitation" is the invitation token itself
+      (already sent via `invitations.services.issue_invitation`), and Day 4-5 "telephone
+      follow-up" is modelled as an RA task (`ContactEvent.next_action_date`), not an
+      automatable template send — a phone call can't be "sent" by Celery. Day 7 with no
+      contact moves the case to `S13_NONRESPONSE`
+      (`messaging.services.exhaust_nonresponse_cases`), tested.
+      **Bug found and fixed this phase**: invitation issuance never advanced
+      `SampleCase.workflow_status` at all — nothing moved a case off S03/S04, so the
+      reminder sequence would have had no cases to act on. Fixed in
+      `invitations.services.issue_invitation()`, which now advances S03→S04→S05 on
+      first send and never regresses a case already further along (tested).
+- [x] Implement WhatsApp Business Platform integration once templates are Meta-approved.
+      **Cannot be completed** — no Meta Business account exists (Phase 0 open item, not
+      an engineering blocker). Built `messaging.whatsapp_client.WhatsAppClient` against
+      the documented Cloud API request shape; it raises `WhatsAppNotConfigured` (fails
+      loudly, logged as `MessageStatus.FAILED`) rather than silently pretending to send
+      when credentials are absent — verified by test.
+- [x] Implement `kii` app and frontend per `13_KII_MODULE.md`. Status flow
+      (INVITED→SCHEDULED→COMPLETED/DECLINED/NO_SHOW) and independent transcript/coding
+      status progression, both backed by explicit transition tables. Recording consent
+      is enforced as a hard gate on `mark_completed(with_recording=True)` — verified by
+      test that participation consent alone is never sufficient (AGENTS.md ground rule
+      6). Frontend: register + create form + detail page with all four workflow
+      controls, verified live against the real API.
+- [x] Implement `evidence` app and frontend per `14_DOCUMENTARY_EVIDENCE_MODULE.md`.
+      Authenticity assessment (UNVERIFIED→VERIFIED/DISPUTED) always records a reviewer;
+      a document cannot reach `qa_status=INCLUDED` while still UNVERIFIED (tested); a
+      DISPUTED document is retained, never deleted, with the dispute reason captured in
+      `interpretive_memo`. Frontend: register + create form + detail page, verified live.
+
+**Schema gap closed**: `ConsentRecord.sample_case` was required per `docs/05`, but many
+KII participants (stakeholder categories like sector experts or financial-institution
+reps) have no Main-400 `SampleCase` at all. Made it nullable and added `kii_record` as
+the alternative subject, with a model-level check that at least one is set — flagged in
+"Open questions" since it's a doc-schema correction, not silently guessed.
+
+Backend 82/82, frontend `tsc --noEmit` clean. Verified live in-browser: KII record
+creation, status transition (INVITED→SCHEDULED→COMPLETED), document creation, and the
+"cannot include before authenticity assessed" UI hint, all against the real API.
 
 ## Phase 8 — Privacy, audit & exports
 
