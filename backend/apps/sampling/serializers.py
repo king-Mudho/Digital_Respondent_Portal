@@ -17,6 +17,7 @@ class SampleCaseSerializer(serializers.ModelSerializer):
     organisation_name = serializers.CharField(source="organisation.name", read_only=True)
     organisation_master_id = serializers.CharField(source="organisation.master_id", read_only=True)
     stratum_code = serializers.CharField(source="stratum.code", read_only=True)
+    assigned_ra_username = serializers.CharField(source="assigned_ra.username", read_only=True, default=None)
 
     class Meta:
         model = SampleCase
@@ -24,7 +25,7 @@ class SampleCaseSerializer(serializers.ModelSerializer):
             "id", "sample_id", "organisation", "organisation_name", "organisation_master_id",
             "stratum", "stratum_code", "sample_type", "matched_case", "status",
             "workflow_status", "activation_reason", "activated_by", "activated_at",
-            "activation_evidence_note",
+            "activation_evidence_note", "assigned_ra", "assigned_ra_username",
         ]
         # status/workflow_status/activation_* are read-only here on purpose: they
         # must only ever change through sampling.services.transition_workflow_status()

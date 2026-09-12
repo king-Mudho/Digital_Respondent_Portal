@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -13,6 +14,20 @@ from apps.invitations.services import TokenValidationError, advance_token_status
 from .models import Appointment, AppointmentStatus, ContactEvent, RoleCategory
 from .serializers import AppointmentSerializer, ContactEventSerializer
 from .services import record_eligibility_check
+
+
+def _is_contact_ra(user) -> bool:
+    return getattr(getattr(user, "role", None), "name", None) == "CONTACT_RA"
+
+
+def _require_assigned(user, sample_case):
+    """Contact RA's "assigned cases" grant (docs/18) -- raises 403 if this
+    Contact RA isn't the case's assigned_ra. A no-op for every other role
+    that reaches CanManageContact (Field Coordinator/Admin have no
+    assignment restriction; Supervisor never reaches this, it's read-only
+    there)."""
+    if _is_contact_ra(user) and sample_case.assigned_ra_id != user.id:
+        raise PermissionDenied("This case is not assigned to you.")
 
 
 class EligibilityView(APIView):
@@ -55,18 +70,22 @@ class EligibilityView(APIView):
 class ContactEventListCreateView(generics.ListCreateAPIView):
     """GET/POST /api/v1/contacts/{sample_id}/events/ -- internal only.
     CanManageContact: this is the Contact RA's actual job, not just Field
-    Coordinator/Admin."""
+    Coordinator/Admin -- scoped to its assigned cases only."""
 
     permission_classes = [CanManageContact]
     serializer_class = ContactEventSerializer
 
     def get_queryset(self):
-        return ContactEvent.objects.filter(sample_case__sample_id=self.kwargs["sample_id"])
+        queryset = ContactEvent.objects.filter(sample_case__sample_id=self.kwargs["sample_id"])
+        if _is_contact_ra(self.request.user):
+            queryset = queryset.filter(sample_case__assigned_ra=self.request.user)
+        return queryset
 
     def perform_create(self, serializer):
         from apps.sampling.models import SampleCase
 
         sample_case = SampleCase.objects.get(sample_id=self.kwargs["sample_id"])
+        _require_assigned(self.request.user, sample_case)
         serializer.save(sample_case=sample_case, ra=self.request.user)
 
 
@@ -85,7 +104,10 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         return [CanManageContact()]
 
     def get_queryset(self):
-        return Appointment.objects.select_related("sample_case", "kii_record").order_by("scheduled_for")
+        queryset = Appointment.objects.select_related("sample_case", "kii_record").order_by("scheduled_for")
+        if _is_contact_ra(self.request.user):
+            queryset = queryset.filter(sample_case__assigned_ra=self.request.user)
+        return queryset
 
     def create(self, request, *args, **kwargs):
         raw_token = request.data.get("token", "")
@@ -115,6 +137,8 @@ class AppointmentStatusView(APIView):
 
     def post(self, request, pk):
         appointment = get_object_or_404(Appointment, pk=pk)
+        if appointment.sample_case_id and _is_contact_ra(request.user):
+            _require_assigned(request.user, appointment.sample_case)
         status_value = request.data.get("status")
         if status_value not in AppointmentStatus.values:
             return Response(

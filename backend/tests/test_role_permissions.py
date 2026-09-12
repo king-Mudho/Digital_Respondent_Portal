@@ -19,6 +19,7 @@ def _client_for(role_name, username, db):
     user = User.objects.create_user(username=username, password="testpass123", role=role)
     client = APIClient()
     client.force_authenticate(user=user)
+    client.user = user  # for tests that need to assign a case to this exact user
     return client
 
 
@@ -39,9 +40,30 @@ def field_coordinator_client(db):
 
 # --- Contact RA --------------------------------------------------------------
 
-def test_contact_ra_can_view_sample_case_list_and_detail(contact_ra_client, main_case):
+def test_contact_ra_can_view_assigned_sample_case(contact_ra_client, main_case):
+    main_case.assigned_ra = contact_ra_client.user
+    main_case.save(update_fields=["assigned_ra"])
     assert contact_ra_client.get("/api/v1/sample-cases/").status_code == 200
     assert contact_ra_client.get(f"/api/v1/sample-cases/{main_case.sample_id}/").status_code == 200
+
+
+def test_contact_ra_cannot_see_a_case_not_assigned_to_them(contact_ra_client, main_case):
+    """docs/18: Contact RA gets "assigned cases", not every case. An
+    unassigned case is invisible in the list and 404s on direct lookup
+    (not 403 -- its existence isn't confirmed or denied either way)."""
+    resp = contact_ra_client.get("/api/v1/sample-cases/")
+    assert resp.status_code == 200
+    assert all(r["sample_id"] != main_case.sample_id for r in resp.data["results"])
+    assert contact_ra_client.get(f"/api/v1/sample-cases/{main_case.sample_id}/").status_code == 404
+
+
+def test_contact_ra_cannot_log_contact_events_for_an_unassigned_case(contact_ra_client, main_case):
+    resp = contact_ra_client.post(
+        f"/api/v1/contacts/{main_case.sample_id}/events/",
+        {"channel": "PHONE", "occurred_at": "2026-09-12T10:00:00Z", "outcome": "REACHED"},
+        format="json",
+    )
+    assert resp.status_code == 403
 
 
 def test_contact_ra_cannot_write_sample_case(contact_ra_client, main_case):
@@ -55,7 +77,9 @@ def test_contact_ra_cannot_write_sample_case(contact_ra_client, main_case):
     assert resp.status_code == 403
 
 
-def test_contact_ra_can_log_contact_events_and_manage_appointments(contact_ra_client, main_case):
+def test_contact_ra_can_log_contact_events_and_manage_appointments_for_assigned_case(contact_ra_client, main_case):
+    main_case.assigned_ra = contact_ra_client.user
+    main_case.save(update_fields=["assigned_ra"])
     resp = contact_ra_client.post(
         f"/api/v1/contacts/{main_case.sample_id}/events/",
         {"channel": "PHONE", "occurred_at": "2026-09-12T10:00:00Z", "outcome": "REACHED"},
@@ -65,7 +89,9 @@ def test_contact_ra_can_log_contact_events_and_manage_appointments(contact_ra_cl
     assert contact_ra_client.get("/api/v1/appointments/").status_code == 200
 
 
-def test_contact_ra_can_issue_and_revoke_invitations(contact_ra_client, main_case):
+def test_contact_ra_can_issue_and_revoke_invitations_for_assigned_case(contact_ra_client, main_case):
+    main_case.assigned_ra = contact_ra_client.user
+    main_case.save(update_fields=["assigned_ra"])
     resp = contact_ra_client.post(
         "/api/v1/invitations/", {"sample_id": main_case.sample_id, "channel": "WHATSAPP"}, format="json"
     )
@@ -73,6 +99,13 @@ def test_contact_ra_can_issue_and_revoke_invitations(contact_ra_client, main_cas
     token_id = resp.data["token_id"]
     resp = contact_ra_client.post(f"/api/v1/invitations/{token_id}/revoke/", {"reason": "test"}, format="json")
     assert resp.status_code == 200
+
+
+def test_contact_ra_cannot_issue_invitation_for_an_unassigned_case(contact_ra_client, main_case):
+    resp = contact_ra_client.post(
+        "/api/v1/invitations/", {"sample_id": main_case.sample_id, "channel": "WHATSAPP"}, format="json"
+    )
+    assert resp.status_code == 403
 
 
 def test_contact_ra_cannot_log_cost_events_or_trigger_kobo_sync(contact_ra_client):

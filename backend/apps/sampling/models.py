@@ -238,6 +238,16 @@ class SampleCase(models.Model):
     )
     activated_at = models.DateTimeField(null=True, blank=True)
     activation_evidence_note = models.TextField(blank=True)
+    # Which Contact RA this case is assigned to -- docs/18's access matrix
+    # grants Contact RA "assigned cases" only, not every case. Nullable:
+    # an unassigned case is simply invisible to every Contact RA until a
+    # Field Coordinator/Admin assigns one (api.permissions.CanViewSampleCases
+    # and CanManageContact enforce this via each view's get_queryset(), not
+    # here -- this field only records the assignment).
+    assigned_ra = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="assigned_sample_cases",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

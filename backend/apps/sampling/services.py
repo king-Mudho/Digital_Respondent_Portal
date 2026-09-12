@@ -18,8 +18,14 @@ from .models import (
     ReserveStatus,
     SampleCase,
     SampleType,
+    StratumDefinition,
     WorkflowStatus,
 )
+
+# Used only the first time a given province/actor_family/value_chain/
+# size_class combination is seen -- an existing StratumDefinition's
+# target_count is never overwritten by resolve_stratum_for_organisation().
+DEFAULT_STRATUM_TARGET_COUNT = 10
 
 # S00-S16 state-transition table (docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md).
 # S12-S15 -> S16 represents "approved follow-up sequence exhausted"; the
@@ -172,6 +178,27 @@ def create_organisation(*, province: str, **fields) -> Organisation:
     org.full_clean()
     org.save()
     return org
+
+
+def resolve_stratum_for_organisation(organisation: Organisation) -> StratumDefinition:
+    """Get-or-create the StratumDefinition matching this organisation's own
+    province/actor_family/value_chain/size_class. A stratum is a derived
+    grouping of these four fields, not something an admin authors
+    independently -- this lets the "register organisation + sample case"
+    admin UI skip a separate stratum-picking step (and can't produce a
+    mismatched stratum the way manual selection could)."""
+    code = "-".join([
+        organisation.province, organisation.actor_family,
+        organisation.value_chain, organisation.size_class,
+    ])
+    stratum, _ = StratumDefinition.objects.get_or_create(
+        province=organisation.province,
+        actor_family=organisation.actor_family,
+        value_chain=organisation.value_chain,
+        size_class=organisation.size_class,
+        defaults={"code": code, "target_count": DEFAULT_STRATUM_TARGET_COUNT},
+    )
+    return stratum
 
 
 def create_sample_case(

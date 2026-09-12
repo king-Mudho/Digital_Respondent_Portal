@@ -1,3 +1,4 @@
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -16,6 +17,16 @@ from .services import (
     validate_manual_code,
     validate_token,
 )
+
+
+def _is_contact_ra(user) -> bool:
+    return getattr(getattr(user, "role", None), "name", None) == "CONTACT_RA"
+
+
+def _require_assigned(user, sample_case):
+    """Contact RA's "assigned cases" grant (docs/18)."""
+    if _is_contact_ra(user) and sample_case.assigned_ra_id != user.id:
+        raise PermissionDenied("This case is not assigned to you.")
 
 
 class InvitationValidateView(APIView):
@@ -75,6 +86,8 @@ class InvitationIssueView(APIView):
                 status=400,
             )
         tokens = InvitationToken.objects.filter(sample_case__sample_id=sample_id).order_by("-issued_at")
+        if _is_contact_ra(request.user):
+            tokens = tokens.filter(sample_case__assigned_ra=request.user)
         return Response({"results": InvitationTokenSerializer(tokens, many=True).data})
 
     def post(self, request):
@@ -91,6 +104,7 @@ class InvitationIssueView(APIView):
                 {"error": {"code": "sample_case_not_found", "message": "No such SampleCase.", "field_errors": {}}},
                 status=404,
             )
+        _require_assigned(request.user, sample_case)
 
         try:
             raw_token, raw_code, token = issue_invitation(
@@ -114,9 +128,10 @@ class InvitationRevokeView(APIView):
 
     def post(self, request, token_id):
         try:
-            token = InvitationToken.objects.get(pk=token_id)
+            token = InvitationToken.objects.select_related("sample_case").get(pk=token_id)
         except InvitationToken.DoesNotExist:
             return Response({"error": {"code": "not_found", "message": "No such token.", "field_errors": {}}}, status=404)
+        _require_assigned(request.user, token.sample_case)
 
         reason = request.data.get("reason", "")
         revoke_token(token, reason, revoked_by=request.user)
