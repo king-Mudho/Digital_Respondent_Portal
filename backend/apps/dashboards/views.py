@@ -28,6 +28,23 @@ MAIN_TARGET = 400
 KII_TARGET = 60
 DOCUMENT_TARGET_LOW, DOCUMENT_TARGET_HIGH = 50, 75
 
+# InvitationToken.status is a monotonically-advancing funnel field (see
+# apps.invitations.services.advance_token_status) -- a token currently at
+# CONSENTED has necessarily already been sent and opened, but an exact
+# `status="SENT"` filter would never count it. "Sent" and "opened" here
+# mean "reached at least this stage", i.e. the current status is this one
+# or any later one in the funnel (excluding the terminal EXPIRED/REVOKED,
+# which -- by this system's design -- do not retain which stage they'd
+# reached before terminating).
+_SENT_OR_LATER = [
+    TokenStatus.SENT, TokenStatus.OPENED, TokenStatus.ELIGIBILITY_PASSED,
+    TokenStatus.CONSENTED, TokenStatus.SURVEY_STARTED, TokenStatus.SUBMITTED, TokenStatus.QA_PASSED,
+]
+_OPENED_OR_LATER = [
+    TokenStatus.OPENED, TokenStatus.ELIGIBILITY_PASSED,
+    TokenStatus.CONSENTED, TokenStatus.SURVEY_STARTED, TokenStatus.SUBMITTED, TokenStatus.QA_PASSED,
+]
+
 
 class ExecutiveDashboardView(APIView):
     permission_classes = [IsAnalystOrAdmin]
@@ -98,10 +115,8 @@ class ContactDashboardView(APIView):
             sample_type=SampleType.MAIN, organisation__verification_status="VERIFIED"
         ).count()
         eligible_respondents = Respondent.objects.filter(is_eligible=True).count()
-        invitations_sent = InvitationToken.objects.filter(
-            status__in=[TokenStatus.SENT, TokenStatus.OPENED, TokenStatus.CONSENTED, TokenStatus.SUBMITTED]
-        ).count()
-        invitations_opened = InvitationToken.objects.filter(status=TokenStatus.OPENED).count()
+        invitations_sent = InvitationToken.objects.filter(status__in=_SENT_OR_LATER).count()
+        invitations_opened = InvitationToken.objects.filter(status__in=_OPENED_OR_LATER).count()
         appointments_upcoming = Appointment.objects.filter(status__in=["REQUESTED", "CONFIRMED"]).count()
         refusals = ContactEvent.objects.filter(outcome="REFUSED").count()
         unreachable = ContactEvent.objects.filter(outcome="WRONG_NUMBER").count()

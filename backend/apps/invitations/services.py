@@ -106,7 +106,15 @@ def issue_invitation(
         sample_case=sample_case,
         token_hash=_hash_secret(raw_token),
         manual_code_hash=_hash_secret(raw_manual_code),
-        status=TokenStatus.GENERATED,
+        # Issuing an invitation is what actually sends it in this system --
+        # there is no separate "confirm delivery" step (see
+        # _advance_to_invitation_sent's docstring below), so a token starts
+        # its life at SENT, not GENERATED. Leaving it at GENERATED here was
+        # a real bug: nothing anywhere ever advanced a token's status to
+        # SENT, so ContactDashboardView's "Invitations Sent"/"Invitations
+        # Opened" counts (which filter on status) silently undercounted
+        # every issued invitation until it happened to reach CONSENTED.
+        status=TokenStatus.SENT,
         channel=channel,
         invitation_wave=invitation_wave,
         issued_at=now,
@@ -141,6 +149,11 @@ def _validate_common(token: InvitationToken) -> None:
         raise TokenValidationError("token_revoked", "This invitation has been revoked.")
     if token.status == TokenStatus.EXPIRED or token.expires_at <= timezone.now():
         raise TokenValidationError("token_expired", "This invitation has expired.")
+    # The respondent's link/code just resolved successfully -- mark it
+    # opened. Monotonic (see advance_token_status): a respondent revisiting
+    # the link after already consenting, or an RA re-checking a manual code,
+    # must never regress the token back down to OPENED.
+    advance_token_status(token, TokenStatus.OPENED)
 
 
 def validate_token(raw_token: str) -> InvitationToken:
@@ -185,9 +198,42 @@ def revoke_token(token: InvitationToken, reason: str, *, revoked_by=None) -> Inv
     return token
 
 
+# Funnel order this function's monotonicity guarantee is measured against.
+# EXPIRED/REVOKED are deliberately excluded -- those are set by expiry
+# (issue_invitation's supersession, or lazily on read) and revoke_token(),
+# never through this function, and a token in either is never advanced
+# further regardless of what's requested.
+_TOKEN_STATUS_ORDER = [
+    TokenStatus.GENERATED,
+    TokenStatus.SENT,
+    TokenStatus.OPENED,
+    TokenStatus.ELIGIBILITY_PASSED,
+    TokenStatus.CONSENTED,
+    TokenStatus.SURVEY_STARTED,
+    TokenStatus.SUBMITTED,
+    TokenStatus.QA_PASSED,
+]
+
+
 def advance_token_status(token: InvitationToken, new_status: str) -> InvitationToken:
-    """Monotonically advance token.status (e.g. OPENED -> ELIGIBILITY_PASSED
-    -> CONSENTED -> ...) as the respondent progresses through the flow."""
+    """Advance token.status forward through the funnel (e.g. OPENED ->
+    ELIGIBILITY_PASSED -> CONSENTED -> ...) as the respondent progresses --
+    genuinely monotonic: never moves backward, and never off a terminal
+    EXPIRED/REVOKED status. A prior version of this function docstring
+    claimed monotonicity but the implementation just overwrote status
+    unconditionally; harmless while every call site happened to advance
+    forward, but would have silently regressed a token the moment two calls
+    raced or _validate_common (below) started marking OPENED on every
+    re-validation of an already-further-along token."""
+    if token.status in (TokenStatus.EXPIRED, TokenStatus.REVOKED):
+        return token
+    try:
+        current_index = _TOKEN_STATUS_ORDER.index(token.status)
+        new_index = _TOKEN_STATUS_ORDER.index(new_status)
+    except ValueError:
+        current_index = new_index = None
+    if current_index is not None and new_index is not None and new_index <= current_index:
+        return token
     token.status = new_status
     token.save(update_fields=["status"])
     return token

@@ -13,6 +13,12 @@ import { backendBaseURL, getAdminAccessToken, loginAsAdmin } from "./helpers";
  *    click, not just a backend unit test.
  * Creates its own KII record via the API so this doesn't depend on any
  * other spec having created one first.
+ *
+ * Waits on the actual network responses (page.waitForResponse), not on DOM
+ * text appearing within the default timeout -- under full-suite load this
+ * spec was seen to intermittently time out waiting for "Status: COMPLETED"
+ * even though the mutation had genuinely succeeded, just slower than 5s.
+ * Matches the pattern already used in admin-workflow-and-contact-log.spec.ts.
  */
 test("KII completion with a recording is blocked until recording consent is recorded, and the UI reflects it", async ({
   page,
@@ -46,20 +52,45 @@ test("KII completion with a recording is blocked until recording consent is reco
   await expect(page.getByText("Status: SCHEDULED")).toBeVisible();
   await expect(page.getByText("Not recorded")).toHaveCount(2);
 
+  // isFinalResponse skips any intermediate redirect hop (e.g. a
+  // trailing-slash redirect) that also matches the URL substring --
+  // otherwise waitForResponse can resolve on that 3xx hop instead of the
+  // actual final response (see admin-workflow-and-contact-log.spec.ts for
+  // the first time this bit).
+  const isFinalResponse = (resp: import("@playwright/test").Response) => resp.status() < 300 || resp.status() >= 400;
+  const isStatusResponse = (resp: import("@playwright/test").Response) =>
+    resp.url().includes(`/kii/${kii.id}/status`) && resp.request().method() === "POST" && isFinalResponse(resp);
+  const isConsentResponse = (resp: import("@playwright/test").Response) =>
+    resp.url().includes(`/kii/${kii.id}/consent`) && resp.request().method() === "POST" && isFinalResponse(resp);
+
   // Attempting completion with a recording, before recording consent is
   // given, must be rejected -- not just hidden by a disabled button.
   await page.getByLabel("Recording made (requires separate recording consent)").check();
-  await page.getByRole("button", { name: "COMPLETED" }).click();
+  const [blockedResponse] = await Promise.all([
+    page.waitForResponse(isStatusResponse, { timeout: 15000 }),
+    page.getByRole("button", { name: "COMPLETED" }).click(),
+  ]);
+  expect(blockedResponse.status()).toBe(403);
   await expect(page.getByText("Recording consent was not given for this KII.")).toBeVisible();
-  await expect(page.getByText("Status: SCHEDULED")).toBeVisible();
 
   // Record recording consent, then the same completion succeeds.
-  await page.getByRole("button", { name: "Record recording consent" }).click();
-  await expect(page.getByText("GIVEN")).toBeVisible();
+  const [consentResponse] = await Promise.all([
+    page.waitForResponse(isConsentResponse, { timeout: 15000 }),
+    page.getByRole("button", { name: "Record recording consent" }).click(),
+  ]);
+  expect(consentResponse.status()).toBe(200);
+  await expect(page.getByText("GIVEN")).toBeVisible({ timeout: 15000 });
 
   await page.getByLabel("Recording made (requires separate recording consent)").check();
-  await page.getByRole("button", { name: "COMPLETED" }).click();
-  await expect(page.getByText("Status: COMPLETED")).toBeVisible();
+  const [completedResponse] = await Promise.all([
+    page.waitForResponse(isStatusResponse, { timeout: 15000 }),
+    page.getByRole("button", { name: "COMPLETED" }).click(),
+  ]);
+  expect(completedResponse.status()).toBe(200);
+  const completedBody = await completedResponse.json();
+  expect(completedBody.status).toBe("COMPLETED");
+
+  await expect(page.getByText("Status: COMPLETED")).toBeVisible({ timeout: 15000 });
 
   const finalState = await (
     await request.get(`${backend}/api/v1/kii/${kii.id}/`, { headers: authHeader })

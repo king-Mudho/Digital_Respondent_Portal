@@ -61,6 +61,39 @@ def test_dashboards_reject_unauthenticated(main_case):
         assert response.status_code in (401, 403), url
 
 
+# --- Contact dashboard: invitation funnel counting ---------------------------
+
+def test_invitations_sent_and_opened_count_tokens_past_that_stage_too(auth_client, main_case):
+    """Regression: InvitationToken.status is a monotonically-advancing
+    funnel field (apps.invitations.services.advance_token_status) -- a
+    token currently at CONSENTED has necessarily already been sent and
+    opened. The dashboard used to filter on an exact status match, so a
+    token that had progressed past SENT/OPENED silently fell out of both
+    counts -- "Invitations Opened" showed 0 for the entire session even
+    after real tokens were genuinely opened and consented."""
+    from apps.invitations.models import TokenStatus
+    from apps.invitations.services import advance_token_status, issue_invitation
+    from apps.sampling.models import ActorFamily, EntityType, Province, SampleType, SizeClass, ValueChain
+    from apps.sampling.services import create_organisation, create_sample_case
+
+    # main_case's own token stays at SENT (never opened).
+    issue_invitation(main_case)
+
+    org2 = create_organisation(
+        province=Province.HARARE, name="Second Test Org", entity_type=EntityType.COOPERATIVE,
+        district="Harare", actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
+        size_class=SizeClass.SMALL,
+    )
+    case2 = create_sample_case(organisation=org2, stratum=main_case.stratum, sample_type=SampleType.MAIN, year=2026)
+    _, _, token2 = issue_invitation(case2)
+    advance_token_status(token2, TokenStatus.CONSENTED)
+
+    resp = auth_client.get("/api/v1/dashboards/contact/")
+    assert resp.status_code == 200
+    assert resp.data["invitations_sent"] == 2  # SENT case + CONSENTED case
+    assert resp.data["invitations_opened"] == 1  # only the CONSENTED case counts as "opened or later"
+
+
 # --- Reserve activation ------------------------------------------------------
 
 def test_reserve_activation_requires_authorised_reason(auth_client, locked_reserve_case):

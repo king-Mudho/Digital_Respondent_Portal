@@ -45,8 +45,10 @@ test("sending an invitation from the case detail page produces a working respond
   await respondentPage.close();
 
   // Revoking removes the option to revoke it again (status leaves the
-  // "open" set), without touching any other row in the history table.
-  const newRow = page.getByRole("row", { name: new RegExp(`GENERATED`) }).first();
+  // "open" set), without touching any other row in the history table. A
+  // freshly-issued token starts at SENT -- issuing IS sending in this
+  // system, there's no separate delivery-confirmation step.
+  const newRow = page.getByRole("row", { name: new RegExp(`SENT`) }).first();
   await expect(newRow).toBeVisible();
   const [revokeResponse] = await Promise.all([
     page.waitForResponse(

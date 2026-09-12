@@ -27,6 +27,57 @@ def test_issue_invitation_returns_valid_token(main_case):
     assert resolved.pk == token.pk
 
 
+def test_issue_invitation_starts_at_sent_not_generated(main_case):
+    """Regression: a token used to start at GENERATED, and nothing ever
+    advanced it to SENT -- issuing IS sending in this system (there's no
+    separate delivery-confirmation step), so ContactDashboardView's
+    "Invitations Sent" count silently missed every freshly-issued token."""
+    _, _, token = issue_invitation(main_case)
+    assert token.status == TokenStatus.SENT
+
+
+def test_validating_a_token_marks_it_opened(main_case):
+    raw_token, _, token = issue_invitation(main_case)
+    assert token.status == TokenStatus.SENT
+    validate_token(raw_token)
+    token.refresh_from_db()
+    assert token.status == TokenStatus.OPENED
+
+
+def test_revalidating_after_consent_does_not_regress_to_opened(main_case):
+    """The respondent (or an RA re-checking a manual code) can revisit the
+    link after already consenting -- _validate_common's OPENED-marking must
+    not regress status backward through the funnel."""
+    raw_token, _, token = issue_invitation(main_case)
+    validate_token(raw_token)  # -> OPENED
+    from apps.invitations.services import advance_token_status
+
+    advance_token_status(token, TokenStatus.CONSENTED)
+    validate_token(raw_token)  # re-validate after already consented
+    token.refresh_from_db()
+    assert token.status == TokenStatus.CONSENTED
+
+
+def test_advance_token_status_never_moves_backward(main_case):
+    from apps.invitations.services import advance_token_status
+
+    _, _, token = issue_invitation(main_case)
+    advance_token_status(token, TokenStatus.CONSENTED)
+    advance_token_status(token, TokenStatus.OPENED)  # attempted regression
+    token.refresh_from_db()
+    assert token.status == TokenStatus.CONSENTED
+
+
+def test_advance_token_status_never_advances_a_terminal_token(main_case):
+    from apps.invitations.services import advance_token_status
+
+    _, _, token = issue_invitation(main_case)
+    revoke_token(token, "test")
+    advance_token_status(token, TokenStatus.CONSENTED)
+    token.refresh_from_db()
+    assert token.status == TokenStatus.REVOKED
+
+
 def test_raw_token_never_persisted(main_case):
     raw_token, _, token = issue_invitation(main_case)
     assert raw_token not in token.token_hash
@@ -130,7 +181,7 @@ def test_list_endpoint_never_exposes_the_raw_token_or_its_hash(admin_client, mai
     entry = resp.data["results"][0]
     assert "token_hash" not in entry
     assert "manual_code_hash" not in entry
-    assert entry["status"] == TokenStatus.GENERATED
+    assert entry["status"] == TokenStatus.SENT
     assert entry["channel"] == "WHATSAPP"
 
 
@@ -146,7 +197,7 @@ def test_list_endpoint_orders_newest_first_after_supersession(admin_client, main
     results = resp.data["results"]
     assert len(results) == 2
     assert results[0]["invitation_wave"] == 2
-    assert results[0]["status"] == TokenStatus.GENERATED
+    assert results[0]["status"] == TokenStatus.SENT
     assert results[1]["invitation_wave"] == 1
     assert results[1]["status"] == TokenStatus.EXPIRED
 
