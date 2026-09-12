@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -184,6 +185,10 @@ export default function KIIDetailPage() {
             ))}
           </div>
         </Card>
+      </div>
+
+      <div className="mt-4">
+        <PreProfilePanel kiiRecordId={record.id} />
       </div>
     </AdminShell>
   );

@@ -34,6 +34,8 @@ below is the required reading order for an implementing agent.
 | 26 | `26_MVP_PHASING_AND_ROADMAP.md` | Phase 0–4 roadmap against the 30 November 2026 data-lock date |
 | 27 | `27_AGENT_EXECUTION_PLAN.md` | Phased, checkable build task list |
 | 28 | `28_DEFINITION_OF_DONE.md` | Acceptance criteria, including the 15-item go-live checklist |
+| 29 | `29_RESPONDENT_GUIDE_AND_MESSAGING.md` | Plain-language respondent walkthrough and ready-to-send invitation message templates |
+| 30 | `30_PROIT_MODULE.md` | Pre-interview background research/verification tool (PROIT) — provenance rules, ethics/change-control gate |
 
 ## Reading order for humans
 

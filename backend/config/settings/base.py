@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.dashboards",
     "apps.costs",
     "apps.audit",
+    "apps.proit",
 ]
 
 MIDDLEWARE = [
@@ -174,6 +175,18 @@ CORS_ALLOWED_ORIGINS = env.list(
 # (AGENTS.md ground rule 7).
 INVITATION_TOKEN_BYTES = env.int("INVITATION_TOKEN_BYTES", default=32)
 INVITATION_TOKEN_EXPIRY_DAYS = env.int("INVITATION_TOKEN_EXPIRY_DAYS", default=14)
+
+# --- PROIT (docs: ABF-FST_PROIT_v1.0_Portal_Deployment_Tool) ---------------
+# The tool's own status line is "DEPLOYMENT-READY CONTROLLED ADD-ON --
+# subject to supervisor/ethics change-control decision", and its
+# recommended deployment sequence puts an "Ethics/change-control review"
+# step before any soft launch or real respondent use. This flag is the
+# actual enforcement of that gate, not just a comment: researchers can
+# build and lock pre-profiles against real or synthetic cases regardless,
+# but the respondent-facing verification screen never renders -- the
+# respondent flow behaves exactly as it did before PROIT existed -- until
+# this is explicitly turned on post-approval.
+PROIT_ENABLED_FOR_RESPONDENTS = env.bool("PROIT_ENABLED_FOR_RESPONDENTS", default=False)
 
 # --- KoboToolbox integration (docs/11_KOBOTOOLBOX_INTEGRATION.md) ----------
 KOBO_API_BASE_URL = env("KOBO_API_BASE_URL", default="https://kf.kobotoolbox.org")

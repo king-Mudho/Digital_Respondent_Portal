@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
 
 interface SampleCaseDetail {
+  id: number;
   sample_id: string;
   organisation: number;
   organisation_name: string;
@@ -359,6 +361,8 @@ export default function SampleCaseDetailPage() {
         </Card>
 
         <AssignedRaPanel sampleCase={sampleCase} />
+
+        <PreProfilePanel sampleCaseId={sampleCase.id} />
 
         <InvitationsPanel
           sampleId={sampleCase.sample_id}

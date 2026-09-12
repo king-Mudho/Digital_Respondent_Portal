@@ -27,7 +27,11 @@ export default function ConsentPage() {
         informationSheetVersion: PARTICIPANT_INFORMATION_SHEET_VERSION,
       });
       if (decision === "GIVEN") {
-        router.push(`/i/${params.token}/choice`);
+        // PROIT verification (docs: ABF-FST_PROIT_v1.0_Portal_Deployment_Tool)
+        // slots in here, after consent -- it self-skips straight to /choice
+        // whenever there's nothing to verify, so this is always safe to route
+        // through even when PROIT is disabled.
+        router.push(`/i/${params.token}/verify`);
       } else {
         setDeclined(true);
       }

@@ -73,6 +73,55 @@ export function getKoboRedirectUrl(params: {
   return apiFetch<KoboRedirectResponse>(`/kobo/redirect-url/?${query.toString()}`);
 }
 
+export interface PreProfileField {
+  id: number;
+  field_id: string;
+  label: string;
+  preliminary_documentary_value: string;
+  confidence: string;
+}
+
+export interface RespondentPreProfile {
+  pre_profile_id: number;
+  fields: PreProfileField[];
+}
+
+// PROIT (ABF-FST_PROIT_v1.0_Portal_Deployment_Tool.docx): returns null
+// whenever there's nothing to verify -- PROIT disabled (pending ethics/
+// change-control sign-off), no pre-profile for this case, or not locked
+// yet. The verify page treats all three the same way: skip straight to
+// the next step.
+export function getRespondentPreProfile(token: string) {
+  return apiFetch<RespondentPreProfile | null>(`/proit/respondent-profile/?t=${encodeURIComponent(token)}`);
+}
+
+export type VerificationStatus =
+  | "YES_CORRECT"
+  | "NO_CORRECT_VALUE_PROVIDED"
+  | "PARTLY_CORRECT"
+  | "DO_NOT_KNOW"
+  | "PREFER_NOT_TO_SAY"
+  | "NOT_APPLICABLE";
+
+export function submitFieldVerification(params: {
+  token: string;
+  fieldId: number;
+  status: VerificationStatus;
+  respondentValue?: string;
+  comment?: string;
+}) {
+  return apiFetch<{ id: number; verification_status: string }>("/proit/respondent-verify/", {
+    method: "POST",
+    body: JSON.stringify({
+      token: params.token,
+      field_id: params.fieldId,
+      status: params.status,
+      respondent_value: params.respondentValue ?? "",
+      comment: params.comment ?? "",
+    }),
+  });
+}
+
 export interface AppointmentResponse {
   id: number;
   scheduled_for: string;

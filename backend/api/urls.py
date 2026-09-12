@@ -13,4 +13,5 @@ urlpatterns = [
     path("", include("apps.dashboards.urls")),
     path("", include("apps.costs.urls")),
     path("", include("apps.audit.urls")),
+    path("proit/", include("apps.proit.urls")),
 ]
