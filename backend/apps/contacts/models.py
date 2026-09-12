@@ -29,8 +29,11 @@ class Respondent(models.Model):
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="eligibility_checks",
     )
-    phone = models.CharField(max_length=32, blank=True)
-    whatsapp_number = models.CharField(max_length=32, blank=True)
+    # Widened 2026-09-12: real register data includes free-text notes in
+    # this field (e.g. multiple numbers, "listed in directory"), not always
+    # a single clean phone number.
+    phone = models.CharField(max_length=255, blank=True)
+    whatsapp_number = models.CharField(max_length=255, blank=True)
     email = models.EmailField(blank=True)
     gatekeeper_name = models.CharField(max_length=255, blank=True)
     gatekeeper_contact = models.CharField(max_length=255, blank=True)

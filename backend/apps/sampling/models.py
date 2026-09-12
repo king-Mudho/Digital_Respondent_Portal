@@ -111,7 +111,10 @@ class StratumDefinition(models.Model):
     did. See Organisation.value_chain for where that information now lives
     (a free-text descriptive field, not a stratification key)."""
 
-    code = models.CharField(max_length=64, unique=True)
+    # Widened 2026-09-12: the real category values are long enough that
+    # "<province>-<actor_family>-<size_class>" can exceed 64 chars (e.g.
+    # "MASHONALAND_CENTRAL-INSTITUTIONAL_COMMERCIAL_UNIT-INSTITUTIONAL_OTHER").
+    code = models.CharField(max_length=96, unique=True)
     province = models.CharField(max_length=32, choices=Province.choices)
     actor_family = models.CharField(max_length=32, choices=ActorFamily.choices)
     size_class = models.CharField(max_length=32, choices=SizeClass.choices)
