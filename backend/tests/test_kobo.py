@@ -55,6 +55,32 @@ def test_reconcile_creates_new_submission(main_case):
 
 
 @pytest.mark.django_db
+def test_reconcile_advances_the_invitation_token_to_submitted(main_case):
+    """Completes the token funnel (docs/10_INVITATION_AND_CONSENT.md) -- a
+    new raw submission arriving is the only signal this system has that the
+    respondent actually submitted, so it's also the only place SUBMITTED is
+    ever reached."""
+    from apps.invitations.models import TokenStatus
+    from apps.invitations.services import issue_invitation
+
+    _, _, token = issue_invitation(main_case)
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[_submission_payload(main_case.sample_id)]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+    token.refresh_from_db()
+    assert token.status == TokenStatus.SUBMITTED
+
+
+@pytest.mark.django_db
+def test_reconcile_with_no_live_token_is_a_no_op_not_an_error(main_case):
+    """A case can have submissions reconciled before any invitation was
+    ever issued for it in this environment (e.g. seeded test data) --
+    confirms this doesn't crash."""
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[_submission_payload(main_case.sample_id)]):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+    assert log.new_submissions == 1
+
+
+@pytest.mark.django_db
 def test_reconcile_detects_edited_submission_same_uuid(main_case):
     with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[_submission_payload(main_case.sample_id)]):
         reconcile(triggered_by=ReconciliationTrigger.MANUAL)

@@ -25,6 +25,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.audit.utils import log_action
+from apps.invitations.models import InvitationToken, TokenStatus
+from apps.invitations.services import advance_token_status
 from apps.kobo.models import QAStatus, QUANSubmission
 
 from .models import QADecision, QAEvent, QARuleThreshold
@@ -156,6 +158,14 @@ def record_human_decision(
 
     if decision == QADecision.ACCEPT:
         submission.qa_status = QAStatus.QA_PASSED
+        # Completes the invitation token's own funnel tracking
+        # (docs/10_INVITATION_AND_CONSENT.md) -- reconciliation already
+        # advances it to SUBMITTED when the raw Kobo submission first
+        # arrives; QA_PASSED is the one stage only a human decision can
+        # reach.
+        token = InvitationToken.objects.filter(sample_case=submission.sample_case).order_by("-issued_at").first()
+        if token is not None:
+            advance_token_status(token, TokenStatus.QA_PASSED)
     elif decision == QADecision.REJECT:
         submission.qa_status = QAStatus.REJECTED
     else:

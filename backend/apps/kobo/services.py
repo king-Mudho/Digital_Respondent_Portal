@@ -35,6 +35,8 @@ from django.utils.dateparse import parse_datetime
 
 from apps.audit.utils import log_action
 from apps.consent.services import has_given_consent
+from apps.invitations.models import InvitationToken, TokenStatus
+from apps.invitations.services import advance_token_status
 from apps.sampling.models import SampleCase
 
 from .client import KoboClient
@@ -113,6 +115,21 @@ def _parse_kobo_datetime(value):
     return value
 
 
+def _advance_token_on_submission(sample_case: SampleCase, new_status: str) -> None:
+    """Advance the case's current invitation token's funnel status
+    (docs/10_INVITATION_AND_CONSENT.md's SENT -> OPENED -> ... -> SUBMITTED
+    -> QA_PASSED progression). Kobo's own submission-time signal is the only
+    place this system can observe SUBMITTED at all -- there is no separate
+    "survey started but not submitted" event from reconciliation, so
+    SURVEY_STARTED is never independently reached (advance_token_status's
+    monotonic ordering handles skipping it without issue). A case with no
+    live token yet (e.g. reconciliation running before any invitation was
+    issued for it) is a no-op, not an error."""
+    token = InvitationToken.objects.filter(sample_case=sample_case).order_by("-issued_at").first()
+    if token is not None:
+        advance_token_status(token, new_status)
+
+
 def _content_hash(payload: dict) -> str:
     canonical = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -184,6 +201,7 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
                 qa_status=QAStatus.PENDING,
             )
             new_submissions += 1
+            _advance_token_on_submission(sample_case, TokenStatus.SUBMITTED)
         elif existing.payload_content_hash != content_hash:
             raw_payload_ref = _store_payload(kobo_uuid, payload)
             existing.raw_payload_ref = raw_payload_ref

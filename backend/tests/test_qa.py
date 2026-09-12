@@ -146,6 +146,32 @@ def test_record_human_accept_moves_to_qa_passed(main_case):
     assert submission.qa_status == QAStatus.QA_PASSED
 
 
+def test_record_human_accept_advances_the_invitation_token_to_qa_passed(main_case):
+    """Completes the token funnel (docs/10_INVITATION_AND_CONSENT.md) --
+    reconciliation advances a token to SUBMITTED when the raw Kobo
+    submission first arrives (test_kobo.py); QA_PASSED is the one stage
+    only a human decision can reach."""
+    from apps.invitations.models import TokenStatus
+    from apps.invitations.services import issue_invitation
+
+    _, _, token = issue_invitation(main_case)
+    submission = _make_submission(main_case)
+    record_human_decision(submission=submission, reviewer=None, decision=QADecision.ACCEPT, note="Looks fine.")
+    token.refresh_from_db()
+    assert token.status == TokenStatus.QA_PASSED
+
+
+def test_record_human_reject_does_not_advance_the_invitation_token(main_case):
+    from apps.invitations.models import TokenStatus
+    from apps.invitations.services import issue_invitation
+
+    _, _, token = issue_invitation(main_case)
+    submission = _make_submission(main_case)
+    record_human_decision(submission=submission, reviewer=None, decision=QADecision.REJECT, note="Duplicate.")
+    token.refresh_from_db()
+    assert token.status != TokenStatus.QA_PASSED
+
+
 def test_record_human_reject(main_case):
     submission = _make_submission(main_case)
     record_human_decision(
