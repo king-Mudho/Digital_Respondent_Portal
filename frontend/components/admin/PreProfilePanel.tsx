@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -358,15 +359,20 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
 
   return (
     <Card className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <h3 className="font-medium">Pre-Interview Profile (PROIT)</h3>
-        {locked ? (
-          <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">
-            Locked {new Date(profile.prepopulation_locked_at!).toLocaleDateString()}
-          </span>
-        ) : (
-          <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">Draft</span>
-        )}
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/proit/${profile.id}`} className="text-header underline text-xs">
+            Researcher review screen
+          </Link>
+          {locked ? (
+            <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">
+              Locked {new Date(profile.prepopulation_locked_at!).toLocaleDateString()}
+            </span>
+          ) : (
+            <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">Draft</span>
+          )}
+        </div>
       </div>
       {error && <p className="text-danger text-sm">{error}</p>}
       {locked && profile.burden_reduction_score !== null && (
