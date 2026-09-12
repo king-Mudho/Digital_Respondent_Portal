@@ -49,12 +49,19 @@ class DocumentRecord(models.Model):
     )
     verified_at = models.DateTimeField(null=True, blank=True)
     geographic_scope = models.CharField(max_length=255, blank=True)
-    value_chain = models.CharField(max_length=32, blank=True)
+    # Widened 2026-09-12: the real Documentary Evidence register's "Value
+    # chain" values can exceed 32 chars (e.g. "Grains, oilseeds & milling").
+    value_chain = models.CharField(max_length=255, blank=True)
     # NFM, BANK, DGR, AGC, INS, FST + ABI-dimension relevance tags -- tags
     # only, never a score (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md).
     construct_tags = ArrayField(models.CharField(max_length=64), default=list, blank=True)
     evidence_extract = models.TextField(blank=True)
     interpretive_memo = models.TextField(blank=True)
+    # Losslessly preserves register-provenance fields with no dedicated
+    # model field (register row number, thematic Block, Link/Status
+    # retrieval notes) -- nothing invented, nothing discarded. Same pattern
+    # as sampling.Organisation.metadata / kii.KIIRecord.metadata.
+    metadata = models.JSONField(default=dict, blank=True)
     triangulation_quan_submissions = models.ManyToManyField(
         "kobo.QUANSubmission", blank=True, related_name="triangulated_documents"
     )
