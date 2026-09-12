@@ -37,10 +37,17 @@ interface PreProfile {
   prepopulation_locked_at: string | null;
   background_questions_avoided: number;
   burden_reduction_score: string | null;
+  known_evidence_summary: string;
+  unresolved_gaps: string;
+  contradictions: string;
+  priority_probe_questions: string;
+  role_specific_module: string;
+  executive_short_form: boolean;
   fields: PreProfileField[];
 }
 
 type FieldCatalog = Record<string, { label: string; module: string; route: string }>;
+type ProbeTemplates = Record<string, { trigger: string; template: string }>;
 
 const CONFIDENCE_LEVELS = ["HIGH", "MODERATE", "LOW"];
 
@@ -56,6 +63,171 @@ const SOURCE_AUTHORITY_TIERS = [
   { value: "TIER_3_MEDIA", label: "Tier 3 — reputable media, conference bio, professional profile" },
   { value: "TIER_4_SOCIAL", label: "Tier 4 — corroborated public social/platform content" },
 ];
+
+// The document's own 7 stakeholder-role probe templates (Section 10) are
+// keyed by these role IDs -- role_specific_module (Module I) picks one of
+// them, and the probe-suggestion helper below renders that role's
+// template with the researcher's own evidence substituted in.
+const PROBE_TEMPLATE_ROLES: Record<string, string> = {
+  FINANCE_LENDER: "Finance/Lender",
+  FARMER_AGRIBUSINESS: "Farmer/Agribusiness",
+  GOVERNMENT_POLICY: "Government/Policy",
+  RDC_PROVINCE: "RDC/Province",
+  PROCESSOR_AGGREGATOR: "Processor/Aggregator",
+  INSURANCE_GUARANTEE: "Insurance/Guarantee",
+  RESEARCH_ACADEMIC: "Research/Academic",
+};
+
+// Section 9's "Adaptive KII Gap Engine": five panels (KNOWN/VERIFY/
+// UNKNOWN/CONTRADICTION/PROBE) so "the interviewer sees only high-value
+// prompts generated from gaps while retaining the approved KII core
+// domains." VERIFY is already covered by the per-field gap_classification
+// badges above (VERIFY_ONLY/VERIFY_AND_PROBE); this panel covers the
+// other four, which are free-text researcher judgement calls the document
+// doesn't specify an algorithm for -- KNOWN/UNKNOWN/CONTRADICTION/PROBE
+// are Module I fields on PreProfile itself, and the probe-template
+// library (Section 10) is offered as a one-click starting point, not an
+// automated generator (substituting evidence into a fixed template is
+// mechanical; deciding a probe is worth asking is not).
+function KIIGapEnginePanel({ profile, queryKey }: { profile: PreProfile; queryKey: (string | number)[] }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [known, setKnown] = useState(profile.known_evidence_summary);
+  const [unresolved, setUnresolved] = useState(profile.unresolved_gaps);
+  const [conflicts, setConflicts] = useState(profile.contradictions);
+  const [probes, setProbes] = useState(profile.priority_probe_questions);
+  const [roleModule, setRoleModule] = useState(profile.role_specific_module);
+  const [shortForm, setShortForm] = useState(profile.executive_short_form);
+  const [templateRole, setTemplateRole] = useState("");
+  const [templateEvidence, setTemplateEvidence] = useState("");
+
+  const { data: templates } = useQuery({
+    queryKey: ["proit-probe-templates"],
+    queryFn: () => adminFetch<ProbeTemplates>("/proit/probe-templates/"),
+  });
+
+  const save = useMutation({
+    mutationFn: () =>
+      adminFetch(`/proit/pre-profiles/${profile.id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          known_evidence_summary: known,
+          unresolved_gaps: unresolved,
+          contradictions: conflicts,
+          priority_probe_questions: probes,
+          role_specific_module: roleModule,
+          executive_short_form: shortForm,
+        }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to save gap-engine notes."),
+  });
+
+  function insertProbeSuggestion() {
+    if (!templateRole || !templates?.[templateRole]) return;
+    const rendered = templates[templateRole].template.replace("{evidence}", templateEvidence || "[evidence]");
+    setProbes((p) => (p ? `${p}\n${rendered}` : rendered));
+  }
+
+  return (
+    <div className="border-t border-border pt-3 space-y-3">
+      <h4 className="text-sm font-medium">KII adaptive gap engine</h4>
+      {error && <p className="text-danger text-sm">{error}</p>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="text-sm space-y-1">
+          <span className="block text-text-muted text-xs">Known (what the evidence already establishes)</span>
+          <textarea
+            value={known}
+            onChange={(e) => setKnown(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="text-sm space-y-1">
+          <span className="block text-text-muted text-xs">Unknown (genuine gaps -- ask full)</span>
+          <textarea
+            value={unresolved}
+            onChange={(e) => setUnresolved(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="text-sm space-y-1">
+          <span className="block text-text-muted text-xs">Contradictions (verify + probe, neutrally)</span>
+          <textarea
+            value={conflicts}
+            onChange={(e) => setConflicts(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+        </label>
+        <label className="text-sm space-y-1">
+          <span className="block text-text-muted text-xs">Priority probe questions</span>
+          <textarea
+            value={probes}
+            onChange={(e) => setProbes(e.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+        </label>
+      </div>
+
+      <div className="border border-border rounded-md p-3 space-y-2">
+        <p className="text-xs text-text-muted">
+          Insert a probe-template suggestion (document Section 10) -- substitutes your evidence into the role&apos;s
+          template, then appends it above for you to keep, edit, or discard.
+        </p>
+        <div className="flex flex-wrap items-end gap-2">
+          <select
+            value={templateRole}
+            onChange={(e) => setTemplateRole(e.target.value)}
+            className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+          >
+            <option value="">Select a stakeholder role…</option>
+            {Object.entries(PROBE_TEMPLATE_ROLES).map(([id, label]) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
+          </select>
+          <input
+            placeholder="What was found (e.g. a working capital facility)"
+            value={templateEvidence}
+            onChange={(e) => setTemplateEvidence(e.target.value)}
+            className="flex-1 min-w-[14rem] rounded-md border border-border px-2 py-1.5 text-sm"
+          />
+          <Button variant="outline" onClick={insertProbeSuggestion} disabled={!templateRole}>
+            Insert suggestion
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="text-sm space-y-1">
+          <span className="block text-text-muted text-xs">Role-specific module</span>
+          <select
+            value={roleModule}
+            onChange={(e) => setRoleModule(e.target.value)}
+            className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+          >
+            <option value="">None selected</option>
+            {Object.entries(PROBE_TEMPLATE_ROLES).map(([id, label]) => (
+              <option key={id} value={id}>{label}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={shortForm} onChange={(e) => setShortForm(e.target.checked)} />
+          Use approved executive short form
+        </label>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          Save gap-engine notes
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 // PROIT (ABF-FST_PROIT_v1.0_Portal_Deployment_Tool.docx): background
 // desk-research on an organisation/respondent, gathered and provenance-
@@ -318,6 +490,8 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
           </Button>
         </div>
       )}
+
+      {kiiRecordId && <KIIGapEnginePanel profile={profile} queryKey={queryKey} />}
     </Card>
   );
 }
