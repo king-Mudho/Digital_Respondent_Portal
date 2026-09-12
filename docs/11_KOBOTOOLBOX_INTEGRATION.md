@@ -80,3 +80,27 @@ A dedicated Kobo **test/staging form**, structurally identical to the production
 is required so `22_TESTING_STRATEGY.md`'s E2E reconciliation test and the original
 blueprint's Section 22 "test with synthetic/test cases only" step can run without ever
 touching the live Main-400 Kobo asset.
+
+## Implementation status (Sep 2026 hardening pass)
+
+- **Pagination**: `apps.kobo.client.KoboClient.fetch_submissions()` follows the v2 data
+  endpoint's `next` link until Kobo reports none left. An earlier version only fetched
+  the first page — harmless while the fieldwork dataset is small, but would have
+  silently dropped every submission beyond page 1 once a survey grew past Kobo's default
+  page size. Covered by `backend/tests/test_kobo.py`.
+- **Graceful failure**: if the Kobo API call itself fails (unreachable, invalid token,
+  invalid/empty asset UID, timeout, 5xx), `reconcile()` now records a `ReconciliationLog`
+  row with `error_message` set instead of letting the exception propagate out of the
+  Celery Beat task or the manual-trigger endpoint. `POST /api/v1/kobo/reconcile/` returns
+  a clean `502` with that message rather than a raw `500`.
+- **Manual sync**: `GET /api/v1/kobo/reconciliation-status/` (most recent run) and the
+  existing `POST /api/v1/kobo/reconcile/` back a "KoboToolbox sync" panel on the admin QA
+  queue page (`/admin/qa`) — a "Sync now" button plus last-run status, so an RA/PI/admin
+  doesn't have to wait for the next scheduled Celery Beat tick to pull fresh submissions.
+- **Still open (needs the PI / a Kobo account owner, not engineering)**: `KOBO_ASSET_UID`
+  and `KOBO_API_TOKEN` are empty in production. "Sync now" correctly surfaces this today
+  as a `404 Not Found for url: https://kf.kobotoolbox.org/api/v2/assets//data/` (note the
+  empty asset segment) rather than failing silently — that 404 is expected until a real
+  Kobo asset is provisioned and its UID/token are set in `backend/.env`. The exact hidden
+  field names still need freezing against the real live form per "Integration contract"
+  above before Phase 11 go-live.

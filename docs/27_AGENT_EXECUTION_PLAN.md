@@ -445,6 +445,47 @@ Production database confirmed genuinely empty (`Organisation.objects.count() == 
 `User.objects.count() == 0`) after the rehearsal, ready for the PI's own first admin
 account and, eventually, real Main-400 import at Phase 11 — never before then.
 
+## Post-Phase-10 hardening pass (Sep 2026)
+
+A full end-to-end QA pass -- every respondent-flow (R01-R10) and admin (A01-A12) screen
+exercised by hand in a real browser against a freshly seeded local database, then
+against production, plus a systematic cross-check of every documented endpoint against
+its actual implementation. Full details in `README.md` "Notable fixes" and each fix's
+own test file; summarised here for the phase record:
+
+- **Production routing bug, found live**: Nginx's `location /api/` on
+  `research.agribizframework.com` caught the frontend's own `/api/auth/*` and
+  `/api/proxy/*` routes (Next.js) as well as Django's, since Django only ever mounts
+  `/api/v1/`, `/api/schema/`, `/api/docs/`. Confirmed via `journalctl -u drp-backend`
+  that a real visitor had been getting a 404 on every login and dashboard fetch for
+  several hours. Fixed in `nginx/research.agribizframework.conf`, applied to the live
+  server with the user's explicit approval, verified via a temporary admin account
+  (created and deleted for the check only) that login -> Executive Dashboard now
+  renders correctly end-to-end.
+- **Audit trail always attributed actions to no one** (rendered "system" in the UI) --
+  `AuditContextMiddleware` read `request.user` before DRF's JWT authentication had run.
+  Fixed and confirmed live: a fresh action now correctly shows the signed-in username.
+- **`sampling`/`contacts` serializer gaps**: `PATCH /api/v1/sample-cases/{id}/` could
+  bypass the S00-S16 state machine entirely (no validation, no audit trail); Appointment
+  status had no legitimate update path at all; the admin "log a contact attempt" form
+  always 400'd because `ContactEventSerializer.sample_case` was writable-and-required
+  when the view supplies it from the URL. All three fixed with dedicated read-only
+  fields / endpoints and regression tests.
+- **KII consent gave no UI feedback** -- `participation_consent`/`recording_consent`
+  existed on the model but weren't exposed by the serializer. Fixed; the
+  human-decision-required guard itself (recording completion needs separate recording
+  consent) was independently confirmed to already work correctly via a real browser
+  click.
+- **Kobo integration hardened**: `fetch_submissions()` only read the first page of
+  Kobo's paginated v2 data endpoint (silent data loss risk once a survey exceeds one
+  page); a Kobo outage crashed the reconciliation task/endpoint instead of degrading
+  gracefully. Both fixed, plus a new "KoboToolbox sync" panel on `/admin/qa` (manual
+  "Sync now" + last-run status) using a new `/api/v1/kobo/reconciliation-status/`
+  endpoint.
+
+Backend: 107/107 tests passing, `ruff check` clean. Frontend: `tsc --noEmit` clean.
+All fixes deployed to production via `deploy/deploy.sh` and re-verified live.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.
