@@ -83,6 +83,28 @@ def test_resolve_stratum_for_organisation_is_idempotent(organisation):
     assert first.id == second.id
 
 
+def test_duplicate_stratum_definitions_for_the_same_combination_are_rejected(organisation):
+    """Found live on research.agribizframework.com: two StratumDefinition rows
+    (different `code`) existed for the same province/actor_family/value_chain/
+    size_class, so resolve_stratum_for_organisation()'s get_or_create() raised
+    MultipleObjectsReturned instead of finding one. migrations/
+    0003_stratumdefinition_unique_combo.py merged the existing duplicates and
+    added a DB constraint -- this confirms a second row for an
+    already-resolved combination can no longer be created at all."""
+    from django.db import IntegrityError
+
+    resolve_stratum_for_organisation(organisation)
+    with pytest.raises(IntegrityError):
+        StratumDefinition.objects.create(
+            code="a-second-code-for-the-same-combination",
+            province=organisation.province,
+            actor_family=organisation.actor_family,
+            value_chain=organisation.value_chain,
+            size_class=organisation.size_class,
+            target_count=10,
+        )
+
+
 def test_contact_ra_can_list_but_not_create_organisations(db):
     role, _ = Role.objects.get_or_create(name=Role.CONTACT_RA)
     user = User.objects.create_user(username="contact_ra_org_test", password="testpass123", role=role)
