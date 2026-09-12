@@ -17,7 +17,11 @@ class ContactEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactEvent
         fields = ["id", "sample_case", "channel", "occurred_at", "outcome", "notes", "next_action_date", "ra"]
-        read_only_fields = ["id", "ra"]
+        # sample_case is resolved from the URL's sample_id by
+        # ContactEventListCreateView.perform_create(), never taken from the
+        # request body -- read-only here so is_valid() doesn't reject a
+        # caller for omitting a field it was never meant to supply.
+        read_only_fields = ["id", "sample_case", "ra"]
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
