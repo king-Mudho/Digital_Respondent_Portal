@@ -73,16 +73,16 @@ def test_invitations_sent_and_opened_count_tokens_past_that_stage_too(auth_clien
     after real tokens were genuinely opened and consented."""
     from apps.invitations.models import TokenStatus
     from apps.invitations.services import advance_token_status, issue_invitation
-    from apps.sampling.models import ActorFamily, EntityType, Province, SampleType, SizeClass, ValueChain
+    from apps.sampling.models import ActorFamily, Province, SampleType, SizeClass
     from apps.sampling.services import create_organisation, create_sample_case
 
     # main_case's own token stays at SENT (never opened).
     issue_invitation(main_case)
 
     org2 = create_organisation(
-        province=Province.HARARE, name="Second Test Org", entity_type=EntityType.COOPERATIVE,
-        district="Harare", actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-        size_class=SizeClass.SMALL,
+        province=Province.HARARE, name="Second Test Org", entity_type="Cooperative",
+        district="Harare", actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+        size_class=SizeClass.SME,
     )
     case2 = create_sample_case(organisation=org2, stratum=main_case.stratum, sample_type=SampleType.MAIN, year=2026)
     _, _, token2 = issue_invitation(case2)

@@ -8,15 +8,16 @@ sampling.services.is_invitable() rather than checking SampleCase.status
 inline elsewhere, so the lock is enforced in exactly one place
 (docs/08_BACKEND_ARCHITECTURE.md).
 
-PLACEHOLDER CATEGORIES: neither docs/05_DATABASE_ARCHITECTURE.md nor the
-original blueprint enumerate the actual actor_family/value_chain/size_class/
-entity_type category lists -- only that they are "CharField (choices)".
-The choices below are a provisional placeholder set for engineering purposes
-(so migrations/tests/UI have something concrete to work against), flagged in
-docs/27_AGENT_EXECUTION_PLAN.md "Open questions" for the PI to confirm or
-replace against the actual approved sampling register before real Main-400
-import. Province codes/names are objective public fact (Zimbabwe's 10
-provinces), not a placeholder.
+CATEGORY LISTS (updated 2026-09-12): actor_family/size_class now use the
+real, PI-approved category sets from the actual approved sampling register
+(ABI_ABF-FST_QUAN_Latest_Register's "Stratum Allocation" sheet), which also
+confirmed the real stratification design is Province x Actor Family x Size
+Class only -- Value Chain plays no part in it. value_chain and entity_type
+are deliberately free text, not a small choice set, since the real
+register's data for those two fields is far richer than any fixed dropdown
+(hundreds of distinct, sometimes multi-valued entries) -- see
+StratumDefinition and Organisation's own docstrings. Province codes/names
+are objective public fact (Zimbabwe's 10 provinces).
 """
 
 from django.core.exceptions import ValidationError
@@ -53,52 +54,32 @@ PROVINCE_CODE = {
 
 
 class ActorFamily(models.TextChoices):
-    """Placeholder set -- see module docstring."""
+    """The real, PI-approved category set (2026-09-12), replacing an earlier
+    engineering placeholder -- see the approved sampling register's own
+    "Stratum Allocation" sheet (ABI_ABF-FST_QUAN_Latest_Register), which
+    uses exactly these eight values as the actual Actor Family stratification
+    variable."""
 
-    PRODUCER_FARMER = "PRODUCER_FARMER", "Producer / Farmer"
-    PROCESSOR = "PROCESSOR", "Processor"
-    AGGREGATOR_TRADER = "AGGREGATOR_TRADER", "Aggregator / Trader"
-    INPUT_SUPPLIER = "INPUT_SUPPLIER", "Input Supplier"
-    FINANCIAL_SERVICE_PROVIDER = "FINANCIAL_SERVICE_PROVIDER", "Financial Service Provider"
-    LOGISTICS_TRANSPORT = "LOGISTICS_TRANSPORT", "Logistics / Transport"
-    COOPERATIVE_FARMER_ORG = "COOPERATIVE_FARMER_ORG", "Cooperative / Farmer Organisation"
-    OTHER = "OTHER", "Other"
-
-
-class ValueChain(models.TextChoices):
-    """Placeholder set -- see module docstring."""
-
-    HORTICULTURE = "HORTICULTURE", "Horticulture"
-    GRAIN_CEREALS = "GRAIN_CEREALS", "Grain / Cereals"
-    LIVESTOCK = "LIVESTOCK", "Livestock"
-    DAIRY = "DAIRY", "Dairy"
-    POULTRY = "POULTRY", "Poultry"
-    OILSEEDS = "OILSEEDS", "Oilseeds"
-    COTTON = "COTTON", "Cotton"
-    TOBACCO = "TOBACCO", "Tobacco"
-    AQUACULTURE = "AQUACULTURE", "Aquaculture"
-    OTHER = "OTHER", "Other"
+    AGGREGATION_MARKET_RETAIL = "AGGREGATION_MARKET_RETAIL", "Aggregation / Market / Retail"
+    INPUTS_MECHANISATION = "INPUTS_MECHANISATION", "Inputs / Mechanisation"
+    PROCESSING_MANUFACTURING = "PROCESSING_MANUFACTURING", "Processing / Manufacturing"
+    PRODUCER_PRIMARY = "PRODUCER_PRIMARY", "Producer / Primary"
+    SERVICES_ENABLING = "SERVICES_ENABLING", "Services / Enabling"
+    FINANCE_INSURANCE = "FINANCE_INSURANCE", "Finance / Insurance"
+    INSTITUTIONAL_COMMERCIAL_UNIT = "INSTITUTIONAL_COMMERCIAL_UNIT", "Institutional Commercial Unit"
+    OTHER_VERIFY = "OTHER_VERIFY", "Other / Verify"
 
 
 class SizeClass(models.TextChoices):
-    """Placeholder set -- see module docstring."""
+    """The real, PI-approved category set (2026-09-12), replacing an earlier
+    engineering placeholder -- matches the approved sampling register's own
+    "Stratum Allocation" sheet exactly."""
 
     MICRO = "MICRO", "Micro"
-    SMALL = "SMALL", "Small"
-    MEDIUM = "MEDIUM", "Medium"
-    LARGE = "LARGE", "Large"
-
-
-class EntityType(models.TextChoices):
-    """Placeholder set -- see module docstring."""
-
-    SOLE_TRADER = "SOLE_TRADER", "Sole Trader"
-    PARTNERSHIP = "PARTNERSHIP", "Partnership"
-    COOPERATIVE = "COOPERATIVE", "Cooperative"
-    PRIVATE_LIMITED_COMPANY = "PRIVATE_LIMITED_COMPANY", "Private Limited Company"
-    PUBLIC_COMPANY = "PUBLIC_COMPANY", "Public Company"
-    TRUST = "TRUST", "Trust"
-    OTHER = "OTHER", "Other"
+    SME = "SME", "SME"
+    UNKNOWN = "UNKNOWN", "Unknown"
+    LARGE_CORPORATE = "LARGE_CORPORATE", "Large / Corporate"
+    INSTITUTIONAL_OTHER = "INSTITUTIONAL_OTHER", "Institutional / Other"
 
 
 class VerificationStatus(models.TextChoices):
@@ -123,14 +104,28 @@ class IdentifierSequence(models.Model):
 
 
 class StratumDefinition(models.Model):
+    """Stratified by Province x Actor Family x Size Class only (2026-09-12) --
+    the approved sampling register's own "Stratum Allocation" sheet defines
+    the study's strata this way; Value Chain plays no part in the actual
+    stratification design, despite an earlier engineering assumption that it
+    did. See Organisation.value_chain for where that information now lives
+    (a free-text descriptive field, not a stratification key)."""
+
     code = models.CharField(max_length=64, unique=True)
     province = models.CharField(max_length=32, choices=Province.choices)
     actor_family = models.CharField(max_length=32, choices=ActorFamily.choices)
-    value_chain = models.CharField(max_length=32, choices=ValueChain.choices)
-    size_class = models.CharField(max_length=16, choices=SizeClass.choices)
+    size_class = models.CharField(max_length=32, choices=SizeClass.choices)
     target_count = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["province", "actor_family", "size_class"],
+                name="unique_stratum_definition_combo",
+            ),
+        ]
 
     def __str__(self):
         return self.code
@@ -140,16 +135,27 @@ class Organisation(models.Model):
     """Master_ID is generated exclusively at import time
     (sampling.services.generate_master_id) -- never user-entered, immutable
     for the life of the record (docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md).
+
+    entity_type/value_chain are free text (2026-09-12), not a small choice
+    set -- the approved sampling register's real data for these two fields
+    is far richer than a fixed dropdown can hold (hundreds of distinct,
+    sometimes semicolon-joined multi-values), unlike actor_family/size_class
+    above, which the register's own stratification design treats as a clean,
+    small, controlled vocabulary.
     """
 
     master_id = models.CharField(max_length=16, unique=True, editable=False)
     name = models.CharField(max_length=255)
-    entity_type = models.CharField(max_length=32, choices=EntityType.choices)
+    entity_type = models.CharField(max_length=255, blank=True)
     province = models.CharField(max_length=32, choices=Province.choices)
-    district = models.CharField(max_length=128)
+    district = models.CharField(max_length=255)
     actor_family = models.CharField(max_length=32, choices=ActorFamily.choices)
-    value_chain = models.CharField(max_length=32, choices=ValueChain.choices)
-    size_class = models.CharField(max_length=16, choices=SizeClass.choices)
+    value_chain = models.CharField(max_length=255, blank=True)
+    size_class = models.CharField(max_length=32, choices=SizeClass.choices)
+    # Losslessly preserves register-provenance fields with no dedicated model
+    # field (e.g. the source ABI Master_ID this organisation's row carried in
+    # the approved register) -- nothing invented, nothing discarded.
+    metadata = models.JSONField(default=dict, blank=True)
     verification_status = models.CharField(
         max_length=16, choices=VerificationStatus.choices,
         default=VerificationStatus.UNVERIFIED,
@@ -248,6 +254,12 @@ class SampleCase(models.Model):
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="assigned_sample_cases",
     )
+    # Losslessly preserves register-provenance fields with no dedicated model
+    # field (source Sample_ID, Priority, QUAN Eligibility, Desk Verification
+    # Gate, Verification Evidence, Selection Method, Deployment Status, etc.
+    # from the approved sampling register) -- nothing invented, nothing
+    # discarded.
+    metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

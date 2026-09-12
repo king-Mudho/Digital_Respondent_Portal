@@ -26,12 +26,12 @@ def admin_client(db):
 
 ORG_PAYLOAD = {
     "name": "Test Registration Org",
-    "entity_type": "COOPERATIVE",
+    "entity_type": "Cooperative",
     "province": "HARARE",
     "district": "Harare",
-    "actor_family": "PRODUCER_FARMER",
-    "value_chain": "HORTICULTURE",
-    "size_class": "SMALL",
+    "actor_family": "PRODUCER_PRIMARY",
+    "value_chain": "Horticulture",
+    "size_class": "SME",
 }
 
 
@@ -60,7 +60,7 @@ def test_sample_case_creation_auto_resolves_stratum_when_omitted(admin_client):
     assert resp.data["sample_id"].startswith("SID-2026-")
     case = SampleCase.objects.get(pk=resp.data["id"])
     assert case.stratum.province == "HARARE"
-    assert case.stratum.actor_family == "PRODUCER_FARMER"
+    assert case.stratum.actor_family == "PRODUCER_PRIMARY"
 
 
 def test_sample_case_creation_reuses_existing_stratum_not_a_duplicate(admin_client):
@@ -73,7 +73,7 @@ def test_sample_case_creation_reuses_existing_stratum_not_a_duplicate(admin_clie
     admin_client.post("/api/v1/sample-cases/", {"organisation": org2["id"], "sample_type": "RESERVE"}, format="json")
 
     assert StratumDefinition.objects.filter(
-        province="HARARE", actor_family="PRODUCER_FARMER", value_chain="HORTICULTURE", size_class="SMALL",
+        province="HARARE", actor_family="PRODUCER_PRIMARY", size_class="SME",
     ).count() == 1
 
 
@@ -85,8 +85,8 @@ def test_resolve_stratum_for_organisation_is_idempotent(organisation):
 
 def test_duplicate_stratum_definitions_for_the_same_combination_are_rejected(organisation):
     """Found live on research.agribizframework.com: two StratumDefinition rows
-    (different `code`) existed for the same province/actor_family/value_chain/
-    size_class, so resolve_stratum_for_organisation()'s get_or_create() raised
+    (different `code`) existed for the same province/actor_family/size_class,
+    so resolve_stratum_for_organisation()'s get_or_create() raised
     MultipleObjectsReturned instead of finding one. migrations/
     0003_stratumdefinition_unique_combo.py merged the existing duplicates and
     added a DB constraint -- this confirms a second row for an
@@ -99,7 +99,6 @@ def test_duplicate_stratum_definitions_for_the_same_combination_are_rejected(org
             code="a-second-code-for-the-same-combination",
             province=organisation.province,
             actor_family=organisation.actor_family,
-            value_chain=organisation.value_chain,
             size_class=organisation.size_class,
             target_count=10,
         )

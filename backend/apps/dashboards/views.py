@@ -58,7 +58,7 @@ class ExecutiveDashboardView(APIView):
 
         gaps = list(
             SampleCase.objects.filter(sample_type=SampleType.MAIN)
-            .values("stratum__province", "stratum__actor_family", "stratum__value_chain", "stratum__size_class")
+            .values("stratum__province", "stratum__actor_family", "stratum__size_class")
             .annotate(count=Count("id"))
             .order_by("count")[:5]
         )

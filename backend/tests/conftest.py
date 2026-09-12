@@ -2,13 +2,11 @@ import pytest
 
 from apps.sampling.models import (
     ActorFamily,
-    EntityType,
     Province,
     ReserveStatus,
     SampleType,
     SizeClass,
     StratumDefinition,
-    ValueChain,
 )
 from apps.sampling.services import create_organisation, create_sample_case
 
@@ -16,11 +14,10 @@ from apps.sampling.services import create_organisation, create_sample_case
 @pytest.fixture
 def stratum(db):
     return StratumDefinition.objects.create(
-        code="HA-PRODUCER-HORTICULTURE-SMALL",
+        code="HA-PRODUCER-SME",
         province=Province.HARARE,
-        actor_family=ActorFamily.PRODUCER_FARMER,
-        value_chain=ValueChain.HORTICULTURE,
-        size_class=SizeClass.SMALL,
+        actor_family=ActorFamily.PRODUCER_PRIMARY,
+        size_class=SizeClass.SME,
         target_count=10,
     )
 
@@ -30,11 +27,11 @@ def organisation(db):
     return create_organisation(
         province=Province.HARARE,
         name="Test Organisation",
-        entity_type=EntityType.PRIVATE_LIMITED_COMPANY,
+        entity_type="Private Limited Company",
         district="Harare",
-        actor_family=ActorFamily.PRODUCER_FARMER,
-        value_chain=ValueChain.HORTICULTURE,
-        size_class=SizeClass.SMALL,
+        actor_family=ActorFamily.PRODUCER_PRIMARY,
+        value_chain="Horticulture",
+        size_class=SizeClass.SME,
     )
 
 

@@ -50,7 +50,7 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         # A "stratum" is a derived grouping of the organisation's own
-        # province/actor_family/value_chain/size_class, not something worth
+        # province/actor_family/size_class, not something worth
         # asking an admin to pick separately -- auto-resolve it (get-or-
         # create) when the caller doesn't supply one, so the "register
         # organisation + sample case" admin UI can skip that step entirely.

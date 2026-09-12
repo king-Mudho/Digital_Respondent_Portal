@@ -9,25 +9,22 @@ import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
 
-// Mirrors backend/apps/sampling/models.py's placeholder choice sets --
-// provisional pending PI confirmation of the real sampling register
-// (docs/27_AGENT_EXECUTION_PLAN.md "Open questions"). The backend is the
-// source of truth and re-validates regardless.
+// Mirrors backend/apps/sampling/models.py -- Province/Actor Family/Size
+// Class are the real, PI-approved stratification categories (2026-09-12,
+// from the approved sampling register's own "Stratum Allocation" sheet).
+// Entity type and value chain are deliberately free text below, not a
+// dropdown -- the real register's data for those two is far richer than a
+// small fixed list (hundreds of distinct, sometimes multi-valued entries).
 const PROVINCES = [
   "HARARE", "BULAWAYO", "MANICALAND", "MASHONALAND_CENTRAL", "MASHONALAND_EAST",
   "MASHONALAND_WEST", "MASVINGO", "MATABELELAND_NORTH", "MATABELELAND_SOUTH", "MIDLANDS",
 ];
-const ENTITY_TYPES = [
-  "SOLE_TRADER", "PARTNERSHIP", "COOPERATIVE", "PRIVATE_LIMITED_COMPANY", "PUBLIC_COMPANY", "TRUST", "OTHER",
-];
 const ACTOR_FAMILIES = [
-  "PRODUCER_FARMER", "PROCESSOR", "AGGREGATOR_TRADER", "INPUT_SUPPLIER",
-  "FINANCIAL_SERVICE_PROVIDER", "LOGISTICS_TRANSPORT", "COOPERATIVE_FARMER_ORG", "OTHER",
+  "AGGREGATION_MARKET_RETAIL", "INPUTS_MECHANISATION", "PROCESSING_MANUFACTURING",
+  "PRODUCER_PRIMARY", "SERVICES_ENABLING", "FINANCE_INSURANCE",
+  "INSTITUTIONAL_COMMERCIAL_UNIT", "OTHER_VERIFY",
 ];
-const VALUE_CHAINS = [
-  "HORTICULTURE", "GRAIN_CEREALS", "LIVESTOCK", "DAIRY", "POULTRY", "OILSEEDS", "COTTON", "TOBACCO", "AQUACULTURE", "OTHER",
-];
-const SIZE_CLASSES = ["MICRO", "SMALL", "MEDIUM", "LARGE"];
+const SIZE_CLASSES = ["MICRO", "SME", "UNKNOWN", "LARGE_CORPORATE", "INSTITUTIONAL_OTHER"];
 
 interface Organisation {
   id: number;
@@ -44,11 +41,11 @@ interface Organisation {
 
 const EMPTY_ORG_FORM = {
   name: "",
-  entity_type: ENTITY_TYPES[0],
+  entity_type: "",
   province: PROVINCES[0],
   district: "",
   actor_family: ACTOR_FAMILIES[0],
-  value_chain: VALUE_CHAINS[0],
+  value_chain: "",
   size_class: SIZE_CLASSES[0],
 };
 
@@ -135,15 +132,12 @@ export default function OrganisationsPage() {
             </label>
             <label className="text-sm space-y-1">
               <span className="block text-text-muted text-xs">Entity type</span>
-              <select
+              <input
                 value={form.entity_type}
                 onChange={(e) => setForm((f) => ({ ...f, entity_type: e.target.value }))}
-                className="w-full rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
-              >
-                {ENTITY_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                placeholder="e.g. Small/Medium Enterprise (SME)"
+                className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+              />
             </label>
             <label className="text-sm space-y-1">
               <span className="block text-text-muted text-xs">Actor family</span>
@@ -159,15 +153,12 @@ export default function OrganisationsPage() {
             </label>
             <label className="text-sm space-y-1">
               <span className="block text-text-muted text-xs">Value chain</span>
-              <select
+              <input
                 value={form.value_chain}
                 onChange={(e) => setForm((f) => ({ ...f, value_chain: e.target.value }))}
-                className="w-full rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
-              >
-                {VALUE_CHAINS.map((v) => (
-                  <option key={v} value={v}>{v}</option>
-                ))}
-              </select>
+                placeholder="e.g. Horticulture"
+                className="w-full rounded-md border border-border px-2 py-1.5 text-sm"
+              />
             </label>
             <label className="text-sm space-y-1">
               <span className="block text-text-muted text-xs">Size class</span>

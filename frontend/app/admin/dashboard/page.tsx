@@ -63,7 +63,6 @@ export default function ExecutiveDashboardPage() {
                   <tr className="text-left text-text-muted">
                     <th className="py-1 pr-4">Province</th>
                     <th className="py-1 pr-4">Actor family</th>
-                    <th className="py-1 pr-4">Value chain</th>
                     <th className="py-1 pr-4">Size class</th>
                     <th className="py-1">Count</th>
                   </tr>
@@ -73,7 +72,6 @@ export default function ExecutiveDashboardPage() {
                     <tr key={i} className="border-t border-border">
                       <td className="py-1 pr-4">{String(gap.stratum__province ?? "-")}</td>
                       <td className="py-1 pr-4">{String(gap.stratum__actor_family ?? "-")}</td>
-                      <td className="py-1 pr-4">{String(gap.stratum__value_chain ?? "-")}</td>
                       <td className="py-1 pr-4">{String(gap.stratum__size_class ?? "-")}</td>
                       <td className="py-1">{String(gap.count ?? "-")}</td>
                     </tr>

@@ -5,14 +5,14 @@ from .models import IdentifierSequence, Organisation, SampleCase, StratumDefinit
 
 @admin.register(StratumDefinition)
 class StratumDefinitionAdmin(admin.ModelAdmin):
-    list_display = ("code", "province", "actor_family", "value_chain", "size_class", "target_count")
-    list_filter = ("province", "actor_family", "value_chain", "size_class")
+    list_display = ("code", "province", "actor_family", "size_class", "target_count")
+    list_filter = ("province", "actor_family", "size_class")
 
 
 @admin.register(Organisation)
 class OrganisationAdmin(admin.ModelAdmin):
     list_display = ("master_id", "name", "province", "verification_status")
-    list_filter = ("province", "verification_status", "actor_family", "value_chain")
+    list_filter = ("province", "verification_status", "actor_family")
     search_fields = ("master_id", "name")
     readonly_fields = ("master_id",)
 

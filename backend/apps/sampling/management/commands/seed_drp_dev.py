@@ -16,7 +16,6 @@ from apps.contacts.models import Respondent, RoleCategory
 from apps.invitations.services import issue_invitation
 from apps.sampling.models import (
     ActorFamily,
-    EntityType,
     Organisation,
     Province,
     ReserveStatus,
@@ -24,7 +23,6 @@ from apps.sampling.models import (
     SampleType,
     SizeClass,
     StratumDefinition,
-    ValueChain,
     WorkflowStatus,
 )
 from apps.sampling.services import create_organisation, create_sample_case, transition_workflow_status
@@ -51,10 +49,10 @@ class Command(BaseCommand):
             admin_user.save(update_fields=["password", "role"])
 
         stratum, _ = StratumDefinition.objects.get_or_create(
-            code="E2E-HA-PRODUCER-HORTICULTURE-SMALL",
+            code="E2E-HA-PRODUCER-SME",
             defaults=dict(
-                province=Province.HARARE, actor_family=ActorFamily.PRODUCER_FARMER,
-                value_chain=ValueChain.HORTICULTURE, size_class=SizeClass.SMALL, target_count=10,
+                province=Province.HARARE, actor_family=ActorFamily.PRODUCER_PRIMARY,
+                size_class=SizeClass.SME, target_count=10,
             ),
         )
 
@@ -62,9 +60,9 @@ class Command(BaseCommand):
         if org is None:
             org = create_organisation(
                 province=Province.HARARE, name="E2E Test Farming Trust",
-                entity_type=EntityType.COOPERATIVE, district="Harare",
-                actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-                size_class=SizeClass.SMALL,
+                entity_type="Cooperative", district="Harare",
+                actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+                size_class=SizeClass.SME,
             )
 
         main_case = SampleCase.objects.filter(organisation=org, sample_type=SampleType.MAIN).first()
@@ -83,9 +81,9 @@ class Command(BaseCommand):
         if reserve_org is None:
             reserve_org = create_organisation(
                 province=Province.HARARE, name="E2E Locked Reserve Trust",
-                entity_type=EntityType.COOPERATIVE, district="Harare",
-                actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-                size_class=SizeClass.SMALL,
+                entity_type="Cooperative", district="Harare",
+                actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+                size_class=SizeClass.SME,
             )
         reserve_case = SampleCase.objects.filter(organisation=reserve_org, sample_type=SampleType.RESERVE).first()
         if reserve_case is None:
@@ -126,9 +124,9 @@ class Command(BaseCommand):
         if activation_main_org is None:
             activation_main_org = create_organisation(
                 province=Province.HARARE, name="E2E Activation Main Trust",
-                entity_type=EntityType.COOPERATIVE, district="Harare",
-                actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-                size_class=SizeClass.SMALL,
+                entity_type="Cooperative", district="Harare",
+                actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+                size_class=SizeClass.SME,
             )
         activation_main_case = SampleCase.objects.filter(
             organisation=activation_main_org, sample_type=SampleType.MAIN
@@ -142,9 +140,9 @@ class Command(BaseCommand):
         if activation_reserve_org is None:
             activation_reserve_org = create_organisation(
                 province=Province.HARARE, name="E2E Activation Reserve Trust",
-                entity_type=EntityType.COOPERATIVE, district="Harare",
-                actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-                size_class=SizeClass.SMALL,
+                entity_type="Cooperative", district="Harare",
+                actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+                size_class=SizeClass.SME,
             )
         activation_reserve_case = SampleCase.objects.filter(
             organisation=activation_reserve_org, sample_type=SampleType.RESERVE
@@ -185,9 +183,9 @@ class Command(BaseCommand):
         if workflow_test_org is None:
             workflow_test_org = create_organisation(
                 province=Province.HARARE, name="E2E Workflow Transition Trust",
-                entity_type=EntityType.COOPERATIVE, district="Harare",
-                actor_family=ActorFamily.PRODUCER_FARMER, value_chain=ValueChain.HORTICULTURE,
-                size_class=SizeClass.SMALL,
+                entity_type="Cooperative", district="Harare",
+                actor_family=ActorFamily.PRODUCER_PRIMARY, value_chain="Horticulture",
+                size_class=SizeClass.SME,
             )
         workflow_test_case = SampleCase.objects.filter(
             organisation=workflow_test_org, sample_type=SampleType.MAIN

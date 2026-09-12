@@ -182,19 +182,17 @@ def create_organisation(*, province: str, **fields) -> Organisation:
 
 def resolve_stratum_for_organisation(organisation: Organisation) -> StratumDefinition:
     """Get-or-create the StratumDefinition matching this organisation's own
-    province/actor_family/value_chain/size_class. A stratum is a derived
-    grouping of these four fields, not something an admin authors
-    independently -- this lets the "register organisation + sample case"
-    admin UI skip a separate stratum-picking step (and can't produce a
-    mismatched stratum the way manual selection could)."""
-    code = "-".join([
-        organisation.province, organisation.actor_family,
-        organisation.value_chain, organisation.size_class,
-    ])
+    province/actor_family/size_class -- the approved sampling register's own
+    "Stratum Allocation" sheet stratifies on exactly these three fields, not
+    value_chain (2026-09-12; see StratumDefinition's docstring). A stratum is
+    a derived grouping, not something an admin authors independently -- this
+    lets the "register organisation + sample case" admin UI skip a separate
+    stratum-picking step (and can't produce a mismatched stratum the way
+    manual selection could)."""
+    code = "-".join([organisation.province, organisation.actor_family, organisation.size_class])
     stratum, _ = StratumDefinition.objects.get_or_create(
         province=organisation.province,
         actor_family=organisation.actor_family,
-        value_chain=organisation.value_chain,
         size_class=organisation.size_class,
         defaults={"code": code, "target_count": DEFAULT_STRATUM_TARGET_COUNT},
     )
