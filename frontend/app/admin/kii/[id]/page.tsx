@@ -23,6 +23,7 @@ interface KIIRecord {
 }
 
 const STATUS_OPTIONS: Record<string, string[]> = {
+  PROSPECT: ["INVITED", "DECLINED"],
   INVITED: ["SCHEDULED", "DECLINED"],
   SCHEDULED: ["COMPLETED", "NO_SHOW", "DECLINED"],
   NO_SHOW: ["SCHEDULED"],

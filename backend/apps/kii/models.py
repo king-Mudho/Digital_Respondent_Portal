@@ -11,6 +11,12 @@ from django.db import models
 
 
 class KIIStatus(models.TextChoices):
+    # A prospect identified in the KII sampling frame but not yet approached
+    # -- added 2026-09-12 when importing the real KII Core-60/Reserve-30
+    # register, where every one of the 90 rows is genuinely "Not contacted"/
+    # "Available". Distinct from INVITED, which means an actual invitation
+    # went out.
+    PROSPECT = "PROSPECT", "Prospect (not yet contacted)"
     INVITED = "INVITED", "Invited"
     SCHEDULED = "SCHEDULED", "Scheduled"
     COMPLETED = "COMPLETED", "Completed"
@@ -45,8 +51,11 @@ class KIIRecord(models.Model):
     participant_name = models.CharField(max_length=255)
     participant_role = models.CharField(max_length=255)
     status = models.CharField(max_length=16, choices=KIIStatus.choices, default=KIIStatus.INVITED)
+    # blank=True (2026-09-12): a PROSPECT hasn't chosen a mode yet -- only
+    # meaningful once an actual invitation goes out.
     preferred_mode = models.CharField(
         max_length=16,
+        blank=True,
         choices=[
             ("TEAMS", "Microsoft Teams"),
             ("ZOOM", "Zoom"),
@@ -82,6 +91,12 @@ class KIIRecord(models.Model):
         max_length=16, choices=CodingStatus.choices, default=CodingStatus.NOT_STARTED
     )
     thematic_coverage_tags = ArrayField(models.CharField(max_length=64), default=list, blank=True)
+    # Losslessly preserves register-provenance fields with no dedicated
+    # model field (organisation/institution name, source register cross-
+    # references, priority, verification status/confidence/source, etc.)
+    # -- nothing invented, nothing discarded. Same pattern as sampling.
+    # Organisation.metadata / SampleCase.metadata.
+    metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

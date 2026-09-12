@@ -1,6 +1,7 @@
 """
 KII scheduling, consent gating and status-flow transitions
-(docs/13_KII_MODULE.md). Status flow: INVITED -> SCHEDULED -> COMPLETED (or
+(docs/13_KII_MODULE.md). Status flow: PROSPECT (identified in the sampling
+frame, not yet approached) -> INVITED -> SCHEDULED -> COMPLETED (or
 DECLINED/NO_SHOW), independent of transcript_status and coding_status,
 which progress after the interview itself is complete.
 """
@@ -29,6 +30,7 @@ def create_kii_record(**fields) -> KIIRecord:
 
 
 KII_STATUS_TRANSITIONS = {
+    KIIStatus.PROSPECT: {KIIStatus.INVITED, KIIStatus.DECLINED},
     KIIStatus.INVITED: {KIIStatus.SCHEDULED, KIIStatus.DECLINED},
     KIIStatus.SCHEDULED: {KIIStatus.COMPLETED, KIIStatus.NO_SHOW, KIIStatus.DECLINED},
     KIIStatus.COMPLETED: set(),
