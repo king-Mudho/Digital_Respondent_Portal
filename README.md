@@ -451,6 +451,9 @@ for how the two projects share infrastructure without sharing a codebase.
   de-identified vs. operational export schema.
 - `docs/27_AGENT_EXECUTION_PLAN.md` — phased, checkable build task list.
 - `docs/28_DEFINITION_OF_DONE.md` — acceptance criteria and go-live checklist.
+- `docs/29_RESPONDENT_GUIDE_AND_MESSAGING.md` — the plain-language respondent journey,
+  ready-to-use WhatsApp/email/manual-code invitation message templates, and an RA
+  troubleshooting table — practical companion to the "Send Invitation" panel.
 
 ## Domain
 
