@@ -85,7 +85,12 @@ def test_reserve_activation_succeeds_and_is_audited(auth_client, admin_user, loc
     assert locked_reserve_case.status == ReserveStatus.ACTIVATED
     assert locked_reserve_case.activated_by_id == admin_user.id
     assert locked_reserve_case.activated_at is not None
-    assert AuditEvent.objects.filter(action="reserve.activated").exists()
+    event = AuditEvent.objects.get(action="reserve.activated")
+    # Regression: apps.audit.middleware.AuditContextMiddleware used to read
+    # request.user at middleware entry, before DRF's JWTAuthentication ran
+    # during view dispatch -- every AuditEvent was attributed to no one
+    # (None -> rendered "system" in the UI) regardless of who was signed in.
+    assert event.user_id == admin_user.id
 
 
 def test_activated_reserve_can_now_be_invited(auth_client, locked_reserve_case):
