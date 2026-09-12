@@ -304,8 +304,23 @@ cd backend  && pytest              # 107 tests: unit, API, privacy, token/consen
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run test        # Vitest component tests
-cd frontend && npx playwright test # E2E: invitation -> consent -> Kobo redirect -> reconciliation
+cd frontend && npx playwright test # E2E: 14 specs (12 run, 2 intentionally skipped -- see below)
 ```
+
+The Playwright suite covers the respondent flow (invitation -> consent -> Kobo redirect),
+privacy/reserve-lock invariants, and every admin panel touched in this hardening pass:
+workflow transitions and contact-attempt logging, appointment status, the cost-entry
+form, the KII recording-consent gate, the document authenticity-before-inclusion gate,
+reserve activation, and the Kobo sync panel's graceful-degradation behaviour when no
+real Kobo asset is configured. Fixtures that get mutated by tests (workflow status,
+reserve activation) are force-reset to a known state by `seed_drp_dev` on every run, so
+the suite stays reliable even against a shared, never-reset local database.
+
+Two specs (`e2e/pi-blocked-items.spec.ts`) are deliberately `test.skip`, not absent: the
+WhatsApp Business Platform integration has no code surface yet (no Meta-approved account
+or template), and the POTRAZ determination is a legal go-live gate with no feature flag
+to exercise. Both stay visible with a written reason in every run's report until the
+underlying PI/external action happens.
 
 A full manual QA pass (this hardening round) also walked every respondent-flow screen
 and every admin screen in a real browser against a freshly seeded local database, and
