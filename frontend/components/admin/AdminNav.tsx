@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/dashboard/contact", label: "Contact" },
   { href: "/admin/dashboard/kii-documents", label: "KII/Doc Dashboard" },
   { href: "/admin/sample", label: "Main-400 Register" },
+  { href: "/admin/organisations", label: "Organisations" },
   { href: "/admin/appointments", label: "Appointments" },
   { href: "/admin/qa", label: "QA Queue" },
   { href: "/admin/kii", label: "KII Register" },
@@ -29,15 +30,20 @@ export function AdminNav() {
     <nav className="bg-header text-white">
       <div className="px-6 py-3 flex items-center justify-between">
         <p className="font-semibold">ABF-FST Research Operations Centre</p>
-        <button
-          onClick={async () => {
-            await logout();
-            router.replace("/admin/login");
-          }}
-          className="text-sm text-white/80 hover:text-white"
-        >
-          Sign out
-        </button>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/account" className="text-sm text-white/80 hover:text-white">
+            Change password
+          </Link>
+          <button
+            onClick={async () => {
+              await logout();
+              router.replace("/admin/login");
+            }}
+            className="text-sm text-white/80 hover:text-white"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
       <div className="px-6 flex gap-4 overflow-x-auto border-t border-white/10 text-sm">
         {LINKS.map((link) => (

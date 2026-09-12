@@ -18,6 +18,13 @@ interface SampleCaseDetail {
   sample_type: string;
   status: string;
   workflow_status: string | null;
+  assigned_ra: number | null;
+  assigned_ra_username: string | null;
+}
+
+interface ContactRA {
+  id: number;
+  username: string;
 }
 
 interface ContactEvent {
@@ -220,6 +227,57 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
   );
 }
 
+function AssignedRaPanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: contactRAs } = useQuery({
+    queryKey: ["contact-ras"],
+    queryFn: () => adminFetch<{ results: ContactRA[] }>("/auth/contact-ras/"),
+  });
+
+  const assign = useMutation({
+    mutationFn: (assignedRa: number | null) =>
+      adminFetch(`/sample-cases/${sampleCase.sample_id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ assigned_ra: assignedRa }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["sample-case", sampleCase.sample_id] });
+    },
+    // A Contact RA or Supervisor opening this page sees the panel too --
+    // only Field Coordinator/Admin can actually PATCH assigned_ra
+    // (api.permissions.CanViewSampleCases); anyone else gets a 403 here.
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to change assignment."),
+  });
+
+  return (
+    <Card className="space-y-2">
+      <h3 className="font-medium">Assigned Contact RA</h3>
+      {error && <p className="text-danger text-sm">{error}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={sampleCase.assigned_ra ?? ""}
+          onChange={(e) => assign.mutate(e.target.value ? Number(e.target.value) : null)}
+          disabled={assign.isPending}
+          className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+        >
+          <option value="">Unassigned</option>
+          {(contactRAs?.results ?? []).map((ra) => (
+            <option key={ra.id} value={ra.id}>
+              {ra.username}
+            </option>
+          ))}
+        </select>
+        {sampleCase.assigned_ra_username && (
+          <span className="text-text-muted text-xs">Currently: {sampleCase.assigned_ra_username}</span>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export default function SampleCaseDetailPage() {
   const params = useParams<{ sampleId: string }>();
   const queryClient = useQueryClient();
@@ -299,6 +357,8 @@ export default function SampleCaseDetailPage() {
             <dd>{currentStatus}</dd>
           </dl>
         </Card>
+
+        <AssignedRaPanel sampleCase={sampleCase} />
 
         <InvitationsPanel
           sampleId={sampleCase.sample_id}
