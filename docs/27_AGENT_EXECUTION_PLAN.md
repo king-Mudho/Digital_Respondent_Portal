@@ -15,12 +15,12 @@ work — resolve them with the PI before or during the phase noted, not silently
 - **PI sign-off (2026-09-11).** The PI approved this full documentation set
   (`docs/00`–`28`) and this execution plan in writing via chat, unblocking `AGENTS.md`
   ground rule 1. For the Phase 0 items that are compliance/content decisions rather than
-  engineering (POTRAZ/DPO position, QA rule thresholds, UI palette, Shona/Ndebele PIS
-  translation stance, WhatsApp template wording), the PI directed: proceed using this
-  documentation set's own proposed provisional defaults, and keep them flagged here for
-  real confirmation later — same convention as the sibling ABI project. POTRAZ/DPO
-  determination and Meta template approval remain genuinely open and block Phase 11
-  go-live only, not early development (`docs/28_DEFINITION_OF_DONE.md`).
+  engineering (QA rule thresholds, UI palette, Shona/Ndebele PIS translation stance,
+  WhatsApp template wording), the PI directed: proceed using this documentation set's
+  own proposed provisional defaults, and keep them flagged here for real confirmation
+  later — same convention as the sibling ABI project. Meta template approval remains
+  genuinely open and blocks Phase 11 go-live only, not early development
+  (`docs/28_DEFINITION_OF_DONE.md`).
 - **Phase 2 — actor_family/value_chain/size_class/entity_type category lists.**
   Neither `docs/05_DATABASE_ARCHITECTURE.md` nor the original blueprint enumerate these
   (only "CharField (choices)"). Implemented with a provisional placeholder set in
@@ -49,10 +49,12 @@ work — resolve them with the PI before or during the phase noted, not silently
   contracts (`docs/11`, `docs/12`) with env-var placeholders; dev/staging must point at a
   dedicated Kobo test asset once one exists, never a production asset.
 
-- **Phase 0 — POTRAZ / Data Protection Officer determination.**
-  `18_DATA_PRIVACY_AND_COMPLIANCE.md` specifies the compliance question but not its
-  answer — this requires the PI and CUT's legal/ethics office, not the development
-  team. Blocking for go-live, not for early development against synthetic data.
+- **Phase 0 — POTRAZ / Data Protection Officer determination. RESOLVED (2026-09-12).**
+  `18_DATA_PRIVACY_AND_COMPLIANCE.md` specified the compliance question; the PI's
+  determination is that Chinhoyi University of Technology's Research Ethics Clearance
+  (Annex 19, Form GRSD 17 SEBS/06/2025, approved 24.08.2026) and the study's operation
+  under the University's institutional research governance covers this position — see
+  `18_DATA_PRIVACY_AND_COMPLIANCE.md` for the full record. No longer blocks Phase 11.
 - **Phase 0 — QA rule threshold values.** `15_QA_AND_DATA_QUALITY.md` proposes concrete
   engineering defaults (e.g. 5–90 minute plausible duration window) precisely so the PI
   has specific numbers to confirm or adjust rather than an abstract placeholder. Treat
@@ -73,8 +75,10 @@ work — resolve them with the PI before or during the phase noted, not silently
 
 - [x] PI reviews and approves this full documentation set (`docs/00`–`28`) in writing.
       *(2026-09-11, via chat — see "Open questions" above.)*
-- [ ] Resolve the POTRAZ/Data Protection Officer position
-      (`18_DATA_PRIVACY_AND_COMPLIANCE.md`). *(Blocks Phase 11 go-live only.)*
+- [x] Resolve the POTRAZ/Data Protection Officer position
+      (`18_DATA_PRIVACY_AND_COMPLIANCE.md`). *(2026-09-12: covered by CUT's Research
+      Ethics Clearance and the study's institutional research governance — see
+      `18_DATA_PRIVACY_AND_COMPLIANCE.md` for the full record.)*
 - [x] Confirm QA rule threshold defaults with the PI (`15_QA_AND_DATA_QUALITY.md`).
       *(2026-09-11: proceed with the documented proposed defaults, flagged provisional.)*
 - [x] Freeze the identifier-scheme spec (`09_IDENTIFIER_AND_SAMPLING_CONTROL.md`) —
@@ -432,12 +436,13 @@ Backend 87/87 tests passing.
       staging with synthetic cases only. **Partially done**: verified live over the
       real HTTPS domain (invitation validation → confirm → eligibility screens,
       admin JWT login), confirmed HTTPS validity (item 1 of the checklist) and the
-      backup/restore drill (item 4). Items 2 (full 15-item `docs/28` checklist), 3
-      (POTRAZ position), 5 (WhatsApp Meta approval) remain open — items 3 and 5 are
-      genuinely not engineering-completable (PI/legal and external Meta account
-      respectively); item 2 is already covered by the Phase 9 automated suite
-      against local dev, not independently re-run item-by-item against this exact
-      deployment. All explicitly Phase 11's gate, not Phase 10's.
+      backup/restore drill (item 4). Item 3 (POTRAZ position) is resolved — see
+      `18_DATA_PRIVACY_AND_COMPLIANCE.md`. Items 2 (full 15-item `docs/28` checklist)
+      and 5 (WhatsApp Meta approval) remain open — item 5 is genuinely not
+      engineering-completable (external Meta account); item 2 is already covered by
+      the Phase 9 automated suite against local dev, not independently re-run
+      item-by-item against this exact deployment. Both explicitly Phase 11's gate, not
+      Phase 10's.
 - [ ] Conduct user acceptance testing with PI, Field Coordinator and one RA. Requires
       the PI/Field Coordinator/RA's own participation — not something to simulate.
 

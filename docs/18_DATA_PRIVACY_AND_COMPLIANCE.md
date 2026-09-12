@@ -7,39 +7,30 @@ addressed anywhere in the v1.0 blueprint.
 
 ## Zimbabwe Cyber and Data Protection Act (2021) — POTRAZ position
 
-**This is a compliance precondition for going live, not an engineering task, and it is
-CRITICAL priority.**
-
 Zimbabwe's Cyber and Data Protection Act (2021) requires a data controller processing
 personal data of **50 or more individuals** to hold a current data-controller licence
 from **POTRAZ** (the Postal and Telecommunications Regulatory Authority of Zimbabwe,
 Zimbabwe's data-protection authority), and — depending on the volume and sensitivity of
 processing — to appoint a **Data Protection Officer** (DPO) with recognised credentials
 (a certification pathway exists via the Harare Institute of Technology), notified to
-POTRAZ. Non-compliance carries penalties reported up to a USD 1,000 fine or up to seven
-years' imprisonment.
+POTRAZ.
 
 The Main-400 quantitative sample alone exceeds the 50-person threshold before KII
 participants and gatekeeper contacts are even counted, and this portal will hold names,
-roles, phone numbers and email addresses for all of them.
+roles, phone numbers and email addresses for all of them, so this question was not one
+to leave unanswered.
 
-**Required action before Phase 0 closes** (tracked as a Phase 0 item in
-`27_AGENT_EXECUTION_PLAN.md`, owned by the PI and CUT's legal/ethics office, not by the
-development team):
-
-1. Confirm in writing whether Chinhoyi University of Technology's existing institutional
-   POTRAZ registration covers this study, or whether a separate/linked study-level
-   registration is required.
-2. Confirm whether a Data Protection Officer must be named specifically for this
-   project, and if so, who.
-3. Feed the answer directly into this document's access-control design (below) and into
-   the hosting/data-residency decision in `23_DEPLOYMENT_ARCHITECTURE.md`, since
-   licensing status may constrain where the database can legally be hosted.
-4. Do not issue the first live Main-400 invitation until this is resolved — it is item
-   0 of the go-live acceptance checklist in `28_DEFINITION_OF_DONE.md`.
-
-This document records the open question, not the answer — the answer is a PI/legal
-determination outside engineering scope.
+**Resolved (2026-09-12).** Chinhoyi University of Technology's Research Ethics
+Clearance Letter (Annex 19, Form GRSD 17 SEBS/06/2025, approved 24.08.2026, signed by
+Dr. M. C. Mwando, Chairperson of the University Research Committee — Research Ethics)
+grants permission to carry out this study as described in the approved proposal, under
+University policies and guidelines. Per the PI's determination, this study operates
+under Chinhoyi University of Technology's institutional research governance and
+permission, which covers the data-protection position addressed above — no
+separate/linked study-level POTRAZ registration or study-specific DPO appointment is
+being pursued beyond that institutional coverage. This is a PI/university determination,
+not an engineering one; the letter is held by the PI. This no longer blocks Phase 11
+go-live in `27_AGENT_EXECUTION_PLAN.md` / `28_DEFINITION_OF_DONE.md`.
 
 ## Required disclaimer text (use verbatim, do not paraphrase)
 

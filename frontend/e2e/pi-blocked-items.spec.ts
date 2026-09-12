@@ -24,15 +24,6 @@ test("WhatsApp Business Platform messaging integration", () => {
   );
 });
 
-test("POTRAZ / Data Protection Officer determination", () => {
-  test.skip(
-    true,
-    "This is a legal/compliance go-live gate (docs/18_DATA_PRIVACY_AND_COMPLIANCE.md, " +
-      "docs/28_DEFINITION_OF_DONE.md), not a software feature -- there is no code path, API " +
-      "endpoint, feature flag, or UI element that represents 'POTRAZ has ruled.' Nothing in this " +
-      "repository can be exercised to test it either way. The closest engineering-testable proxy " +
-      "-- that consent is always captured before any Kobo redirect, and that the required " +
-      "disclaimers render verbatim on every screen docs/18 lists -- is already covered by " +
-      "e2e/happy-path.spec.ts, e2e/ineligible-respondent.spec.ts and backend/tests/test_consent.py.",
-  );
-});
+// POTRAZ / Data Protection Officer determination -- resolved 2026-09-12, see
+// docs/18_DATA_PRIVACY_AND_COMPLIANCE.md. No longer a go-live blocker, so the
+// standing skip that tracked it has been removed.

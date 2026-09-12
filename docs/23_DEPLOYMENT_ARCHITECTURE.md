@@ -84,8 +84,8 @@ not assumed to work.
 1. Confirm HTTPS is valid for `research.agribizframework.com`.
 2. Confirm the staging rehearsal (synthetic cases only) has passed every item in
    `28_DEFINITION_OF_DONE.md`'s go-live checklist.
-3. Confirm the POTRAZ/data-protection position (`18_DATA_PRIVACY_AND_COMPLIANCE.md`) is
-   resolved in writing.
+3. ~~Confirm the POTRAZ/data-protection position~~ — resolved 2026-09-12, see
+   `18_DATA_PRIVACY_AND_COMPLIANCE.md`.
 4. Confirm the backup/restore drill has been run and passed against the RPO/RTO targets
    above.
 5. Confirm the WhatsApp Business Platform templates are Meta-approved

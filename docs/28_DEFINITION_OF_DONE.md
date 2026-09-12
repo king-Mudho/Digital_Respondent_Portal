@@ -6,8 +6,9 @@ real Main-400 invitation is issued.
 
 ## Compliance gate (blocks go-live, not early development)
 
-- [ ] The POTRAZ/Data Protection Officer position is resolved in writing
-      (`18_DATA_PRIVACY_AND_COMPLIANCE.md`).
+- [x] The POTRAZ/Data Protection Officer position is resolved in writing
+      (`18_DATA_PRIVACY_AND_COMPLIANCE.md`). *(2026-09-12: covered by CUT's Research
+      Ethics Clearance and the study's institutional research governance.)*
 - [ ] WhatsApp Business Platform utility-category templates are Meta-approved
       (`12_CONTACT_CRM_AND_MESSAGING.md`).
 
@@ -117,8 +118,9 @@ exactly what was and wasn't verified live.)*
 - [ ] Backup and restore are tested.
 - [ ] Mobile pages work on typical Android screens and poor/variable connectivity.
 - [ ] Withdrawal and consent-revocation procedures are operationally testable.
-- [ ] The POTRAZ/data-protection position is resolved and reflected in the deployed
-      access-control configuration.
+- [x] The POTRAZ/data-protection position is resolved and reflected in the deployed
+      access-control configuration. *(2026-09-12: see `18_DATA_PRIVACY_AND_
+      COMPLIANCE.md` — covered by CUT's Research Ethics Clearance.)*
 
 ## Sign-off
 

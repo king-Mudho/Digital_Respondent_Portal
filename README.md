@@ -30,9 +30,9 @@ tests: 107/107 passing (`pytest`). Frontend: `tsc --noEmit` clean, `ruff check` 
 
 See `docs/27_AGENT_EXECUTION_PLAN.md` for the full phase-by-phase build record and
 `docs/28_DEFINITION_OF_DONE.md` for what remains before the PI's own go-live decision:
-the POTRAZ/data-protection determination, WhatsApp Business Platform Meta template
-approval, a real KoboToolbox production asset, and the full go-live checklist run
-against this deployment.
+WhatsApp Business Platform Meta template approval, a real KoboToolbox production
+asset, and the full go-live checklist run against this deployment. The POTRAZ/data-
+protection determination is resolved (`docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`).
 
 This is a research-operations tool supporting an active fieldwork study with a
 30 November 2026 data-lock date — not a production lending or credit-decision system.
@@ -316,11 +316,11 @@ real Kobo asset is configured. Fixtures that get mutated by tests (workflow stat
 reserve activation) are force-reset to a known state by `seed_drp_dev` on every run, so
 the suite stays reliable even against a shared, never-reset local database.
 
-Two specs (`e2e/pi-blocked-items.spec.ts`) are deliberately `test.skip`, not absent: the
+One spec (`e2e/pi-blocked-items.spec.ts`) is deliberately `test.skip`, not absent: the
 WhatsApp Business Platform integration has no code surface yet (no Meta-approved account
-or template), and the POTRAZ determination is a legal go-live gate with no feature flag
-to exercise. Both stay visible with a written reason in every run's report until the
-underlying PI/external action happens.
+or template). It stays visible with a written reason in every run's report until the
+underlying external action happens. (The POTRAZ/data-protection determination was
+tracked here too; resolved 2026-09-12, see `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`.)
 
 A full manual QA pass (this hardening round) also walked every respondent-flow screen
 and every admin screen in a real browser against a freshly seeded local database, and

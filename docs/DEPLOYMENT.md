@@ -194,10 +194,10 @@ this over:
 **Not run**: the full 15-item go-live checklist in `docs/28_DEFINITION_OF_DONE.md`
 item-by-item against this live deployment (most items are already covered by the
 Phase 9 automated test suite, which exercises the identical code against a local
-dev database — not re-run one-by-one here). That checklist, plus the POTRAZ/DPO
-determination and WhatsApp Meta template approval, are Phase 11's explicit gate —
-"the PI, not the agent, makes the final go-live call"
-(`docs/28_DEFINITION_OF_DONE.md`).
+dev database — not re-run one-by-one here). That checklist, plus WhatsApp Meta
+template approval, remain Phase 11's explicit gate — "the PI, not the agent, makes
+the final go-live call" (`docs/28_DEFINITION_OF_DONE.md`). The POTRAZ/DPO position
+is resolved (`docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`).
 
 ## Backup & restore
 
