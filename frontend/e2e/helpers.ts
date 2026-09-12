@@ -28,3 +28,14 @@ export async function issueFreshToken(request: APIRequestContext, baseURL: strin
 export function backendBaseURL(): string {
   return process.env.E2E_BACKEND_URL ?? "http://localhost:8000";
 }
+
+/** A raw JWT access token for the seeded e2e_admin, for specs that need to
+ * create fixture data directly against the Django API (KII records,
+ * documents, appointments, ...) before driving the admin UI against them. */
+export async function getAdminAccessToken(request: APIRequestContext, baseURL: string): Promise<string> {
+  const response = await request.post(`${baseURL}/api/v1/auth/token/`, {
+    data: { username: process.env.E2E_ADMIN_USERNAME, password: process.env.E2E_ADMIN_PASSWORD },
+  });
+  const { access } = await response.json();
+  return access;
+}

@@ -22,5 +22,8 @@ test("case detail workflow status matches the API exactly", async ({ page, reque
   const sampleCase = await apiResponse.json();
 
   await page.goto(`/admin/sample/${process.env.E2E_MAIN_SAMPLE_ID}`);
-  await expect(page.getByText(sampleCase.workflow_status, { exact: false })).toBeVisible();
+  // .first(): if the case has reached a terminal status (e.g. S11), the
+  // "No further transitions from S11." helper text also contains the
+  // status string, which would otherwise be a strict-mode violation here.
+  await expect(page.getByText(sampleCase.workflow_status, { exact: false }).first()).toBeVisible();
 });
