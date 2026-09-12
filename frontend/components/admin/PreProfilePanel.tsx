@@ -44,6 +44,19 @@ type FieldCatalog = Record<string, { label: string; module: string; route: strin
 
 const CONFIDENCE_LEVELS = ["HIGH", "MODERATE", "LOW"];
 
+// Mirrors backend/apps/proit/models.py SourceAuthority -- document Section
+// 5's four-tier source priority hierarchy. A Tier 1 source rated HIGH
+// confidence is what actually earns a field HIGH confidence on its own
+// (see proit.services.compute_field_confidence); this is the one detail
+// the confidence dropdown alone can't capture.
+const SOURCE_AUTHORITY_TIERS = [
+  { value: "", label: "Tier (optional)" },
+  { value: "TIER_1_STATUTORY", label: "Tier 1 — statutory/official register or audited report" },
+  { value: "TIER_2_INSTITUTIONAL", label: "Tier 2 — official website, investor report, association record" },
+  { value: "TIER_3_MEDIA", label: "Tier 3 — reputable media, conference bio, professional profile" },
+  { value: "TIER_4_SOCIAL", label: "Tier 4 — corroborated public social/platform content" },
+];
+
 // PROIT (ABF-FST_PROIT_v1.0_Portal_Deployment_Tool.docx): background
 // desk-research on an organisation/respondent, gathered and provenance-
 // tracked before the interview, so the respondent only has to confirm or
@@ -64,7 +77,9 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
   const [error, setError] = useState<string | null>(null);
   const [newFieldId, setNewFieldId] = useState("");
   const [newFieldValue, setNewFieldValue] = useState("");
-  const [evidenceDrafts, setEvidenceDrafts] = useState<Record<number, { title: string; confidence: string }>>({});
+  const [evidenceDrafts, setEvidenceDrafts] = useState<Record<number, { title: string; confidence: string; authority: string }>>({});
+  const emptyDraft = { title: "", confidence: "MODERATE", authority: "" };
+  const draftFor = (fieldId: number) => evidenceDrafts[fieldId] ?? emptyDraft;
 
   const queryKey = ["pre-profile", sampleCaseId ?? `kii-${kiiRecordId}`];
   const listQueryParam = sampleCaseId ? `sample_case=${sampleCaseId}` : `kii_record=${kiiRecordId}`;
@@ -112,17 +127,20 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
   });
 
   const addEvidence = useMutation({
-    mutationFn: (fieldId: number) =>
-      adminFetch(`/proit/fields/${fieldId}/evidence/`, {
+    mutationFn: (fieldId: number) => {
+      const draft = draftFor(fieldId);
+      return adminFetch(`/proit/fields/${fieldId}/evidence/`, {
         method: "POST",
         body: JSON.stringify({
-          source_title: evidenceDrafts[fieldId]?.title ?? "",
-          source_confidence: evidenceDrafts[fieldId]?.confidence ?? "MODERATE",
+          source_title: draft.title,
+          source_confidence: draft.confidence,
+          source_authority: draft.authority,
         }),
-      }),
+      });
+    },
     onSuccess: (_data, fieldId) => {
       setError(null);
-      setEvidenceDrafts((d) => ({ ...d, [fieldId]: { title: "", confidence: "MODERATE" } }));
+      setEvidenceDrafts((d) => ({ ...d, [fieldId]: emptyDraft }));
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to add evidence."),
@@ -223,6 +241,7 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
                 {field.sources.map((s) => (
                   <li key={s.id}>
                     {s.source_record_id}: {s.source_title} ({s.source_confidence}
+                    {s.source_authority ? `, ${s.source_authority.replace(/^TIER_(\d)_.*/, "Tier $1")}` : ""}
                     {s.source_conflict ? ", conflicts with another source" : ""})
                   </li>
                 ))}
@@ -232,27 +251,32 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
               <div className="flex flex-wrap items-end gap-2 pt-1">
                 <input
                   placeholder="Source title (e.g. PRAZ registry entry)"
-                  value={evidenceDrafts[field.id]?.title ?? ""}
-                  onChange={(e) =>
-                    setEvidenceDrafts((d) => ({ ...d, [field.id]: { title: e.target.value, confidence: d[field.id]?.confidence ?? "MODERATE" } }))
-                  }
+                  value={draftFor(field.id).title}
+                  onChange={(e) => setEvidenceDrafts((d) => ({ ...d, [field.id]: { ...draftFor(field.id), title: e.target.value } }))}
                   className="flex-1 min-w-[12rem] rounded-md border border-border px-2 py-1 text-xs"
                 />
                 <select
-                  value={evidenceDrafts[field.id]?.confidence ?? "MODERATE"}
-                  onChange={(e) =>
-                    setEvidenceDrafts((d) => ({ ...d, [field.id]: { title: d[field.id]?.title ?? "", confidence: e.target.value } }))
-                  }
+                  value={draftFor(field.id).confidence}
+                  onChange={(e) => setEvidenceDrafts((d) => ({ ...d, [field.id]: { ...draftFor(field.id), confidence: e.target.value } }))}
                   className="rounded-md border border-border px-2 py-1 text-xs bg-surface"
                 >
                   {CONFIDENCE_LEVELS.map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
+                <select
+                  value={draftFor(field.id).authority}
+                  onChange={(e) => setEvidenceDrafts((d) => ({ ...d, [field.id]: { ...draftFor(field.id), authority: e.target.value } }))}
+                  className="rounded-md border border-border px-2 py-1 text-xs bg-surface max-w-[16rem]"
+                >
+                  {SOURCE_AUTHORITY_TIERS.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
                 <Button
                   variant="outline"
                   onClick={() => addEvidence.mutate(field.id)}
-                  disabled={addEvidence.isPending || !evidenceDrafts[field.id]?.title}
+                  disabled={addEvidence.isPending || !draftFor(field.id).title}
                 >
                   Add source
                 </Button>
