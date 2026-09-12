@@ -7,6 +7,7 @@ from api.permissions import IsFieldCoordinatorOrAdmin
 from api.throttling import PerTokenThrottle
 
 from .models import InvitationToken
+from .serializers import InvitationTokenSerializer
 from .services import (
     TokenNotInvitable,
     TokenValidationError,
@@ -52,11 +53,27 @@ class InvitationValidateView(APIView):
 
 
 class InvitationIssueView(APIView):
-    """POST /api/v1/invitations/ -- internal. Issue a new invitation token
+    """GET /api/v1/invitations/?sample_id=<id> -- internal. Lists a case's
+    invitation history (status/channel/dates only -- see
+    InvitationTokenSerializer for why the raw token/code never appear
+    here). Backs the "Send Invitation" panel's history list, e.g. to show
+    an existing invitation is still open before issuing another.
+
+    POST /api/v1/invitations/ -- internal. Issue a new invitation token
     for a SampleCase; is_invitable() enforcement happens inside
     invitations.services.issue_invitation (AGENTS.md ground rule 4)."""
 
     permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def get(self, request):
+        sample_id = request.query_params.get("sample_id")
+        if not sample_id:
+            return Response(
+                {"error": {"code": "sample_id_required", "message": "sample_id is required.", "field_errors": {}}},
+                status=400,
+            )
+        tokens = InvitationToken.objects.filter(sample_case__sample_id=sample_id).order_by("-issued_at")
+        return Response({"results": InvitationTokenSerializer(tokens, many=True).data})
 
     def post(self, request):
         from apps.sampling.models import SampleCase

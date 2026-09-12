@@ -28,6 +28,17 @@ interface ContactEvent {
   notes: string;
 }
 
+interface InvitationTokenEntry {
+  id: number;
+  status: string;
+  channel: string;
+  invitation_wave: number;
+  issued_at: string;
+  expires_at: string;
+  revoked_at: string | null;
+  revoked_reason: string;
+}
+
 // Mirrors backend/apps/sampling/services.py WORKFLOW_TRANSITIONS -- the
 // frontend never invents its own transition rules, it just offers the
 // options the backend will actually accept; the backend re-validates and
@@ -52,6 +63,162 @@ const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
 
 const CONTACT_CHANNELS = ["WHATSAPP", "EMAIL", "PHONE", "SMS", "FACE_TO_FACE"];
 const CONTACT_OUTCOMES = ["REACHED", "NO_ANSWER", "WRONG_NUMBER", "REFUSED", "RESCHEDULED", "COMPLETED"];
+const INVITATION_CHANNELS = ["WHATSAPP", "EMAIL", "SMS", "PRINTED_CODE", "QR"];
+// A token in any of these states is still "open" -- issuing a new one
+// supersedes it, and it's still eligible for a manual revoke
+// (docs/10_INVITATION_AND_CONSENT.md).
+const OPEN_TOKEN_STATUSES = ["GENERATED", "SENT", "OPENED", "ELIGIBILITY_PASSED", "CONSENTED", "SURVEY_STARTED"];
+
+function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvitable: boolean }) {
+  const queryClient = useQueryClient();
+  const [channel, setChannel] = useState("WHATSAPP");
+  const [wave, setWave] = useState(1);
+  const [justIssued, setJustIssued] = useState<{ link: string; manualCode: string; expiresAt: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: history } = useQuery({
+    queryKey: ["invitations", sampleId],
+    queryFn: () => adminFetch<{ results: InvitationTokenEntry[] }>(`/invitations/?sample_id=${sampleId}`),
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["invitations", sampleId] });
+
+  const issue = useMutation({
+    mutationFn: () =>
+      adminFetch<{ raw_token: string; raw_manual_code: string; expires_at: string }>("/invitations/", {
+        method: "POST",
+        body: JSON.stringify({ sample_id: sampleId, channel, invitation_wave: wave }),
+      }),
+    onSuccess: (data) => {
+      setError(null);
+      // The only moment this raw token/code is ever visible again -- only
+      // its salted hash is persisted server-side from here on
+      // (docs/10_INVITATION_AND_CONSENT.md).
+      setJustIssued({
+        link: `${window.location.origin}/i/${data.raw_token}`,
+        manualCode: data.raw_manual_code,
+        expiresAt: data.expires_at,
+      });
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to issue invitation."),
+  });
+
+  const revoke = useMutation({
+    mutationFn: (tokenId: number) =>
+      adminFetch(`/invitations/${tokenId}/revoke/`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "Revoked from admin UI" }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to revoke invitation."),
+  });
+
+  const entries = history?.results ?? [];
+  const hasOpenToken = entries.some((e) => OPEN_TOKEN_STATUSES.includes(e.status));
+
+  return (
+    <Card className="space-y-3">
+      <h3 className="font-medium">Invitations</h3>
+      {!isInvitable && (
+        <p className="text-text-muted text-xs">
+          This case can&apos;t be invited right now (a locked Reserve case must be activated first).
+        </p>
+      )}
+      {error && <p className="text-danger text-sm">{error}</p>}
+
+      {justIssued && (
+        <div className="rounded-md border border-border bg-bg p-3 space-y-2 text-sm">
+          <p className="font-medium">Invitation link (shown once -- copy it now)</p>
+          <input
+            readOnly
+            value={justIssued.link}
+            onFocus={(e) => e.target.select()}
+            className="w-full rounded-md border border-border px-2 py-1.5 font-mono text-xs bg-surface"
+          />
+          <p className="text-text-muted text-xs">
+            Manual code (for phone-assisted administration):{" "}
+            <span className="font-mono">{justIssued.manualCode}</span> · expires{" "}
+            {new Date(justIssued.expiresAt).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+
+      {isInvitable && (
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Channel</label>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+            >
+              {INVITATION_CHANNELS.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Wave</label>
+            <input
+              type="number"
+              min={1}
+              value={wave}
+              onChange={(e) => setWave(Number(e.target.value))}
+              className="w-20 rounded-md border border-border px-2 py-1.5 text-sm"
+            />
+          </div>
+          <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
+            {hasOpenToken ? "Send new invitation (replaces current)" : "Send invitation"}
+          </Button>
+        </div>
+      )}
+
+      {entries.length > 0 && (
+        <div className="border-t border-border pt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-text-muted">
+                <th className="py-1 pr-4">Wave</th>
+                <th className="py-1 pr-4">Channel</th>
+                <th className="py-1 pr-4">Status</th>
+                <th className="py-1 pr-4">Issued</th>
+                <th className="py-1">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} className="border-t border-border">
+                  <td className="py-1 pr-4">{e.invitation_wave}</td>
+                  <td className="py-1 pr-4">{e.channel}</td>
+                  <td className="py-1 pr-4">
+                    {e.status}
+                    {e.status === "REVOKED" && e.revoked_reason && (
+                      <p className="text-text-muted text-xs">{e.revoked_reason}</p>
+                    )}
+                  </td>
+                  <td className="py-1 pr-4">{new Date(e.issued_at).toLocaleDateString()}</td>
+                  <td className="py-1">
+                    {OPEN_TOKEN_STATUSES.includes(e.status) && (
+                      <Button variant="outline" onClick={() => revoke.mutate(e.id)}>
+                        Revoke
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 export default function SampleCaseDetailPage() {
   const params = useParams<{ sampleId: string }>();
@@ -132,6 +299,11 @@ export default function SampleCaseDetailPage() {
             <dd>{currentStatus}</dd>
           </dl>
         </Card>
+
+        <InvitationsPanel
+          sampleId={sampleCase.sample_id}
+          isInvitable={sampleCase.sample_type === "MAIN" || sampleCase.status === "ACTIVATED"}
+        />
 
         {sampleCase.sample_type === "MAIN" && (
           <Card className="space-y-3">

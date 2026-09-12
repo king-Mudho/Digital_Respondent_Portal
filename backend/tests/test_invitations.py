@@ -6,7 +6,9 @@ token supersession, revocation, rate limiting."
 
 import pytest
 from django.utils import timezone
+from rest_framework.test import APIClient
 
+from apps.accounts.models import Role, User
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import (
     TokenNotInvitable,
@@ -89,3 +91,70 @@ def test_can_issue_invitation_for_activated_reserve(activated_reserve_case):
     raw_token, _, token = issue_invitation(activated_reserve_case)
     resolved = validate_token(raw_token)
     assert resolved.pk == token.pk
+
+
+# --- API: the "Send Invitation" panel's backing endpoints -------------------
+
+@pytest.fixture
+def admin_client(db):
+    role, _ = Role.objects.get_or_create(name=Role.PI_ADMIN)
+    user = User.objects.create_user(username="invite_admin", password="testpass123", role=role)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
+
+
+def test_issue_endpoint_returns_raw_token_once(admin_client, main_case):
+    resp = admin_client.post(
+        "/api/v1/invitations/", {"sample_id": main_case.sample_id, "channel": "WHATSAPP", "invitation_wave": 1},
+        format="json",
+    )
+    assert resp.status_code == 201
+    assert len(resp.data["raw_token"]) > 32
+    assert resp.data["raw_manual_code"]
+
+
+def test_issue_endpoint_rejects_locked_reserve(admin_client, locked_reserve_case):
+    resp = admin_client.post(
+        "/api/v1/invitations/", {"sample_id": locked_reserve_case.sample_id, "channel": "WHATSAPP"}, format="json",
+    )
+    assert resp.status_code == 403
+    assert resp.data["error"]["code"] == "not_invitable"
+
+
+def test_list_endpoint_never_exposes_the_raw_token_or_its_hash(admin_client, main_case):
+    issue_invitation(main_case)
+    resp = admin_client.get(f"/api/v1/invitations/?sample_id={main_case.sample_id}")
+    assert resp.status_code == 200
+    assert len(resp.data["results"]) == 1
+    entry = resp.data["results"][0]
+    assert "token_hash" not in entry
+    assert "manual_code_hash" not in entry
+    assert entry["status"] == TokenStatus.GENERATED
+    assert entry["channel"] == "WHATSAPP"
+
+
+def test_list_endpoint_requires_sample_id(admin_client):
+    resp = admin_client.get("/api/v1/invitations/")
+    assert resp.status_code == 400
+
+
+def test_list_endpoint_orders_newest_first_after_supersession(admin_client, main_case):
+    issue_invitation(main_case, invitation_wave=1)
+    issue_invitation(main_case, invitation_wave=2)
+    resp = admin_client.get(f"/api/v1/invitations/?sample_id={main_case.sample_id}")
+    results = resp.data["results"]
+    assert len(results) == 2
+    assert results[0]["invitation_wave"] == 2
+    assert results[0]["status"] == TokenStatus.GENERATED
+    assert results[1]["invitation_wave"] == 1
+    assert results[1]["status"] == TokenStatus.EXPIRED
+
+
+def test_revoke_endpoint_marks_token_revoked(admin_client, main_case):
+    _, _, token = issue_invitation(main_case)
+    resp = admin_client.post(f"/api/v1/invitations/{token.id}/revoke/", {"reason": "Issued in error"}, format="json")
+    assert resp.status_code == 200
+    token.refresh_from_db()
+    assert token.status == TokenStatus.REVOKED
+    assert token.revoked_reason == "Issued in error"

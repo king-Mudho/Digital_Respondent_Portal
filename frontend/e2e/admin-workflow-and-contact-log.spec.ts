@@ -57,7 +57,14 @@ test("advancing workflow status and logging a contact attempt both work from the
   // Platform integration itself is blocked on Meta template approval (see
   // pi-blocked-items.spec.ts) and has no messaging UI yet. This at least
   // confirms the channel option exists and round-trips correctly end to end.
-  await page.getByRole("combobox").first().selectOption("WHATSAPP");
+  //
+  // Scoped via :has(option[value='FACE_TO_FACE']) rather than the first
+  // <select> on the page -- the "Invitations" panel (added when the
+  // send-invitation gap was closed) has its own channel <select> earlier
+  // in the DOM with a different option set (no FACE_TO_FACE/PHONE), so a
+  // positional ".first()" here would silently select the wrong dropdown.
+  const contactChannelSelect = page.locator("select:has(option[value='FACE_TO_FACE'])");
+  await contactChannelSelect.selectOption("WHATSAPP");
   const noteText = `E2E: WhatsApp contact attempt logged via admin UI (${Date.now()}).`;
   await page.getByPlaceholder("Notes (optional)").fill(noteText);
 
