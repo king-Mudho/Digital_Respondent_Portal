@@ -1,4 +1,4 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 def merge_duplicate_strata(apps, schema_editor):
@@ -11,7 +11,10 @@ def merge_duplicate_strata(apps, schema_editor):
     combination, keep whichever row already has SampleCases pointing at it
     (or the lowest id if none do), re-point every SampleCase from the other
     rows onto it, and delete the surplus rows -- so the schema constraint
-    added right after this can be applied cleanly.
+    added in the next migration can be applied cleanly. Kept as its own
+    migration (rather than combined with the AddConstraint) because
+    PostgreSQL refuses an ALTER TABLE in the same transaction as a preceding
+    UPDATE/DELETE on that table while trigger events are still pending.
     """
     StratumDefinition = apps.get_model("sampling", "StratumDefinition")
     SampleCase = apps.get_model("sampling", "SampleCase")
@@ -39,11 +42,4 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(merge_duplicate_strata, migrations.RunPython.noop),
-        migrations.AddConstraint(
-            model_name="stratumdefinition",
-            constraint=models.UniqueConstraint(
-                fields=["province", "actor_family", "value_chain", "size_class"],
-                name="unique_stratum_definition_combo",
-            ),
-        ),
     ]
