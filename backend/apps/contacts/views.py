@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -9,7 +10,7 @@ from api.throttling import PerTokenThrottle
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
 
-from .models import Appointment, ContactEvent, RoleCategory
+from .models import Appointment, AppointmentStatus, ContactEvent, RoleCategory
 from .serializers import AppointmentSerializer, ContactEventSerializer
 from .services import record_eligibility_check
 
@@ -99,3 +100,24 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=201)
+
+
+class AppointmentStatusView(APIView):
+    """POST /api/v1/appointments/{id}/status/ -- internal only. Appointment.
+    status is deliberately read-only on AppointmentSerializer (a public
+    caller creating an appointment must never set its own status), so
+    updating it needs this dedicated endpoint, same pattern as KII's status
+    transition view."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, pk):
+        appointment = get_object_or_404(Appointment, pk=pk)
+        status_value = request.data.get("status")
+        if status_value not in AppointmentStatus.values:
+            return Response(
+                {"error": {"code": "invalid_status", "message": "Invalid status.", "field_errors": {}}}, status=400
+            )
+        appointment.status = status_value
+        appointment.save(update_fields=["status"])
+        return Response(AppointmentSerializer(appointment).data)

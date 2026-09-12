@@ -26,11 +26,24 @@ class SampleCaseSerializer(serializers.ModelSerializer):
             "workflow_status", "activation_reason", "activated_by", "activated_at",
             "activation_evidence_note",
         ]
+        # status/workflow_status/activation_* are read-only here on purpose: they
+        # must only ever change through sampling.services.transition_workflow_status()
+        # or activate_reserve() (SampleCaseTransitionView / ReserveActivateView),
+        # never a bare PATCH -- both validate the S00-S16 state machine and the
+        # five-authorised-reasons rule, and both write an AuditEvent. A bug found
+        # during the Sep 2026 hardening pass: this PATCH endpoint let a caller jump
+        # a case straight from S00 to S11 with no validation and no audit trail at
+        # all (confirmed by a reproducing test before this fix).
         read_only_fields = [
-            "id", "sample_id", "activated_by", "activated_at",
+            "id", "sample_id", "status", "workflow_status", "activation_reason",
+            "activated_by", "activated_at", "activation_evidence_note",
         ]
 
 
 class ReserveActivationSerializer(serializers.Serializer):
     activation_reason = serializers.CharField()
     activation_evidence_note = serializers.CharField(required=False, allow_blank=True)
+
+
+class WorkflowTransitionSerializer(serializers.Serializer):
+    workflow_status = serializers.CharField()

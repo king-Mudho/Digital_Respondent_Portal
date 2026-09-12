@@ -1,9 +1,12 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/card";
+import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
 
 interface CostDashboard {
@@ -13,10 +16,34 @@ interface CostDashboard {
   cost_per_completed_kii: number | null;
 }
 
+const CATEGORIES = ["RA_ALLOWANCE", "AIRTIME_DATA", "TRANSPORT", "ACCOMMODATION", "HOSTING", "MESSAGING", "OTHER"];
+
 export default function CostDashboardPage() {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-cost"],
     queryFn: () => adminFetch<CostDashboard>("/dashboards/cost/"),
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState({
+    date: new Date().toISOString().slice(0, 10),
+    category: "TRANSPORT",
+    amount: "",
+    currency: "USD",
+  });
+
+  const addCost = useMutation({
+    mutationFn: () =>
+      adminFetch("/costs/", {
+        method: "POST",
+        body: JSON.stringify({ ...form, amount: Number(form.amount) }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      setForm((f) => ({ ...f, amount: "" }));
+      queryClient.invalidateQueries({ queryKey: ["dashboard-cost"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to log cost."),
   });
 
   return (
@@ -59,6 +86,39 @@ export default function CostDashboardPage() {
                 </tbody>
               </table>
             )}
+          </Card>
+
+          <Card className="space-y-3 max-w-md">
+            <h3 className="font-medium">Log a cost event</h3>
+            {error && <p className="text-danger text-sm">{error}</p>}
+            <input
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            />
+            <select
+              value={form.category}
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface"
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Amount"
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+              className="w-full rounded-md border border-border px-3 py-2 text-sm"
+            />
+            <Button onClick={() => addCost.mutate()} disabled={!form.amount || addCost.isPending}>
+              Log cost
+            </Button>
           </Card>
         </div>
       )}

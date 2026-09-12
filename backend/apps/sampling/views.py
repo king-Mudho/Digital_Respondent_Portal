@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,8 +7,8 @@ from rest_framework.views import APIView
 from api.permissions import IsFieldCoordinatorOrAdmin
 
 from .models import SampleCase
-from .serializers import ReserveActivationSerializer, SampleCaseSerializer
-from .services import activate_reserve
+from .serializers import ReserveActivationSerializer, SampleCaseSerializer, WorkflowTransitionSerializer
+from .services import InvalidWorkflowTransition, activate_reserve, transition_workflow_status
 
 
 class SampleCaseListCreateView(generics.ListCreateAPIView):
@@ -59,3 +60,28 @@ class ReserveActivateView(APIView):
             return Response({"error": {"code": "invalid_reason", "message": str(exc), "field_errors": {}}}, status=400)
 
         return Response(SampleCaseSerializer(activated).data)
+
+
+class WorkflowTransitionView(APIView):
+    """POST /api/v1/sample-cases/{sample_id}/transition/ -- the only sanctioned
+    way to change a MAIN case's workflow_status. Routes through
+    sampling.services.transition_workflow_status(), which validates the
+    S00-S16 state machine and audit-logs a rejected attempt
+    (docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md, AGENTS.md ground rule 4).
+    """
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, sample_id):
+        sample_case = get_object_or_404(SampleCase, sample_id=sample_id)
+        serializer = WorkflowTransitionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            updated = transition_workflow_status(
+                sample_case, serializer.validated_data["workflow_status"], user=request.user
+            )
+        except InvalidWorkflowTransition as exc:
+            return Response({"error": {"code": "invalid_transition", "message": str(exc), "field_errors": {}}}, status=400)
+
+        return Response(SampleCaseSerializer(updated).data)
