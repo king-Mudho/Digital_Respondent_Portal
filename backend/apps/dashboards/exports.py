@@ -12,7 +12,7 @@ import csv
 from django.http import HttpResponse
 from rest_framework.views import APIView
 
-from api.permissions import IsAdminOnly, IsAnalystOrAdmin
+from api.permissions import CanExportDeidentified, IsAdminOnly
 from apps.audit.utils import log_action
 from apps.kobo.models import QUANSubmission
 
@@ -66,10 +66,12 @@ def _base_row(submission: QUANSubmission) -> dict:
 
 
 class AnalysisExportView(APIView):
-    """GET /api/v1/export/analysis/ -- de-identified CSV, IsAnalystOrAdmin.
-    Contact identifiers excluded entirely, not just masked."""
+    """GET /api/v1/export/analysis/ -- de-identified CSV. Contact
+    identifiers excluded entirely, not just masked. Uses
+    CanExportDeidentified, not IsAnalystOrAdmin -- Supervisor has dashboard
+    access but docs/18 explicitly excludes it from export."""
 
-    permission_classes = [IsAnalystOrAdmin]
+    permission_classes = [CanExportDeidentified]
 
     def get(self, request):
         response = HttpResponse(content_type="text/csv")

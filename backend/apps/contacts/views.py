@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import CanManageContact
 from api.throttling import PerTokenThrottle
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
@@ -53,9 +53,11 @@ class EligibilityView(APIView):
 
 
 class ContactEventListCreateView(generics.ListCreateAPIView):
-    """GET/POST /api/v1/contacts/{sample_id}/events/ -- internal only."""
+    """GET/POST /api/v1/contacts/{sample_id}/events/ -- internal only.
+    CanManageContact: this is the Contact RA's actual job, not just Field
+    Coordinator/Admin."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanManageContact]
     serializer_class = ContactEventSerializer
 
     def get_queryset(self):
@@ -80,7 +82,7 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
     def get_permissions(self):
         if self.request.method == "POST":
             return [AllowAny()]
-        return [IsFieldCoordinatorOrAdmin()]
+        return [CanManageContact()]
 
     def get_queryset(self):
         return Appointment.objects.select_related("sample_case", "kii_record").order_by("scheduled_for")
@@ -109,7 +111,7 @@ class AppointmentStatusView(APIView):
     updating it needs this dedicated endpoint, same pattern as KII's status
     transition view."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanManageContact]
 
     def post(self, request, pk):
         appointment = get_object_or_404(Appointment, pk=pk)

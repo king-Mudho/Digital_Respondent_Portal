@@ -4,7 +4,7 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import CanViewSampleCases, IsFieldCoordinatorOrAdmin
 
 from .models import SampleCase
 from .serializers import ReserveActivationSerializer, SampleCaseSerializer, WorkflowTransitionSerializer
@@ -13,9 +13,11 @@ from .services import InvalidWorkflowTransition, activate_reserve, transition_wo
 
 class SampleCaseListCreateView(generics.ListCreateAPIView):
     """GET/POST /api/v1/sample-cases/ -- list / import Main-400 & Reserve-400
-    (docs/06_API_ARCHITECTURE.md)."""
+    (docs/06_API_ARCHITECTURE.md). CanViewSampleCases: Contact RA and
+    Supervisor get read-only (GET) access; only Field Coordinator/Admin can
+    POST."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanViewSampleCases]
     serializer_class = SampleCaseSerializer
     filterset_fields = ["sample_type", "status", "workflow_status", "stratum__province"]
 
@@ -26,7 +28,7 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
 class SampleCaseDetailView(generics.RetrieveUpdateAPIView):
     """GET/PATCH /api/v1/sample-cases/{sample_id}/."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanViewSampleCases]
     serializer_class = SampleCaseSerializer
     lookup_field = "sample_id"
     queryset = SampleCase.objects.select_related("organisation", "stratum")

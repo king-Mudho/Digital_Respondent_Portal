@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import CanManageContact
 from api.throttling import PerTokenThrottle
 
 from .models import InvitationToken
@@ -61,9 +61,11 @@ class InvitationIssueView(APIView):
 
     POST /api/v1/invitations/ -- internal. Issue a new invitation token
     for a SampleCase; is_invitable() enforcement happens inside
-    invitations.services.issue_invitation (AGENTS.md ground rule 4)."""
+    invitations.services.issue_invitation (AGENTS.md ground rule 4).
+    CanManageContact: issuing invitations is core Contact RA work, not just
+    Field Coordinator/Admin."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanManageContact]
 
     def get(self, request):
         sample_id = request.query_params.get("sample_id")
@@ -108,7 +110,7 @@ class InvitationIssueView(APIView):
 class InvitationRevokeView(APIView):
     """POST /api/v1/invitations/{token_id}/revoke/ -- internal."""
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    permission_classes = [CanManageContact]
 
     def post(self, request, token_id):
         try:

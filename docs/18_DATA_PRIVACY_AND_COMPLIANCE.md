@@ -83,6 +83,20 @@ Shown on the consent step, the completion page, and any export:
 | PI / Admin | Yes (all) | Yes (all) | Yes | Yes | Yes |
 | Supervisor | Read-only, all | Read-only, all | Yes | No | No |
 
+**Implementation note (Sep 2026 hardening pass)**: Contact RA's "assigned cases" grant is
+implemented as read/write access to *all* cases for the contact-focused endpoints (contact
+events, appointment status, invitation issue/revoke), plus read-only access to the sample
+case list/detail so an RA can see what they're working on — there is no per-RA
+case-assignment field on `SampleCase` yet, so a filtered "only the cases assigned to me"
+view isn't implemented. This was found and closed as part of a broader gap: `CONTACT_RA`
+had previously not been included in *any* permission class at all, so every internal
+endpoint returned 403 regardless of case assignment. `SUPERVISOR_READONLY` was similarly
+corrected: it previously had no read access to sample cases/contacts/KII/documents/QA
+(missing "Read-only, all"), and was incorrectly included in the de-identified export's
+permission class (this table's own "No" for that cell) via a permission class shared with
+the dashboards. See `api/permissions.py` for the corrected `CanViewSampleCases`,
+`CanManageContact` and `CanExportDeidentified` classes.
+
 ## Data protection basics
 
 - HTTPS everywhere in deployment (`23_DEPLOYMENT_ARCHITECTURE.md`).
