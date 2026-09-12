@@ -21,13 +21,18 @@ work — resolve them with the PI before or during the phase noted, not silently
   later — same convention as the sibling ABI project. Meta template approval remains
   genuinely open and blocks Phase 11 go-live only, not early development
   (`docs/28_DEFINITION_OF_DONE.md`).
-- **Phase 2 — actor_family/value_chain/size_class/entity_type category lists.**
-  Neither `docs/05_DATABASE_ARCHITECTURE.md` nor the original blueprint enumerate these
-  (only "CharField (choices)"). Implemented with a provisional placeholder set in
-  `backend/apps/sampling/models.py` so migrations/tests/UI have something concrete;
-  must be confirmed or replaced against the actual approved sampling register before
-  real Main-400 import — this directly affects stratum definitions and is a sampling-
-  design decision, not an engineering one.
+- **Phase 2 — actor_family/value_chain/size_class/entity_type category lists.
+  RESOLVED (2026-09-12).** Neither `docs/05_DATABASE_ARCHITECTURE.md` nor the original
+  blueprint enumerated these (only "CharField (choices)"), so a provisional placeholder
+  set was implemented in `backend/apps/sampling/models.py` so migrations/tests/UI had
+  something concrete. Replaced against the actual approved sampling register
+  (`ABI_ABF-FST_QUAN_Latest_Register_2026-09-09.xlsx`) ahead of the real Main-400/
+  Reserve-400 import: the register's own "Stratum Allocation" sheet revealed the real
+  design stratifies by Province x Actor Family x Size Class only, not x Value Chain as
+  this codebase had assumed, and gave the real category sets for Actor Family (8 values)
+  and Size Class (5 values). Value Chain and Entity Type became free text (the real
+  register's data for both is far richer than any small fixed list). See
+  `backend/apps/sampling/models.py`'s module/class docstrings for the corrected schema.
 - **Phase 3 — Kobo hidden-field names and edit-detection mechanism.** Implemented
   against a documented, reasonable assumption (see Phase 3 note above and
   `backend/apps/kobo/services.py` module docstring) since the real Kobo form/asset
@@ -139,12 +144,13 @@ work — resolve them with the PI before or during the phase noted, not silently
 - [x] Implement `accounts`, `sampling`, `contacts`, `consent`, `invitations` apps' models
       per `05_DATABASE_ARCHITECTURE.md`. `kii.KIIRecord` also pulled forward from Phase 7
       (full field set, per docs) since `contacts.Appointment.kii_record` FKs to it.
-      **Open item**: `actor_family`/`value_chain`/`size_class`/`entity_type` choice lists
-      are not enumerated anywhere in `docs/05` or the original blueprint (only "CharField
-      (choices)") — implemented with a placeholder provisional set (see docstring in
-      `apps/sampling/models.py`) for engineering purposes. The PI must confirm or replace
-      these against the actual approved sampling register before real Main-400 import;
-      Province (10 Zimbabwe provinces + 2-letter codes) is objective fact, not a
+      **Resolved (2026-09-12)**: `actor_family`/`value_chain`/`size_class`/`entity_type`
+      choice lists were not enumerated anywhere in `docs/05` or the original blueprint
+      (only "CharField (choices)") — implemented with a placeholder provisional set (see
+      docstring in `apps/sampling/models.py`) for engineering purposes, then replaced
+      against the actual approved sampling register ahead of the real Main-400/
+      Reserve-400 import (see "Open questions" above and Phase 10's import notes below).
+      Province (10 Zimbabwe provinces + 2-letter codes) was always objective fact, not a
       placeholder.
 - [x] Implement `sampling.services.is_invitable()` and the reserve-lock enforcement path
       (`09_IDENTIFIER_AND_SAMPLING_CONTROL.md`, `AGENTS.md` ground rule 4). Also wired
@@ -448,7 +454,8 @@ Backend 87/87 tests passing.
 
 Production database confirmed genuinely empty (`Organisation.objects.count() == 0`,
 `User.objects.count() == 0`) after the rehearsal, ready for the PI's own first admin
-account and, eventually, real Main-400 import at Phase 11 — never before then.
+account and, eventually, real Main-400 import — see below for when that happened and
+what it does and doesn't mean for Phase 11.
 
 ## Post-Phase-10 hardening pass (Sep 2026)
 
@@ -490,6 +497,56 @@ own test file; summarised here for the phase record:
 
 Backend: 107/107 tests passing, `ruff check` clean. Frontend: `tsc --noEmit` clean.
 All fixes deployed to production via `deploy/deploy.sh` and re-verified live.
+
+## Real sampling/KII/documentary evidence data import (2026-09-12)
+
+The PI provided the three real, approved registers and directed that they be entered
+into the live production database as PI/Admin. All three are now imported and verified
+live. This is real data entry into the production system, distinct from and ahead of
+Phase 11's go-live decision (see note at the end of this section on what it does and
+doesn't unblock).
+
+- [x] **QUAN Main-400 + Reserve-400** (`ABI_ABF-FST_QUAN_Latest_Register_2026-09-09.xlsx`)
+      — `manage.py import_quan_register`. Surfaced the real stratification-scheme
+      mismatch closed under Phase 2/"Open questions" above (Province x Actor Family x
+      Size Class, not x Value Chain) before any data was written. Also found and fixed,
+      live: `SampleCaseListCreateView.create()` never actually called
+      `create_sample_case()` (pre-existing latent bug, unrelated to this import, caught
+      by the import's own dry-run); a `StratumDefinition` duplicate-row bug from earlier
+      example-data entry; three field-width limits too narrow for real data
+      (`StratumDefinition.code`, `Respondent.phone`/`whatsapp_number`,
+      `Organisation.district`). Result: 800 organisations, 400 Main + 400 Reserve
+      `SampleCase` rows, 100 strata, 128 respondent contacts, all 400 Main<->Reserve
+      pairs wired via `matched_case`. Idempotent, dry-run verified against production
+      before the real run, counts confirmed live via the API and admin UI.
+- [x] **KII Core-60 + Reserve-30** (`ABI_ABF-FST_KII_Latest_Register_2026-09-09.xlsx`) —
+      `manage.py import_kii_register`. Found the same category of gap: all 90 real rows
+      are genuinely "Not contacted"/"Available", but `KIIStatus` had no status for that.
+      Added `KIIStatus.PROSPECT` (identified in the sampling frame, not yet approached)
+      and made `preferred_mode` optional. Result: 90 `KIIRecord` rows (60 Core + 30
+      Reserve), all `PROSPECT`, 55 with a specifically named contact (either the
+      register's own named individual or a research-verified current officeholder), 35
+      honestly naming the organisation with "(contact not yet identified)" rather than
+      inventing a person.
+- [x] **Documentary Evidence register**
+      (`ABI_ABF-FST_Documentary_Evidence_Register_v3.0_12Sep2026.xlsx`) —
+      `manage.py import_document_register`. Confirmed this register has no separate
+      "Reserve" list (a single 100-document sheet across 13 thematic Blocks) before
+      importing. Mapped the register's 61 granular "Type" values onto
+      `DocumentType`'s OFFICIAL/SECONDARY/PLATFORM split via an explicit, auditable
+      table; widened `DocumentRecord.value_chain` for real values that didn't fit.
+      Result: 100 `DocumentRecord` rows (82 OFFICIAL, 17 SECONDARY, 1 PLATFORM).
+
+All three imports add a `metadata` JSONField (Organisation/SampleCase, KIIRecord,
+DocumentRecord respectively) preserving every register column with no dedicated model
+field losslessly — nothing invented, nothing discarded. Each command supports
+`--dry-run` and is idempotent (safe to re-run). Full backend suite, ruff, `tsc --noEmit`
+and the full Playwright suite stayed green through all three.
+
+**What this does and doesn't mean for Phase 11**: the real sample frame, KII prospect
+pool and documentary evidence corpus now exist in production. No real invitation has
+been sent to any actual respondent, and no real KII/document work has started — that
+remains gated on the PI's own Phase 11 go-live decision below, unchanged.
 
 ## Phase 11 — Go-live
 
