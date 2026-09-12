@@ -100,14 +100,14 @@ export default function KIIDetailPage() {
 
   if (isLoading || !record) {
     return (
-      <AdminShell>
+      <AdminShell backHref="/admin/kii" backLabel="KII Register">
         <p className="text-text-muted">Loading…</p>
       </AdminShell>
     );
   }
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/kii" backLabel="KII Register">
       <h2 className="font-semibold text-xl mb-1">{record.participant_name}</h2>
       <p className="text-text-muted text-sm mb-4">
         {record.kii_id} · {record.stakeholder_category} · {record.participant_role}

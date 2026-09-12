@@ -21,7 +21,7 @@ export default function AuditLogPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">Audit Log</h2>
       <Card>
         {isLoading || !data ? (

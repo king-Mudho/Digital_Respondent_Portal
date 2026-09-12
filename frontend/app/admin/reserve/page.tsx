@@ -54,7 +54,7 @@ export default function ReserveActivationPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">Reserve Activation</h2>
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
       {isLoading || !data ? (

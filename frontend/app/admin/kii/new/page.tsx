@@ -34,7 +34,7 @@ export default function NewKIIRecordPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/kii" backLabel="KII Register">
       <h2 className="font-semibold text-xl mb-4">New KII Record</h2>
       <Card className="max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">

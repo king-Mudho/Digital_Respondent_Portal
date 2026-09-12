@@ -20,7 +20,7 @@ export default function SamplingDashboardPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Executive Dashboard">
       <h2 className="font-semibold text-xl mb-4">Sampling Dashboard</h2>
       {isLoading || !data ? (
         <p className="text-text-muted">Loading…</p>

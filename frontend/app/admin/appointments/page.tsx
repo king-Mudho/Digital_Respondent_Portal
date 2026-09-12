@@ -34,7 +34,7 @@ export default function AppointmentsPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">Appointment Queue</h2>
       <Card>
         {isLoading || !data ? (

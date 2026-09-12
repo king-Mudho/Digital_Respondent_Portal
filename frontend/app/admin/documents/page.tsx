@@ -24,7 +24,7 @@ export default function DocumentsPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-xl">Documentary Evidence Corpus</h2>
         <Link href="/admin/documents/new">

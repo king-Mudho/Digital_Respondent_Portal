@@ -36,7 +36,7 @@ export default function NewDocumentPage() {
   }
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/documents" backLabel="Documents">
       <h2 className="font-semibold text-xl mb-4">New Documentary Evidence Record</h2>
       <Card className="max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">

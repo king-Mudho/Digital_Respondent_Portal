@@ -271,7 +271,7 @@ export default function SampleCaseDetailPage() {
 
   if (isLoading || !sampleCase) {
     return (
-      <AdminShell>
+      <AdminShell backHref="/admin/sample" backLabel="Main-400 Register">
         <p className="text-text-muted">Loading…</p>
       </AdminShell>
     );
@@ -281,7 +281,7 @@ export default function SampleCaseDetailPage() {
   const nextOptions = WORKFLOW_TRANSITIONS[currentStatus] ?? [];
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/sample" backLabel="Main-400 Register">
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
       <div className="space-y-6">
         <Card>

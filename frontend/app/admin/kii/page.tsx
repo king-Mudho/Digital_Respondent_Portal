@@ -29,7 +29,7 @@ export default function KIIRegisterPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-xl">KII Register</h2>
         <Link href="/admin/kii/new">

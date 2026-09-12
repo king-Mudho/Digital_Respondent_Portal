@@ -47,7 +47,7 @@ export default function CostDashboardPage() {
   });
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">Cost Dashboard</h2>
       {isLoading || !data ? (
         <p className="text-text-muted">Loading…</p>

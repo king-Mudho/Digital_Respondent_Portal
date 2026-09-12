@@ -96,7 +96,7 @@ export default function QAQueuePage() {
   const items = Array.isArray(data) ? data : data?.results ?? [];
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">QUAN QA Queue</h2>
       <KoboSyncPanel />
       {isLoading ? (

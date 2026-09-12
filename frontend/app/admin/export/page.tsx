@@ -8,7 +8,7 @@ import { RESEARCH_DISCLAIMER } from "@/lib/constants/disclaimers";
  */
 export default function ExportPage() {
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">Data Export</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="space-y-3">

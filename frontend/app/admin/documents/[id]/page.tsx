@@ -72,14 +72,14 @@ export default function DocumentDetailPage() {
 
   if (isLoading || !doc) {
     return (
-      <AdminShell>
+      <AdminShell backHref="/admin/documents" backLabel="Documents">
         <p className="text-text-muted">Loading…</p>
       </AdminShell>
     );
   }
 
   return (
-    <AdminShell>
+    <AdminShell backHref="/admin/documents" backLabel="Documents">
       <h2 className="font-semibold text-xl mb-1">{doc.title}</h2>
       <p className="text-text-muted text-sm mb-4 font-mono">{doc.document_id}</p>
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
