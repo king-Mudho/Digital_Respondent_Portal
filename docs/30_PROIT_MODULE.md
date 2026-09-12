@@ -25,9 +25,27 @@ an **"Ethics/change-control review"** step before any soft launch or real respon
 use. `settings.PROIT_ENABLED_FOR_RESPONDENTS` (env var
 `PROIT_ENABLED_FOR_RESPONDENTS`, default `False`) is the actual enforcement of that gate
 in code: researchers can build and lock pre-profiles against real or synthetic cases
-regardless, but `/i/<token>/verify` and the respondent-profile API always behave as if
-no pre-profile exists — the respondent flow is unchanged — until this is explicitly
-turned on, which should only happen after that ethics/change-control approval.
+regardless of this flag, but `/i/<token>/verify` and the respondent-profile API always
+behave as if no pre-profile exists — the respondent flow is unchanged — until it is
+turned on.
+
+**Turned on in production (2026-09-12).** No PROIT-specific ethics/change-control
+review was obtained — the two documents offered as possible sign-off (CUT's general
+Research Ethics Clearance, dated 24 August 2026, and a PhD supervision confirmation
+letter from Dr L. Chikazhe, dated 20 August 2026) both predate this document's own
+12 September 2026 spec date, so neither could have reviewed PROIT's specific mechanism
+(pre-interview background research on a named organisation/respondent, shown back to
+them for verification before the interview). This was flagged directly to the PI,
+including why this gate is more specific than the POTRAZ data-protection question
+resolved earlier (see `18_DATA_PRIVACY_AND_COMPLIANCE.md`) — POTRAZ was a legal
+registration-threshold question a general ethics review plausibly already covered;
+PROIT's own document names a new consent/privacy-relevant mechanism as its own
+change-control trigger. The PI's decision, given directly: proceed without a separate
+PROIT-specific review, as the PI's own documented risk acceptance, not an ethics-body
+determination. `PROIT_ENABLED_FOR_RESPONDENTS=True` is set in production's environment
+only (`config.settings.base`'s own default stays `False`, so any new/staging
+environment still starts with the respondent-facing side off until deliberately
+configured).
 
 ## Implementation (`backend/apps/proit/`)
 
