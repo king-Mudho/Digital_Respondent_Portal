@@ -62,7 +62,12 @@ turned on, which should only happen after that ethics/change-control approval.
 - **Admin UI**: a "Pre-Interview Profile (PROIT)" panel
   (`frontend/components/admin/PreProfilePanel.tsx`) on both the sample case detail page
   and the KII detail page — create a profile, add cataloged fields with a documentary
-  value, attach evidence sources, and lock.
+  value, attach evidence sources (with a source-authority tier picker feeding directly
+  into the HIGH-confidence computation), and lock. KII pre-profiles additionally get a
+  "KII adaptive gap engine" section (Section 9): free-text KNOWN/UNKNOWN/CONTRADICTION/
+  PROBE notes, a role-specific-module picker, and a probe-template helper that renders
+  one of the document's 7 stakeholder-role templates (Section 10) with the researcher's
+  own evidence substituted in.
 - **Respondent UI**: `frontend/app/i/[token]/verify/page.tsx`, inserted into the flow
   between consent and the completion-mode choice. Self-skips straight to `/choice`
   whenever there's nothing to verify (PROIT disabled, no pre-profile, or not locked) —
@@ -70,19 +75,13 @@ turned on, which should only happen after that ethics/change-control approval.
 
 ## What's intentionally not built yet
 
-- No UI control for `source_authority` (Tier 1–4) on the evidence-add form — settable
-  via the API/Django admin if a researcher wants a source explicitly marked Tier 1
-  (which affects the HIGH-confidence computation). A small follow-up, not a gap in the
-  underlying rule.
-- Section 13's "Researcher Pre-Profile Screen" (a single consolidated review card
-  before interview) and Section 9's five-panel KII gap-engine UI (KNOWN/VERIFY/
-  UNKNOWN/CONTRADICTION/PROBE) are represented by the `PreProfile` model's own
-  Module I fields (`known_evidence_summary`, `unresolved_gaps`, `contradictions`,
-  `priority_probe_questions`) but have no dedicated panel yet — a researcher fills them
-  in via `PATCH /api/v1/proit/pre-profiles/<id>/`.
+- Section 13's "Researcher Pre-Profile Screen" — a single consolidated review card
+  (case/organisation/evidence/bankability-context/gap-summary/interview-plan) shown
+  just before an interview. The underlying data all exists and is editable across the
+  panel today; this would be a read-only summary view composed from it, not new data.
 - Burden-reduction metrics (Section 11) are computed and stored
-  (`background_questions_avoided`, `burden_reduction_score`) but not yet surfaced on
-  any dashboard.
+  (`background_questions_avoided`, `burden_reduction_score`) and shown on the panel
+  itself once a profile is locked, but not yet surfaced on any dashboard.
 
 ## Tests
 
