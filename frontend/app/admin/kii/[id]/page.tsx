@@ -18,6 +18,8 @@ interface KIIRecord {
   status: string;
   transcript_status: string;
   coding_status: string;
+  participation_consent_decision: string | null;
+  recording_consent_decision: string | null;
 }
 
 const STATUS_OPTIONS: Record<string, string[]> = {
@@ -140,13 +142,23 @@ export default function KIIDetailPage() {
             Participation and recording consent are always captured separately --
             recording consent is never inferred from participation consent.
           </p>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setConsent.mutate("PARTICIPATION")}>
-              Record participation consent
-            </Button>
-            <Button variant="outline" onClick={() => setConsent.mutate("KII_RECORDING")}>
-              Record recording consent
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setConsent.mutate("PARTICIPATION")}>
+                Record participation consent
+              </Button>
+              <span className="text-sm text-text-muted">
+                {record.participation_consent_decision ?? "Not recorded"}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setConsent.mutate("KII_RECORDING")}>
+                Record recording consent
+              </Button>
+              <span className="text-sm text-text-muted">
+                {record.recording_consent_decision ?? "Not recorded"}
+              </span>
+            </div>
           </div>
         </Card>
 

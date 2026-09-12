@@ -4,7 +4,9 @@ KII status flow and the separate participation/recording consent rule
 """
 
 import pytest
+from rest_framework.test import APIClient
 
+from apps.accounts.models import Role, User
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
 from apps.consent.services import record_consent
 from apps.kii.models import KIIStatus
@@ -87,3 +89,35 @@ def test_completed_with_recording_succeeds_after_separate_recording_consent(kii_
     )
     updated = mark_completed(kii_record, with_recording=True)
     assert updated.status == KIIStatus.COMPLETED
+
+
+@pytest.fixture
+def qa_client(db):
+    role, _ = Role.objects.get_or_create(name=Role.PI_ADMIN)
+    user = User.objects.create_user(username="kii_qa", password="testpass123", role=role)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
+
+
+def test_serializer_exposes_no_consent_recorded_by_default(qa_client, kii_record):
+    resp = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
+    assert resp.status_code == 200
+    assert resp.data["participation_consent_decision"] is None
+    assert resp.data["recording_consent_decision"] is None
+
+
+def test_serializer_reflects_recorded_consent_decision(qa_client, kii_record):
+    """The admin KII detail page has no other way to show an RA that
+    participation/recording consent was already captured for this KII --
+    without this field it silently offered no feedback after clicking
+    "Record participation consent" (hardening pass, Sep 2026)."""
+    qa_client.post(
+        f"/api/v1/kii/{kii_record.id}/consent/",
+        {"consent_type": ConsentType.PARTICIPATION, "decision": ConsentDecision.GIVEN,
+         "information_sheet_version": "v1.0", "method": ConsentMethod.VERBAL_RA_RECORDED},
+        format="json",
+    )
+    resp = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
+    assert resp.data["participation_consent_decision"] == ConsentDecision.GIVEN
+    assert resp.data["recording_consent_decision"] is None
