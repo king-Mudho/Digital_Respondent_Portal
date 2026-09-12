@@ -11,3 +11,4 @@ celery==5.4.0
 redis==5.2.1
 django-celery-beat==2.7.0
 requests==2.32.3
+openpyxl==3.1.5
