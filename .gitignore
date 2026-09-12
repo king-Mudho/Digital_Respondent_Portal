@@ -35,3 +35,7 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/tsconfig.tsbuildinfo
 frontend/.tsbuildinfo
+
+# Generated PDF guide output -- docs/tools/build_guide.py is the tracked
+# source; the PDF it produces is a build artifact, not tracked.
+docs/tools/*.pdf
