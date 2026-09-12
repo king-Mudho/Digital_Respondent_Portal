@@ -42,6 +42,9 @@ Coordinator to issue a fresh one from the case's detail page.
 
 The "Send Invitation" panel hands you the raw link and an 8-character manual code — it
 does not compose a message. Use one of these, filling in the bracketed fields.
+`[researcher name / phone / email]` and `[RA phone number]` default to the PI's own
+contact details (Happyson Saina, 0773943709, sales.proagromark2@gmail.com —
+`docs/00_PROJECT_MASTER.md`) unless the sending RA has their own line to give instead.
 
 ### WhatsApp / SMS
 
@@ -55,7 +58,8 @@ in Zimbabwe. Please tap this secure, personal link to learn more and take part:
 
 This link is unique to you and expires on [EXPIRY DATE]. Your participation is
 voluntary and confidential -- no score or financing decision is generated from this
-study. Questions? Contact [researcher name / phone / email].
+study. Questions? Contact Happyson Saina, 0773943709,
+sales.proagromark2@gmail.com.
 ```
 
 ### Email
@@ -77,7 +81,7 @@ consent, and take part:
 
 If you would prefer a telephone-assisted session or a WhatsApp-assisted session
 instead of completing it online yourself, the link will offer you that choice, or you
-may reply to this email / call [RA phone number] to arrange one directly.
+may reply to this email / call 0773943709 to arrange one directly.
 
 This link is unique to you and expires on [EXPIRY DATE]. Your participation is
 voluntary and confidential. No score, rating, or financing decision is generated or
@@ -95,7 +99,7 @@ Chinhoyi University of Technology
 Your invitation code is: [MANUAL CODE]
 
 To take part: visit research.agribizframework.com on any phone or computer, choose
-"Have an invitation code?", and enter the code above. Or call [RA phone number] and we
+"Have an invitation code?", and enter the code above. Or call 0773943709 and we
 will complete it together over the phone. This code expires on [EXPIRY DATE].
 ```
 
@@ -125,8 +129,8 @@ feeds the Contact Dashboard and the Day 0/2/4-5/7 reminder sequence.
 
 ## What still needs the PI's input before this goes out to real respondents
 
-- The actual researcher contact details (phone/email) to put in the `[researcher name /
-  phone / email]` placeholders above.
+- ~~The actual researcher contact details~~ — provided 2026-09-12 and filled in above
+  (`docs/00_PROJECT_MASTER.md`).
 - A stated expected completion time for the questionnaire, if the PI wants one quoted
   to respondents (the system only has QA plausibility bounds — 5 to 90 minutes — not a
   target time).
