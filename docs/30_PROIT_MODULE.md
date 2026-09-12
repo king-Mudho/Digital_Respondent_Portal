@@ -72,16 +72,23 @@ turned on, which should only happen after that ethics/change-control approval.
   between consent and the completion-mode choice. Self-skips straight to `/choice`
   whenever there's nothing to verify (PROIT disabled, no pre-profile, or not locked) —
   the respondent never sees a blank or broken screen either way.
+- **Researcher review screen** (`frontend/app/admin/proit/[id]/page.tsx`, linked from
+  the panel as "Researcher review screen"): Section 13's single consolidated
+  pre-interview card, composed read-only from the same data — Case, Organisation,
+  Evidence (every source across every field, flattened), Bankability context
+  (finance/tenure/audited-reports/insurance/offtake/infrastructure only), Gap summary
+  (computed unknowns and conflicted fields, the researcher's own notes, and a static
+  reminder of the document's sensitive-data exclusions), and Interview plan (fields
+  grouped by `gap_classification`, role-specific module, executive-short-form
+  indicator, priority probes). Shows a clear "not yet locked" banner before lock, since
+  `gap_classification` isn't computed until then.
 
 ## What's intentionally not built yet
 
-- Section 13's "Researcher Pre-Profile Screen" — a single consolidated review card
-  (case/organisation/evidence/bankability-context/gap-summary/interview-plan) shown
-  just before an interview. The underlying data all exists and is editable across the
-  panel today; this would be a read-only summary view composed from it, not new data.
 - Burden-reduction metrics (Section 11) are computed and stored
-  (`background_questions_avoided`, `burden_reduction_score`) and shown on the panel
-  itself once a profile is locked, but not yet surfaced on any dashboard.
+  (`background_questions_avoided`, `burden_reduction_score`) and shown on both the
+  panel and the review screen once a profile is locked, but not yet surfaced on any
+  dashboard.
 
 ## Tests
 
