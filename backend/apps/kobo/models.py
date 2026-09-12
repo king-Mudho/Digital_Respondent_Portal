@@ -68,6 +68,12 @@ class ReconciliationLog(models.Model):
     updated_submissions = models.PositiveIntegerField(default=0)
     mismatches_flagged = models.PositiveIntegerField(default=0)
     triggered_by = models.CharField(max_length=16, choices=ReconciliationTrigger.choices)
+    # Set when the Kobo API call itself failed (unreachable, invalid token,
+    # timeout, HTTP error) -- the run still gets a ReconciliationLog row
+    # rather than the exception propagating uncaught out of the scheduled
+    # task/manual-trigger endpoint, so a Kobo outage is visible in the log
+    # history instead of silently vanishing.
+    error_message = models.TextField(blank=True)
 
     class Meta:
         ordering = ["-run_started_at"]

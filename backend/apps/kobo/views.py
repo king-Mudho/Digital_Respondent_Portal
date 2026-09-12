@@ -8,7 +8,7 @@ from api.permissions import IsFieldCoordinatorOrAdmin
 from api.throttling import PerTokenThrottle
 from apps.invitations.services import TokenValidationError, validate_token
 
-from .models import ReconciliationTrigger
+from .models import ReconciliationLog, ReconciliationTrigger
 from .services import KoboRedirectDenied, build_redirect_url, reconcile
 from .tasks import reconcile_kobo_submissions
 
@@ -61,19 +61,48 @@ class KoboWebhookView(APIView):
         return Response({"status": "reconciliation_triggered"}, status=202)
 
 
+def _serialize_log(log):
+    return {
+        "id": log.pk,
+        "run_started_at": log.run_started_at,
+        "run_finished_at": log.run_finished_at,
+        "submissions_pulled": log.submissions_pulled,
+        "new_submissions": log.new_submissions,
+        "updated_submissions": log.updated_submissions,
+        "mismatches_flagged": log.mismatches_flagged,
+        "triggered_by": log.triggered_by,
+        "error_message": log.error_message,
+    }
+
+
 class KoboReconcileView(APIView):
-    """POST /api/v1/kobo/reconcile/ -- internal manual trigger; calls the
-    same service function the scheduled job calls."""
+    """POST /api/v1/kobo/reconcile/ -- internal manual trigger ("Sync now");
+    calls the same service function the scheduled job calls. Returns 502
+    (not 200) when the Kobo API call itself failed, so the admin UI can
+    distinguish "ran, found nothing new" from "couldn't reach Kobo"."""
 
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
     def post(self, request):
         log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
-        return Response({
-            "run_started_at": log.run_started_at,
-            "run_finished_at": log.run_finished_at,
-            "submissions_pulled": log.submissions_pulled,
-            "new_submissions": log.new_submissions,
-            "updated_submissions": log.updated_submissions,
-            "mismatches_flagged": log.mismatches_flagged,
-        })
+        if log.error_message:
+            return Response(
+                {"error": {"code": "kobo_unreachable", "message": log.error_message, "field_errors": {}}},
+                status=502,
+            )
+        return Response(_serialize_log(log))
+
+
+class KoboReconciliationStatusView(APIView):
+    """GET /api/v1/kobo/reconciliation-status/ -- the most recent
+    reconciliation run (scheduled or manual), so the admin UI can show when
+    Kobo was last synced and surface a failed run without an admin having to
+    trigger one themselves to find out."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def get(self, request):
+        log = ReconciliationLog.objects.order_by("-run_started_at").first()
+        if log is None:
+            return Response(None)
+        return Response(_serialize_log(log))

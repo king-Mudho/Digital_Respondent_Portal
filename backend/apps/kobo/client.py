@@ -20,9 +20,21 @@ class KoboClient:
     def fetch_submissions(self) -> list[dict]:
         """GET /api/v2/assets/{asset_uid}/data/ -- the full pull that backs
         scheduled reconciliation (never webhook-only, see
-        docs/11_KOBOTOOLBOX_INTEGRATION.md)."""
-        url = f"{self.base_url}/api/v2/assets/{self.asset_uid}/data/"
+        docs/11_KOBOTOOLBOX_INTEGRATION.md).
+
+        The v2 data endpoint is paginated (DRF-style count/next/previous/
+        results) once a survey has more submissions than one page. A single
+        unpaginated GET silently returned only the first page forever --
+        reconciliation would never see any submission beyond it. This
+        follows `next` until Kobo reports no further page.
+        """
         headers = {"Authorization": f"Token {self.api_token}"}
-        response = requests.get(url, headers=headers, timeout=30)
-        response.raise_for_status()
-        return response.json().get("results", [])
+        url = f"{self.base_url}/api/v2/assets/{self.asset_uid}/data/"
+        results: list[dict] = []
+        while url:
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            body = response.json()
+            results.extend(body.get("results", []))
+            url = body.get("next")
+        return results

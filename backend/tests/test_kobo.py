@@ -6,14 +6,27 @@ than creating a duplicate or missing it -- this is the test that directly
 proves the webhook-edit-blindspot design decision actually works."
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
+import requests
+from rest_framework.test import APIClient
 
+from apps.accounts.models import Role, User
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
 from apps.consent.services import record_consent
-from apps.kobo.models import QAStatus, QUANSubmission, ReconciliationTrigger
+from apps.kobo.client import KoboClient
+from apps.kobo.models import QAStatus, QUANSubmission, ReconciliationLog, ReconciliationTrigger
 from apps.kobo.services import KoboRedirectDenied, build_redirect_url, reconcile
+
+
+@pytest.fixture
+def admin_client(db):
+    role, _ = Role.objects.get_or_create(name=Role.PI_ADMIN)
+    user = User.objects.create_user(username="kobo_admin", password="testpass123", role=role)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
 
 
 def _submission_payload(sample_id, **overrides):
@@ -90,6 +103,107 @@ def test_reconcile_flags_sample_id_mismatch_never_drops_or_automatches():
     assert log.mismatches_flagged == 1
     assert QUANSubmission.objects.count() == 0
     assert AuditEvent.objects.filter(action="kobo.reconciliation_sample_id_mismatch").exists()
+
+
+# --- Pagination (Kobo API v2's data endpoint is paginated) -----------------
+
+def test_fetch_submissions_follows_pagination_next_link(settings):
+    settings.KOBO_API_BASE_URL = "https://kf.example.org"
+    settings.KOBO_API_TOKEN = "test-token"
+    settings.KOBO_ASSET_UID = "aXXXXXX"
+
+    page1 = Mock(status_code=200)
+    page1.json.return_value = {
+        "count": 3,
+        "next": "https://kf.example.org/api/v2/assets/aXXXXXX/data/?page=2",
+        "previous": None,
+        "results": [{"_uuid": "u1"}, {"_uuid": "u2"}],
+    }
+    page1.raise_for_status = Mock()
+    page2 = Mock(status_code=200)
+    page2.json.return_value = {"count": 3, "next": None, "previous": "...", "results": [{"_uuid": "u3"}]}
+    page2.raise_for_status = Mock()
+
+    client = KoboClient()
+    with patch("apps.kobo.client.requests.get", side_effect=[page1, page2]) as mock_get:
+        results = client.fetch_submissions()
+
+    assert [r["_uuid"] for r in results] == ["u1", "u2", "u3"]
+    assert mock_get.call_count == 2
+    # The second request hits the exact `next` URL Kobo returned, not a
+    # hand-rolled page-number guess.
+    assert mock_get.call_args_list[1].args[0] == "https://kf.example.org/api/v2/assets/aXXXXXX/data/?page=2"
+
+
+def test_fetch_submissions_single_page_stops_without_extra_request():
+    page1 = Mock(status_code=200)
+    page1.json.return_value = {"count": 1, "next": None, "previous": None, "results": [{"_uuid": "only"}]}
+    page1.raise_for_status = Mock()
+
+    client = KoboClient(base_url="https://kf.example.org", api_token="t", asset_uid="a1")
+    with patch("apps.kobo.client.requests.get", return_value=page1) as mock_get:
+        results = client.fetch_submissions()
+
+    assert results == [{"_uuid": "only"}]
+    assert mock_get.call_count == 1
+
+
+# --- Graceful failure when Kobo itself is unreachable ----------------------
+
+@pytest.mark.django_db
+def test_reconcile_records_failed_run_when_kobo_unreachable():
+    with patch(
+        "apps.kobo.services.KoboClient.fetch_submissions",
+        side_effect=requests.exceptions.ConnectionError("Connection refused"),
+    ):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    assert log.error_message
+    assert "Connection refused" in log.error_message
+    assert log.submissions_pulled == 0
+    assert QUANSubmission.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_manual_reconcile_endpoint_returns_502_when_kobo_unreachable(admin_client):
+    with patch(
+        "apps.kobo.services.KoboClient.fetch_submissions",
+        side_effect=requests.exceptions.Timeout("timed out"),
+    ):
+        resp = admin_client.post("/api/v1/kobo/reconcile/")
+    assert resp.status_code == 502
+    assert resp.data["error"]["code"] == "kobo_unreachable"
+
+
+@pytest.mark.django_db
+def test_manual_reconcile_endpoint_returns_200_on_success(admin_client, main_case):
+    with patch(
+        "apps.kobo.services.KoboClient.fetch_submissions",
+        return_value=[_submission_payload(main_case.sample_id)],
+    ):
+        resp = admin_client.post("/api/v1/kobo/reconcile/")
+    assert resp.status_code == 200
+    assert resp.data["new_submissions"] == 1
+    assert resp.data["error_message"] == ""
+
+
+@pytest.mark.django_db
+def test_reconciliation_status_view_returns_latest_log(admin_client):
+    ReconciliationLog.objects.create(run_started_at="2026-09-01T08:00:00Z", triggered_by=ReconciliationTrigger.SCHEDULE)
+    latest = ReconciliationLog.objects.create(
+        run_started_at="2026-09-10T08:00:00Z", triggered_by=ReconciliationTrigger.MANUAL, submissions_pulled=5,
+    )
+    resp = admin_client.get("/api/v1/kobo/reconciliation-status/")
+    assert resp.status_code == 200
+    assert resp.data["id"] == latest.pk
+    assert resp.data["submissions_pulled"] == 5
+
+
+@pytest.mark.django_db
+def test_reconciliation_status_view_returns_null_when_never_run(admin_client):
+    resp = admin_client.get("/api/v1/kobo/reconciliation-status/")
+    assert resp.status_code == 200
+    assert resp.data is None
 
 
 # --- Kobo redirect gating (docs/10: no redirect without GIVEN consent) -----

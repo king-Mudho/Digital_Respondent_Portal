@@ -24,8 +24,10 @@ are never missed (docs/11_KOBOTOOLBOX_INTEGRATION.md).
 
 import hashlib
 import json
+import logging
 import os
 
+import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
@@ -37,6 +39,8 @@ from apps.sampling.models import SampleCase
 
 from .client import KoboClient
 from .models import QAStatus, QUANSubmission, ReconciliationLog, ReconciliationTrigger
+
+logger = logging.getLogger(__name__)
 
 
 class KoboRedirectDenied(Exception):
@@ -131,7 +135,21 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
     submissions_pulled = new_submissions = updated_submissions = mismatches_flagged = 0
 
     client = KoboClient()
-    raw_submissions = client.fetch_submissions()
+    try:
+        raw_submissions = client.fetch_submissions()
+    except requests.exceptions.RequestException as exc:
+        # Kobo unreachable, timed out, or rejected the request (invalid
+        # token/asset UID, 5xx, ...). Recorded as a failed run rather than
+        # letting the exception propagate out of the Celery task (which
+        # would just retry into the same failure silently) or the manual
+        # "Sync now" endpoint (which would surface a raw 500).
+        logger.warning("Kobo reconciliation run failed: %s", exc)
+        return ReconciliationLog.objects.create(
+            run_started_at=run_started_at,
+            run_finished_at=timezone.now(),
+            triggered_by=triggered_by,
+            error_message=str(exc),
+        )
 
     for payload in raw_submissions:
         submissions_pulled += 1

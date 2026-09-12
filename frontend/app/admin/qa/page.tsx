@@ -17,6 +17,65 @@ interface QueueSubmission {
   completion_seconds: number | null;
 }
 
+interface ReconciliationStatus {
+  id: number;
+  run_started_at: string;
+  run_finished_at: string | null;
+  submissions_pulled: number;
+  new_submissions: number;
+  updated_submissions: number;
+  mismatches_flagged: number;
+  triggered_by: string;
+  error_message: string;
+}
+
+function KoboSyncPanel() {
+  const queryClient = useQueryClient();
+  const { data: status } = useQuery({
+    queryKey: ["kobo-reconciliation-status"],
+    queryFn: () => adminFetch<ReconciliationStatus | null>("/kobo/reconciliation-status/"),
+  });
+
+  const sync = useMutation({
+    mutationFn: () => adminFetch<ReconciliationStatus>("/kobo/reconcile/", { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["kobo-reconciliation-status"] });
+      queryClient.invalidateQueries({ queryKey: ["qa-queue"] });
+    },
+  });
+
+  // adminFetch throws ApiError on a non-2xx response (including the 502 a
+  // failed Kobo call returns) -- surface that alongside whatever the last
+  // known-good run recorded, rather than only ever showing stale status.
+  const syncError = sync.isError
+    ? sync.error instanceof Error
+      ? sync.error.message
+      : "Sync failed."
+    : null;
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-medium text-sm">KoboToolbox sync</h3>
+        <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
+          {sync.isPending ? "Syncing…" : "Sync now"}
+        </Button>
+      </div>
+      {(syncError || status?.error_message) && (
+        <p className="text-danger text-sm">Last sync failed: {syncError ?? status?.error_message}</p>
+      )}
+      {status && !status.error_message && (
+        <p className="text-text-muted text-xs">
+          Last synced {new Date(status.run_finished_at ?? status.run_started_at).toLocaleString()} ({status.triggered_by.toLowerCase()}) --{" "}
+          {status.submissions_pulled} pulled, {status.new_submissions} new, {status.updated_submissions} updated
+          {status.mismatches_flagged > 0 ? `, ${status.mismatches_flagged} mismatched` : ""}.
+        </p>
+      )}
+      {!status && !syncError && <p className="text-text-muted text-xs">No reconciliation run yet.</p>}
+    </Card>
+  );
+}
+
 export default function QAQueuePage() {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -39,6 +98,7 @@ export default function QAQueuePage() {
   return (
     <AdminShell>
       <h2 className="font-semibold text-xl mb-4">QUAN QA Queue</h2>
+      <KoboSyncPanel />
       {isLoading ? (
         <p className="text-text-muted">Loading…</p>
       ) : items.length === 0 ? (
