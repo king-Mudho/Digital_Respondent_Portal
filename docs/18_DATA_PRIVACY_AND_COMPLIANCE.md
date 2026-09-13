@@ -91,6 +91,26 @@ Contact RA read/write across sampling, contacts, and invitations views is scoped
 rather than 403s so its existence isn't leaked. Assignment is set from the sample case
 detail page's "Assigned Contact RA" panel in the Research Operations Centre frontend.
 
+**Update (Sep 2026, navigation scoped to role)**: this matrix is now also what each role
+*sees*, not only what it is allowed to reach. `backend/api/navigation.py` is the single
+source of truth mapping role → screens, served by `GET /api/v1/auth/me/`; the nav bar
+renders exactly that list and a screen outside it shows an explicit "not part of your
+role" card. Each role also lands on its own first screen at sign-in — `/admin/dashboard`
+was previously hardcoded for everyone though Contact, QUAN QA, KII and Documentary RAs
+are all refused it.
+
+Three permission errors this surfaced, now fixed: `IsQAOrAdmin` was shared by the QA, KII
+and documentary endpoints, so a KII RA could edit document records and a Documentary RA
+could take QUAN QA decisions (split into `IsQAOrAdmin` / `CanManageKII` /
+`CanManageDocuments`); the KII/document dashboard used `IsAnalystOrAdmin`, excluding the
+very KII and Documentary RAs this table grants it to (now `CanViewKIIDocumentDashboard`);
+and `/api/v1/dashboards/qa/` had no frontend page at all, so the QUAN QA RA's own
+dashboard did not exist. Per-role coverage is pinned by
+`backend/tests/test_role_navigation.py` and `frontend/e2e/role-scoped-navigation.spec.ts`.
+
+The nav remains UX only. Every endpoint still enforces its own permission class — see the
+bullet below about never relying on a hidden button.
+
 ## Data protection basics
 
 - HTTPS everywhere in deployment (`23_DEPLOYMENT_ARCHITECTURE.md`).
