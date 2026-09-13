@@ -25,10 +25,33 @@ class QADecision(models.TextChoices):
     REJECT = "REJECT", "Reject"
 
 
+class ExceptionStatus(models.TextChoices):
+    """Where an automated QA flag has got to.
+
+    ResearchOS brief A6 wants a "daily exception queue with owner/status".
+    Before this, a triggered rule produced a QAEvent and nothing else: there
+    was no way to say who was looking at it, or whether anyone had. The
+    queue was a list, not a workflow, and nothing could be tracked to
+    closure.
+    """
+
+    OPEN = "OPEN", "Open"
+    IN_PROGRESS = "IN_PROGRESS", "In progress"
+    RESOLVED = "RESOLVED", "Resolved"
+    DISMISSED = "DISMISSED", "Dismissed (not a real problem)"
+
+
 class QAEvent(models.Model):
     """Only a human-recorded QAEvent.decision=ACCEPT moves a record's
     qa_status to QA_PASSED -- never automatic, even when zero rules
-    triggered (docs/15_QA_AND_DATA_QUALITY.md)."""
+    triggered (docs/15_QA_AND_DATA_QUALITY.md).
+
+    Two kinds of row live here, distinguished by `reviewer`:
+      - `reviewer is None`  -- an automated flag raised by a rule. These are
+        the exceptions the queue tracks, and they carry owner/status below.
+      - `reviewer` set      -- a human decision. Terminal by nature; the
+        ownership fields stay at their defaults and are not used.
+    """
 
     submission = models.ForeignKey(
         "kobo.QUANSubmission", null=True, blank=True, on_delete=models.CASCADE, related_name="qa_events"
@@ -45,8 +68,37 @@ class QAEvent(models.Model):
     note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # --- exception ownership (automated flags only) --------------------
+    status = models.CharField(
+        max_length=16, choices=ExceptionStatus.choices, default=ExceptionStatus.OPEN
+    )
+    assigned_to = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="assigned_qa_exceptions",
+    )
+    resolution_note = models.TextField(blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="resolved_qa_exceptions",
+    )
+
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            # The queue's default read: open exceptions, oldest first.
+            models.Index(fields=["status", "created_at"]),
+        ]
+
+    @property
+    def is_automated_flag(self) -> bool:
+        return self.reviewer_id is None
+
+    @property
+    def age_days(self) -> int:
+        from django.utils import timezone
+
+        return (timezone.now() - self.created_at).days if self.created_at else 0
 
     def clean(self):
         targets = (self.submission_id, self.kii_record_id, self.document_record_id)

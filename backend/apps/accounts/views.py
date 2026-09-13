@@ -13,7 +13,7 @@ from api.navigation import (
     landing_path_for_role,
     screens_for_role,
 )
-from api.permissions import CanViewSampleCases
+from api.permissions import CanViewSampleCases, IsQAOrAdmin
 from api.throttling import LoginRateThrottle
 
 from .models import Role, User
@@ -122,3 +122,24 @@ class ContactRAListView(APIView):
         role = Role.objects.filter(name=Role.CONTACT_RA).first()
         users = User.objects.filter(role=role, is_active=True).order_by("username") if role else []
         return Response({"results": [{"id": u.id, "username": u.username} for u in users]})
+
+
+class QAAssigneeListView(APIView):
+    """GET /api/v1/auth/qa-assignees/ -- who a QA exception can be given to.
+
+    Deliberately not `contact-ras/`: a QA exception belongs with someone who
+    can actually work QA, and that endpoint is permissioned for the sampling
+    roles, so a QUAN QA RA calling it got a 403 and an empty assignee list.
+    """
+
+    permission_classes = [IsQAOrAdmin]
+
+    def get(self, request):
+        roles = Role.objects.filter(
+            name__in=[Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA]
+        )
+        users = User.objects.filter(role__in=roles, is_active=True).select_related("role").order_by("username")
+        return Response({"results": [
+            {"id": u.id, "username": u.username, "role": u.role.name if u.role else None}
+            for u in users
+        ]})

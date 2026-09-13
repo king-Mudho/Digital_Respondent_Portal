@@ -29,7 +29,7 @@ from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import advance_token_status
 from apps.kobo.models import QAStatus, QUANSubmission
 
-from .models import QADecision, QAEvent, QARuleThreshold
+from .models import ExceptionStatus, QADecision, QAEvent, QARuleThreshold
 
 # Seeded defaults per docs/15_QA_AND_DATA_QUALITY.md -- "proposed engineering
 # defaults, not yet PI-confirmed research decisions", proceeding on them per
@@ -141,6 +141,86 @@ def evaluate_submission(submission: QUANSubmission) -> list[tuple[str, bool]]:
         submission.save(update_fields=["qa_status"])
 
     return triggered
+
+
+class InvalidExceptionTransition(ValueError):
+    """Raised when an exception is moved to a state that makes no sense."""
+
+
+def open_exceptions(assigned_to=None, include_resolved: bool = False):
+    """The daily exception queue (ResearchOS brief A6).
+
+    Automated flags only -- `reviewer__isnull=True`. A human decision row is
+    terminal by nature and is not something anyone needs to own.
+    """
+    qs = (
+        QAEvent.objects.filter(reviewer__isnull=True)
+        .select_related("submission__sample_case", "kii_record", "document_record", "assigned_to")
+        .order_by("created_at")  # oldest first: the queue is a backlog
+    )
+    if not include_resolved:
+        qs = qs.filter(status__in=[ExceptionStatus.OPEN, ExceptionStatus.IN_PROGRESS])
+    if assigned_to is not None:
+        qs = qs.filter(assigned_to=assigned_to)
+    return qs
+
+
+def assign_exception(event: QAEvent, *, assignee, changed_by) -> QAEvent:
+    """Give an exception an owner. Assigning to None releases it."""
+    if not event.is_automated_flag:
+        raise InvalidExceptionTransition(
+            "Only an automated QA flag can be assigned; this row is a recorded human decision."
+        )
+    if event.status in (ExceptionStatus.RESOLVED, ExceptionStatus.DISMISSED):
+        raise InvalidExceptionTransition(f"This exception is already {event.status.lower()}.")
+
+    event.assigned_to = assignee
+    # Picking something up is what moves it off the open pile -- there is no
+    # separate "start work" click to forget.
+    event.status = ExceptionStatus.IN_PROGRESS if assignee is not None else ExceptionStatus.OPEN
+    event.save(update_fields=["assigned_to", "status"])
+
+    log_action(
+        "qa.exception_assigned",
+        event,
+        {
+            "rule": event.rule_triggered,
+            "assigned_to_id": getattr(assignee, "id", None),
+            "changed_by_id": getattr(changed_by, "id", None),
+        },
+    )
+    return event
+
+
+def resolve_exception(event: QAEvent, *, status: str, note: str, resolved_by) -> QAEvent:
+    """Close an exception as resolved or dismissed. A note is mandatory for
+    the same reason it is on a QA decision: a closure nobody explained is
+    indistinguishable from one nobody looked at."""
+    if not event.is_automated_flag:
+        raise InvalidExceptionTransition(
+            "Only an automated QA flag can be resolved; this row is a recorded human decision."
+        )
+    if status not in (ExceptionStatus.RESOLVED, ExceptionStatus.DISMISSED):
+        raise InvalidExceptionTransition("An exception closes as RESOLVED or DISMISSED.")
+    if not note.strip():
+        raise InvalidExceptionTransition("A note is required to close a QA exception.")
+
+    event.status = status
+    event.resolution_note = note.strip()
+    event.resolved_by = resolved_by
+    event.resolved_at = timezone.now()
+    event.save(update_fields=["status", "resolution_note", "resolved_by", "resolved_at"])
+
+    log_action(
+        "qa.exception_resolved",
+        event,
+        {
+            "rule": event.rule_triggered,
+            "status": status,
+            "resolved_by_id": getattr(resolved_by, "id", None),
+        },
+    )
+    return event
 
 
 def record_human_decision(

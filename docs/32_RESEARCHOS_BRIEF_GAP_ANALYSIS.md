@@ -38,7 +38,7 @@ that twice.
 | A3 | Identity Vault & RBAC | **Partial** | RBAC fully built (8 roles, nav-scoped, tested). **Identity Vault absent** — PII is not in a separated store. MFA-ready admin absent. Session timeout is JWT expiry only |
 | A4 | Kobo Sync & Reconciliation | **Partial** | Webhook + scheduled reconciliation + content-hash edit detection + mismatch flagging built. **Duplicate quarantine and idempotency keys absent** — a mismatched submission is flagged, not quarantined into a holding state |
 | A5 | Audit/Event Ledger | **Partial** | `AuditEvent` covers the listed actions and is correctly attributed. **Acceptance criterion "case timeline reconstructable end-to-end" is not met** — there is no timeline view; you would reconstruct it by querying |
-| A6 | QA Exception Engine | **Partial** | Rules evaluate and create `QAEvent`s; queue and human decision built. **"Daily exception queue with owner/status" absent** — `QAEvent` has no owner, status or resolution field, so exceptions cannot be assigned or tracked to closure |
+| A6 | QA Exception Engine | **Built (2026-09-14)** | `QAEvent` gained status/assignee/resolution; `/admin/qa/exceptions` is the daily queue, oldest first, with assign, resolve and dismiss, a mandatory closure note, and both actions audited |
 | A7 | Cost Management Engine | **Partial** | `CostEvent` with categories, cost per usable QUAN/KII, category breakdown. **Absent:** per-mode/RA/stratum attribution, burn rate, forecast at completion, cost-to-close-stratum |
 
 ### P1 — "during fieldwork"
@@ -84,7 +84,7 @@ versions exist as scattered strings, not an entity), **`IdentityContact`** (the 
 | 4 | SampleCase state machine with Main/Reserve rules | **Built** |
 | 5 | Consent/version service and case timeline ledger | **Partial** — ledger yes, timeline view no |
 | 6 | Harden Kobo ingestion: ABF-ID validation, duplicate quarantine, reconciliation | **Partial** — quarantine absent |
-| 7 | QA exception queue and mode capture | **Partial** — no owner/status |
+| 7 | QA exception queue and mode capture | **Built (2026-09-14)** — owner/status/resolution added |
 | 8 | CostEvent model and first cost dashboard | **Built** |
 | 9 | PROIT provenance/review/verification | **Built** |
 | 10 | Automated tests, backup/restore test, deployment notes, **versioned v1.0 release** | **Partial** — 260 backend tests, 25 E2E, backup restore-tested today, deploy notes exist. **No version tag or release has ever been cut** |
@@ -98,7 +98,7 @@ versions exist as scattered strings, not an entity), **`IdentityContact`** (the 
 | No analytical export requires names/phone numbers as keys | **Yes** |
 | Every accepted Kobo submission has valid ABF-ID, instrument version, mode | **Partial** — ABF-ID and mode validated; instrument version is not captured per submission |
 | Every documentary code has source and locator, or is explicitly unresolved | **No** — no `EvidenceCode` |
-| Daily QA exceptions visible, assigned, resolvable without editing raw data | **No** — no assignment or status |
+| Daily QA exceptions visible, assigned, resolvable without editing raw data | **Yes (2026-09-14)** — the queue never touches the raw submission; it records who owned the flag and how it closed |
 | Actual and forecast cost visible and attributable by mode/category | **Partial** — actual by category; no mode attribution, no forecast |
 | PROIT cannot pre-answer protected constructs; preserves corrections | **Yes** |
 | AI suggestions distinguishable from human-reviewed records | **n/a** — no AI |
@@ -120,8 +120,8 @@ The five P0-level gaps, in the order they block things:
 1. ~~**Staging environment** (§18.2).~~ **Done 2026-09-14** — database-first, scrubbed from
    production, with a verified scrub guard and a migration rehearsal that fails loudly.
    Unblocks the Identity Vault, which needed somewhere to rehearse a live-schema refactor.
-2. **QA exception ownership** (A6) — an exception queue nobody can be assigned is a list,
-   not a workflow. Directly blocks the "daily exceptions assigned and resolvable" DoD item.
+2. ~~**QA exception ownership** (A6).~~ **Done 2026-09-14** — assign, resolve, dismiss,
+   with a mandatory closure note and an audit entry on each action.
 3. **Kobo duplicate quarantine** (A4) — currently a mismatched submission is flagged and
    left in the dataset. The brief wants it held out.
 4. **Case timeline** (A5) — the acceptance criterion is explicitly end-to-end

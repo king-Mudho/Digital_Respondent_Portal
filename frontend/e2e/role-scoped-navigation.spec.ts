@@ -42,7 +42,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_quan_qa_ra",
     landing: "/admin/dashboard/qa",
-    nav: ["QA Dashboard", "QA Queue"],
+    nav: ["QA Dashboard", "QA Queue", "QA Exceptions"],
     refused: "/admin/kii",
   },
   {
@@ -85,7 +85,7 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Audit Log");
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
-  expect(labels.length).toBe(15);
+  expect(labels.length).toBe(16);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

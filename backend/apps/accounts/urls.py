@@ -7,6 +7,7 @@ from .views import (
     ContactRAListView,
     CurrentUserView,
     InternalTokenObtainView,
+    QAAssigneeListView,
 )
 
 app_name = "accounts"
@@ -18,4 +19,5 @@ urlpatterns = [
     path("can-open/", AccessCheckView.as_view(), name="can-open"),
     path("change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("contact-ras/", ContactRAListView.as_view(), name="contact-ras"),
+    path("qa-assignees/", QAAssigneeListView.as_view(), name="qa-assignees"),
 ]

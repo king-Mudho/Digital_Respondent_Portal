@@ -71,6 +71,10 @@ SCREENS = {
         "/admin/qa", "QA Queue",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.SUPERVISOR_READONLY},
     ),
+    "qa_exceptions": (
+        "/admin/qa/exceptions", "QA Exceptions",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.SUPERVISOR_READONLY},
+    ),
     "kii_register": (
         "/admin/kii", "KII Register",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.KII_RA, Role.SUPERVISOR_READONLY},
