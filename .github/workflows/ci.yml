@@ -2,13 +2,17 @@ name: CI
 
 # docs/23_DEPLOYMENT_ARCHITECTURE.md: lint, type-check, backend pytest,
 # frontend Vitest on every push/PR; the Playwright E2E suite additionally
-# on merge to the staging/production-tracking branch. Adjust `main` below
-# once the actual branch names are confirmed (docs/23 says "staging/
-# production-tracking branches" without naming them yet).
+# on merge to the staging/production-tracking branch.
+#
+# Both `master` and `main` are listed deliberately. This repository's branch
+# is `master`, while this workflow originally triggered only on `main` -- so
+# the first push to GitHub would have run no checks at all, and docs/28's
+# "CI is green on the branch being deployed" would have stayed silently
+# unverifiable. Listing both means it runs whichever name the remote uses.
 
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
 
 env:

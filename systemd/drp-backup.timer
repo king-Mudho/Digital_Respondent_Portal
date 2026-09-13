@@ -1,0 +1,18 @@
+[Unit]
+Description=Run the DRP database backup every 4 hours
+Documentation=file:/srv/agribiz-drp/docs/23_DEPLOYMENT_ARCHITECTURE.md
+
+[Timer]
+# Every 4 hours on the clock (00:00, 04:00, 08:00, 12:00, 16:00, 20:00),
+# meeting the <= 4-hour fieldwork RPO in docs/23. Persistent=true so a
+# missed run after a reboot or outage fires on next boot rather than
+# waiting for the next slot -- the gap after an outage is exactly when a
+# restore point matters most.
+OnCalendar=*-*-* 00/4:00:00
+Persistent=true
+RandomizedDelaySec=120
+AccuracySec=1min
+Unit=drp-backup.service
+
+[Install]
+WantedBy=timers.target

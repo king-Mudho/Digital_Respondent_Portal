@@ -71,6 +71,33 @@ before the 30 November data lock except security/critical fixes.
 | **Recovery Point Objective (RPO)** | ≤ 4 hours during active fieldwork (Phases 1–3); ≤ 24 hours otherwise | Fieldwork-window data (consent, QA decisions, reserve activations) is expensive and time-sensitive to recreate — a tighter RPO than a typical low-traffic app is justified specifically during collection. |
 | **Recovery Time Objective (RTO)** | ≤ 4 hours during active fieldwork; ≤ 24 hours otherwise | A multi-day outage during the September–November collection window directly threatens the 30 November data lock. |
 
+### How the RPO is actually met
+
+`systemd/drp-backup.timer` runs `deploy/backup.sh` every four hours on the clock
+(00:00, 04:00, … UTC), with `Persistent=true` so a run missed during an outage fires at
+next boot rather than waiting for the next slot — the window after an outage is exactly
+when a restore point matters most. `backup.sh` writes gzipped `pg_dump` output to
+`/srv/agribiz-drp/backups/` and prunes beyond 14 days.
+
+```bash
+systemctl list-timers drp-backup.timer     # when it next runs
+systemctl start drp-backup.service         # take one now
+journalctl -u drp-backup.service -n 20     # what happened last time
+```
+
+`deploy.sh` also takes one before every migration, and **aborts the deploy if it fails** —
+a deploy with no restore point defeats the purpose of taking one. `SKIP_BACKUP=1` is the
+deliberate override.
+
+> **Why this is spelled out.** Until 2026-09-13 the deploy-time backup was gated on
+> `[[ -x deploy/backup.sh ]]`; the executable bit is not preserved by the code-transfer
+> route, so the step silently degraded to a one-line warning and no backup was taken for
+> four consecutive deploys. The newest restore point at that moment predated the register
+> import — 18K against a real database of 121K. A scheduled timer, a hard failure on
+> error, and a documented way to check both are the response. **Verify a backup by its
+> contents, not its existence:** `gunzip -c <file> | grep -c "^COPY public.sampling_organisation"`
+> and count rows, as recorded in `28_DEFINITION_OF_DONE.md`.
+
 Implementation: automated PostgreSQL backups no less frequently than every 4 hours
 during Phases 1–3 (continuous WAL archiving / point-in-time recovery via the managed
 database, or a scripted `pg_dump` cron matching the interval if self-managed), stored

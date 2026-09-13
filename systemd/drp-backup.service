@@ -1,0 +1,24 @@
+[Unit]
+# Scheduled database backup, paired with drp-backup.timer.
+#
+# Until 2026-09-13 backups ran only as part of deploy.sh, and a bug there
+# meant they were silently skipped entirely -- the newest restore point
+# predated the register import. docs/23_DEPLOYMENT_ARCHITECTURE.md sets an
+# RPO of <= 4 hours during active fieldwork, which a deploy-triggered
+# backup cannot meet: there is no reason to expect a deploy every 4 hours,
+# and during fieldwork there may be none for weeks.
+Description=DRP database backup (research.agribizframework.com)
+Documentation=file:/srv/agribiz-drp/docs/23_DEPLOYMENT_ARCHITECTURE.md
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /srv/agribiz-drp/deploy/backup.sh
+# backup.sh writes into /srv/agribiz-drp/backups and prunes beyond 14 days.
+# Run as root so pg_dump can use peer auth, then hand the files back to the
+# app user so a restore doesn't need root either.
+ExecStartPost=/bin/chown -R agribiz-drp:agribiz-drp /srv/agribiz-drp/backups
+User=root
+Nice=10
+IOSchedulingClass=idle
