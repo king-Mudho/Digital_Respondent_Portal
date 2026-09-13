@@ -35,7 +35,10 @@ REVISION = "Revision 2 &mdash; 13 September 2026"
 REVISION_NOTE = (
     "Updated for role-scoped navigation (each role now sees only its own modules), "
     "the QA Dashboard, register search and paging, the PROIT pre-interview profile, "
-    "and the eligibility and consent gates on the respondent flow."
+    "and the eligibility and consent gates on the respondent flow. Sections 4 and 8 "
+    "now reflect that organisations and sample cases are registered from the "
+    "Organisations screen rather than Django admin, and that the three registers are "
+    "already loaded."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -537,10 +540,20 @@ story.append(PageBreak())
 
 # ------------------------------------------------------------ SECTION 4 ---
 story.append(h1("4. Setting Up Study Data (PI / Admin)", key="setup"))
+story.append(note(
+    "The three registers are already loaded",
+    "The approved QUAN register (Main-400 and Reserve-400), the KII register (Core-60 and "
+    "Reserve-30) and the documentary-evidence register were imported into the live system "
+    "in September 2026, with each Main case already paired to its matched Reserve. This "
+    "section is for organisations added <i>after</i> that &mdash; a replacement, a "
+    "late addition, or a correction &mdash; not for setting the study up from scratch."
+))
+story.append(Spacer(1, 8))
 story.append(P(
     "Registering an organisation and its sample case is done from the Research "
     "Operations Centre itself, at <b>Organisations</b> in the top navigation bar "
-    "&mdash; no separate Django admin site needed for this."
+    "&mdash; no separate Django admin site needed for this. The screen is available to "
+    "the PI and Field Coordinator."
 ))
 story.append(h2("4.1 The stratification fields"))
 story.append(P(
@@ -565,11 +578,15 @@ steps_setup = [
           "organisation, or vice versa) &mdash; using the <i>same</i> province/actor "
           "family/size class, since that's what makes it a valid match for the same "
           "stratum."),
-    ("5", "On the Main case's detail page, use <b>Assigned Contact RA</b> (Section 5.6) "
-          "if a specific Research Assistant should handle it. Recording which Reserve "
-          "case backs up which Main case (the “Matched case” field) isn't yet exposed as "
-          "a button on this page — for a one-off pairing, set it via Django admin "
-          "(<font face='Courier'>/django-admin/</font>) under Sample cases."),
+    ("5", "On the Main case's detail page, use <b>Assigned Contact RA</b> (Section 5.7) "
+          "if a specific Research Assistant should handle it &mdash; a Contact RA sees "
+          "only the cases assigned to them, so an unassigned case is invisible to them."),
+    ("6", "Pair the two cases. Recording which Reserve backs up which Main (the “Matched "
+          "case” field) is <b>not</b> exposed as a control on the case detail page: the "
+          "September import wired all 400 pairs, so this only arises for an organisation "
+          "added afterwards. For a one-off pairing, set it via Django admin "
+          "(<font face='Courier'>/django-admin/</font>) under Sample cases. Without it, "
+          "the Reserve exists but is not identified as this Main case's replacement."),
 ]
 for num, text in steps_setup:
     story.append(step_row(num, "", text))
@@ -577,7 +594,15 @@ story.append(Spacer(1, 6))
 story.append(P(
     "Master IDs and Sample IDs are always generated automatically — you never type one "
     "in. A Reserve case starts <b>LOCKED</b> and cannot receive an invitation until it "
-    "is deliberately activated (Section 5.11)."
+    "is deliberately activated (Section 5.12)."
+))
+story.append(Spacer(1, 4))
+story.append(h2("4.3 Finding an organisation you already registered"))
+story.append(P(
+    "The list below the form holds every registered organisation, 20 at a time, with a "
+    "search box that matches name, Master ID or district, and Previous / Next controls at "
+    "the foot. Each row has a <b>Create sample case</b> link if that organisation doesn't "
+    "have one yet."
 ))
 
 story.append(PageBreak())
@@ -830,17 +855,44 @@ story.append(PageBreak())
 
 # ------------------------------------------------------------ SECTION 8 ---
 story.append(h1("8. A Complete Walkthrough", key="walkthrough"))
-story.append(P("Start to finish, for one new organisation."))
+story.append(P(
+    "Start to finish, for one organisation &mdash; and who does each part. Steps 1 and 2 "
+    "are already done for the 400 organisations imported in September; they apply to an "
+    "organisation added afterwards."
+))
 walk_steps = [
-    ("1", "PI/Admin registers the Main organisation and its matched Reserve in Django admin (Section 4)."),
-    ("2", "Field Coordinator opens the Main case's detail page and advances its workflow status through verification (S01 -&gt; S02 -&gt; S03) as the organisation and an eligible respondent are confirmed."),
-    ("3", "Field Coordinator sends the invitation from the case detail page, copies the link, and sends it using one of the message templates."),
-    ("4", "The case's workflow status advances automatically to Invitation sent (S05) the moment the invitation is issued."),
-    ("5", "The respondent opens the link, confirms eligibility, consents, and either completes the questionnaire themselves or requests assisted completion — logged as an Appointment if so."),
-    ("6", "On submission, the scheduled Kobo reconciliation job (or a manual “Sync now”) pulls the response into the QA queue."),
-    ("7", "A QUAN/Kobo QA RA reviews the submission and records Accept, Re-query, or Reject."),
-    ("8", "Once QA-passed, the submission counts toward the Executive Dashboard's progress figures."),
-    ("9", "At data lock, PI/Admin runs the de-identified analysis export for the wider research team, and the full operational export for internal records."),
+    ("1", "<b>PI / Field Coordinator</b> registers the organisation at <b>Organisations</b> "
+          "in the navigation bar, and creates its sample case from the same screen "
+          "(Section 4). Master ID and Sample ID are generated automatically."),
+    ("2", "<b>PI / Field Coordinator</b> assigns a Contact RA on the case detail page, if a "
+          "specific RA should own it — until then, no Contact RA can see the case."),
+    ("3", "<b>Field Coordinator / Contact RA</b> advances the workflow status through "
+          "verification (S01 -&gt; S02 -&gt; S03) as the organisation and an eligible "
+          "respondent are confirmed."),
+    ("4", "<b>Optionally</b>, a researcher builds and locks a PROIT pre-profile for the "
+          "case (Section 5.16), so the respondent confirms background facts instead of "
+          "answering them from scratch."),
+    ("5", "<b>Field Coordinator / Contact RA</b> sends the invitation from the case detail "
+          "page, copies the link and manual code immediately (shown once), and sends them "
+          "using one of the message templates. The workflow status advances to Invitation "
+          "sent (S05) automatically."),
+    ("6", "<b>The respondent</b> opens the link, confirms the organisation, states their "
+          "role, reads the information sheet and consents. They then either complete the "
+          "questionnaire themselves or request an assisted session — logged as an "
+          "Appointment, which requires consent first."),
+    ("7", "<b>Contact RA</b> works the Appointment Queue for anyone who asked to be "
+          "called, confirming and then completing each appointment."),
+    ("8", "On submission, the scheduled Kobo reconciliation job (or a manual “Sync now” "
+          "from the QA queue) pulls the response in."),
+    ("9", "<b>QUAN/Kobo QA RA</b> reviews the submission on the QA queue and records "
+          "Accept, Re-query, or Reject — each with a mandatory note."),
+    ("10", "Once QA-passed, the submission counts toward the Executive Dashboard's "
+           "progress figures and the QA Dashboard's totals."),
+    ("11", "If the case falls through (refusal, ineligible, nonresponse exhausted), "
+           "<b>PI / Field Coordinator</b> activates its matched Reserve with a reason and "
+           "evidence note (Section 5.12), and that Reserve then starts at step 3."),
+    ("12", "At data lock, <b>PI/Admin</b> runs the de-identified analysis export for the "
+           "wider research team, and the full operational export for internal records."),
 ]
 for num, text in walk_steps:
     story.append(step_row(num, "", text))
