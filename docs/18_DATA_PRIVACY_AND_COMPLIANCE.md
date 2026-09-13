@@ -111,6 +111,21 @@ dashboard did not exist. Per-role coverage is pinned by
 The nav remains UX only. Every endpoint still enforces its own permission class — see the
 bullet below about never relying on a hidden button.
 
+**Update (Sep 2026, eligibility gate actually enforced)**: `kobo.services.
+build_redirect_url` documented itself as issuing no questionnaire URL "without a passed
+eligibility check and GIVEN participation consent", and docs/28's Definition of Done says
+an ineligible respondent is "never" routed to the questionnaire — but only the consent
+half was implemented. `/api/v1/consent/` is `AllowAny` and takes a valid token as its only
+credential, so anyone screened out by the eligibility page could POST consent directly and
+be handed a Kobo URL; the frontend declining to route them there was not a control.
+`build_redirect_url` now also requires `contacts.services.has_passed_eligibility`, and the
+test that appeared to cover this (`test_ineligible_respondent_never_reaches_kobo_redirect`)
+was passing only because it never gave consent — it now gives consent first, which is what
+a bypass looks like. Because `record_eligibility_check` never overwrites a prior attempt,
+a case screened through a gatekeeper first still proceeds once the right person is
+identified. No invitations had been issued when this was fixed, so no live respondent was
+affected.
+
 ## Data protection basics
 
 - HTTPS everywhere in deployment (`23_DEPLOYMENT_ARCHITECTURE.md`).

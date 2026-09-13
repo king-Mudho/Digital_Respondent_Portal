@@ -7,6 +7,7 @@ import { StudyHeader } from "@/components/respondent/StudyHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { submitConsent } from "@/lib/api/respondent";
+import { respondentErrorMessage } from "@/lib/api/respondentErrors";
 import { PARTICIPANT_INFORMATION_SHEET_VERSION } from "@/lib/constants/participantInformation";
 import { useRespondentFlow } from "@/lib/store/respondentFlow";
 
@@ -16,9 +17,11 @@ export default function ConsentPage() {
   const token = useRespondentFlow((s) => s.token) || params.token;
   const [submitting, setSubmitting] = useState(false);
   const [declined, setDeclined] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleDecision(decision: "GIVEN" | "DECLINED") {
     setSubmitting(true);
+    setError(null);
     try {
       await submitConsent({
         token,
@@ -35,6 +38,11 @@ export default function ConsentPage() {
       } else {
         setDeclined(true);
       }
+    } catch (err) {
+      // Silence here was the worst of the flow's silent failures: the
+      // respondent presses "I agree to take part", nothing moves, and they
+      // cannot tell whether their consent was recorded or not.
+      setError(respondentErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -70,9 +78,10 @@ export default function ConsentPage() {
             you have read the participant information and voluntarily agree
             to take part in this study.
           </p>
+          {error && <p className="text-danger text-sm">{error}</p>}
           <div className="flex flex-col gap-3">
             <Button disabled={submitting} onClick={() => handleDecision("GIVEN")}>
-              I agree to take part
+              {submitting ? "Recording your decision…" : "I agree to take part"}
             </Button>
             <Button
               variant="outline"
@@ -82,6 +91,13 @@ export default function ConsentPage() {
               I do not wish to take part
             </Button>
           </div>
+          <button
+            type="button"
+            onClick={() => router.push(`/i/${params.token}/information`)}
+            className="w-full text-sm text-text-muted underline min-h-11"
+          >
+            Re-read the participant information
+          </button>
           <DisclaimerBanner />
         </Card>
       </section>

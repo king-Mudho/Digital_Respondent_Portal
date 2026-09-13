@@ -109,16 +109,57 @@ def test_full_happy_path_to_kobo_redirect(client, issued_token):
 
 def test_ineligible_respondent_never_reaches_kobo_redirect(client, issued_token):
     """docs/28: 'An ineligible respondent is routed to referral, never to
-    the questionnaire.'"""
+    the questionnaire.'
+
+    The earlier version of this test screened out a receptionist and then
+    asserted a 403 -- but it never gave consent, so it was really just
+    re-testing the consent gate under an eligibility name, and passed even
+    though eligibility was not enforced at all. This version gives consent
+    first, which is what someone bypassing the frontend would do: the
+    consent endpoint is AllowAny and takes only a valid token, so the
+    eligibility screen the UI shows is not a control on its own.
+    """
     raw_token, _, _ = issued_token
     client.post("/api/v1/eligibility/", {
         "token": raw_token, "full_name": "Gatekeeper", "role_category": "RECEPTIONIST",
     })
-    # No consent was ever given (nothing in the flow lets an ineligible
-    # respondent reach the consent step in the real frontend, but this
-    # confirms the backend gate holds even if they tried directly).
+    consent_resp = client.post("/api/v1/consent/", {
+        "token": raw_token,
+        "consent_type": ConsentType.PARTICIPATION,
+        "decision": ConsentDecision.GIVEN,
+        "information_sheet_version": "v1.0",
+        "method": ConsentMethod.WEB_CLICKTHROUGH,
+    })
+    assert consent_resp.status_code == 200, "consent itself is not eligibility-gated"
+
     redirect_resp = client.get(f"/api/v1/kobo/redirect-url/?t={raw_token}")
+
     assert redirect_resp.status_code == 403
+    assert redirect_resp.json()["error"]["code"] == "eligibility_required"
+
+
+def test_eligible_respondent_identified_after_a_gatekeeper_can_still_proceed(client, issued_token):
+    """record_eligibility_check never overwrites a prior attempt, so a case
+    screened through a gatekeeper first must not be permanently blocked
+    once the right person is identified."""
+    raw_token, _, _ = issued_token
+    client.post("/api/v1/eligibility/", {
+        "token": raw_token, "full_name": "Gatekeeper", "role_category": "RECEPTIONIST",
+    })
+    client.post("/api/v1/eligibility/", {
+        "token": raw_token, "full_name": "Jane Doe", "role_category": "CEO_MD",
+    })
+    client.post("/api/v1/consent/", {
+        "token": raw_token,
+        "consent_type": ConsentType.PARTICIPATION,
+        "decision": ConsentDecision.GIVEN,
+        "information_sheet_version": "v1.0",
+        "method": ConsentMethod.WEB_CLICKTHROUGH,
+    })
+
+    redirect_resp = client.get(f"/api/v1/kobo/redirect-url/?t={raw_token}")
+
+    assert redirect_resp.status_code == 200
 
 
 def test_locked_reserve_cannot_be_validated_for_invitation(client, locked_reserve_case):

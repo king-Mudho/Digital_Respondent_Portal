@@ -7,6 +7,20 @@ Uniform error envelope per docs/06_API_ARCHITECTURE.md:
 from rest_framework.views import exception_handler
 
 
+def _first_message(field_errors: dict) -> str:
+    """The first field error as a plain sentence. Field errors nest
+    arbitrarily (a list per field, and a dict per field for nested
+    serializers), so walk down to the first string."""
+    for value in field_errors.values():
+        while isinstance(value, dict):
+            value = next(iter(value.values()), None)
+        if isinstance(value, (list, tuple)):
+            value = value[0] if value else None
+        if value is not None:
+            return str(value)
+    return "An error occurred."
+
+
 def drp_exception_handler(exc, context):
     response = exception_handler(exc, context)
     if response is None:
@@ -17,8 +31,16 @@ def drp_exception_handler(exc, context):
     message = "An error occurred."
 
     if isinstance(detail, dict):
-        message = detail.get("detail", message)
         field_errors = {k: v for k, v in detail.items() if k != "detail"}
+        if "detail" in detail:
+            message = detail["detail"]
+        elif field_errors:
+            # A DRF ValidationError has no top-level "detail" -- the useful
+            # text is per field. Leaving `message` as the generic string
+            # meant a caller showing only `message` (the whole respondent
+            # flow, which has no field-level UI) told the user "an error
+            # occurred" when the API knew exactly what was wrong.
+            message = _first_message(field_errors)
     elif isinstance(detail, list) and detail:
         message = str(detail[0])
 

@@ -22,6 +22,13 @@ export default function ParticipantInformationPage() {
           <Button className="w-full" onClick={() => router.push(`/i/${params.token}/consent`)}>
             Continue to consent
           </Button>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="w-full text-sm text-text-muted underline min-h-11"
+          >
+            Go back
+          </button>
         </Card>
       </section>
     </main>

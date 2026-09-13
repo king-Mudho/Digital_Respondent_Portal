@@ -1,3 +1,4 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import Appointment, ContactEvent, Respondent
@@ -39,6 +40,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "kii_record", "kii_id", "scheduled_for", "mode", "status",
         ]
         read_only_fields = ["id", "status"]
+
+    def validate_scheduled_for(self, value):
+        # This endpoint is public (a valid token is the only credential),
+        # so the browser's `min` on the date picker is not a control. A
+        # past appointment reaches the RA's queue already missed.
+        if value < timezone.now():
+            raise serializers.ValidationError("An appointment cannot be requested in the past.")
+        return value
 
     def get_sample_id(self, obj) -> str | None:
         return obj.sample_case.sample_id if obj.sample_case_id else None

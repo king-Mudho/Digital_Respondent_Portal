@@ -15,6 +15,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import Role, User
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
 from apps.consent.services import record_consent
+from apps.contacts.services import record_eligibility_check
 from apps.kobo.client import KoboClient
 from apps.kobo.models import QAStatus, QUANSubmission, ReconciliationLog, ReconciliationTrigger
 from apps.kobo.services import KoboRedirectDenied, build_redirect_url, reconcile
@@ -232,7 +233,14 @@ def test_reconciliation_status_view_returns_null_when_never_run(admin_client):
     assert resp.data is None
 
 
-# --- Kobo redirect gating (docs/10: no redirect without GIVEN consent) -----
+# --- Kobo redirect gating (docs/10: no redirect without a passed
+# eligibility check AND GIVEN consent; both are enforced here) ------------
+
+def _make_eligible(main_case):
+    record_eligibility_check(
+        sample_case=main_case, full_name="Jane Doe", role_category="CEO_MD", is_eligible=True
+    )
+
 
 def test_build_redirect_url_denied_without_consent(main_case):
     with pytest.raises(KoboRedirectDenied) as exc_info:
@@ -247,7 +255,59 @@ def test_build_redirect_url_denied_without_consent(main_case):
     assert exc_info.value.code == "consent_required"
 
 
-def test_build_redirect_url_succeeds_after_consent(main_case):
+def test_build_redirect_url_denied_without_an_eligible_respondent(main_case):
+    """Consent alone is not enough. Someone holding a valid token can POST
+    /consent/ directly without ever passing the eligibility screen, so the
+    eligibility check has to live here rather than in the frontend's
+    routing (docs/28's "never to the questionnaire")."""
+    record_consent(
+        sample_case=main_case,
+        consent_type=ConsentType.PARTICIPATION,
+        decision=ConsentDecision.GIVEN,
+        information_sheet_version="v1.0",
+        method=ConsentMethod.WEB_CLICKTHROUGH,
+    )
+
+    with pytest.raises(KoboRedirectDenied) as exc_info:
+        build_redirect_url(
+            main_case,
+            token_id=1,
+            invitation_wave=1,
+            administration_mode="01",
+            respondent_role_category="CEO_MD",
+            consent_version="v1.0",
+        )
+
+    assert exc_info.value.code == "eligibility_required"
+
+
+def test_build_redirect_url_denied_when_the_respondent_was_screened_out(main_case):
+    record_eligibility_check(
+        sample_case=main_case, full_name="Gatekeeper", role_category="", is_eligible=False
+    )
+    record_consent(
+        sample_case=main_case,
+        consent_type=ConsentType.PARTICIPATION,
+        decision=ConsentDecision.GIVEN,
+        information_sheet_version="v1.0",
+        method=ConsentMethod.WEB_CLICKTHROUGH,
+    )
+
+    with pytest.raises(KoboRedirectDenied) as exc_info:
+        build_redirect_url(
+            main_case,
+            token_id=1,
+            invitation_wave=1,
+            administration_mode="01",
+            respondent_role_category="CEO_MD",
+            consent_version="v1.0",
+        )
+
+    assert exc_info.value.code == "eligibility_required"
+
+
+def test_build_redirect_url_succeeds_after_eligibility_and_consent(main_case):
+    _make_eligible(main_case)
     record_consent(
         sample_case=main_case,
         consent_type=ConsentType.PARTICIPATION,

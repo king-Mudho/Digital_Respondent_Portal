@@ -35,6 +35,7 @@ from django.utils.dateparse import parse_datetime
 
 from apps.audit.utils import log_action
 from apps.consent.services import has_given_consent
+from apps.contacts.services import has_passed_eligibility
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import advance_token_status
 from apps.sampling.models import SampleCase
@@ -65,9 +66,24 @@ def build_redirect_url(
     Never issued without a passed eligibility check and GIVEN participation
     consent (docs/10_INVITATION_AND_CONSENT.md) -- enforced here, the single
     point every caller goes through, not left to view-layer discipline.
+
+    Both halves of that sentence are now actually checked. Until the
+    Sep 2026 audit pass only consent was: the eligibility half was asserted
+    in this docstring and in docs/28's Definition of Done ("an ineligible
+    respondent is routed to referral, never to the questionnaire") but
+    never enforced, so anyone holding a valid token could POST /consent/
+    directly -- skipping the eligibility screen the frontend shows them --
+    and be handed a questionnaire URL. The endpoint is AllowAny by design,
+    so the frontend refusing to route there is not a control.
     """
     if not has_given_consent(sample_case):
         raise KoboRedirectDenied("consent_required", "Participation consent has not been given.")
+
+    if not has_passed_eligibility(sample_case):
+        raise KoboRedirectDenied(
+            "eligibility_required",
+            "No eligible respondent has been recorded for this case.",
+        )
 
     asset_uid = settings.KOBO_ASSET_UID
     params = {

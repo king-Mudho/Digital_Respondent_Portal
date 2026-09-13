@@ -11,6 +11,7 @@ import {
   type RespondentPreProfile,
   type VerificationStatus,
 } from "@/lib/api/respondent";
+import { respondentErrorMessage } from "@/lib/api/respondentErrors";
 import { useRespondentFlow } from "@/lib/store/respondentFlow";
 
 // PROIT verification screen (ABF-FST_PROIT_v1.0_Portal_Deployment_Tool.docx
@@ -38,6 +39,7 @@ export default function VerifyPage() {
   const [responses, setResponses] = useState<Record<number, VerificationStatus>>({});
   const [corrections, setCorrections] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getRespondentPreProfile(token)
@@ -68,24 +70,42 @@ export default function VerifyPage() {
   }
 
   const allAnswered = profile.fields.every((f) => responses[f.id]);
+  // "No -- correct it" without the correction would record an empty
+  // respondent value, which is indistinguishable from "didn't answer" in
+  // the reconciled record.
+  const missingCorrection = profile.fields.some(
+    (f) => responses[f.id] === "NO_CORRECT_VALUE_PROVIDED" && !(corrections[f.id] ?? "").trim(),
+  );
 
   async function handleContinue() {
     setSubmitting(true);
+    setError(null);
     try {
-      await Promise.all(
-        profile!.fields.map((f) =>
-          submitFieldVerification({
-            token,
-            fieldId: f.id,
-            status: responses[f.id],
-            respondentValue: corrections[f.id] ?? "",
-          }),
-        ),
-      );
+      // Sequential, not Promise.all: these are separate writes, and a
+      // partial failure part-way through a parallel batch left the
+      // respondent stuck on this screen with no message and no idea which
+      // answers had been saved. In order, a retry simply re-sends the
+      // ones that already succeeded, which is idempotent per field.
+      for (const field of profile!.fields) {
+        await submitFieldVerification({
+          token,
+          fieldId: field.id,
+          status: responses[field.id],
+          respondentValue: corrections[field.id] ?? "",
+        });
+      }
       goToChoice();
+    } catch (err) {
+      setError(respondentErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // Nothing here is required of the respondent -- PROIT is a burden
+  // reduction, not an extra gate, so there is always a way past it.
+  function skipVerification() {
+    goToChoice();
   }
 
   return (
@@ -138,9 +158,26 @@ export default function VerifyPage() {
             ))}
           </div>
 
-          <Button className="w-full" disabled={!allAnswered || submitting} onClick={handleContinue}>
-            Continue
+          {error && <p className="text-danger text-sm">{error}</p>}
+          {missingCorrection && (
+            <p className="text-text-muted text-sm">
+              Please fill in what the corrected value should be, or choose a different answer.
+            </p>
+          )}
+          <Button
+            className="w-full"
+            disabled={!allAnswered || missingCorrection || submitting}
+            onClick={handleContinue}
+          >
+            {submitting ? "Saving your answers…" : "Continue"}
           </Button>
+          <button
+            type="button"
+            onClick={skipVerification}
+            className="w-full text-sm text-text-muted underline min-h-11"
+          >
+            Skip this step
+          </button>
         </Card>
       </section>
     </main>

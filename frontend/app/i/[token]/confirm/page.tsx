@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { StudyHeader } from "@/components/respondent/StudyHeader";
 import { Button } from "@/components/ui/button";
@@ -11,10 +12,23 @@ export default function ConfirmOrganisationPage() {
   const router = useRouter();
   const organisationConfirmation = useRespondentFlow((s) => s.organisationConfirmation);
 
+  // Direct navigation (or a page reload -- the flow store is in-memory
+  // only) leaves nothing to confirm, so re-run validation. This has to be
+  // an effect: navigating during render updates the router while React is
+  // rendering this component, which React reports as an error.
+  useEffect(() => {
+    if (!organisationConfirmation) router.replace(`/i/${params.token}`);
+  }, [organisationConfirmation, params.token, router]);
+
   if (!organisationConfirmation) {
-    // Direct navigation without validating first -- re-run validation.
-    router.replace(`/i/${params.token}`);
-    return null;
+    return (
+      <main className="min-h-screen flex flex-col">
+        <StudyHeader />
+        <section className="flex-1 flex items-center justify-center px-6 py-16">
+          <p className="text-text-muted">Checking your invitation…</p>
+        </section>
+      </main>
+    );
   }
 
   return (

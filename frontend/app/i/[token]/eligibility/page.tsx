@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { NONE_OF_THESE, ROLE_CATEGORIES } from "@/lib/constants/roleCategories";
 import { submitEligibility } from "@/lib/api/respondent";
+import { respondentErrorMessage } from "@/lib/api/respondentErrors";
 import { useRespondentFlow } from "@/lib/store/respondentFlow";
 
 export default function EligibilityPage() {
@@ -19,10 +20,12 @@ export default function EligibilityPage() {
   const [roleCategory, setRoleCategory] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<"eligible" | "ineligible" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
       const isNoneOfThese = roleCategory === NONE_OF_THESE;
       const res = await submitEligibility({
@@ -36,6 +39,8 @@ export default function EligibilityPage() {
       } else {
         setResult("ineligible");
       }
+    } catch (err) {
+      setError(respondentErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -74,6 +79,7 @@ export default function EligibilityPage() {
             </p>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && <p className="text-danger text-sm">{error}</p>}
             <div>
               <label htmlFor="full_name" className="block text-sm font-medium mb-1">
                 Your full name
