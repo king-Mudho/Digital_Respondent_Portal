@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
-import { login } from "@/lib/api/admin";
+import { adminFetch, login } from "@/lib/api/admin";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -20,7 +20,11 @@ export default function AdminLoginPage() {
     setError(null);
     try {
       await login(username, password);
-      router.push("/admin/dashboard");
+      // Land on this role's own first screen. Hardcoding /admin/dashboard
+      // here sent Contact/QUAN QA/KII/Documentary RAs -- four of the eight
+      // roles -- straight to a dashboard their role is refused.
+      const me = await adminFetch<{ landing_path: string }>("/auth/me/").catch(() => null);
+      router.push(me?.landing_path ?? "/admin/account");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Sign in failed.");
     } finally {

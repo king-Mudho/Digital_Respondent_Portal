@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -26,7 +27,11 @@ export default function DocumentDetailPage() {
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
-  const [memo, setMemo] = useState("");
+  const [saved, setSaved] = useState(false);
+  // null means "not edited yet, show what the server has". Defaulting the
+  // textarea to `memo || doc.interpretive_memo` made an empty string fall
+  // back to the saved text, so a memo could never be cleared.
+  const [memo, setMemo] = useState<string | null>(null);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", params.id],
@@ -45,7 +50,8 @@ export default function DocumentDetailPage() {
       setError(null);
       invalidate();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed."),
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not record the assessment."),
   });
 
   const setQaStatus = useMutation({
@@ -58,16 +64,23 @@ export default function DocumentDetailPage() {
       setError(null);
       invalidate();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed."),
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not set the QA status."),
   });
 
   const saveMemo = useMutation({
     mutationFn: () =>
       adminFetch(`/documents/${params.id}/`, {
         method: "PATCH",
-        body: JSON.stringify({ interpretive_memo: memo }),
+        body: JSON.stringify({ interpretive_memo: memo ?? "" }),
       }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setError(null);
+      setSaved(true);
+      setMemo(null); // fall back to the server's copy again
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the memo."),
   });
 
   if (isLoading || !doc) {
@@ -78,35 +91,65 @@ export default function DocumentDetailPage() {
     );
   }
 
+  const memoValue = memo ?? doc.interpretive_memo;
+
   return (
     <AdminShell backHref="/admin/documents" backLabel="Documents">
       <h2 className="font-semibold text-xl mb-1">{doc.title}</h2>
-      <p className="text-text-muted text-sm mb-4 font-mono">{doc.document_id}</p>
+      <p className="text-text-muted text-sm mb-4 font-mono">
+        {doc.document_id} · {doc.document_type}
+      </p>
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="space-y-3">
           <h3 className="font-medium">Authenticity: {doc.authenticity_assessment}</h3>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setAuthenticity.mutate("VERIFIED")}>
-              Mark verified
-            </Button>
-            <Button variant="outline" onClick={() => setAuthenticity.mutate("DISPUTED")}>
-              Mark disputed
-            </Button>
-          </div>
+          <WriteOnly>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                disabled={setAuthenticity.isPending || doc.authenticity_assessment === "VERIFIED"}
+                onClick={() => setAuthenticity.mutate("VERIFIED")}
+              >
+                Mark verified
+              </Button>
+              <Button
+                variant="outline"
+                disabled={setAuthenticity.isPending || doc.authenticity_assessment === "DISPUTED"}
+                onClick={() => setAuthenticity.mutate("DISPUTED")}
+              >
+                Mark disputed
+              </Button>
+            </div>
+          </WriteOnly>
         </Card>
 
         <Card className="space-y-3">
           <h3 className="font-medium">QA status: {doc.qa_status}</h3>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setQaStatus.mutate("INCLUDED")}>
-              Include
-            </Button>
-            <Button variant="outline" onClick={() => setQaStatus.mutate("EXCLUDED")}>
-              Exclude
-            </Button>
-          </div>
+          <WriteOnly>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                // set_qa_status refuses INCLUDED while authenticity is
+                // UNVERIFIED -- don't offer a button that must fail.
+                disabled={
+                  setQaStatus.isPending ||
+                  doc.authenticity_assessment === "UNVERIFIED" ||
+                  doc.qa_status === "INCLUDED"
+                }
+                onClick={() => setQaStatus.mutate("INCLUDED")}
+              >
+                Include
+              </Button>
+              <Button
+                variant="outline"
+                disabled={setQaStatus.isPending || doc.qa_status === "EXCLUDED"}
+                onClick={() => setQaStatus.mutate("EXCLUDED")}
+              >
+                Exclude
+              </Button>
+            </div>
+          </WriteOnly>
           {doc.authenticity_assessment === "UNVERIFIED" && (
             <p className="text-xs text-text-muted">
               Cannot be included until authenticity is assessed.
@@ -114,17 +157,42 @@ export default function DocumentDetailPage() {
           )}
         </Card>
 
+        {doc.evidence_extract && (
+          <Card className="space-y-2 md:col-span-2">
+            <h3 className="font-medium">Evidence extract</h3>
+            <p className="text-sm whitespace-pre-wrap">{doc.evidence_extract}</p>
+          </Card>
+        )}
+
         <Card className="space-y-3 md:col-span-2">
           <h3 className="font-medium">Interpretive memo (dispute reasons, notes)</h3>
-          <textarea
-            value={memo || doc.interpretive_memo}
-            onChange={(e) => setMemo(e.target.value)}
-            className="w-full rounded-md border border-border px-3 py-2"
-            rows={3}
-          />
-          <Button variant="outline" onClick={() => saveMemo.mutate()}>
-            Save memo
-          </Button>
+          <WriteOnly>
+            <textarea
+              value={memoValue}
+              onChange={(e) => {
+                setMemo(e.target.value);
+                setSaved(false);
+              }}
+              className="w-full rounded-md border border-border px-3 py-2"
+              rows={3}
+            />
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                disabled={saveMemo.isPending || memo === null}
+                onClick={() => saveMemo.mutate()}
+              >
+                {saveMemo.isPending ? "Saving…" : "Save memo"}
+              </Button>
+              {saved && <span className="text-sm text-text-muted">Saved.</span>}
+            </div>
+          </WriteOnly>
+          {/* Read-only roles still need to see the memo itself. */}
+          <ReadOnly>
+            <p className="text-sm whitespace-pre-wrap">
+              {doc.interpretive_memo || "No memo recorded."}
+            </p>
+          </ReadOnly>
         </Card>
       </div>
     </AdminShell>

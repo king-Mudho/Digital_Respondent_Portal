@@ -12,7 +12,7 @@ from django.db.models import Count, Q, Sum
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsAnalystOrAdmin, IsQAOrAdmin
+from api.permissions import CanViewKIIDocumentDashboard, IsAnalystOrAdmin, IsQAOrAdmin
 from apps.contacts.models import Appointment, ContactEvent, Respondent
 from apps.costs.models import CostEvent
 from apps.evidence.models import DocumentQAStatus, DocumentRecord
@@ -155,7 +155,7 @@ class QADashboardView(APIView):
 
 
 class KIIDocumentDashboardView(APIView):
-    permission_classes = [IsAnalystOrAdmin]
+    permission_classes = [CanViewKIIDocumentDashboard]
 
     def get(self, request):
         kii_by_status = dict(KIIRecord.objects.values_list("status").annotate(count=Count("id")))

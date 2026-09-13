@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsQAOrAdmin
+from api.permissions import CanManageDocuments
 
 from .models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord
 from .serializers import DocumentRecordSerializer
@@ -18,17 +18,20 @@ from .services import (
 class DocumentRecordListCreateView(generics.ListCreateAPIView):
     """GET/POST /api/v1/documents/ (docs/06_API_ARCHITECTURE.md)."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageDocuments]
     serializer_class = DocumentRecordSerializer
     filterset_fields = ["document_type", "authenticity_assessment", "qa_status"]
-    queryset = DocumentRecord.objects.all()
+    search_fields = ["document_id", "title", "author_or_speaker", "value_chain"]
+    # DocumentRecord has no Meta.ordering -- an unordered queryset makes
+    # PageNumberPagination's page boundaries arbitrary.
+    queryset = DocumentRecord.objects.order_by("document_id")
 
     def perform_create(self, serializer):
         serializer.save(document_id=generate_document_id())
 
 
 class DocumentRecordDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageDocuments]
     serializer_class = DocumentRecordSerializer
     queryset = DocumentRecord.objects.all()
 
@@ -37,7 +40,7 @@ class DocumentAuthenticityView(APIView):
     """POST /api/v1/documents/{id}/authenticity/ -- always records a
     reviewer (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md)."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageDocuments]
 
     def post(self, request, pk):
         document = get_object_or_404(DocumentRecord, pk=pk)
@@ -51,7 +54,7 @@ class DocumentAuthenticityView(APIView):
 class DocumentQAStatusView(APIView):
     """POST /api/v1/documents/{id}/qa-status/."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageDocuments]
 
     def post(self, request, pk):
         document = get_object_or_404(DocumentRecord, pk=pk)

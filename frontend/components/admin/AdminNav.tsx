@@ -3,33 +3,34 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { logout } from "@/lib/api/admin";
+import { useAdminUser } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 
-const LINKS = [
-  { href: "/admin/dashboard", label: "Executive" },
-  { href: "/admin/dashboard/sampling", label: "Sampling" },
-  { href: "/admin/dashboard/contact", label: "Contact" },
-  { href: "/admin/dashboard/kii-documents", label: "KII/Doc Dashboard" },
-  { href: "/admin/sample", label: "Main-400 Register" },
-  { href: "/admin/organisations", label: "Organisations" },
-  { href: "/admin/appointments", label: "Appointments" },
-  { href: "/admin/qa", label: "QA Queue" },
-  { href: "/admin/kii", label: "KII Register" },
-  { href: "/admin/documents", label: "Documents" },
-  { href: "/admin/reserve", label: "Reserve Activation" },
-  { href: "/admin/cost", label: "Cost" },
-  { href: "/admin/audit", label: "Audit Log" },
-  { href: "/admin/export", label: "Export" },
-];
-
+/**
+ * Renders exactly the screens the signed-in role may open, as served by
+ * GET /api/v1/auth/me/ (backend api/navigation.py). Nothing is hardcoded
+ * here: previously this file held a static list of all 14 links shown to
+ * every role, so a Contact RA saw "Audit Log" and "Export" and got a 403
+ * on click.
+ */
 export function AdminNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const user = useAdminUser();
+  const screens = user?.screens ?? [];
 
   return (
     <nav className="bg-header text-white">
-      <div className="px-6 py-3 flex items-center justify-between">
-        <p className="font-semibold">ABF-FST Research Operations Centre</p>
+      <div className="px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <p className="font-semibold">ABF-FST Research Operations Centre</p>
+          {user && (
+            <p className="text-xs text-white/70">
+              {user.username} · {user.role_label}
+              {user.read_only && " · read-only"}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <Link href="/admin/account" className="text-sm text-white/80 hover:text-white">
             Change password
@@ -45,20 +46,22 @@ export function AdminNav() {
           </button>
         </div>
       </div>
-      <div className="px-6 flex gap-4 overflow-x-auto border-t border-white/10 text-sm">
-        {LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className={cn(
-              "py-2 whitespace-nowrap border-b-2 border-transparent",
-              pathname === link.href && "border-accent font-medium",
-            )}
-          >
-            {link.label}
-          </Link>
-        ))}
-      </div>
+      {screens.length > 0 && (
+        <div className="px-6 flex gap-4 overflow-x-auto border-t border-white/10 text-sm">
+          {screens.map((screen) => (
+            <Link
+              key={screen.id}
+              href={screen.path}
+              className={cn(
+                "py-2 whitespace-nowrap border-b-2 border-transparent",
+                pathname === screen.path && "border-accent font-medium",
+              )}
+            >
+              {screen.label}
+            </Link>
+          ))}
+        </div>
+      )}
     </nav>
   );
 }

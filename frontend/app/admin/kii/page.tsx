@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
+import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -23,25 +26,48 @@ interface KIIRecord {
  * (docs/27_AGENT_EXECUTION_PLAN.md Phase 7).
  */
 export default function KIIRegisterPage() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["kii-records"],
-    queryFn: () => adminFetch<{ results: KIIRecord[] }>("/kii/"),
+    queryKey: ["kii-records", search, page],
+    queryFn: () =>
+      adminFetch<Paginated<KIIRecord>>(
+        `/kii/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+      ),
+    placeholderData: keepPreviousData,
   });
 
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
         <h2 className="font-semibold text-xl">KII Register</h2>
-        <Link href="/admin/kii/new">
-          <Button>New KII record</Button>
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          <SearchBox
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search KII ID, name or role"
+          />
+          <WriteOnly note={null}>
+            <Link href="/admin/kii/new">
+              <Button>New KII record</Button>
+            </Link>
+          </WriteOnly>
+        </div>
       </div>
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>
         ) : data.results.length === 0 ? (
-          <p className="text-text-muted text-sm">No KII records yet.</p>
+          <p className="text-text-muted text-sm">
+            {search ? `No KII records match "${search}".` : "No KII records yet."}
+          </p>
         ) : (
+          <>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-text-muted">
@@ -70,6 +96,9 @@ export default function KIIRegisterPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination page={page} count={data.count} onPageChange={setPage} label="KII records" />
+          </>
         )}
       </Card>
     </AdminShell>

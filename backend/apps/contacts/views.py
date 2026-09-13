@@ -97,6 +97,7 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
     callers (docs/06_API_ARCHITECTURE.md "Security")."""
 
     serializer_class = AppointmentSerializer
+    filterset_fields = ["status", "mode"]
 
     def get_permissions(self):
         if self.request.method == "POST":
@@ -104,7 +105,11 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
         return [CanManageContact()]
 
     def get_queryset(self):
-        queryset = Appointment.objects.select_related("sample_case", "kii_record").order_by("scheduled_for")
+        # sample_case__organisation is joined for the serializer's
+        # organisation_name, which would otherwise be a query per row.
+        queryset = Appointment.objects.select_related(
+            "sample_case__organisation", "kii_record"
+        ).order_by("scheduled_for")
         if _is_contact_ra(self.request.user):
             queryset = queryset.filter(sample_case__assigned_ra=self.request.user)
         return queryset

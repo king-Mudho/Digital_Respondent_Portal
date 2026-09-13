@@ -1,4 +1,5 @@
 import { AdminShell } from "@/components/admin/AdminShell";
+import { IfRole } from "@/components/admin/RoleGate";
 import { Card } from "@/components/ui/card";
 import { RESEARCH_DISCLAIMER } from "@/lib/constants/disclaimers";
 
@@ -27,21 +28,26 @@ export default function ExportPage() {
           </a>
         </Card>
 
-        <Card className="space-y-3">
-          <h3 className="font-medium">Full operational export</h3>
-          <p className="text-sm text-text-muted">
-            Includes contact data (names, phone, email, gatekeeper details).
-            Internal operations use only -- never distributed externally.
-            PI/Admin only.
-          </p>
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
-          <a
-            href="/api/proxy/export/operational/"
-            className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium"
-          >
-            Download operational export (CSV)
-          </a>
-        </Card>
+        {/* Analysts and Field Coordinators reach this screen but the
+            operational export is PI/Admin only -- showing them a button
+            that always 403s is worse than not showing it. */}
+        <IfRole roles={["PI_ADMIN"]}>
+          <Card className="space-y-3">
+            <h3 className="font-medium">Full operational export</h3>
+            <p className="text-sm text-text-muted">
+              Includes contact data (names, phone, email, gatekeeper details).
+              Internal operations use only -- never distributed externally.
+              PI/Admin only.
+            </p>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+            <a
+              href="/api/proxy/export/operational/"
+              className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium"
+            >
+              Download operational export (CSV)
+            </a>
+          </Card>
+        </IfRole>
       </div>
       <p className="text-sm text-text-muted border-t border-border pt-4 mt-6 max-w-2xl">
         {RESEARCH_DISCLAIMER}

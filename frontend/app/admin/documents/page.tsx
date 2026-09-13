@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
+import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -18,25 +21,48 @@ interface DocumentRecord {
 
 /** docs/14_DOCUMENTARY_EVIDENCE_MODULE.md. */
 export default function DocumentsPage() {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["document-records"],
-    queryFn: () => adminFetch<{ results: DocumentRecord[] }>("/documents/"),
+    queryKey: ["document-records", search, page],
+    queryFn: () =>
+      adminFetch<Paginated<DocumentRecord>>(
+        `/documents/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+      ),
+    placeholderData: keepPreviousData,
   });
 
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
         <h2 className="font-semibold text-xl">Documentary Evidence Corpus</h2>
-        <Link href="/admin/documents/new">
-          <Button>New document</Button>
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          <SearchBox
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search title, ID or author"
+          />
+          <WriteOnly note={null}>
+            <Link href="/admin/documents/new">
+              <Button>New document</Button>
+            </Link>
+          </WriteOnly>
+        </div>
       </div>
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>
         ) : data.results.length === 0 ? (
-          <p className="text-text-muted text-sm">No documents yet.</p>
+          <p className="text-text-muted text-sm">
+            {search ? `No documents match "${search}".` : "No documents yet."}
+          </p>
         ) : (
+          <>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-text-muted">
@@ -65,6 +91,9 @@ export default function DocumentsPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          <Pagination page={page} count={data.count} onPageChange={setPage} label="documents" />
+          </>
         )}
       </Card>
     </AdminShell>

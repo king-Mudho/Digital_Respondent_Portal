@@ -127,7 +127,14 @@ REST_FRAMEWORK = {
     # invitation token -- see docs/06_API_ARCHITECTURE.md and
     # docs/08_BACKEND_ARCHITECTURE.md "Permissions".
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
-    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    # SearchFilter backs the ?search= box on the register screens. The
+    # registers hold 400 Main + 400 Reserve cases, 90 KII records and 100
+    # documents against a page size of 20 -- paging to find one row is not
+    # a workable field workflow.
+    "DEFAULT_FILTER_BACKENDS": (
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+    ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",

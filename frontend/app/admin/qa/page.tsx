@@ -3,9 +3,16 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+
+const QA_DECISIONS = [
+  { decision: "ACCEPT", label: "Accept", variant: "primary" },
+  { decision: "QUERY", label: "Re-query", variant: "outline" },
+  { decision: "REJECT", label: "Reject", variant: "outline" },
+] as const;
 
 interface QueueSubmission {
   id: number;
@@ -57,9 +64,11 @@ function KoboSyncPanel() {
     <Card className="mb-4 space-y-2">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm">KoboToolbox sync</h3>
-        <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
-          {sync.isPending ? "Syncing…" : "Sync now"}
-        </Button>
+        <WriteOnly note={null}>
+          <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            {sync.isPending ? "Syncing…" : "Sync now"}
+          </Button>
+        </WriteOnly>
       </div>
       {(syncError || status?.error_message) && (
         <p className="text-danger text-sm">Last sync failed: {syncError ?? status?.error_message}</p>
@@ -84,13 +93,22 @@ export default function QAQueuePage() {
   });
   const [notes, setNotes] = useState<Record<number, string>>({});
 
+  const [error, setError] = useState<string | null>(null);
+
   const decide = useMutation({
     mutationFn: ({ id, decision, note }: { id: number; decision: string; note: string }) =>
       adminFetch(`/qa/submission/${id}/decision/`, {
         method: "POST",
         body: JSON.stringify({ decision, note }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["qa-queue"] }),
+    onSuccess: (_data, variables) => {
+      setError(null);
+      setNotes((prev) => ({ ...prev, [variables.id]: "" }));
+      queryClient.invalidateQueries({ queryKey: ["qa-queue"] });
+    },
+    // record_human_decision rejects an empty note with a 400. Without this
+    // the click did nothing at all and said nothing about why.
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not record the decision."),
   });
 
   const items = Array.isArray(data) ? data : data?.results ?? [];
@@ -99,6 +117,7 @@ export default function QAQueuePage() {
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="font-semibold text-xl mb-4">QUAN QA Queue</h2>
       <KoboSyncPanel />
+      {error && <p className="text-danger text-sm mb-4">{error}</p>}
       {isLoading ? (
         <p className="text-text-muted">Loading…</p>
       ) : items.length === 0 ? (
@@ -124,38 +143,36 @@ export default function QAQueuePage() {
                   {submission.qa_status}
                 </span>
               </div>
-              <textarea
-                placeholder="Note (required)"
-                value={notes[submission.id] ?? ""}
-                onChange={(e) => setNotes((prev) => ({ ...prev, [submission.id]: e.target.value }))}
-                className="w-full rounded-md border border-border px-3 py-2 text-sm"
-                rows={2}
-              />
-              <div className="flex gap-2">
-                <Button
-                  onClick={() =>
-                    decide.mutate({ id: submission.id, decision: "ACCEPT", note: notes[submission.id] ?? "" })
-                  }
-                >
-                  Accept
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    decide.mutate({ id: submission.id, decision: "QUERY", note: notes[submission.id] ?? "" })
-                  }
-                >
-                  Re-query
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    decide.mutate({ id: submission.id, decision: "REJECT", note: notes[submission.id] ?? "" })
-                  }
-                >
-                  Reject
-                </Button>
-              </div>
+              <WriteOnly note="Read-only role — QA decisions are recorded by the QUAN QA RA, Field Coordinator or PI.">
+                <textarea
+                  placeholder="Note (required)"
+                  value={notes[submission.id] ?? ""}
+                  onChange={(e) => setNotes((prev) => ({ ...prev, [submission.id]: e.target.value }))}
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm"
+                  rows={2}
+                />
+                <div className="flex gap-2">
+                  {QA_DECISIONS.map(({ decision, label, variant }) => (
+                    <Button
+                      key={decision}
+                      variant={variant}
+                      disabled={!notes[submission.id]?.trim() || decide.isPending}
+                      onClick={() =>
+                        decide.mutate({
+                          id: submission.id,
+                          decision,
+                          note: notes[submission.id].trim(),
+                        })
+                      }
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
+                {!notes[submission.id]?.trim() && (
+                  <p className="text-text-muted text-xs">A note is required before recording a decision.</p>
+                )}
+              </WriteOnly>
             </Card>
           ))}
         </div>

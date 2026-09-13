@@ -41,7 +41,6 @@ export async function logout(): Promise<void> {
   await fetch("/api/auth/logout", { method: "POST" });
 }
 
-export async function getSession(): Promise<{ authenticated: boolean; userId: number | null }> {
-  const response = await fetch("/api/auth/me");
-  return response.json();
-}
+// Session identity now comes from the Django endpoint GET /auth/me/ via
+// lib/auth/session.tsx -- it returns the role, the screens that role may
+// open and its landing path, all of which a cookie-presence check cannot.

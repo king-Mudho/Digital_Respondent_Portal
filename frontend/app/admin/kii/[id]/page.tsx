@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,13 +83,21 @@ export default function KIIDetailPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed."),
   });
 
+  // Both of these are ordered progressions server-side and reject a
+  // backwards or skipped step -- without onError the button just did
+  // nothing and never said why.
   const setTranscript = useMutation({
     mutationFn: (status: string) =>
       adminFetch(`/kii/${params.id}/transcript-status/`, {
         method: "POST",
         body: JSON.stringify({ transcript_status: status }),
       }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setError(null);
+      invalidate();
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not update the transcript status."),
   });
 
   const setCoding = useMutation({
@@ -97,7 +106,12 @@ export default function KIIDetailPage() {
         method: "POST",
         body: JSON.stringify({ coding_status: status }),
       }),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setError(null);
+      invalidate();
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not update the coding status."),
   });
 
   if (isLoading || !record) {
@@ -119,23 +133,37 @@ export default function KIIDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="space-y-3">
           <h3 className="font-medium">Status: {record.status}</h3>
-          <div className="flex flex-wrap gap-2">
-            {(STATUS_OPTIONS[record.status] ?? []).map((next) => (
-              <Button key={next} variant="outline" onClick={() => setStatus.mutate(next)}>
-                {next}
-              </Button>
-            ))}
-          </div>
-          {(STATUS_OPTIONS[record.status] ?? []).includes("COMPLETED") && (
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={withRecording}
-                onChange={(e) => setWithRecording(e.target.checked)}
-              />
-              Recording made (requires separate recording consent)
-            </label>
-          )}
+          <WriteOnly>
+            <div className="flex flex-wrap gap-2">
+              {(STATUS_OPTIONS[record.status] ?? []).map((next) => (
+                <Button
+                  key={next}
+                  variant="outline"
+                  disabled={setStatus.isPending}
+                  onClick={() => setStatus.mutate(next)}
+                >
+                  {next}
+                </Button>
+              ))}
+            </div>
+            {/* COMPLETED and DECLINED are terminal -- say so rather than
+                showing an empty row of buttons. */}
+            {(STATUS_OPTIONS[record.status] ?? []).length === 0 && (
+              <p className="text-text-muted text-sm">
+                {record.status} is a final status — no further transitions.
+              </p>
+            )}
+            {(STATUS_OPTIONS[record.status] ?? []).includes("COMPLETED") && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={withRecording}
+                  onChange={(e) => setWithRecording(e.target.checked)}
+                />
+                Recording made (requires separate recording consent)
+              </label>
+            )}
+          </WriteOnly>
         </Card>
 
         <Card className="space-y-3">
@@ -146,19 +174,31 @@ export default function KIIDetailPage() {
           </p>
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setConsent.mutate("PARTICIPATION")}>
-                Record participation consent
-              </Button>
+              <WriteOnly note={null}>
+                <Button
+                  variant="outline"
+                  disabled={setConsent.isPending}
+                  onClick={() => setConsent.mutate("PARTICIPATION")}
+                >
+                  Record participation consent
+                </Button>
+              </WriteOnly>
               <span className="text-sm text-text-muted">
-                {record.participation_consent_decision ?? "Not recorded"}
+                Participation: {record.participation_consent_decision ?? "Not recorded"}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setConsent.mutate("KII_RECORDING")}>
-                Record recording consent
-              </Button>
+              <WriteOnly note={null}>
+                <Button
+                  variant="outline"
+                  disabled={setConsent.isPending}
+                  onClick={() => setConsent.mutate("KII_RECORDING")}
+                >
+                  Record recording consent
+                </Button>
+              </WriteOnly>
               <span className="text-sm text-text-muted">
-                {record.recording_consent_decision ?? "Not recorded"}
+                Recording: {record.recording_consent_decision ?? "Not recorded"}
               </span>
             </div>
           </div>
@@ -166,24 +206,38 @@ export default function KIIDetailPage() {
 
         <Card className="space-y-3">
           <h3 className="font-medium">Transcript: {record.transcript_status}</h3>
-          <div className="flex flex-wrap gap-2">
-            {TRANSCRIPT_OPTIONS.map((s) => (
-              <Button key={s} variant="outline" onClick={() => setTranscript.mutate(s)}>
-                {s}
-              </Button>
-            ))}
-          </div>
+          <WriteOnly>
+            <div className="flex flex-wrap gap-2">
+              {TRANSCRIPT_OPTIONS.map((s) => (
+                <Button
+                  key={s}
+                  variant="outline"
+                  disabled={s === record.transcript_status || setTranscript.isPending}
+                  onClick={() => setTranscript.mutate(s)}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          </WriteOnly>
         </Card>
 
         <Card className="space-y-3">
           <h3 className="font-medium">Coding: {record.coding_status}</h3>
-          <div className="flex flex-wrap gap-2">
-            {CODING_OPTIONS.map((s) => (
-              <Button key={s} variant="outline" onClick={() => setCoding.mutate(s)}>
-                {s}
-              </Button>
-            ))}
-          </div>
+          <WriteOnly>
+            <div className="flex flex-wrap gap-2">
+              {CODING_OPTIONS.map((s) => (
+                <Button
+                  key={s}
+                  variant="outline"
+                  disabled={s === record.coding_status || setCoding.isPending}
+                  onClick={() => setCoding.mutate(s)}
+                >
+                  {s}
+                </Button>
+              ))}
+            </div>
+          </WriteOnly>
         </Card>
       </div>
 

@@ -43,6 +43,7 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
     permission_classes = [CanViewSampleCases]
     serializer_class = SampleCaseSerializer
     filterset_fields = ["sample_type", "status", "workflow_status", "stratum__province"]
+    search_fields = ["sample_id", "organisation__name", "organisation__master_id"]
 
     def get_queryset(self):
         queryset = SampleCase.objects.select_related("organisation", "stratum").order_by("sample_id")
@@ -94,6 +95,8 @@ class OrganisationListCreateView(generics.ListCreateAPIView):
 
     permission_classes = [CanViewSampleCases]
     serializer_class = OrganisationSerializer
+    filterset_fields = ["province", "actor_family", "size_class", "verification_status"]
+    search_fields = ["name", "master_id", "district"]
 
     def get_queryset(self):
         return Organisation.objects.order_by("name")

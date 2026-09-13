@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/card";
@@ -88,6 +89,7 @@ export default function CostDashboardPage() {
             )}
           </Card>
 
+          <WriteOnly note={null}>
           <Card className="space-y-3 max-w-md">
             <h3 className="font-medium">Log a cost event</h3>
             {error && <p className="text-danger text-sm">{error}</p>}
@@ -117,9 +119,10 @@ export default function CostDashboardPage() {
               className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
             <Button onClick={() => addCost.mutate()} disabled={!form.amount || addCost.isPending}>
-              Log cost
+              {addCost.isPending ? "Logging…" : "Log cost"}
             </Button>
           </Card>
+          </WriteOnly>
         </div>
       )}
     </AdminShell>

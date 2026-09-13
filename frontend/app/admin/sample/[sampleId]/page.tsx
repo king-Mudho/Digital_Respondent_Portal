@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -157,6 +158,7 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
       )}
 
       {isInvitable && (
+        <WriteOnly>
         <div className="flex flex-wrap items-end gap-2">
           <div>
             <label className="block text-xs text-text-muted mb-1">Channel</label>
@@ -183,9 +185,14 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
             />
           </div>
           <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
-            {hasOpenToken ? "Send new invitation (replaces current)" : "Send invitation"}
+            {issue.isPending
+              ? "Issuing…"
+              : hasOpenToken
+                ? "Send new invitation (replaces current)"
+                : "Send invitation"}
           </Button>
         </div>
+        </WriteOnly>
       )}
 
       {entries.length > 0 && (
@@ -214,9 +221,15 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
                   <td className="py-1 pr-4">{new Date(e.issued_at).toLocaleDateString()}</td>
                   <td className="py-1">
                     {OPEN_TOKEN_STATUSES.includes(e.status) && (
-                      <Button variant="outline" onClick={() => revoke.mutate(e.id)}>
-                        Revoke
-                      </Button>
+                      <WriteOnly note={null}>
+                        <Button
+                          variant="outline"
+                          disabled={revoke.isPending}
+                          onClick={() => revoke.mutate(e.id)}
+                        >
+                          Revoke
+                        </Button>
+                      </WriteOnly>
                     )}
                   </td>
                 </tr>
@@ -259,22 +272,29 @@ function AssignedRaPanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
       <h3 className="font-medium">Assigned Contact RA</h3>
       {error && <p className="text-danger text-sm">{error}</p>}
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={sampleCase.assigned_ra ?? ""}
-          onChange={(e) => assign.mutate(e.target.value ? Number(e.target.value) : null)}
-          disabled={assign.isPending}
-          className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
-        >
-          <option value="">Unassigned</option>
-          {(contactRAs?.results ?? []).map((ra) => (
-            <option key={ra.id} value={ra.id}>
-              {ra.username}
-            </option>
-          ))}
-        </select>
-        {sampleCase.assigned_ra_username && (
-          <span className="text-text-muted text-xs">Currently: {sampleCase.assigned_ra_username}</span>
-        )}
+        {/* Contact RA and Supervisor can see the assignment but only the
+            Field Coordinator and PI may change it -- showing them a live
+            dropdown just produced a 403 on the first change. */}
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+          <select
+            value={sampleCase.assigned_ra ?? ""}
+            onChange={(e) => assign.mutate(e.target.value ? Number(e.target.value) : null)}
+            disabled={assign.isPending}
+            className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+          >
+            <option value="">Unassigned</option>
+            {(contactRAs?.results ?? []).map((ra) => (
+              <option key={ra.id} value={ra.id}>
+                {ra.username}
+              </option>
+            ))}
+          </select>
+        </IfRole>
+        <span className="text-text-muted text-sm">
+          {sampleCase.assigned_ra_username
+            ? `Currently: ${sampleCase.assigned_ra_username}`
+            : "Unassigned"}
+        </span>
       </div>
     </Card>
   );
@@ -375,13 +395,20 @@ export default function SampleCaseDetailPage() {
             {nextOptions.length === 0 ? (
               <p className="text-text-muted text-sm">No further transitions from {currentStatus}.</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {nextOptions.map((s) => (
-                  <Button key={s} variant="outline" onClick={() => transition.mutate(s)}>
-                    → {s}
-                  </Button>
-                ))}
-              </div>
+              <WriteOnly>
+                <div className="flex flex-wrap gap-2">
+                  {nextOptions.map((s) => (
+                    <Button
+                      key={s}
+                      variant="outline"
+                      disabled={transition.isPending}
+                      onClick={() => transition.mutate(s)}
+                    >
+                      → {s}
+                    </Button>
+                  ))}
+                </div>
+              </WriteOnly>
             )}
           </Card>
         )}
@@ -402,6 +429,7 @@ export default function SampleCaseDetailPage() {
             </ul>
           )}
 
+          <WriteOnly note={null}>
           <div className="border-t border-border pt-4 space-y-3">
             <h4 className="text-sm font-medium">Log a contact attempt</h4>
             <div className="flex flex-wrap gap-2">
@@ -435,9 +463,10 @@ export default function SampleCaseDetailPage() {
               className="w-full rounded-md border border-border px-3 py-2 text-sm"
             />
             <Button onClick={() => addContactEvent.mutate()} disabled={addContactEvent.isPending}>
-              Log contact attempt
+              {addContactEvent.isPending ? "Logging…" : "Log contact attempt"}
             </Button>
           </div>
+          </WriteOnly>
         </Card>
       </div>
     </AdminShell>

@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { IfScreen, WriteOnly } from "@/components/admin/RoleGate";
+import { Pagination, SearchBox } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -55,10 +57,16 @@ export default function OrganisationsPage() {
   const [error, setError] = useState<string | null>(null);
   const [justCreated, setJustCreated] = useState<Organisation | null>(null);
   const [caseType, setCaseType] = useState("MAIN");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: organisations, isLoading } = useQuery({
-    queryKey: ["organisations"],
-    queryFn: () => adminFetch<{ results: Organisation[] } | Organisation[]>("/organisations/"),
+    queryKey: ["organisations", search, page],
+    queryFn: () =>
+      adminFetch<{ count?: number; results: Organisation[] } | Organisation[]>(
+        `/organisations/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+      ),
+    placeholderData: keepPreviousData,
   });
 
   const createOrganisation = useMutation({
@@ -87,8 +95,8 @@ export default function OrganisationsPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to create sample case."),
   });
 
-  // OrganisationListCreateView returns a plain list, not a paginated envelope.
   const orgList = Array.isArray(organisations) ? organisations : organisations?.results ?? [];
+  const orgCount = Array.isArray(organisations) ? organisations.length : organisations?.count ?? 0;
 
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
@@ -96,6 +104,7 @@ export default function OrganisationsPage() {
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
 
       <div className="space-y-6">
+        <WriteOnly note={null}>
         <Card className="space-y-3">
           <h3 className="font-medium">New organisation</h3>
           <p className="text-text-muted text-xs">
@@ -177,9 +186,10 @@ export default function OrganisationsPage() {
             onClick={() => createOrganisation.mutate()}
             disabled={createOrganisation.isPending || !form.name || !form.district}
           >
-            Register organisation
+            {createOrganisation.isPending ? "Registering…" : "Register organisation"}
           </Button>
         </Card>
+        </WriteOnly>
 
         {justCreated && (
           <Card className="space-y-3">
@@ -200,14 +210,24 @@ export default function OrganisationsPage() {
                 </select>
               </label>
               <Button onClick={() => createSampleCase.mutate(justCreated.id)} disabled={createSampleCase.isPending}>
-                Create sample case
+                {createSampleCase.isPending ? "Creating…" : "Create sample case"}
               </Button>
             </div>
           </Card>
         )}
 
         <Card>
-          <h3 className="font-medium mb-3">Registered organisations</h3>
+          <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+            <h3 className="font-medium">Registered organisations</h3>
+            <SearchBox
+              value={search}
+              onChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder="Search name, Master ID or district"
+            />
+          </div>
           {isLoading ? (
             <p className="text-text-muted">Loading…</p>
           ) : (
@@ -230,28 +250,37 @@ export default function OrganisationsPage() {
                       <td className="py-2 pr-4">{org.province}</td>
                       <td className="py-2 pr-4">{org.verification_status}</td>
                       <td className="py-2">
-                        <button
-                          onClick={() => {
-                            setCaseType("MAIN");
-                            setJustCreated(org);
-                          }}
-                          className="text-header underline text-xs"
-                        >
-                          Create sample case
-                        </button>
+                        <WriteOnly note={null}>
+                          <button
+                            onClick={() => {
+                              setCaseType("MAIN");
+                              setJustCreated(org);
+                            }}
+                            className="text-header underline text-xs"
+                          >
+                            Create sample case
+                          </button>
+                        </WriteOnly>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {orgList.length === 0 && <p className="text-text-muted text-sm py-4">No organisations registered yet.</p>}
+              {orgList.length === 0 && (
+                <p className="text-text-muted text-sm py-4">
+                  {search ? `No organisations match "${search}".` : "No organisations registered yet."}
+                </p>
+              )}
+              <Pagination page={page} count={orgCount} onPageChange={setPage} label="organisations" />
             </div>
           )}
         </Card>
 
-        <p className="text-text-muted text-xs">
-          Looking for an existing case? <Link href="/admin/sample" className="underline">Main-400 Register</Link>
-        </p>
+        <IfScreen path="/admin/sample">
+          <p className="text-text-muted text-xs">
+            Looking for an existing case? <Link href="/admin/sample" className="underline">Main-400 Register</Link>
+          </p>
+        </IfScreen>
       </div>
     </AdminShell>
   );

@@ -22,10 +22,15 @@ sample cases, contacts, KII, documents, QA and invitations that docs/18's
 IsAnalystOrAdmin, which also gates the de-identified export -- docs/18 says
 "No" for Supervisor there). Both are fixed below.
 
-There is no per-RA case-assignment field on SampleCase yet, so "assigned
-cases" for Contact RA is implemented as "all cases" rather than a filtered
-subset -- flagged here and in docs/18 as a known simplification, not
-silently overclaimed as the full assignment-scoped design.
+"Assigned cases" for Contact RA is literal, not a simplification:
+SampleCase.assigned_ra records which Contact RA owns a case, and each
+view's get_queryset() filters on it (a case assigned to someone else 404s
+rather than 403s, so its existence isn't leaked either). These classes
+answer "may this role touch this kind of thing at all"; the
+assignment-scoping happens per-queryset alongside them.
+
+Which *screens* each role sees in the Research Operations Centre is derived
+from these same classes in api/navigation.py -- keep the two in step.
 """
 
 from rest_framework.permissions import BasePermission
@@ -92,16 +97,65 @@ class CanManageContact(BasePermission):
 
 
 class IsQAOrAdmin(BasePermission):
-    """QA queue read/write, KII and Documents. Supervisor gets read-only
-    access to whatever GET-only view uses this class."""
+    """QUAN QA queue and QA dashboard. Supervisor gets read-only access.
+
+    Sep 2026 role audit: this class previously also admitted KII_RA and
+    DOCUMENTARY_RA, and gated the KII and Documents modules as well -- so a
+    KII RA could edit documentary-evidence records and a Documentary RA
+    could take QA decisions on QUAN submissions. docs/18's matrix is
+    row-per-role and narrower than that ("KII RA: Assigned KII records";
+    "Documentary RA: Assigned document records"; "QUAN/Kobo QA RA:
+    QA-relevant fields"), so QA/KII/Documents are now three separate
+    grants -- see CanManageKII and CanManageDocuments below."""
 
     def has_permission(self, request, view):
         role = _authenticated_role(request)
         if role is None:
             return False
-        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "QUAN_QA_RA", "KII_RA", "DOCUMENTARY_RA"}:
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "QUAN_QA_RA"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanManageKII(BasePermission):
+    """KII register/detail and its status, consent, transcript and coding
+    actions -- docs/18: "KII RA: Assigned KII records"."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanManageDocuments(BasePermission):
+    """Documentary-evidence register/detail, authenticity assessment and QA
+    status -- docs/18: "Documentary RA: Assigned document records"."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "DOCUMENTARY_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanViewKIIDocumentDashboard(BasePermission):
+    """The KII/document aggregate dashboard. docs/18 grants this to KII RA
+    and Documentary RA ("KII/document dashboard only") on top of the roles
+    with general dashboard access -- IsAnalystOrAdmin alone excluded both,
+    so neither could open the one dashboard its own row names."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        return role in ADMIN_ROLES | {
+            "FIELD_COORDINATOR", "ANALYST", "SUPERVISOR_READONLY", "KII_RA", "DOCUMENTARY_RA",
+        }
 
 
 class IsAnalystOrAdmin(BasePermission):

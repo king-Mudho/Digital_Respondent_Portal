@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -70,6 +71,7 @@ export default function ReserveActivationPage() {
               <p className="font-medium">
                 {sc.organisation_name} <span className="font-mono text-xs text-text-muted">({sc.sample_id})</span>
               </p>
+              <WriteOnly note="Read-only role — activation is done by the PI or Field Coordinator.">
               <select
                 value={reasonByCase[sc.sample_id] ?? ""}
                 onChange={(e) => setReasonByCase((prev) => ({ ...prev, [sc.sample_id]: e.target.value }))}
@@ -92,7 +94,9 @@ export default function ReserveActivationPage() {
                 rows={2}
               />
               <Button
-                disabled={!reasonByCase[sc.sample_id] || !noteByCase[sc.sample_id]}
+                disabled={
+                  !reasonByCase[sc.sample_id] || !noteByCase[sc.sample_id] || activate.isPending
+                }
                 onClick={() =>
                   activate.mutate({
                     sampleId: sc.sample_id,
@@ -101,8 +105,9 @@ export default function ReserveActivationPage() {
                   })
                 }
               >
-                Activate this reserve
+                {activate.isPending ? "Activating…" : "Activate this reserve"}
               </Button>
+              </WriteOnly>
             </Card>
           ))}
         </div>

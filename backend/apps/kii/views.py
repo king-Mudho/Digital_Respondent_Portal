@@ -3,7 +3,7 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsQAOrAdmin
+from api.permissions import CanManageKII
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
 from apps.consent.services import record_consent
 
@@ -23,17 +23,24 @@ from .services import (
 class KIIRecordListCreateView(generics.ListCreateAPIView):
     """GET/POST /api/v1/kii/ (docs/06_API_ARCHITECTURE.md)."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
     serializer_class = KIIRecordSerializer
     filterset_fields = ["status", "stakeholder_category", "transcript_status", "coding_status"]
-    queryset = KIIRecord.objects.all()
+    search_fields = [
+        "kii_id", "participant_name", "participant_role",
+        "stakeholder_category", "organisation__name",
+    ]
+    # KIIRecord has no Meta.ordering -- an unordered queryset makes
+    # PageNumberPagination's page boundaries arbitrary, so a record can
+    # appear on two pages or on none.
+    queryset = KIIRecord.objects.order_by("kii_id")
 
     def perform_create(self, serializer):
         serializer.save(kii_id=generate_kii_id())
 
 
 class KIIRecordDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
     serializer_class = KIIRecordSerializer
     queryset = KIIRecord.objects.all()
 
@@ -47,7 +54,7 @@ class KIIStatusTransitionView(APIView):
     Completing with with_recording=true requires separate recording consent
     (AGENTS.md ground rule 6)."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
 
     def post(self, request, pk):
         record = get_object_or_404(KIIRecord, pk=pk)
@@ -71,7 +78,7 @@ class KIIConsentView(APIView):
     """POST /api/v1/kii/{id}/consent/ -- records participation or recording
     consent, always as a separate row per consent_type."""
 
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
 
     def post(self, request, pk):
         record = get_object_or_404(KIIRecord, pk=pk)
@@ -99,7 +106,7 @@ class KIIConsentView(APIView):
 
 
 class KIITranscriptStatusView(APIView):
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
 
     def post(self, request, pk):
         record = get_object_or_404(KIIRecord, pk=pk)
@@ -111,7 +118,7 @@ class KIITranscriptStatusView(APIView):
 
 
 class KIICodingStatusView(APIView):
-    permission_classes = [IsQAOrAdmin]
+    permission_classes = [CanManageKII]
 
     def post(self, request, pk):
         record = get_object_or_404(KIIRecord, pk=pk)

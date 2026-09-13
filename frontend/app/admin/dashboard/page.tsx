@@ -1,10 +1,22 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { IfScreen } from "@/components/admin/RoleGate";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+
+// The sub-dashboards all link back here, so link forward to them too --
+// each only for the roles that hold it.
+const SUB_DASHBOARDS = [
+  { path: "/admin/dashboard/sampling", label: "Sampling" },
+  { path: "/admin/dashboard/contact", label: "Contact" },
+  { path: "/admin/dashboard/qa", label: "QA" },
+  { path: "/admin/dashboard/kii-documents", label: "KII / Documents" },
+  { path: "/admin/cost", label: "Cost" },
+];
 
 interface ExecutiveDashboard {
   quan_completed: number;
@@ -27,7 +39,18 @@ export default function ExecutiveDashboardPage() {
 
   return (
     <AdminShell>
-      <h2 className="font-semibold text-xl mb-4">Executive Dashboard</h2>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+        <h2 className="font-semibold text-xl">Executive Dashboard</h2>
+        <div className="flex items-center gap-3 flex-wrap text-sm">
+          {SUB_DASHBOARDS.map(({ path, label }) => (
+            <IfScreen key={path} path={path}>
+              <Link href={path} className="text-header underline">
+                {label}
+              </Link>
+            </IfScreen>
+          ))}
+        </div>
+      </div>
       {isLoading || !data ? (
         <p className="text-text-muted">Loading…</p>
       ) : (

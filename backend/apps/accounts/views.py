@@ -4,9 +4,63 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.navigation import (
+    CHILD_PATH_PARENTS,
+    READ_ONLY_ROLES,
+    UNIVERSAL_PATHS,
+    can_open_path,
+    landing_path_for_role,
+    screens_for_role,
+)
 from api.permissions import CanViewSampleCases
 
 from .models import Role, User
+
+
+class CurrentUserView(APIView):
+    """GET /api/v1/auth/me/ -- who am I, and which screens may I open.
+
+    The Research Operations Centre's nav bar renders exactly the `screens`
+    list this returns, and AdminShell refuses to render a screen not in it.
+    Before this existed the frontend showed every nav link to every role,
+    so (for example) a Contact RA saw "Audit Log" and "Export" and got a
+    403 on click. This is a UX contract only -- api/permissions.py is still
+    what actually protects each endpoint."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role_name = getattr(getattr(request.user, "role", None), "name", None)
+        screens = screens_for_role(role_name)
+        return Response({
+            "username": request.user.username,
+            "role": role_name,
+            "role_label": dict(Role.NAME_CHOICES).get(role_name, ""),
+            "screens": screens,
+            "landing_path": landing_path_for_role(role_name),
+            # Shipped so the frontend guard is generic and driven by server
+            # data -- the path policy lives in api/navigation.py only, and
+            # can't drift into a second hardcoded copy in the UI.
+            "universal_paths": list(UNIVERSAL_PATHS),
+            "child_paths": CHILD_PATH_PARENTS,
+            # Coarse "this role never writes anywhere" flag, so a screen
+            # that mixes a read view with a write form (cost, reserve) can
+            # hide the form rather than offer a button that always 403s.
+            "read_only": role_name in READ_ONLY_ROLES,
+        })
+
+
+class AccessCheckView(APIView):
+    """GET /api/v1/auth/can-open/?path=/admin/x -- may this role open this
+    admin path, including detail routes that have no nav entry of their own
+    (e.g. /admin/kii/12)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role_name = getattr(getattr(request.user, "role", None), "name", None)
+        path = request.query_params.get("path", "")
+        return Response({"path": path, "allowed": can_open_path(role_name, path)})
 
 
 class ChangePasswordView(APIView):

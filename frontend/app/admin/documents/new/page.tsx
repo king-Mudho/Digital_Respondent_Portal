@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
 
 const DOCUMENT_TYPES = ["OFFICIAL", "SECONDARY", "PLATFORM"];
@@ -20,16 +21,22 @@ export default function NewDocumentPage() {
     evidence_extract: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
     try {
       const doc = await adminFetch<{ id: number }>("/documents/", {
         method: "POST",
         body: JSON.stringify(form),
       });
       router.push(`/admin/documents/${doc.id}`);
+    } catch (err) {
+      // Without this a rejected POST left the form looking untouched,
+      // with no indication anything had gone wrong.
+      setError(err instanceof ApiError ? err.message : "Could not create the document record.");
     } finally {
       setSubmitting(false);
     }
@@ -40,6 +47,7 @@ export default function NewDocumentPage() {
       <h2 className="font-semibold text-xl mb-4">New Documentary Evidence Record</h2>
       <Card className="max-w-lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {error && <p className="text-danger text-sm">{error}</p>}
           <div>
             <label className="block text-sm font-medium mb-1">Title</label>
             <input
