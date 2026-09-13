@@ -33,7 +33,15 @@ export async function login(username: string, password: string): Promise<void> {
     body: JSON.stringify({ username, password }),
   });
   if (!response.ok) {
-    throw new ApiError(response.status, "invalid_credentials", "Invalid username or password.");
+    // The route distinguishes bad credentials from a throttled or
+    // unavailable backend -- pass its message through rather than
+    // relabelling everything as a password problem.
+    const body = await response.json().catch(() => null);
+    throw new ApiError(
+      response.status,
+      body?.error?.code ?? "invalid_credentials",
+      body?.error?.message ?? "Invalid username or password.",
+    );
   }
 }
 

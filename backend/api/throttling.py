@@ -7,7 +7,22 @@ class handles the per-token half; DRF's built-in AnonRateThrottle (see
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"]) handles per-IP.
 """
 
-from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
+
+
+class LoginRateThrottle(AnonRateThrottle):
+    """Per-IP throttle for internal sign-in only.
+
+    Sign-in previously shared the generic "anon" bucket with every public
+    respondent endpoint. A research team behind one office NAT is a single
+    IP, so ordinary staff logins competed for the same 30/minute allowance
+    as respondent token validation -- and DRF's 429 surfaced in the UI as
+    "Invalid username or password", which sends someone hunting for a
+    password problem that doesn't exist. Its own scope keeps brute-force
+    protection without that cross-talk.
+    """
+
+    scope = "login"
 
 
 class PerTokenThrottle(SimpleRateThrottle):

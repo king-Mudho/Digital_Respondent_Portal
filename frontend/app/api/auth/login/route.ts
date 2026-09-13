@@ -12,6 +12,26 @@ export async function POST(request: NextRequest) {
   });
 
   if (!upstream.ok) {
+    // Every upstream failure used to be reported as bad credentials, so a
+    // throttled or unavailable backend sent people hunting for a password
+    // problem that didn't exist.
+    if (upstream.status === 429) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "too_many_attempts",
+            message: "Too many sign-in attempts from this network. Wait a minute and try again.",
+          },
+        },
+        { status: 429 },
+      );
+    }
+    if (upstream.status >= 500) {
+      return NextResponse.json(
+        { error: { code: "backend_unavailable", message: "The server isn't responding. Try again shortly." } },
+        { status: 502 },
+      );
+    }
     return NextResponse.json({ error: { code: "invalid_credentials", message: "Invalid username or password." } }, { status: 401 });
   }
 

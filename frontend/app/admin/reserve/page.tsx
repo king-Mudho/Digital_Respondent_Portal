@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { WriteOnly } from "@/components/admin/RoleGate";
+import { ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
+import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -32,9 +33,17 @@ const ACTIVATION_REASONS = [
  */
 export default function ReserveActivationPage() {
   const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["sample-cases", "RESERVE", "LOCKED"],
-    queryFn: () => adminFetch<{ results: SampleCase[] }>("/sample-cases/?sample_type=RESERVE&status=LOCKED"),
+    queryKey: ["sample-cases", "RESERVE", "LOCKED", search, page],
+    queryFn: () =>
+      adminFetch<Paginated<SampleCase>>(
+        `/sample-cases/?sample_type=RESERVE&status=LOCKED&page=${page}` +
+          (search ? `&search=${encodeURIComponent(search)}` : ""),
+      ),
+    placeholderData: keepPreviousData,
   });
 
   const [reasonByCase, setReasonByCase] = useState<Record<string, string>>({});
@@ -56,13 +65,31 @@ export default function ReserveActivationPage() {
 
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
-      <h2 className="font-semibold text-xl mb-4">Reserve Activation</h2>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+        <h2 className="font-semibold text-xl">Reserve Activation</h2>
+        <SearchBox
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Search ID or organisation"
+        />
+      </div>
+      {/* Said once here rather than repeated on all 400 reserve cards. */}
+      <ReadOnly>
+        <p className="text-text-muted text-sm mb-4">
+          Read-only role — activation is done by the PI or Field Coordinator.
+        </p>
+      </ReadOnly>
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
       {isLoading || !data ? (
         <p className="text-text-muted">Loading…</p>
       ) : data.results.length === 0 ? (
         <Card>
-          <p className="text-text-muted text-sm">No locked Reserve cases.</p>
+          <p className="text-text-muted text-sm">
+            {search ? `No locked Reserve cases match "${search}".` : "No locked Reserve cases."}
+          </p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -71,7 +98,7 @@ export default function ReserveActivationPage() {
               <p className="font-medium">
                 {sc.organisation_name} <span className="font-mono text-xs text-text-muted">({sc.sample_id})</span>
               </p>
-              <WriteOnly note="Read-only role — activation is done by the PI or Field Coordinator.">
+              <WriteOnly note={null}>
               <select
                 value={reasonByCase[sc.sample_id] ?? ""}
                 onChange={(e) => setReasonByCase((prev) => ({ ...prev, [sc.sample_id]: e.target.value }))}
@@ -110,6 +137,7 @@ export default function ReserveActivationPage() {
               </WriteOnly>
             </Card>
           ))}
+          <Pagination page={page} count={data.count} onPageChange={setPage} label="locked reserve cases" />
         </div>
       )}
     </AdminShell>

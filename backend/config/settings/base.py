@@ -147,6 +147,13 @@ REST_FRAMEWORK = {
         # token-guessing/enumeration per docs/10_INVITATION_AND_CONSENT.md.
         "anon": "30/minute",
         "invitation_token": "20/minute",
+        # Internal sign-in, on its own bucket rather than sharing "anon"
+        # with the respondent endpoints (api/throttling.LoginRateThrottle).
+        # Still tight enough to blunt password guessing, but a whole
+        # research team behind one office IP no longer competes with
+        # respondent traffic for the same allowance. Configurable so the
+        # rate can be tightened in production without a code change.
+        "login": env("LOGIN_THROTTLE_RATE", default="30/minute"),
     },
     "EXCEPTION_HANDLER": "api.exceptions.drp_exception_handler",
 }

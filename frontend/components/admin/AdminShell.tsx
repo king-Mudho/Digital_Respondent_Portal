@@ -47,7 +47,9 @@ export function AdminShell({
   // A page's declared parent isn't always one this role may open -- the
   // KII/Document dashboard points back to the Executive Dashboard, which
   // KII and Documentary RAs are refused. Fall back to this role's own start
-  // screen rather than offering a link into a "no access" card.
+  // screen rather than offering a link into a "no access" card, and drop
+  // the link entirely when that start screen is the page we're already on
+  // (a Contact RA's start screen *is* the Main-400 Register).
   let effectiveBackHref = backHref;
   let effectiveBackLabel = backLabel ?? "Dashboard";
   if (backHref && !canOpenPath(user, backHref)) {
@@ -55,6 +57,7 @@ export function AdminShell({
     effectiveBackHref = landing ? landing.path : undefined;
     effectiveBackLabel = landing ? landing.label : effectiveBackLabel;
   }
+  if (effectiveBackHref === pathname) effectiveBackHref = undefined;
 
   return (
     <AdminUserProvider value={user}>

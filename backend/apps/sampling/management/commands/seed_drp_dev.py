@@ -30,6 +30,12 @@ from apps.sampling.services import create_organisation, create_sample_case, tran
 E2E_ADMIN_USERNAME = "e2e_admin"
 E2E_ADMIN_PASSWORD = "E2eDevPassword123!"
 
+# One dev account per role, so the role-scoped navigation
+# (backend/api/navigation.py) can actually be checked in a browser --
+# signing in as each of these should show only that role's own modules.
+# Dev/E2E only, same shared password as the admin fixture above.
+ROLE_USER_PREFIX = "e2e_"
+
 
 class Command(BaseCommand):
     help = "Seed synthetic/test fixtures for local development and the Playwright E2E suite. Never run against production."
@@ -47,6 +53,20 @@ class Command(BaseCommand):
             admin_user.password = make_password(E2E_ADMIN_PASSWORD)
             admin_user.role = admin_role
             admin_user.save(update_fields=["password", "role"])
+
+        for role_name, _ in Role.NAME_CHOICES:
+            if role_name == Role.PI_ADMIN:
+                continue  # e2e_admin above already covers it
+            role = Role.objects.get(name=role_name)
+            username = f"{ROLE_USER_PREFIX}{role_name.lower()}"
+            user, role_user_created = User.objects.get_or_create(
+                username=username,
+                defaults={"role": role, "password": make_password(E2E_ADMIN_PASSWORD)},
+            )
+            if not role_user_created:
+                user.password = make_password(E2E_ADMIN_PASSWORD)
+                user.role = role
+                user.save(update_fields=["password", "role"])
 
         stratum, _ = StratumDefinition.objects.get_or_create(
             code="E2E-HA-PRODUCER-SME",
@@ -202,6 +222,10 @@ class Command(BaseCommand):
         self.stdout.write(f"  admin password: {E2E_ADMIN_PASSWORD}")
         self.stdout.write(f"  main sample_id: {main_case.sample_id}")
         self.stdout.write(f"  reserve sample_id (LOCKED): {reserve_case.sample_id}")
+        self.stdout.write("  one account per role, same password:")
+        for role_name, _ in Role.NAME_CHOICES:
+            if role_name != Role.PI_ADMIN:
+                self.stdout.write(f"    {ROLE_USER_PREFIX}{role_name.lower()}")
         self.stdout.write(f"  activation reserve sample_id (LOCKED): {activation_reserve_case.sample_id}")
         self.stdout.write(f"  workflow transition test sample_id: {workflow_test_case.sample_id}")
         self.stdout.write(f"  raw invitation token: {raw_token}")

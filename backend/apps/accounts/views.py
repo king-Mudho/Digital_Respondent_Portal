@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.navigation import (
     CHILD_PATH_PARENTS,
@@ -13,8 +14,22 @@ from api.navigation import (
     screens_for_role,
 )
 from api.permissions import CanViewSampleCases
+from api.throttling import LoginRateThrottle
 
 from .models import Role, User
+
+
+class InternalTokenObtainView(TokenObtainPairView):
+    """POST /api/v1/auth/token/ -- internal sign-in.
+
+    Only exists to replace the default throttles: sharing the generic
+    "anon" bucket with the public respondent endpoints meant a research
+    team behind one office IP could exhaust its own sign-in allowance on
+    respondent traffic, and DRF's 429 reached the login screen as
+    "Invalid username or password".
+    """
+
+    throttle_classes = [LoginRateThrottle]
 
 
 class CurrentUserView(APIView):
