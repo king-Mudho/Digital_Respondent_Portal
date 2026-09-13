@@ -74,6 +74,32 @@ work — resolve them with the PI before or during the phase noted, not silently
   one: who builds this, given the September 2026 Phase 1 target has little runway left
   by the time this plan is approved.
 
+- **Phase 11 pre-go-live audit-log review — two verification artefacts, not real
+  respondent activity (2026-09-13).** The production `AuditEvent` table contains two
+  entries that will otherwise look like a compliance problem at the go-live review:
+
+  | When (UTC) | Action | Object | Case |
+  |---|---|---|---|
+  | 2026-09-13 19:17:30 | `invitation.issued` | `InvitationToken` 7 | `SID-2026-000801` |
+  | 2026-09-13 19:17:30 | `consent.recorded` (GIVEN, PARTICIPATION) | `ConsentRecord` 6 | `SID-2026-000801` |
+
+  Both were produced by an end-to-end check that the newly added consent gate on
+  `POST /api/v1/appointments/` actually holds against the live deployment (it does:
+  `403 consent_required` before consent, `201` after). The token, consent record and
+  appointment they refer to were deleted immediately afterwards, so these two rows now
+  point at objects that no longer exist, and no `Respondent` sits behind the consent.
+
+  The audit entries were deliberately **not** deleted: they record actions that genuinely
+  occurred, and editing the audit trail to tidy away operational activity is precisely
+  what that log exists to prevent. Read them as deployment verification dated before
+  fieldwork opened — no real respondent was invited or consented on 2026-09-13, and the
+  operational tables were verified empty afterwards (0 tokens, 0 consents, 0 appointments,
+  128 respondents, 801 sample cases).
+
+  *Lesson for future live verification: prefer a rolled-back transaction (as used for the
+  eligibility-gate check the same day, which left no trace) over real HTTP calls against
+  production whenever the gate can be exercised at the service layer.*
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
