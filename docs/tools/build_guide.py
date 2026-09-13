@@ -27,6 +27,17 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_Respondent_Portal_User_Guide.pdf")
 
+# Bump this whenever the guide's content changes, so a printed or emailed
+# copy can be told apart from an earlier one. Deliberately not today's date
+# at build time: rebuilding an unchanged guide should not look like a new
+# revision.
+REVISION = "Revision 2 &mdash; 13 September 2026"
+REVISION_NOTE = (
+    "Updated for role-scoped navigation (each role now sees only its own modules), "
+    "the QA Dashboard, register search and paging, the PROIT pre-interview profile, "
+    "and the eligibility and consent gates on the respondent flow."
+)
+
 # ---------------------------------------------------------------- palette --
 NAVY = colors.HexColor("#1B3350")
 NAVY_DARK = colors.HexColor("#122238")
@@ -297,6 +308,8 @@ meta_table = Table(
          Paragraph("0773943709 &nbsp;&middot;&nbsp; sales.proagromark2@gmail.com", cover_style_meta)],
         [Paragraph("LIVE AT", ParagraphStyle("m3", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),
          Paragraph("research.agribizframework.com", cover_style_meta)],
+        [Paragraph("REVISION", ParagraphStyle("m5", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),
+         Paragraph(REVISION, cover_style_meta)],
     ],
     colWidths=[3.6 * cm, PAGE_W - 2 * MARGIN - 3.6 * cm],
 )
@@ -308,6 +321,7 @@ meta_table.setStyle(TableStyle([
     ("LINEABOVE", (0, 1), (-1, 1), 0.5, colors.HexColor("#33475C")),
     ("LINEABOVE", (0, 2), (-1, 2), 0.5, colors.HexColor("#33475C")),
     ("LINEABOVE", (0, 3), (-1, 3), 0.5, colors.HexColor("#33475C")),
+    ("LINEABOVE", (0, 4), (-1, 4), 0.5, colors.HexColor("#33475C")),
     ("LINEBELOW", (0, -1), (-1, -1), 0.5, colors.HexColor("#33475C")),
     ("LEFTPADDING", (0, 0), (0, -1), 0),
 ]))
@@ -322,6 +336,8 @@ story.append(PageBreak())
 
 # ------------------------------------------------------------ SECTION 1 ---
 story.append(h1("1. Introduction", key="intro"))
+story.append(note("What changed in this revision", REVISION_NOTE))
+story.append(Spacer(1, 8))
 story.append(P(
     "The ABF-FST Digital Respondent Portal is the research-operations platform for a "
     "doctoral study on agribusiness financing readiness in Zimbabwe. It authenticates and "
@@ -387,16 +403,40 @@ story.append(P(
     "account is created for you by the PI/Admin."
 ))
 story.append(h2("2.2 Signing in"))
-story.append(P("1. Open the address above. 2. Enter your username and password. 3. You land on the Executive Dashboard (or, for a role without dashboard access, the first screen your role can open)."))
+story.append(P(
+    "Open the address above, enter your username and password, and you land on "
+    "<b>your role's own first screen</b> — not a shared home page. A Contact RA lands on "
+    "the Main-400 Register, a QUAN QA RA on the QA Dashboard, a KII or Documentary RA on "
+    "the KII/Document Dashboard, and the PI, Field Coordinator, Analyst and Supervisor on "
+    "the Executive Dashboard. Section 3 lists each role's landing screen."
+))
+story.append(Spacer(1, 4))
+story.append(note(
+    "“Too many sign-in attempts from this network”",
+    "Not a password problem. Sign-in is rate-limited per network address, and a whole "
+    "team working from one office connection shares that address. Wait about a minute and "
+    "try again. A genuinely wrong password says so explicitly instead."
+))
 story.append(h2("2.3 Finding your way around"))
 story.append(P(
-    "A top navigation bar lists every screen your role can reach. Every screen except the "
-    "Executive Dashboard itself also shows a <b>&lt;- Back to &hellip;</b> link at the top "
-    "of the page, pointing at its logical parent — a case detail page back to the "
-    "register it came from, a sub-dashboard back to the Executive Dashboard, and so on. "
+    "The top navigation bar lists <b>only the screens your role can open</b> — it is not "
+    "a full menu with some items disabled. A Contact RA sees two entries; the PI sees "
+    "fifteen. If you open a link to a screen outside your role (someone shares a URL, or "
+    "you have an old bookmark) you get a short “This screen isn't part of your role” "
+    "card with a link back to your own start screen, rather than a page that fails as it "
+    "loads."
+))
+story.append(P(
+    "Every screen except your landing screen shows a <b>&lt;- Back to &hellip;</b> link at "
+    "the top, pointing at its logical parent — a case detail page back to the register it "
+    "came from, a sub-dashboard back to the Executive Dashboard. Where that parent is a "
+    "screen your role cannot open, the link points at your own start screen instead."
+))
+story.append(P(
     "<b>Change password</b>, next to “Sign out” (top right), lets you set your own "
     "password at any time — no need to ask the PI/Admin unless you've forgotten it "
-    "entirely. Use “Sign out” when you're done, especially on a shared device."
+    "entirely. Both are available to every role. Use “Sign out” when you're done, "
+    "especially on a shared device."
 ))
 
 story.append(PageBreak())
@@ -404,45 +444,93 @@ story.append(PageBreak())
 # ------------------------------------------------------------ SECTION 3 ---
 story.append(h1("3. Roles &mdash; Who Can Do What", key="roles"))
 story.append(P(
-    "Every internal account has exactly one role. Permissions are enforced by the server "
-    "on every action, not just hidden buttons — if a screen or button isn't available "
-    "to your role, the system will also refuse the underlying request."
+    "Every internal account has exactly one role, and that role decides <b>which screens "
+    "appear in your navigation bar at all</b>. You are not shown a full menu with items "
+    "you cannot use; you are shown your own modules and nothing else. Permissions are "
+    "then enforced again by the server on every action, so a screen reached another way "
+    "(a shared URL, an old bookmark) still refuses the underlying request."
 ))
+story.append(h2("3.1 What each role sees in the navigation bar"))
+nav_rows = [
+    ["PI / Admin", "15", "Everything, including the <b>Audit Log</b> and both exports.",
+     "Executive Dashboard"],
+    ["Field Coordinator", "14", "Everything except the Audit Log.", "Executive Dashboard"],
+    ["Supervisor (read-only)", "13", "Everything except the Audit Log and Export — "
+     "and read-only throughout.", "Executive Dashboard"],
+    ["Analyst", "6", "Executive, Sampling, Contact and KII/Document dashboards; Cost; "
+     "Export. Read-only.", "Executive Dashboard"],
+    ["Contact RA", "2", "Main-400 Register; Appointments.", "Main-400 Register"],
+    ["QUAN/Kobo QA RA", "2", "QA Dashboard; QA Queue.", "QA Dashboard"],
+    ["KII RA", "2", "KII/Document Dashboard; KII Register.", "KII/Document Dashboard"],
+    ["Documentary RA", "2", "KII/Document Dashboard; Documents.", "KII/Document Dashboard"],
+]
+story.append(data_table(
+    ["Role", "Screens", "Modules in the navigation bar", "Lands on"],
+    nav_rows,
+    [3.1 * cm, 1.5 * cm, PAGE_W - 2 * MARGIN - 9.2 * cm, 4.6 * cm],
+))
+story.append(Spacer(1, 4))
+story.append(P(
+    "<b>Change password</b> and <b>Sign out</b> are available to every role and sit "
+    "outside this list.", "BodySmall"
+))
+
+story.append(h2("3.2 What each role can do"))
 role_rows = [
-    ["PI / Admin", "Everything: every screen and action, the Audit Log, both data exports "
+    ["PI / Admin", "Every screen and action, the Audit Log, both data exports "
      "(de-identified and full operational), plus Django's own admin site for the handful "
      "of edge cases the Research Operations Centre doesn't cover yet (Section 4)."],
-    ["Field Coordinator", "Registering organisations/sample cases (Organisations, "
-     "Section 4), sample register &amp; case detail, workflow transitions, "
-     "reserve activation, sending/revoking invitations, logging contact attempts, "
-     "appointments, cost entries, triggering Kobo sync, the full KII/Documents/QA "
-     "workflow, and every aggregate dashboard plus the de-identified export. Everything "
-     "except the Audit Log and the operational (contact-identifying) export."],
-    ["Contact RA", "Sample register &amp; case detail (read-only), logging contact "
-     "attempts, appointment status, and sending/revoking invitations — but only for "
-     "cases a Field Coordinator/Admin has <b>assigned</b> to them (Section 5.6). A case "
-     "assigned to someone else, or not yet assigned to anyone, simply doesn't appear. No "
-     "dashboards, no KII/Documents/QA, no cost logging, no reserve activation or "
-     "workflow transitions, no Kobo sync trigger."],
-    ["QUAN/Kobo QA RA", "KII register &amp; detail, Documents register &amp; detail, the "
-     "QA queue and decisions, and the KII/Document dashboard."],
-    ["KII RA", "Same access as QUAN/Kobo QA RA."],
-    ["Documentary RA", "Same access as QUAN/Kobo QA RA."],
+    ["Field Coordinator", "Registering organisations/sample cases, sample register &amp; "
+     "case detail, workflow transitions, reserve activation, sending/revoking "
+     "invitations, logging contact attempts, appointments, cost entries, triggering Kobo "
+     "sync, the full KII/Documents/QA workflow, every aggregate dashboard and the "
+     "de-identified export. Everything except the Audit Log and the operational "
+     "(contact-identifying) export."],
+    ["Contact RA", "Sample register &amp; case detail, logging contact attempts, "
+     "appointment status, and sending/revoking invitations — but only for cases a Field "
+     "Coordinator/Admin has <b>assigned</b> to them (Section 5.7). A case assigned to "
+     "someone else, or not yet assigned to anyone, simply doesn't appear. No dashboards, "
+     "no KII/Documents/QA, no cost logging, no reserve activation or workflow "
+     "transitions, no Kobo sync trigger."],
+    ["QUAN/Kobo QA RA", "The QA Dashboard, the QA queue and QA decisions, and the "
+     "KoboToolbox sync trigger. <b>No</b> access to KII records or documents."],
+    ["KII RA", "The KII register and KII detail — status transitions, participation and "
+     "recording consent, transcript and coding progress — plus the KII/Document "
+     "dashboard. <b>No</b> access to documents or QA decisions."],
+    ["Documentary RA", "The documentary-evidence corpus and document detail — "
+     "authenticity assessment, QA status, interpretive memo — plus the KII/Document "
+     "dashboard. <b>No</b> access to KII records or QUAN QA decisions."],
     ["Analyst", "Every aggregate dashboard and the de-identified export. No write access "
      "anywhere."],
     ["Supervisor (read-only)", "Read-only visibility into everything an internal role can "
-     "see — sample register &amp; case detail, contact events &amp; appointments, "
-     "KII &amp; Documents &amp; QA queue, invitations, cost entries, and every aggregate "
+     "see — sample register &amp; case detail, contact events &amp; appointments, KII "
+     "&amp; Documents &amp; QA queue, invitations, cost entries, and every aggregate "
      "dashboard. Cannot write anywhere, and — unlike Analyst — does not have the "
      "de-identified export."],
 ]
 story.append(data_table(["Role", "Current access"], role_rows, [3.4 * cm, PAGE_W - 2 * MARGIN - 3.4 * cm]))
 story.append(Spacer(1, 10))
 story.append(note(
+    "The three RA roles are separate, not interchangeable",
+    "A KII RA cannot edit documentary evidence, a Documentary RA cannot take QUAN QA "
+    "decisions, and a QUAN QA RA cannot touch either register. If someone needs to work "
+    "across two of these, they need the Field Coordinator role — not a second account."
+))
+story.append(Spacer(1, 8))
+story.append(note(
+    "Read-only roles (Analyst, Supervisor)",
+    "On screens that mix reading and writing — the Cost Dashboard also logs cost events, "
+    "the KII register also creates records — these two roles see the figures and the "
+    "lists but not the forms or buttons. Where it isn't obvious, a short “Read-only "
+    "role” line says so in place of the controls."
+))
+story.append(Spacer(1, 8))
+story.append(note(
     "Assigning a Contact RA to a case",
     "Only a Field Coordinator or Admin can assign (or reassign) which Contact RA owns a "
     "case — from the <b>Assigned Contact RA</b> dropdown on that case's detail page "
-    "(Section 5.6). A Contact RA cannot assign cases to themselves or anyone else."
+    "(Section 5.7). A Contact RA cannot assign cases to themselves or anyone else, and "
+    "sees the current assignment as plain text rather than a dropdown."
 ))
 
 story.append(PageBreak())
@@ -496,27 +584,62 @@ story.append(PageBreak())
 
 # ------------------------------------------------------------ SECTION 5 ---
 story.append(h1("5. The Research Operations Centre, Screen by Screen", key="screens"))
-story.append(P("Every screen below lives under the top navigation bar once signed in."))
+story.append(P(
+    "Every screen below lives under the top navigation bar once signed in. You will only "
+    "see the ones your role covers (Section 3.1) — this section describes all of them."
+))
 
 story.append(h2("5.1 Executive Dashboard"))
-story.append(P("The home screen. Overall progress against the 400 QUAN / 60 KII / 50–75 "
+story.append(P("The home screen for the PI, Field Coordinator, Analyst and Supervisor. "
+               "Overall progress against the 400 QUAN / 60 KII / 50–75 "
                "document targets, days remaining to the data-lock date, and the "
-               "lowest-filled strata (where fieldwork attention is most needed)."))
+               "lowest-filled strata (where fieldwork attention is most needed). Quick "
+               "links across the top open the sub-dashboards your role can reach."))
 
-story.append(h2("5.2–5.4 Sampling / Contact / KII-Document dashboards"))
-story.append(P("Reached from the top navigation or a “Back to Executive Dashboard” "
-               "link. <b>Sampling</b>: Main-400 counts by province and stratum, reserve "
+story.append(h2("5.2 Sampling and Contact dashboards"))
+story.append(P("<b>Sampling</b>: Main-400 counts by province and stratum, reserve "
                "activations by reason. <b>Contact</b>: organisations verified, eligible "
                "respondents identified, invitations sent/opened, appointments upcoming, "
-               "refusals, unreachable cases. <b>KII/Document</b>: KII and document counts "
-               "against target, broken down by status/type/QA outcome."))
+               "refusals, unreachable cases."))
 
-story.append(h2("5.5 Main-400 Register"))
+story.append(h2("5.3 QA Dashboard"))
+story.append(P("The QUAN QA RA's landing screen, and available to the Field Coordinator, "
+               "PI and Supervisor. Submissions received today and cumulatively, how many "
+               "are waiting in the QA queue, how many QA decisions have been recorded, and "
+               "the split by administration mode (self-administered, phone-assisted, "
+               "WhatsApp-assisted and so on). <b>Refresh</b> re-reads the figures without "
+               "reloading the page; <b>Open QA queue</b> goes straight to the submissions "
+               "themselves."))
+
+story.append(h2("5.4 KII / Document Dashboard"))
+story.append(P("The KII RA's and Documentary RA's landing screen. KII and document counts "
+               "against target, broken down by status, type and QA outcome. Counts only — "
+               "the individual records live in the registers below."))
+
+story.append(h2("5.5 Finding things: search and paging"))
+story.append(P(
+    "The registers hold real fieldwork volumes — 400 Main cases, 400 Reserve, 90 KII "
+    "records, the document corpus — and show 20 rows at a time. Every register "
+    "(Main-400, Organisations, KII, Documents, Appointments, Reserve Activation, Audit "
+    "Log) therefore has <b>Previous / Next</b> controls and a “Showing 21–40 of 402” "
+    "counter at the foot of the list."
+))
+story.append(P(
+    "Most also have a <b>search box</b> above the list. Search matches the identifiers and "
+    "names you would actually have to hand: Sample ID, Master ID or organisation name on "
+    "the Main-400 Register; name, Master ID or district on Organisations; KII ID, "
+    "participant name or role on the KII register; title, document ID or author on "
+    "Documents. Searching always returns you to page 1."
+))
+
+story.append(h2("5.6 Main-400 Register"))
 story.append(P("Every Main and Reserve sample case, with its Sample ID, Master ID, "
-               "organisation and current status. Click <b>View</b> to open a case's "
-               "detail page."))
+               "organisation and current status. The dropdown switches between the Main "
+               "and Reserve registers. Click <b>View</b> to open a case's detail page. "
+               "Roles that can also create cases get a <b>Register organisation</b> button "
+               "here, since a case is always created from an organisation."))
 
-story.append(h2("5.6 Sample Case Detail"))
+story.append(h2("5.7 Sample Case Detail"))
 story.append(P("The busiest screen in the system. From here you can:"))
 story.append(Paragraph("&bull; <b>Assign a Contact RA</b> — pick which Contact RA owns "
                "this case from the dropdown (Field Coordinator/Admin only). That RA's "
@@ -533,21 +656,28 @@ story.append(Paragraph("&bull; <b>Advance the workflow status</b> — buttons sh
                "case's current status.", styles["MyBullet"]))
 story.append(Paragraph("&bull; <b>Log a contact attempt</b> — channel, outcome and an "
                "optional note, added to the case's contact timeline.", styles["MyBullet"]))
+story.append(Paragraph("&bull; <b>Build a pre-interview profile (PROIT)</b> — see "
+               "Section 5.16.", styles["MyBullet"]))
 
-story.append(h2("5.7 Appointment Queue"))
+story.append(h2("5.8 Appointment Queue"))
 story.append(P("Every appointment a respondent has requested (phone call, WhatsApp-assisted "
-               "session, etc.), with status buttons — Confirmed, Completed, Missed, "
-               "Cancelled — restricted to whatever transition is valid from the "
-               "current status."))
+               "session, etc.). Each row identifies the case — Sample ID and organisation "
+               "name, or the KII ID for an informant appointment — so you can tell whose "
+               "appointment it is at a glance. Status buttons (Confirmed, Completed, "
+               "Missed, Cancelled) are restricted to whatever transition is valid from the "
+               "current status; a row that has reached a final status says “No further "
+               "action” rather than showing an empty space. The status dropdown above the "
+               "list filters the queue."))
 
-story.append(h2("5.8 QA Queue"))
+story.append(h2("5.9 QA Queue"))
 story.append(P("Every QUAN submission awaiting a human decision: Accept, Re-query, or "
-               "Reject, each requiring a note. At the top, the <b>KoboToolbox sync</b> "
-               "panel shows when data last pulled from Kobo and lets you trigger a pull "
-               "on demand (“Sync now”) instead of waiting for the next scheduled "
-               "run."))
+               "Reject. <b>A note is required</b> — the buttons stay disabled until you "
+               "write one, because the server refuses a decision without it. At the top, "
+               "the <b>KoboToolbox sync</b> panel shows when data last pulled from Kobo "
+               "and lets you trigger a pull on demand (“Sync now”) instead of waiting "
+               "for the next scheduled run."))
 
-story.append(h2("5.9 KII Register"))
+story.append(h2("5.10 KII Register"))
 story.append(P("The list of Key Informant Interview records, a button to create a new one, "
                "and a detail page per record for: advancing its status (Invited -&gt; "
                "Scheduled -&gt; Completed/Declined/No-show), recording participation and "
@@ -556,38 +686,70 @@ story.append(P("The list of Key Informant Interview records, a button to create 
                "unless recording consent was captured first — this is enforced by the "
                "system, not just a reminder."))
 
-story.append(h2("5.10 Documents"))
+story.append(h2("5.11 Documents"))
 story.append(P("The documentary-evidence corpus, a button to add a new record, and a "
-               "detail page per document for: assessing authenticity (Verified/Disputed) "
-               "and setting QA status (Included/Excluded). A document cannot be marked "
-               "Included until its authenticity has been assessed — also enforced by "
-               "the system."))
+               "detail page per document for: assessing authenticity (Verified/Disputed), "
+               "setting QA status (Included/Excluded), and writing an interpretive memo. "
+               "A document cannot be marked Included until its authenticity has been "
+               "assessed — the <b>Include</b> button stays disabled until then, and the "
+               "server refuses it independently."))
 
-story.append(h2("5.11 Reserve Activation"))
+story.append(h2("5.12 Reserve Activation"))
 story.append(P("Every currently-LOCKED Reserve case. Activating one always requires picking "
                "one of five authorised reasons (Ineligible, Inactive, Duplicate, Refusal, "
                "Nonresponse exhausted) and writing an evidence note — there is "
                "deliberately no free-text “other” option. Once activated, the "
                "case can receive its own invitation."))
 
-story.append(h2("5.12 Cost Dashboard"))
+story.append(h2("5.13 Cost Dashboard"))
 story.append(P("Total fieldwork spend, cost per QA-passed QUAN submission, cost per "
                "completed KII, a breakdown by category, and a form to log a new cost "
-               "event (date, category, amount)."))
+               "event (date, category, amount). Read-only roles see the figures without "
+               "the logging form."))
 
-story.append(h2("5.13 Audit Log"))
+story.append(h2("5.14 Audit Log"))
 story.append(P("Every sensitive action ever taken in the system — consent recorded, "
                "invitation issued/revoked, reserve activated, workflow transition "
                "(including rejected attempts), KII/document status changes, QA decisions "
                "— each correctly attributed to the signed-in user who performed it. "
                "PI/Admin only."))
 
-story.append(h2("5.14 Data Export"))
+story.append(h2("5.15 Data Export"))
 story.append(P("Two CSV downloads, deliberately different in shape. The "
                "<b>de-identified analysis export</b> has no name, phone, email or "
                "gatekeeper field — safe to share with the wider research team. The "
                "<b>full operational export</b> includes contact details and is "
-               "PI/Admin-only, for internal fieldwork use, never distributed externally."))
+               "PI/Admin-only, for internal fieldwork use, never distributed externally — "
+               "it isn't shown at all to anyone else."))
+
+story.append(h2("5.16 PROIT &mdash; the pre-interview profile"))
+story.append(P(
+    "PROIT (Pre-Interview Respondent &amp; Organisation Intelligence and Verification "
+    "Tool) shortens the interview by checking publicly available background facts "
+    "<i>before</i> you speak to anyone, so the respondent confirms or corrects what you "
+    "already have instead of answering from zero."
+))
+story.append(P(
+    "It appears as a <b>pre-profile panel</b> on both the sample case detail page and the "
+    "KII detail page. A researcher records each background fact with its source, the date, "
+    "a locator, and a confidence rating (High / Moderate / Low), drawing on a four-tier "
+    "source hierarchy — statutory registers first, then official reports, then reputable "
+    "media, then corroborated public content. A second researcher reviews and "
+    "<b>locks</b> the profile before the respondent is contacted."
+))
+story.append(P(
+    "Three values are kept permanently separate and never merged: what the documents said, "
+    "what the respondent themselves answered, and the researcher's reconciled value. On "
+    "the KII side, an <b>adaptive gap engine</b> then generates interview questions only "
+    "for what is still genuinely unresolved."
+))
+story.append(Spacer(1, 6))
+story.append(note(
+    "What PROIT may never do",
+    "It can never pre-fill, skip or infer any frozen ABI / NFM / Digital-Readiness / FST "
+    "scale item. It applies only to non-core descriptive background — organisation type, "
+    "province, value chain, licences, publicly disclosed finance facilities and the like."
+))
 
 story.append(PageBreak())
 
@@ -635,11 +797,13 @@ resp_steps = [
     ("1", "Opens the link", "Any phone or computer, no app to install, no account to create.", None),
     ("2", "Confirms the organisation", "“Is this [Organisation Name]?” — a single tap.", None),
     ("3", "States their role", "Picks from a fixed list. If none fit, they see a thank-you message and the questionnaire never opens — ask them to nominate the right person instead.", "GATE"),
-    ("4", "Reads the study information", "Purpose, confidentiality, and their rights, in a short mobile-readable page.", None),
-    ("5", "Gives consent", "An explicit “I agree to take part” action — never a pre-ticked box. They may decline at any point.", "GATE"),
-    ("6", "Chooses how to answer", "Themselves right now, or a phone-assisted / WhatsApp-assisted / scheduled session instead.", None),
-    ("7", "Answers the questionnaire", "Opens the KoboToolbox form directly.", None),
-    ("8", "Done", "A neutral thank-you screen. No score, rating, or financing decision is ever calculated or shown.", None),
+    ("4", "Reads the study information", "Purpose, confidentiality, and their rights, in a short mobile-readable page. They can go back from here.", None),
+    ("5", "Gives consent", "An explicit “I agree to take part” action — never a pre-ticked box. They may decline at any point, and can re-read the information sheet first.", "GATE"),
+    ("6", "Confirms background facts (PROIT)", "Only if a locked pre-profile exists for their case — otherwise this step is skipped entirely and they never see it. Each fact can be confirmed, corrected, or marked unknown / prefer not to say / not applicable. The whole step can also be skipped.", None),
+    ("7", "Chooses how to answer", "Themselves right now, or a phone-assisted / WhatsApp-assisted / scheduled session instead.", None),
+    ("8a", "Answers the questionnaire", "Opens the KoboToolbox form directly. If it can't open, they get a plain-language explanation, a Try again button, and the option to ask for researcher help instead — never a dead end.", None),
+    ("8b", "Or requests a researcher call", "Picks a date and time — which must be in the future — and is told a researcher will be in touch. This route is only open once consent has been given.", "GATE"),
+    ("9", "Done", "A neutral closing screen. Someone who completed the questionnaire is thanked for participating; someone who booked a call is told their request has been sent and a researcher will follow up — the two are deliberately worded differently. No score, rating, or financing decision is ever calculated or shown.", None),
 ]
 for num, title, body, tag in resp_steps:
     story.append(step_row(num, title, body, tag))
@@ -649,7 +813,17 @@ story.append(note(
     "This is the intended outcome for someone who isn't a knowledgeable organisational "
     "respondent — no answers are recorded from them, and <i>Respondent.is_eligible</i> "
     "stays false. Ask them to nominate the correct person at that organisation, then issue "
-    "that person their own, separate invitation."
+    "that person their own, separate invitation. The questionnaire stays closed to that "
+    "case until an eligible respondent has actually been recorded — the system enforces "
+    "this itself, not just by hiding the next screen."
+))
+story.append(Spacer(1, 8))
+story.append(note(
+    "If something goes wrong mid-flow",
+    "Every step now reports failure in plain language — an expired or revoked link, a "
+    "busy connection, a lost signal — and leaves the respondent able to try again. If a "
+    "respondent tells you “I pressed the button and nothing happened”, ask what the "
+    "screen said: there should always be a message."
 ))
 
 story.append(PageBreak())
@@ -675,14 +849,30 @@ story.append(PageBreak())
 
 # ------------------------------------------------------------ SECTION 9 ---
 story.append(h1("9. Troubleshooting", key="troubleshooting"))
+story.append(h2("9.1 Respondents"))
 trouble_rows = [
-    ["“The link says it's not valid.”", "Typo, or the link expired / was superseded by a newer one.", "Open the case's detail page and send a new invitation — it issues a fresh link and invalidates the old one."],
+    ["“The link says it's not valid.”", "Typo, or the link expired / was revoked / was superseded by a newer one.", "Open the case's detail page and send a new invitation — it issues a fresh link and invalidates the old one."],
     ["“I already did this.”", "Already completed, or a new wave was issued since.", "Check the Invitations history on the case detail page for the current status before re-issuing."],
-    ["“I'm not the right person to answer this.”", "Doesn't fit any listed role category.", "The intended ineligible path — no answers are recorded. Ask them to nominate the right person."],
+    ["“I'm not the right person to answer this.”", "Doesn't fit any listed role category.", "The intended ineligible path — no answers are recorded. Ask them to nominate the right person and issue them their own invitation."],
+    ["“It won't let me pick a time.”", "The appointment date/time chosen is in the past.", "Times must be in the future. The picker blocks earlier ones and the server refuses them."],
+    ["“It says it couldn't confirm my role.”", "Consent was recorded but no eligible respondent exists for that case.", "Have them complete the role question, or record the eligible respondent from the case detail page before they retry."],
     ["“Will my financing be affected by my answers?”", "Reasonable concern given the study's subject.", "No — no score, rating, or financing decision is ever generated or shown, at any point."],
-    ["A screen shows “Forbidden” or won't load an action.", "Your role doesn't have permission for that screen/action.", "Check Section 3's role table — permissions are enforced server-side, not just hidden buttons."],
 ]
 story.append(data_table(["Situation", "Likely cause", "What to do"], trouble_rows,
+                         [4.6 * cm, 4.6 * cm, PAGE_W - 2 * MARGIN - 9.2 * cm]))
+
+story.append(Spacer(1, 12))
+story.append(h2("9.2 Internal users"))
+trouble_rows_internal = [
+    ["“This screen isn't part of your role.”", "You opened a screen outside your role — usually a shared link or an old bookmark.", "Use the link on that card to return to your own start screen. If you should have access, ask the PI to change your role (Section 3)."],
+    ["A module is missing from my navigation bar.", "Not a fault — the bar shows only your role's modules.", "Check Section 3.1 for what your role should see. Anything absent there is deliberate."],
+    ["“Too many sign-in attempts from this network.”", "Sign-in is rate-limited per network address, shared by everyone in one office.", "Wait about a minute and try again. This is not a password error — a wrong password says so explicitly."],
+    ["A QA decision button won't click.", "QA decisions require a note.", "Write the note first; the buttons enable once it's there."],
+    ["“Include” is greyed out on a document.", "Its authenticity hasn't been assessed yet.", "Mark it Verified or Disputed first (Section 5.11)."],
+    ["I can only see some of the register.", "Registers show 20 rows per page.", "Use the Previous / Next controls at the foot of the list, or the search box above it (Section 5.5)."],
+    ["A Contact RA can't see a case.", "Contact RAs only see cases assigned to them.", "Assign it from the Assigned Contact RA dropdown on the case detail page (Field Coordinator/Admin only)."],
+]
+story.append(data_table(["Situation", "Likely cause", "What to do"], trouble_rows_internal,
                          [4.6 * cm, 4.6 * cm, PAGE_W - 2 * MARGIN - 9.2 * cm]))
 
 story.append(PageBreak())
@@ -695,8 +885,20 @@ story.append(data_table(
     [["Sign in", "research.agribizframework.com/admin/login", "localhost:3000/admin/login"],
      ["Register organisations/cases", "research.agribizframework.com/admin/organisations", "localhost:3000/admin/organisations"],
      ["Django admin (edge cases only)", "research.agribizframework.com/django-admin/", "localhost:8000/django-admin/"],
-     ["Respondent link shape", "research.agribizframework.com/i/<token>", "localhost:3000/i/<token>"]],
+     # Escaped: table cells are rendered as Paragraphs, so a bare <token>
+     # is parsed as markup and silently disappears from the PDF.
+     ["Respondent link shape", "research.agribizframework.com/i/&lt;token&gt;", "localhost:3000/i/&lt;token&gt;"]],
     [3.6 * cm, 7 * cm, PAGE_W - 2 * MARGIN - 10.6 * cm],
+))
+story.append(Spacer(1, 10))
+story.append(h2("Where each role lands after signing in"))
+story.append(data_table(
+    ["Role", "Lands on"],
+    [["PI / Admin, Field Coordinator, Analyst, Supervisor", "/admin/dashboard (Executive Dashboard)"],
+     ["Contact RA", "/admin/sample (Main-400 Register)"],
+     ["QUAN/Kobo QA RA", "/admin/dashboard/qa (QA Dashboard)"],
+     ["KII RA, Documentary RA", "/admin/dashboard/kii-documents (KII/Document Dashboard)"]],
+    [8.2 * cm, PAGE_W - 2 * MARGIN - 8.2 * cm],
 ))
 story.append(Spacer(1, 10))
 story.append(h2("Further reading (project repository)"))
@@ -704,6 +906,8 @@ story.append(Paragraph("&bull; <font face='Courier'>README.md</font> — full te
 story.append(Paragraph("&bull; <font face='Courier'>docs/29_RESPONDENT_GUIDE_AND_MESSAGING.md</font> — message templates in full.", styles["MyBullet"]))
 story.append(Paragraph("&bull; <font face='Courier'>docs/18_DATA_PRIVACY_AND_COMPLIANCE.md</font> — the full access-control matrix and consent model.", styles["MyBullet"]))
 story.append(Paragraph("&bull; <font face='Courier'>docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md</font> — the full S00–S16 state machine.", styles["MyBullet"]))
+story.append(Paragraph("&bull; <font face='Courier'>docs/30_PROIT_MODULE.md</font> — the pre-interview profile tool in full (Section 5.16).", styles["MyBullet"]))
+story.append(Paragraph("&bull; <font face='Courier'>backend/api/navigation.py</font> — the single source of truth for which role sees which screens (Section 3.1).", styles["MyBullet"]))
 
 doc.multiBuild(story)
 print("wrote", OUT)
