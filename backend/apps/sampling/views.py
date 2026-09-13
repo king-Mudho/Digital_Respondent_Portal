@@ -1,12 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanViewSampleCases, IsFieldCoordinatorOrAdmin
 
-from .models import Organisation, SampleCase
+from .models import Organisation, SampleCase, SampleType
 from .serializers import (
     OrganisationSerializer,
     ReserveActivationSerializer,
@@ -14,11 +15,14 @@ from .serializers import (
     WorkflowTransitionSerializer,
 )
 from .services import (
+    InvalidMatchedCase,
     InvalidWorkflowTransition,
     activate_reserve,
+    available_reserves_for,
     create_organisation,
     create_sample_case,
     resolve_stratum_for_organisation,
+    set_matched_case,
     transition_workflow_status,
 )
 
@@ -84,8 +88,55 @@ class SampleCaseDetailView(generics.RetrieveUpdateAPIView):
     lookup_field = "sample_id"
 
     def get_queryset(self):
-        queryset = SampleCase.objects.select_related("organisation", "stratum")
+        queryset = SampleCase.objects.select_related("organisation", "stratum", "matched_case")
         return _scope_to_assigned_cases_for_contact_ra(self.request, queryset)
+
+    def perform_update(self, serializer):
+        # matched_case must go through set_matched_case(), which validates
+        # the pairing and writes the audit entry. A bare PATCH would let a
+        # caller pair a Main to another Main, or hand one Reserve to two
+        # Main cases -- silently breaking the reserve lock.
+        if "matched_case" in serializer.validated_data:
+            try:
+                set_matched_case(
+                    serializer.instance,
+                    serializer.validated_data.pop("matched_case"),
+                    changed_by=self.request.user,
+                )
+            except InvalidMatchedCase as exc:
+                raise DRFValidationError({"matched_case": [str(exc)]}) from exc
+        serializer.save()
+
+
+class AvailableReservesView(APIView):
+    """GET /api/v1/sample-cases/{sample_id}/available-reserves/ -- the
+    Reserve cases this Main case may be paired with (still LOCKED, not
+    already claimed by another Main), same stratum first. Backs the
+    "Matched Reserve case" picker on the case detail page."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def get(self, request, sample_id):
+        main_case = get_object_or_404(
+            SampleCase.objects.select_related("stratum"), sample_id=sample_id
+        )
+        if main_case.sample_type != SampleType.MAIN:
+            return Response(
+                {"error": {"code": "not_a_main_case", "message": "Only a MAIN case has a matched Reserve.", "field_errors": {}}},
+                status=400,
+            )
+
+        candidates = available_reserves_for(main_case)[:200]
+        return Response({"results": [
+            {
+                "id": c.id,
+                "sample_id": c.sample_id,
+                "organisation_name": c.organisation.name,
+                "stratum_code": c.stratum.code,
+                "same_stratum": c.stratum_id == main_case.stratum_id,
+            }
+            for c in candidates
+        ]})
 
 
 class OrganisationListCreateView(generics.ListCreateAPIView):

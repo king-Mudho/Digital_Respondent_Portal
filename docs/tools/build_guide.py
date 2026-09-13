@@ -38,7 +38,8 @@ REVISION_NOTE = (
     "and the eligibility and consent gates on the respondent flow. Sections 4 and 8 "
     "now reflect that organisations and sample cases are registered from the "
     "Organisations screen rather than Django admin, and that the three registers are "
-    "already loaded."
+    "already loaded. Main&ndash;Reserve pairing is now done from the case detail page "
+    "rather than Django admin."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -555,6 +556,10 @@ story.append(P(
     "&mdash; no separate Django admin site needed for this. The screen is available to "
     "the PI and Field Coordinator."
 ))
+story.append(P(
+    "That now covers the whole job, Main&ndash;Reserve pairing included &mdash; Django "
+    "admin is not needed for any part of setting up a case.", "BodySmall"
+))
 story.append(h2("4.1 The stratification fields"))
 story.append(P(
     "The study's actual sampling design stratifies by <b>Province &times; Actor Family "
@@ -581,12 +586,11 @@ steps_setup = [
     ("5", "On the Main case's detail page, use <b>Assigned Contact RA</b> (Section 5.7) "
           "if a specific Research Assistant should handle it &mdash; a Contact RA sees "
           "only the cases assigned to them, so an unassigned case is invisible to them."),
-    ("6", "Pair the two cases. Recording which Reserve backs up which Main (the “Matched "
-          "case” field) is <b>not</b> exposed as a control on the case detail page: the "
-          "September import wired all 400 pairs, so this only arises for an organisation "
-          "added afterwards. For a one-off pairing, set it via Django admin "
-          "(<font face='Courier'>/django-admin/</font>) under Sample cases. Without it, "
-          "the Reserve exists but is not identified as this Main case's replacement."),
+    ("6", "Pair the two cases from the Main case's <b>Matched Reserve case</b> panel "
+          "(Section 5.7). The dropdown lists only Reserve cases that are still locked and "
+          "not already claimed by another Main, with same-stratum ones first. Without a "
+          "pairing the Reserve exists but is not identified as this Main case's "
+          "replacement."),
 ]
 for num, text in steps_setup:
     story.append(step_row(num, "", text))
@@ -681,6 +685,14 @@ story.append(Paragraph("&bull; <b>Advance the workflow status</b> — buttons sh
                "case's current status.", styles["MyBullet"]))
 story.append(Paragraph("&bull; <b>Log a contact attempt</b> — channel, outcome and an "
                "optional note, added to the case's contact timeline.", styles["MyBullet"]))
+story.append(Paragraph("&bull; <b>Set the matched Reserve case</b> — which Reserve "
+               "replaces this Main case if it drops out (Field Coordinator/Admin only, "
+               "and only on Main cases). The dropdown offers only Reserve cases that are "
+               "still locked and not already claimed by another Main, listing "
+               "same-stratum ones first; picking one from a different stratum is allowed "
+               "but flagged on screen and in the audit log, since it weakens the "
+               "stratified design. Everyone else sees the current pairing as plain "
+               "text.", styles["MyBullet"]))
 story.append(Paragraph("&bull; <b>Build a pre-interview profile (PROIT)</b> — see "
                "Section 5.16.", styles["MyBullet"]))
 

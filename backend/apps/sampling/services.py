@@ -7,6 +7,7 @@ than checking SampleCase.status inline elsewhere.
 """
 
 from django.db import models, transaction
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 
 from apps.audit.utils import log_action
@@ -135,6 +136,108 @@ def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evi
         {"reason": reason, "activated_by_id": getattr(activated_by, "id", None), "sample_id": reserve_case.sample_id},
     )
     return reserve_case
+
+
+class InvalidMatchedCase(ValueError):
+    """Raised when a Main<->Reserve pairing would break the sample design."""
+
+
+@transaction.atomic
+def set_matched_case(main_case: SampleCase, reserve_case, *, changed_by) -> SampleCase:
+    """Pair a Main case with the Reserve case that replaces it if it drops
+    out, or clear that pairing when `reserve_case` is None.
+
+    The 400 pairs loaded by `import_quan_register` were wired directly in
+    that command; this is the path for an organisation added afterwards.
+    Until Sep 2026 there was no path at all short of Django admin, and
+    `matched_case` was a bare FK with no validation, so the API would
+    happily pair a Main case to another Main case, or hand the same
+    Reserve to two different Main cases -- which silently breaks the
+    reserve lock, since activating that Reserve would appear to cover
+    both.
+
+    Enforced here rather than in the serializer so every caller goes
+    through the same checks and the same audit entry.
+    """
+    if main_case.sample_type != SampleType.MAIN:
+        raise InvalidMatchedCase("Only a MAIN case can be given a matched Reserve.")
+
+    if reserve_case is None:
+        previous = main_case.matched_case
+        if previous is None:
+            return main_case
+        main_case.matched_case = None
+        main_case.save(update_fields=["matched_case"])
+        log_action(
+            "sample_case.match_cleared",
+            main_case,
+            {
+                "sample_id": main_case.sample_id,
+                "previous_matched_sample_id": previous.sample_id,
+                "changed_by_id": getattr(changed_by, "id", None),
+            },
+        )
+        return main_case
+
+    if reserve_case.sample_type != SampleType.RESERVE:
+        raise InvalidMatchedCase("A matched case must be a RESERVE case.")
+    if reserve_case.pk == main_case.pk:
+        raise InvalidMatchedCase("A case cannot be matched to itself.")
+    if reserve_case.status == ReserveStatus.ACTIVATED:
+        raise InvalidMatchedCase(
+            "That Reserve case has already been activated and cannot be assigned as a new match."
+        )
+
+    claimed_by = (
+        SampleCase.objects.filter(matched_case=reserve_case)
+        .exclude(pk=main_case.pk)
+        .first()
+    )
+    if claimed_by is not None:
+        raise InvalidMatchedCase(
+            f"That Reserve case is already the match for {claimed_by.sample_id}."
+        )
+
+    main_case.matched_case = reserve_case
+    main_case.save(update_fields=["matched_case"])
+
+    log_action(
+        "sample_case.matched",
+        main_case,
+        {
+            "sample_id": main_case.sample_id,
+            "matched_sample_id": reserve_case.sample_id,
+            # Recorded because a cross-stratum pairing weakens the
+            # stratified design -- allowed (there may be no same-stratum
+            # Reserve left) but never silent.
+            "same_stratum": main_case.stratum_id == reserve_case.stratum_id,
+            "changed_by_id": getattr(changed_by, "id", None),
+        },
+    )
+    return main_case
+
+
+def available_reserves_for(main_case: SampleCase):
+    """Reserve cases that `main_case` could legitimately be paired with:
+    still LOCKED, and not already claimed by another Main case. Ordered
+    same-stratum first, since a replacement is meant to preserve the
+    stratified design."""
+    return (
+        SampleCase.objects.filter(
+            sample_type=SampleType.RESERVE, status=ReserveStatus.LOCKED
+        )
+        .filter(Q(matched_by__isnull=True) | Q(matched_by=main_case))
+        .select_related("organisation", "stratum")
+        .annotate(
+            same_stratum=Case(
+                When(stratum_id=main_case.stratum_id, then=Value(0)),
+                default=Value(1),
+                output_field=IntegerField(),
+            )
+        )
+        .order_by("same_stratum", "sample_id")
+        .distinct()
+    )
 
 
 def is_invitable(sample_case: SampleCase) -> bool:

@@ -18,12 +18,21 @@ class SampleCaseSerializer(serializers.ModelSerializer):
     organisation_master_id = serializers.CharField(source="organisation.master_id", read_only=True)
     stratum_code = serializers.CharField(source="stratum.code", read_only=True)
     assigned_ra_username = serializers.CharField(source="assigned_ra.username", read_only=True, default=None)
+    # So the case detail page can show which Reserve backs this case up
+    # without a second request per row.
+    matched_case_sample_id = serializers.CharField(
+        source="matched_case.sample_id", read_only=True, default=None
+    )
+    matched_case_organisation_name = serializers.CharField(
+        source="matched_case.organisation.name", read_only=True, default=None
+    )
 
     class Meta:
         model = SampleCase
         fields = [
             "id", "sample_id", "organisation", "organisation_name", "organisation_master_id",
-            "stratum", "stratum_code", "sample_type", "matched_case", "status",
+            "stratum", "stratum_code", "sample_type", "matched_case",
+            "matched_case_sample_id", "matched_case_organisation_name", "status",
             "workflow_status", "activation_reason", "activated_by", "activated_at",
             "activation_evidence_note", "assigned_ra", "assigned_ra_username",
         ]

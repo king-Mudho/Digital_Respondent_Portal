@@ -23,11 +23,22 @@ interface SampleCaseDetail {
   workflow_status: string | null;
   assigned_ra: number | null;
   assigned_ra_username: string | null;
+  matched_case: number | null;
+  matched_case_sample_id: string | null;
+  matched_case_organisation_name: string | null;
 }
 
 interface ContactRA {
   id: number;
   username: string;
+}
+
+interface AvailableReserve {
+  id: number;
+  sample_id: string;
+  organisation_name: string;
+  stratum_code: string;
+  same_stratum: boolean;
 }
 
 interface ContactEvent {
@@ -300,6 +311,91 @@ function AssignedRaPanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
   );
 }
 
+/**
+ * Which Reserve case replaces this Main case if it drops out. The 400
+ * pairs came from the September import; this covers an organisation added
+ * afterwards, which previously meant going into Django admin.
+ *
+ * Only shown for MAIN cases, and only to the roles that may set it — the
+ * server validates the pairing again regardless (services.set_matched_case).
+ */
+function MatchedCasePanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: candidates, isLoading } = useQuery({
+    queryKey: ["available-reserves", sampleCase.sample_id],
+    queryFn: () =>
+      adminFetch<{ results: AvailableReserve[] }>(
+        `/sample-cases/${sampleCase.sample_id}/available-reserves/`,
+      ),
+  });
+
+  const setMatch = useMutation({
+    mutationFn: (matchedCase: number | null) =>
+      adminFetch(`/sample-cases/${sampleCase.sample_id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ matched_case: matchedCase }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      queryClient.invalidateQueries({ queryKey: ["sample-case", sampleCase.sample_id] });
+      queryClient.invalidateQueries({ queryKey: ["available-reserves", sampleCase.sample_id] });
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Could not change the matched Reserve."),
+  });
+
+  const options = candidates?.results ?? [];
+  const selected = options.find((o) => o.id === sampleCase.matched_case);
+  const crossStratum = selected ? !selected.same_stratum : false;
+
+  return (
+    <Card className="space-y-2">
+      <h3 className="font-medium">Matched Reserve case</h3>
+      <p className="text-text-muted text-xs">
+        The Reserve that replaces this case if it drops out. Activating that Reserve later
+        still requires an authorised reason and an evidence note.
+      </p>
+      {error && <p className="text-danger text-sm">{error}</p>}
+      <div className="flex flex-wrap items-center gap-2">
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+          <select
+            value={sampleCase.matched_case ?? ""}
+            disabled={setMatch.isPending || isLoading}
+            onChange={(e) => setMatch.mutate(e.target.value ? Number(e.target.value) : null)}
+            className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface max-w-full"
+          >
+            <option value="">No matched Reserve</option>
+            {options.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.sample_id} — {r.organisation_name}
+                {r.same_stratum ? "" : ` (different stratum: ${r.stratum_code})`}
+              </option>
+            ))}
+          </select>
+        </IfRole>
+        <span className="text-text-muted text-sm">
+          {sampleCase.matched_case_sample_id
+            ? `Currently: ${sampleCase.matched_case_sample_id} — ${sampleCase.matched_case_organisation_name}`
+            : "No matched Reserve"}
+        </span>
+      </div>
+      {!isLoading && options.length === 0 && !sampleCase.matched_case && (
+        <p className="text-text-muted text-xs">
+          No unclaimed, still-locked Reserve cases are available to pair with.
+        </p>
+      )}
+      {crossStratum && (
+        <p className="text-warning text-xs">
+          This Reserve is in a different stratum from the Main case, which weakens the
+          stratified design. Intentional pairings are fine — it is recorded in the audit log.
+        </p>
+      )}
+    </Card>
+  );
+}
+
 export default function SampleCaseDetailPage() {
   const params = useParams<{ sampleId: string }>();
   const queryClient = useQueryClient();
@@ -381,6 +477,9 @@ export default function SampleCaseDetailPage() {
         </Card>
 
         <AssignedRaPanel sampleCase={sampleCase} />
+
+        {/* Reserve cases don't have a matched Reserve of their own. */}
+        {sampleCase.sample_type === "MAIN" && <MatchedCasePanel sampleCase={sampleCase} />}
 
         <PreProfilePanel sampleCaseId={sampleCase.id} />
 
