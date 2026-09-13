@@ -29,6 +29,48 @@ export function backendBaseURL(): string {
   return process.env.E2E_BACKEND_URL ?? "http://localhost:8000";
 }
 
+/**
+ * A token on a brand-new organisation and sample case of its own.
+ *
+ * The shared seed case (E2E_MAIN_SAMPLE_ID) accumulates state across runs:
+ * consent and eligibility both attach to the SampleCase, so by the second
+ * run it already has GIVEN consent and eligible respondents on it. Any
+ * spec asserting that a gate *refuses* something must start from a case
+ * with no such history, or it silently tests nothing.
+ */
+export async function issueTokenOnFreshCase(
+  request: APIRequestContext,
+  baseURL: string,
+  label: string,
+): Promise<{ token: string; sampleId: string }> {
+  const access = await getAdminAccessToken(request, baseURL);
+  const auth = { Authorization: `Bearer ${access}` };
+
+  const org = await request.post(`${baseURL}/api/v1/organisations/`, {
+    headers: auth,
+    data: {
+      name: `E2E ${label} ${Date.now()}`,
+      entity_type: "Cooperative",
+      province: "HARARE",
+      district: "Harare",
+      actor_family: "PRODUCER_PRIMARY",
+      value_chain: "Horticulture",
+      size_class: "SME",
+    },
+  });
+  const created = await request.post(`${baseURL}/api/v1/sample-cases/`, {
+    headers: auth,
+    data: { organisation: (await org.json()).id, sample_type: "MAIN" },
+  });
+  const { sample_id: sampleId } = await created.json();
+
+  const invited = await request.post(`${baseURL}/api/v1/invitations/`, {
+    headers: auth,
+    data: { sample_id: sampleId, channel: "WHATSAPP", invitation_wave: 1 },
+  });
+  return { token: (await invited.json()).raw_token, sampleId };
+}
+
 /** A raw JWT access token for the seeded e2e_admin, for specs that need to
  * create fixture data directly against the Django API (KII records,
  * documents, appointments, ...) before driving the admin UI against them. */

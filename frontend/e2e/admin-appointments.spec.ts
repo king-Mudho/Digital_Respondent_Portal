@@ -17,6 +17,20 @@ test("confirming an appointment from the queue updates its status", async ({ pag
   const token = await issueFreshToken(request, backend);
   const access = await getAdminAccessToken(request, backend);
 
+  // The public appointment POST is consent-gated (PI decision, Sep 2026):
+  // requesting a researcher call is a route into the study, not a separate
+  // enquiry, so it sits behind the same gate as the self-administered one.
+  const consent = await request.post(`${backend}/api/v1/consent/`, {
+    data: {
+      token,
+      consent_type: "PARTICIPATION",
+      decision: "GIVEN",
+      information_sheet_version: "v1.0",
+      method: "WEB_CLICKTHROUGH",
+    },
+  });
+  expect(consent.status()).toBe(200);
+
   const createResponse = await request.post(`${backend}/api/v1/appointments/`, {
     data: { token, scheduled_for: "2026-12-05T10:00:00Z", mode: "PHONE" },
   });

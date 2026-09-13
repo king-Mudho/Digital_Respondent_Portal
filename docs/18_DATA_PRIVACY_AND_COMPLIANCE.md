@@ -126,6 +126,20 @@ a case screened through a gatekeeper first still proceeds once the right person 
 identified. No invitations had been issued when this was fixed, so no live respondent was
 affected.
 
+**Update (Sep 2026, appointment requests are consent-gated — PI decision)**: the public
+`POST /api/v1/appointments/` previously required only a valid token, so a respondent could
+ask for a researcher call before consenting. The PI's decision is that it must not: an
+appointment request is a researcher-assisted route into the same study, not a separate
+lightweight enquiry — it records a named person's stated availability against an
+identified organisation and places them on an RA's call list. Reaching that without having
+agreed to take part would collect contact data outside consent. The endpoint now returns
+`403 consent_required` unless `consent.services.has_given_consent` passes, matching the
+gate already on the self-administered route. Declining consent is refused too, not just
+the absence of a decision.
+
+Note that consent attaches to the `SampleCase`, not to a token: a later invitation wave to
+a case that already consented inherits that consent, which is the documented model.
+
 ## Data protection basics
 
 - HTTPS everywhere in deployment (`23_DEPLOYMENT_ARCHITECTURE.md`).

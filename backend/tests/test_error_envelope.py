@@ -14,6 +14,8 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
+from apps.consent.services import record_consent
 from apps.invitations.services import issue_invitation
 
 
@@ -24,6 +26,15 @@ def client():
 
 def test_validation_error_message_names_the_actual_problem(client, main_case):
     raw_token, _, _ = issue_invitation(main_case)
+    # The appointment POST is consent-gated, so consent first -- otherwise
+    # this never reaches serializer validation at all.
+    record_consent(
+        sample_case=main_case,
+        consent_type=ConsentType.PARTICIPATION,
+        decision=ConsentDecision.GIVEN,
+        information_sheet_version="v1.0",
+        method=ConsentMethod.WEB_CLICKTHROUGH,
+    )
     past = (timezone.now() - timezone.timedelta(days=30)).isoformat()
 
     response = client.post(

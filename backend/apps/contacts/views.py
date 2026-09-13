@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
 from api.throttling import PerTokenThrottle
+from apps.consent.services import has_given_consent
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
 
@@ -94,7 +95,15 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
     publicly via a valid token (R09 appointment request,
     docs/10_INVITATION_AND_CONSENT.md participation choices) -- scoped
     strictly to the token-resolved SampleCase, never a list for anonymous
-    callers (docs/06_API_ARCHITECTURE.md "Security")."""
+    callers (docs/06_API_ARCHITECTURE.md "Security").
+
+    A public POST requires GIVEN participation consent (PI decision,
+    Sep 2026). An appointment request is a researcher-assisted route into
+    the same questionnaire, not a separate lightweight enquiry: it records
+    a named person's stated availability against an identified
+    organisation and puts them on an RA's call list. Reaching that without
+    having agreed to take part would collect contact data outside consent,
+    so the same gate applies here as on the self-administered route."""
 
     serializer_class = AppointmentSerializer
     filterset_fields = ["status", "mode"]
@@ -120,6 +129,16 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
             token = validate_token(raw_token)
         except TokenValidationError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=400)
+
+        if not has_given_consent(token.sample_case):
+            return Response(
+                {"error": {
+                    "code": "consent_required",
+                    "message": "Participation consent has not been given.",
+                    "field_errors": {},
+                }},
+                status=403,
+            )
 
         serializer = self.get_serializer(data={
             "sample_case": token.sample_case.id,

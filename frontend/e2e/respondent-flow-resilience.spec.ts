@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { backendBaseURL, getAdminAccessToken, issueFreshToken } from "./helpers";
+import {
+  backendBaseURL,
+  getAdminAccessToken,
+  issueFreshToken,
+  issueTokenOnFreshCase,
+} from "./helpers";
 
 /**
  * Respondent-flow audit pass. The happy path was already covered by
@@ -111,37 +116,45 @@ test("someone who booked a call is not told they have finished", async ({ page, 
   await expect(page.getByText(/thank you for your time and participation/i)).toHaveCount(0);
 });
 
+test("an appointment cannot be requested before consent is given", async ({ request }) => {
+  const backend = backendBaseURL();
+  // Its own case: consent attaches to the SampleCase, and the shared seed
+  // case has been consented by earlier runs.
+  const { token } = await issueTokenOnFreshCase(request, backend, "Appointment Consent Gate");
+
+  // Straight to the appointment endpoint, skipping the consent screen --
+  // it is AllowAny and takes only a valid token, so the frontend's routing
+  // is not what keeps this closed (PI decision, Sep 2026).
+  const refused = await request.post(`${backend}/api/v1/appointments/`, {
+    data: { token, scheduled_for: "2026-12-05T10:00:00Z", mode: "PHONE" },
+  });
+
+  expect(refused.status()).toBe(403);
+  expect((await refused.json()).error.code).toBe("consent_required");
+
+  // And it opens up once consent is actually recorded.
+  await request.post(`${backend}/api/v1/consent/`, {
+    data: {
+      token,
+      consent_type: "PARTICIPATION",
+      decision: "GIVEN",
+      information_sheet_version: "v1.0",
+      method: "WEB_CLICKTHROUGH",
+    },
+  });
+  const allowed = await request.post(`${backend}/api/v1/appointments/`, {
+    data: { token, scheduled_for: "2026-12-05T10:00:00Z", mode: "PHONE" },
+  });
+  expect(allowed.status()).toBe(201);
+});
+
 test("an ineligible respondent cannot reach the questionnaire even by bypassing the UI", async ({
   request,
 }) => {
   const backend = backendBaseURL();
-  const access = await getAdminAccessToken(request, backend);
-
   // A case of its own, so a previous run's eligible respondent can't mask
   // the gate (the shared seed case accumulates them).
-  const org = await request.post(`${backend}/api/v1/organisations/`, {
-    headers: { Authorization: `Bearer ${access}` },
-    data: {
-      name: `E2E Eligibility Gate ${Date.now()}`,
-      entity_type: "Cooperative",
-      province: "HARARE",
-      district: "Harare",
-      actor_family: "PRODUCER_PRIMARY",
-      value_chain: "Horticulture",
-      size_class: "SME",
-    },
-  });
-  const created = await request.post(`${backend}/api/v1/sample-cases/`, {
-    headers: { Authorization: `Bearer ${access}` },
-    data: { organisation: (await org.json()).id, sample_type: "MAIN" },
-  });
-  const sampleId = (await created.json()).sample_id;
-
-  const invited = await request.post(`${backend}/api/v1/invitations/`, {
-    headers: { Authorization: `Bearer ${access}` },
-    data: { sample_id: sampleId, channel: "WHATSAPP", invitation_wave: 1 },
-  });
-  const token = (await invited.json()).raw_token;
+  const { token } = await issueTokenOnFreshCase(request, backend, "Eligibility Gate");
 
   // Skip the eligibility screen entirely and consent directly -- the
   // consent endpoint is AllowAny and takes only a valid token.
