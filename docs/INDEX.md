@@ -44,6 +44,7 @@ See `AGENTS.md` § Keeping the documentation honest.
 | 28 | `28_DEFINITION_OF_DONE.md` | Acceptance criteria, including the 15-item go-live checklist |
 | 29 | `29_RESPONDENT_GUIDE_AND_MESSAGING.md` | Plain-language respondent walkthrough and ready-to-send invitation message templates |
 | 30 | `30_PROIT_MODULE.md` | Pre-interview background research/verification tool (PROIT) — provenance rules, three-value architecture, and the record of the PI's risk-acceptance decision to enable it for respondents |
+| 31 | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` | Review-and-sign-off pack for the two items still running on engineering defaults: the QUAN QA rule thresholds and the Participant Information Sheet wording. **Awaiting sign-off** |
 
 ## Not in the numbered set
 

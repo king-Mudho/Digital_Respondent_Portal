@@ -19,6 +19,16 @@ real Main-400 invitation is issued.
       Ethics Clearance and the study's institutional research governance.)*
 - [ ] WhatsApp Business Platform utility-category templates are Meta-approved
       (`12_CONTACT_CRM_AND_MESSAGING.md`).
+- [ ] **The Participant Information Sheet wording is approved by the PI and the CUT
+      Research Ethics office.** *(v1.1 is live and being shown to respondents, but the
+      wording has never been reviewed by anyone qualified to approve it. Review pack with
+      the full text and seven identified gaps: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md`
+      Part B. The most material gap is that the PIS does not disclose PROIT background
+      research, which respondents are nonetheless asked to verify.)*
+- [ ] **The QUAN QA rule thresholds are confirmed by the PI.** *(Running on engineering
+      defaults since Phase 0. Review pack: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part A.
+      Three thresholds are active, five are dormant pending the real Kobo form, and one
+      is configured but never evaluated.)*
 
 ## Sample & identifier integrity
 

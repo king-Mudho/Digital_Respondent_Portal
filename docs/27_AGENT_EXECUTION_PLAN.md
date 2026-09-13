@@ -77,10 +77,24 @@ work — resolve them with the PI before or during the phase noted, not silently
   (Annex 19, Form GRSD 17 SEBS/06/2025, approved 24.08.2026) and the study's operation
   under the University's institutional research governance covers this position — see
   `18_DATA_PRIVACY_AND_COMPLIANCE.md` for the full record. No longer blocks Phase 11.
-- **Phase 0 — QA rule threshold values.** `15_QA_AND_DATA_QUALITY.md` proposes concrete
-  engineering defaults (e.g. 5–90 minute plausible duration window) precisely so the PI
-  has specific numbers to confirm or adjust rather than an abstract placeholder. Treat
-  these as provisional until the PI signs off.
+- **Phase 0 — QA rule threshold values. REVIEW PACK ISSUED (2026-09-13), sign-off still
+  open.** `15_QA_AND_DATA_QUALITY.md` proposes concrete engineering defaults (e.g. 5–90
+  minute plausible duration window) precisely so the PI has specific numbers to confirm
+  or adjust rather than an abstract placeholder. Treat these as provisional until the PI
+  signs off. `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part A now sets out each value, what
+  it does, and the consequence of setting it too high or too low, in a form a reviewer
+  can sign. Preparing it surfaced that only three of the nine thresholds are actually
+  evaluated: five are dormant until the real Kobo field list exists, and
+  `mode_imbalance_alert_ratio` is defined but never read by `evaluate_submission()` —
+  either implement it or remove it, because as it stands it implies a control that does
+  not exist.
+- **Phase 5 — PIS wording. REVIEW PACK ISSUED (2026-09-13), sign-off still open.** See
+  the Phase 5 entry below for the drafting history. `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md`
+  Part B reproduces the live v1.1 text and lists seven gaps an ethics reviewer is likely
+  to raise. The most material: **the PIS does not disclose PROIT background research.**
+  The verification screen explains it at the point of use, but the information sheet the
+  respondent consents on the basis of does not mention that the team may have compiled a
+  profile of their organisation beforehand. That is a consent question, not a UI one.
 - **Phase 0 — visual palette.** `21_UI_UX_GUIDELINES.md` proposes a blue/neutral
   academic palette distinct from ABI's green/gold, pending sponsor/PI confirmation.
 - **Phase 0 — Shona/Ndebele Participant Information Sheet.** `19_LANGUAGE_AND_
