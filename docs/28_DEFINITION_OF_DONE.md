@@ -4,6 +4,14 @@ The build is complete only when every item below is checked, on a fresh checkout
 synthetic seed data loaded — and the 15-item go-live checklist passes before the first
 real Main-400 invitation is issued.
 
+> **A checked box is a claim, and claims here have been wrong.** During the September 2026
+> audit pass, "an ineligible respondent is routed to referral, never to the questionnaire"
+> was ticked while no such control existed in the code: the frontend declined to route
+> there, the docstring said it was enforced, and the test that appeared to cover it passed
+> for an unrelated reason. Before ticking an item, name the test or the enforcement point,
+> and satisfy yourself the test still fails when the control is removed. An unchecked box
+> is a known gap; a wrongly checked one is why nobody looks.
+
 ## Compliance gate (blocks go-live, not early development)
 
 - [x] The POTRAZ/Data Protection Officer position is resolved in writing
@@ -31,7 +39,20 @@ real Main-400 invitation is issued.
       a phone-sized viewport. *(Verified live at 375px, no overflow; also the Playwright
       happy-path scenario.)*
 - [x] An ineligible respondent is routed to referral, never to the questionnaire.
+      *(**Was wrongly checked until 2026-09-13.** Only the frontend routing and a
+      docstring backed this; `/api/v1/consent/` is `AllowAny`, so anyone screened out
+      could POST consent directly and be handed a Kobo URL. Now enforced in
+      `kobo.services.build_redirect_url()` via `contacts.services.has_passed_eligibility`,
+      with tests that give consent first — which is what a bypass looks like — and an
+      E2E spec on a case with no prior history. No invitation had been issued when this
+      was found, so no real respondent was affected.)*
 - [x] No questionnaire link is issued without a `GIVEN` participation consent recorded.
+      *(Single enforcement point, `kobo.services.build_redirect_url()`; also covers the
+      eligibility half above.)*
+- [x] No appointment can be requested before participation consent is given.
+      *(PI decision, 2026-09-13: an appointment request is a researcher-assisted route
+      into the study, not a separate enquiry. `403 consent_required`; a declined consent
+      is refused too.)*
 - [x] KII recording consent is always a separate, explicit decision from participation
       consent. *(`tests/test_kii.py` — participation consent alone never satisfies the
       recording-consent gate.)*
@@ -55,6 +76,23 @@ real Main-400 invitation is issued.
 - [x] The de-identified analysis export and the full operational export both work and
       have the documented schema difference (contact fields present only in the
       operational export).
+- [x] Every register screen is usable at real data volumes. *(Added 2026-09-13: page size
+      is 20 against 400 Main + 400 Reserve + 90 KII + 100 documents, and no register had
+      a paging control, so every row past the first twenty was unreachable from the UI.
+      All registers now paginate and most carry a `?search=` box; `KIIRecord` and
+      `DocumentRecord` querysets are explicitly ordered, since unordered pagination made
+      page boundaries arbitrary.)*
+- [x] Each role sees only its own modules, and lands on a screen it can actually open.
+      *(Added 2026-09-13: `backend/api/navigation.py` is the single source of truth,
+      served by `GET /api/v1/auth/me/`. Previously all 14 links showed to every role and
+      everyone landed on `/admin/dashboard`, which four of the eight roles are refused.
+      Covered by `tests/test_role_navigation.py` and
+      `e2e/role-scoped-navigation.spec.ts`.)*
+- [x] PROIT pre-profiles can be built, reviewed and locked, and a respondent can confirm
+      or correct each fact without it ever pre-filling a frozen scale item.
+      *(`30_PROIT_MODULE.md`. Respondent-facing PROIT is gated on
+      `PROIT_ENABLED_FOR_RESPONDENTS`, enabled on the PI's documented risk acceptance —
+      which is a risk acceptance, not an ethics or change-control clearance.)*
 
 ## Non-negotiables
 
@@ -77,15 +115,20 @@ real Main-400 invitation is issued.
 
 ## Quality gates
 
-- [x] All backend automated tests pass. *(87/87, plus `ruff check .` clean.)*
+- [x] All backend automated tests pass. *(260/260 as at 2026-09-13, plus `ruff check .`
+      clean.)*
 - [x] All frontend component tests pass. *(8/8 Vitest, `eslint .` clean, `tsc --noEmit`
       clean.)*
 - [x] All Playwright E2E scenarios pass (happy path, reserve-lock, ineligible-respondent,
-      dashboard privacy, edited-submission reconciliation). *(5/5 — the "edited-
-      submission reconciliation" scenario is a backend-only test per
-      `docs/22_TESTING_STRATEGY.md`'s own split; the Playwright suite covers the
-      browser-exercisable four plus a fifth consistency-check scenario the doc also
-      lists.)*
+      dashboard privacy, edited-submission reconciliation). *(26 specs, 25 run and 1
+      intentionally skipped, as at 2026-09-13. The "edited-submission reconciliation"
+      scenario is a backend-only test per `docs/22_TESTING_STRATEGY.md`'s own split. Also
+      covers role-scoped navigation per role and the respondent flow's failure branches.)*
+- [x] A test that guards a rule actually fails when the rule is removed. *(Added
+      2026-09-13 after three tests were found passing for the wrong reason: two gate tests
+      against a shared seed case that had accumulated consent and eligible respondents
+      across runs, and an ordering test whose fixtures happened to be inserted in sorted
+      order. Verified by removing each control and watching the test go red.)*
 - [ ] CI is green on the branch being deployed. **Not verified** — `.github/workflows/
       ci.yml` exists and every step mirrors a command already run and passing locally,
       but this repository has no pushed remote yet, so no real GitHub Actions run has
@@ -102,18 +145,28 @@ checklist itself is Phase 11's gate, to be run and signed off by the PI, not inf
 by the agent that built the system. See `docs/27_AGENT_EXECUTION_PLAN.md` Phase 10 for
 exactly what was and wasn't verified live.)*
 
+*(Two of these — the ineligible-respondent route and role-based permissions — describe
+controls that did not fully exist when this checklist was written, and were built during
+the September 2026 audit. Notes below say what now backs them. That is context for the
+PI's run-through, not a substitute for it.)*
+
 - [ ] An unauthorised/public visitor cannot access the Main questionnaire.
 - [ ] A valid Main invitation opens the correct organisation/case without revealing
       unnecessary data.
 - [ ] A locked Reserve cannot receive an invitation.
 - [ ] An ineligible respondent is routed to referral rather than questionnaire
-      completion.
+      completion. — *now enforced server-side in `kobo.services.build_redirect_url()`;
+      until 2026-09-13 only the frontend routing prevented it.*
 - [ ] No questionnaire starts without the required consent state.
 - [ ] Sample_ID and administration mode arrive correctly in Kobo.
 - [ ] Duplicate or reused tokens are handled according to `10_INVITATION_AND_CONSENT.md`.
 - [ ] A Kobo submission (new or edited) updates the portal and enters QA.
 - [ ] Contact data is not present in the de-identified analytical export.
 - [ ] Role-based permissions prevent RAs from seeing records outside their duties.
+      — *worth exercising per role rather than in aggregate: sign in as each of the eight
+      and confirm the navigation bar matches `18_DATA_PRIVACY_AND_COMPLIANCE.md`'s access
+      matrix. The three RA roles previously shared one permission class, so a KII RA could
+      edit documentary evidence and a Documentary RA could take QUAN QA decisions.*
 - [ ] Reserve activation creates an audit event with reason and authoriser.
 - [ ] Backup and restore are tested.
 - [ ] Mobile pages work on typical Android screens and poor/variable connectivity.
@@ -121,6 +174,37 @@ exactly what was and wasn't verified live.)*
 - [x] The POTRAZ/data-protection position is resolved and reflected in the deployed
       access-control configuration. *(2026-09-12: see `18_DATA_PRIVACY_AND_
       COMPLIANCE.md` — covered by CUT's Research Ethics Clearance.)*
+
+## Data state at go-live
+
+The three approved registers were imported in September 2026 and the production database
+holds real, identifying study data: 400 Main and 400 Reserve sample cases across 800 named
+organisations, 90 KII records, 100 documentary-evidence records, all 400 Main cases paired
+to their matched Reserve.
+
+What has **not** happened: no invitation has been issued, no consent recorded, no
+appointment booked, no submission received. Verifying that before go-live is a useful
+sanity check that no test traffic has leaked into the record:
+
+```bash
+# expect 0, 0, 0, 0 and 400 / 400
+python manage.py shell -c "
+from apps.invitations.models import InvitationToken
+from apps.consent.models import ConsentRecord
+from apps.contacts.models import Appointment
+from apps.kobo.models import QUANSubmission
+from apps.sampling.models import SampleCase, SampleType
+print(InvitationToken.objects.count(), ConsentRecord.objects.count(),
+      Appointment.objects.count(), QUANSubmission.objects.count(),
+      SampleCase.objects.filter(sample_type=SampleType.MAIN).count(),
+      SampleCase.objects.filter(sample_type=SampleType.RESERVE).count())
+"
+```
+
+The audit log will not be empty, and should not be: it carries a small number of
+deployment-verification entries from 13 September 2026, itemised in
+`27_AGENT_EXECUTION_PLAN.md`'s open questions so they are not mistaken at review for real
+respondent activity.
 
 ## Sign-off
 

@@ -1,7 +1,15 @@
-# Documentation index — ABF-FST Digital Respondent Portal v1.0 (planning)
+# Documentation index — ABF-FST Digital Respondent Portal v1.0
 
 Read `AGENTS.md` at the repository root first. It defines the ground rules and the order
 below is the required reading order for an implementing agent.
+
+**Current state:** built, deployed and live at `research.agribizframework.com`
+(Phases 0–10 of `27_AGENT_EXECUTION_PLAN.md` complete). The three approved registers are
+loaded with real study data; no invitation has been issued and go-live remains the PI's
+decision. This documentation set was written during the planning phase and is maintained
+alongside the running system — where a document describes an intention and the code
+disagrees, the code is what is deployed, and the discrepancy is a defect in one of them.
+See `AGENTS.md` § Keeping the documentation honest.
 
 | # | File | What it covers |
 |---|------|-----------------|
@@ -35,7 +43,16 @@ below is the required reading order for an implementing agent.
 | 27 | `27_AGENT_EXECUTION_PLAN.md` | Phased, checkable build task list |
 | 28 | `28_DEFINITION_OF_DONE.md` | Acceptance criteria, including the 15-item go-live checklist |
 | 29 | `29_RESPONDENT_GUIDE_AND_MESSAGING.md` | Plain-language respondent walkthrough and ready-to-send invitation message templates |
-| 30 | `30_PROIT_MODULE.md` | Pre-interview background research/verification tool (PROIT) — provenance rules, ethics/change-control gate |
+| 30 | `30_PROIT_MODULE.md` | Pre-interview background research/verification tool (PROIT) — provenance rules, three-value architecture, and the record of the PI's risk-acceptance decision to enable it for respondents |
+
+## Not in the numbered set
+
+| Where | What it covers |
+|---|---|
+| `../README.md` | The technical picture of the system as built: architecture, quick start, environment variables, tests, deployment, and the Notable fixes record |
+| `../AGENTS.md` | Ground rules, the traps that have cost time in this codebase, and which documents to keep in step when behaviour changes |
+| `tools/build_guide.py` | Builds the end-user guide PDF for the research team — sign-in, per-role screens, the respondent's experience, walkthrough, troubleshooting. The script is the source of truth; the PDF it writes is gitignored |
+| `../backend/api/navigation.py` | Not documentation, but the single source of truth for which of the eight roles sees which screens |
 
 ## Reading order for humans
 
@@ -43,7 +60,13 @@ Start with `00`, `01`, `02` for context, then `09`–`12` for the operational co
 (identifiers, tokens, Kobo, contact), then `18` for the compliance position, then `26` for
 the roadmap.
 
+Joining the research team rather than the codebase? Read the end-user guide PDF
+(`tools/build_guide.py` builds it) instead — it covers everything an RA or coordinator
+needs without the architecture.
+
 ## Reading order for the agent
 
-Full sequential order above, then execute `27_AGENT_EXECUTION_PLAN.md` — but only after
-the PI approval gate in `AGENTS.md` ground rule 1 has been satisfied.
+Full sequential order above, then `../README.md` for how the system was actually built,
+and `27_AGENT_EXECUTION_PLAN.md` for the phase-by-phase record and the remaining open
+questions. Phases 0–10 are complete, so most work now is maintenance against a live
+system holding real data — `AGENTS.md` ground rule 1 sets out what that requires.
