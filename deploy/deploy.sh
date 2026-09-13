@@ -58,11 +58,28 @@ fi
 
 # ------------------------------------------------------------------ backup
 
-if systemctl is-active --quiet postgresql && [[ -x "$APP_DIR/deploy/backup.sh" ]]; then
-    log "Backing up the database before migrating"
-    bash "$APP_DIR/deploy/backup.sh" || warn "Backup failed -- continuing, but you have no fresh restore point for this deploy."
+# Tested with -f and invoked through `bash`, not tested with -x: the
+# executable bit does not survive every code-transfer route (git archive
+# into a tarball, cp -a from a checkout made on Windows), and when it was
+# tested with -x this whole block silently became a one-line warning that
+# scrolled past in the deploy output. Four consecutive deploys ran with no
+# backup taken, and the only restore point for the imported registers
+# predated the import (found 2026-09-13).
+if [[ "${SKIP_BACKUP:-0}" == "1" ]]; then
+    warn "SKIP_BACKUP=1 -- deploying with NO restore point, at your own risk."
+elif [[ ! -f "$APP_DIR/deploy/backup.sh" ]]; then
+    die "deploy/backup.sh is missing. Refusing to migrate without a restore point."
+elif ! systemctl is-active --quiet postgresql; then
+    warn "PostgreSQL is not active -- skipping backup. Expected only on a first deploy."
 else
-    warn "Skipping backup (postgresql not active yet, or backup.sh missing) -- expected on a first deploy."
+    log "Backing up the database before migrating"
+    if bash "$APP_DIR/deploy/backup.sh"; then
+        chown -R "$APP_USER:$APP_USER" "$APP_DIR/backups" 2>/dev/null || true
+    else
+        # A failed backup before a migration is not a warning. The whole
+        # point of this step is to have something to roll back to.
+        die "Backup FAILED. Refusing to migrate without a restore point. Fix the backup, or re-run with SKIP_BACKUP=1 if you accept the risk."
+    fi
 fi
 
 # ------------------------------------------------------------------- backend

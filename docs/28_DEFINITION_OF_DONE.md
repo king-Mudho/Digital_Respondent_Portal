@@ -136,6 +136,15 @@ real Main-400 invitation is issued.
 - [x] The backup/restore drill has been run and passed against the RPO/RTO targets in
       `23_DEPLOYMENT_ARCHITECTURE.md`. *(Run for real against the live production
       database, not simulated — see `docs/DEPLOYMENT.md` "Staging rehearsal".)*
+- [ ] **A backup mechanism exists that can actually meet the ≤ 4-hour fieldwork RPO.**
+      *(Found 2026-09-13 and only partly fixed. The drill above passed, but the drill is
+      not the mechanism: `deploy.sh` tested `backup.sh` with `-x`, the executable bit does
+      not survive the code-transfer route, so every deploy silently skipped the backup
+      behind a one-line warning — and the newest restore point predated the register
+      import by a day. The `-x` test and the silent-warning behaviour are fixed, and a
+      full backup was taken. **Still open:** backups run only on deploy, and there is no
+      cron entry or systemd timer, so a 4-hour RPO during fieldwork is not achievable as
+      configured. Must be closed before Phase 11.)*
 
 ## Go-live acceptance checklist (15 items, from the original blueprint's Section 20)
 
