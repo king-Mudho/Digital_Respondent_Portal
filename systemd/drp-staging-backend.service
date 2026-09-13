@@ -1,0 +1,54 @@
+# Staging Django API (gunicorn), pointed at drp_staging.
+# Install to: /etc/systemd/system/drp-staging-backend.service
+#   sudo systemctl daemon-reload
+#
+# DELIBERATELY NOT ENABLED. Start it only when someone needs to click
+# around staging, and stop it afterwards:
+#   sudo systemctl start  drp-staging-backend drp-staging-frontend
+#   sudo systemctl stop   drp-staging-backend drp-staging-frontend
+#
+# This box has ~956MB of RAM shared with the sibling ABI project and is
+# already using swap at rest (checked 2026-09-14: 368MB available, 345MB
+# swapped). A permanently-running staging stack would squeeze the
+# production study system, which holds real research data, for the sake of
+# an environment used occasionally. The migration rehearsal that staging
+# mainly exists for needs only the database -- see deploy/staging-refresh.sh.
+#
+# Bound to 127.0.0.1 with no Nginx server block and no DNS record: staging
+# is reachable only over an SSH tunnel, e.g.
+#   ssh -L 8101:127.0.0.1:8101 -L 3101:127.0.0.1:3101 <host>
+# It holds scrubbed data, but it gets no public attack surface regardless.
+
+[Unit]
+Description=DRP STAGING - Django API (gunicorn, drp_staging)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/backend
+
+EnvironmentFile=/srv/agribiz-drp/backend/.env
+# Overrides applied after the production env file, so staging inherits the
+# same credentials and settings but never touches the production database.
+EnvironmentFile=/srv/agribiz-drp/backend/.env.staging
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+ExecStart=/srv/agribiz-drp/backend/venv/bin/gunicorn \
+    --bind 127.0.0.1:8101 --workers 1 --timeout 60 \
+    config.wsgi:application
+
+KillMode=mixed
+TimeoutStopSec=10
+# No Restart=always: staging is meant to be ephemeral. If it dies, it dies.
+Restart=no
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/agribiz-drp/backend/staticfiles /srv/agribiz-drp/backend/media /srv/agribiz-drp/logs

@@ -5,13 +5,13 @@
 #   sudo bash /srv/agribiz-drp/deploy/backup.sh
 #
 # docs/23_DEPLOYMENT_ARCHITECTURE.md RPO target: <= 4 hours during active
-# fieldwork. deploy.sh calls this automatically before migrating; for the
-# RPO target to actually hold, this also needs a cron/systemd-timer running
-# it at least every 4 hours during Phases 1-3 -- not wired up automatically
-# here since that cadence is a fieldwork-calendar decision, not a fixed
-# constant (see docs/27_AGENT_EXECUTION_PLAN.md Phase 10's backup/restore
-# drill item). Only handles local rotation -- copy backups off this server
-# periodically too.
+# fieldwork. Two things call this:
+#   - systemd/drp-backup.timer, every 4 hours on the clock (this is what
+#     actually meets the RPO; installed and enabled 2026-09-13)
+#   - deploy.sh, before every migration, aborting the deploy if it fails
+#
+# Only handles local rotation -- copy backups off this server periodically
+# too, since a host failure takes the backups with it.
 
 set -euo pipefail
 

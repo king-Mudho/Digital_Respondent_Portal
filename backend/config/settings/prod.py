@@ -3,10 +3,16 @@ from .base import env
 
 DEBUG = False
 
-SECURE_SSL_REDIRECT = True
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
-SECURE_HSTS_SECONDS = 31536000
+# Secure by default; overridable only by explicit environment variables so
+# production behaviour is unchanged unless someone opts out on purpose.
+# The one intended opt-out is the staging stack (backend/.env.staging),
+# which is reached over an SSH tunnel on plain HTTP -- with these hardcoded
+# to True every staging request 301'd to https://127.0.0.1 and the
+# environment was unusable.
+SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=True)
+SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=True)
+CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=True)
+SECURE_HSTS_SECONDS = env.int("SECURE_HSTS_SECONDS", default=31536000)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 

@@ -79,7 +79,7 @@ versions exist as scattered strings, not an entity), **`IdentityContact`** (the 
 | | Item | Status |
 |---|---|---|
 | 1 | Document stack, schema, hosting, auth, backups, integrations | **Built** — README, docs/03, 05, 23, 24 |
-| 2 | **Staging and production environments; stop untracked production changes** | **Absent** — production only. docs/23 specifies staging; it was never provisioned. Every change this month has gone straight to production |
+| 2 | **Staging and production environments; stop untracked production changes** | **Built (2026-09-14)** — `drp_staging` database refreshed from production and scrubbed by `deploy/staging-refresh.sh`, which also rehearses pending migrations and aborts if they fail. Web units installed on demand (ports 8101/3101, localhost only). See docs/23 § Staging |
 | 3 | RBAC, Identity Vault, server-side secrets | **Partial** — RBAC and secrets done; vault absent |
 | 4 | SampleCase state machine with Main/Reserve rules | **Built** |
 | 5 | Consent/version service and case timeline ledger | **Partial** — ledger yes, timeline view no |
@@ -117,9 +117,9 @@ about *operating* the study day to day and *proving* afterwards what happened.
 
 The five P0-level gaps, in the order they block things:
 
-1. **Staging environment** (§18.2). Everything else on this list is a production change,
-   and there is currently nowhere to rehearse one. This should come first on sequencing
-   grounds, not merit.
+1. ~~**Staging environment** (§18.2).~~ **Done 2026-09-14** — database-first, scrubbed from
+   production, with a verified scrub guard and a migration rehearsal that fails loudly.
+   Unblocks the Identity Vault, which needed somewhere to rehearse a live-schema refactor.
 2. **QA exception ownership** (A6) — an exception queue nobody can be assigned is a list,
    not a workflow. Directly blocks the "daily exceptions assigned and resolvable" DoD item.
 3. **Kobo duplicate quarantine** (A4) — currently a mismatched submission is flagged and

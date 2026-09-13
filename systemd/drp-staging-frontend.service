@@ -1,0 +1,43 @@
+# Staging Next.js SSR server, talking to the staging API on 8101.
+# Install to: /etc/systemd/system/drp-staging-frontend.service
+#
+# DELIBERATELY NOT ENABLED -- see drp-staging-backend.service for why, and
+# for the SSH-tunnel access pattern. Start and stop it in step with the
+# staging backend.
+#
+# Reuses the production build in frontend/current rather than maintaining a
+# second build tree: the code under test is the code that was just built for
+# deployment, which is the point of a rehearsal. Only the API it points at
+# differs.
+
+[Unit]
+Description=DRP STAGING - Next.js frontend (Node, standalone)
+After=network-online.target drp-staging-backend.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/frontend/current
+
+Environment=NODE_ENV=production
+Environment=PORT=3101
+Environment=HOSTNAME=127.0.0.1
+# Tighter than production's 200MB: staging runs alongside everything else
+# when it runs at all.
+Environment=NODE_OPTIONS=--max-old-space-size=140
+Environment=API_BASE_URL=http://127.0.0.1:8101/api/v1
+Environment=NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8101/api/v1
+Environment=NEXT_PUBLIC_APP_ENV=staging
+
+ExecStart=/usr/bin/node /srv/agribiz-drp/frontend/current/server.js
+
+KillMode=mixed
+TimeoutStopSec=10
+Restart=no
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true

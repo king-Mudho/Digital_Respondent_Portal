@@ -71,6 +71,54 @@ before the 30 November data lock except security/critical fixes.
 | **Recovery Point Objective (RPO)** | ≤ 4 hours during active fieldwork (Phases 1–3); ≤ 24 hours otherwise | Fieldwork-window data (consent, QA decisions, reserve activations) is expensive and time-sensitive to recreate — a tighter RPO than a typical low-traffic app is justified specifically during collection. |
 | **Recovery Time Objective (RTO)** | ≤ 4 hours during active fieldwork; ≤ 24 hours otherwise | A multi-day outage during the September–November collection window directly threatens the 30 November data lock. |
 
+### Staging
+
+ResearchOS brief §18.2 asks for a staging environment so production stops being the
+place changes are first tried. As built (2026-09-14):
+
+| | Production | Staging |
+|---|---|---|
+| Database | `drp_prod` | `drp_staging` |
+| Backend | `drp-backend`, port 8100, always on | `drp-staging-backend`, port 8101, **on demand** |
+| Frontend | `drp-frontend`, port 3100, always on | `drp-staging-frontend`, port 3101, **on demand** |
+| Reachable at | `research.agribizframework.com` (Nginx + TLS) | `127.0.0.1` only — no DNS, no Nginx block, no public surface |
+| Data | Real registers | Production's shape and volume, every identifying value replaced |
+
+**It is a database first and a web stack second.** This VPS has ~956MB of RAM shared with
+the sibling ABI project and uses swap at rest; a permanently-running second stack would
+squeeze the production study system for an environment used occasionally. The risk staging
+actually mitigates — a bad migration against real data — needs only the database. The web
+units are installed but deliberately `static` (not enabled):
+
+```bash
+sudo bash /srv/agribiz-drp/deploy/staging-refresh.sh   # rebuild + scrub + rehearse migrations
+sudo systemctl start drp-staging-backend drp-staging-frontend
+ssh -L 8101:127.0.0.1:8101 -L 3101:127.0.0.1:3101 <host>   # then browse localhost:3101
+sudo systemctl stop  drp-staging-backend drp-staging-frontend
+```
+
+**Why staging holds scrubbed production data rather than synthetic data.** The rule that
+staging carries no real Main-400 records still holds — but a migration rehearsal against
+synthetic fixtures is much weaker. The field-width failures found during the register
+import (`Respondent.phone`, `Organisation.district`, `StratumDefinition.code`,
+`DocumentRecord.value_chain`) were exactly the kind of defect only real data reveals.
+`staging-refresh.sh` therefore restores the latest production backup and replaces every
+identifying value, keeping row counts, lengths and shapes.
+
+The scrub covers the model fields *and the `metadata` JSONB blobs*, which is where identity
+most easily survives: the importers preserved every source-register column losslessly, so
+`kii_kiirecord.metadata` carries `organisation_name`, free-text verification notes and
+evidence URLs about named individuals. Scrubbing only the obvious columns would have left
+all of that exposed.
+
+The scrub is **verified, not assumed** — the script re-queries afterwards and, if any
+identifying value survived, drops the staging database rather than leave it sitting there.
+That guard was tested by injecting a fake unscrubbed name and confirming it trips.
+
+`SECURE_SSL_REDIRECT`, the secure-cookie flags and HSTS are environment-driven with secure
+defaults; only `backend/.env.staging` opts out, because staging is reached over a plain-HTTP
+tunnel. Verified after the change: production still reports `SECURE_SSL_REDIRECT=True`.
+
 ### How the RPO is actually met
 
 `systemd/drp-backup.timer` runs `deploy/backup.sh` every four hours on the clock
