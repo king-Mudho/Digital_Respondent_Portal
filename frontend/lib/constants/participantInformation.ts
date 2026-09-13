@@ -1,14 +1,26 @@
 /**
- * Participant Information Sheet text, version v1.1.
- * v1.0 was a placeholder draft pending PI/ethics-office confirmation
- * (docs/27_AGENT_EXECUTION_PLAN.md Phase 0). v1.1 adds the PI's real contact
- * details and the ethics clearance reference now that both are confirmed
- * (docs/00_PROJECT_MASTER.md, docs/18_DATA_PRIVACY_AND_COMPLIANCE.md) --
- * the wording itself is still the PI/ethics-office's to review before
- * go-live. Bump PARTICIPANT_INFORMATION_SHEET_VERSION whenever the text
- * changes.
+ * Participant Information Sheet text, version v1.2.
+ *
+ * History:
+ *   v1.0  Placeholder draft pending PI/ethics-office confirmation
+ *         (docs/27_AGENT_EXECUTION_PLAN.md Phase 0).
+ *   v1.1  Added the PI's real contact details and the ethics clearance
+ *         reference (docs/00_PROJECT_MASTER.md, docs/18).
+ *   v1.2  Added the PROIT disclosure (2026-09-13, PI-directed). PROIT is
+ *         live and respondent-facing: the team may compile a profile of the
+ *         respondent's organisation from public sources before contact, and
+ *         the respondent is then asked to verify it. The verification screen
+ *         explained this at the point of use, but the sheet the respondent
+ *         consents on the basis of did not mention it at all -- a consent
+ *         gap, not a UI one (docs/31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md B2.1).
+ *
+ * IMPORTANT: this version bump closes that gap in the *text*. It does not
+ * make the wording approved -- the PIS as a whole is still awaiting
+ * PI/ethics-office sign-off (docs/31, docs/28). Bump the version whenever
+ * the text changes; it is recorded against every ConsentRecord, so consent
+ * stays traceable to the exact wording the respondent saw.
  */
-export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.1";
+export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.2";
 
 export const PARTICIPANT_INFORMATION_SHEET = `
 This study is being carried out by Happyson Saina, a doctoral researcher at
@@ -23,8 +35,18 @@ asked to complete a questionnaire about your organisation (around 15-25
 minutes), either yourself online, or with help from a researcher by phone
 or WhatsApp if you prefer.
 
+Before contacting you, we may look up information about your organisation
+that is already publicly available — for example from official registers,
+published reports, or reputable news sources — so that we do not ask you
+for facts that are already on record. Where we have done this, you will be
+shown what we found and asked to confirm or correct it. You can also tell us
+you do not know, that you would rather not say, or skip this step
+altogether. It is there to save you time, not to test you. What you tell us
+is always recorded separately from what we found, and your own answers take
+precedence over it.
+
 Taking part is voluntary. You can decline, or stop at any time, without any
-consequence. Your answers are used for research purposes only -- no score,
+consequence. Your answers are used for research purposes only — no score,
 rating, or financing decision is generated or shown to you, and your
 individual answers will never be shared with any lender or financial
 institution.

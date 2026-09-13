@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
+import { PARTICIPANT_INFORMATION_SHEET_VERSION } from "@/lib/constants/participantInformation";
 import { useState } from "react";
 
 interface KIIRecord {
@@ -72,7 +73,12 @@ export default function KIIDetailPage() {
         body: JSON.stringify({
           consent_type: consentType,
           decision: "GIVEN",
-          information_sheet_version: "v1.0",
+          // Was hardcoded "v1.0", so every KII consent record claimed a
+          // version of the sheet that had not been current since the PI's
+          // contact details were added. The version exists so a consent is
+          // traceable to the exact wording the participant was given --
+          // a stale literal defeats that entirely.
+          information_sheet_version: PARTICIPANT_INFORMATION_SHEET_VERSION,
           method: "VERBAL_RA_RECORDED",
         }),
       }),

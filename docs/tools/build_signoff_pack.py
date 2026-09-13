@@ -309,15 +309,21 @@ for para in [p.strip() for p in PIS_TEXT.split("\n\n") if p.strip()]:
 
 S.append(P("B2. Gaps a reviewer will likely want addressed", "H2x"))
 S.append(P("Raised for the ethics office to rule on. These are omissions from the text, "
-           "not defects in the system.", "Smallx"))
+           "not defects in the system. Item 1 has been addressed in v1.2 at the PI's "
+           "direction; items 2&ndash;7 are untouched.", "Smallx"))
 S.append(Spacer(1, 2))
 S.append(note(
-    "1. PROIT background research is not disclosed &mdash; the most material gap",
-    "Before contact, the research team may compile a profile of the respondent's "
-    "organisation from public sources, which the respondent is then asked to confirm or "
-    "correct. The verification screen explains this at the point of use, but the "
-    "information sheet the respondent consents on the basis of does not mention it. "
-    "A reviewer may well consider that consent should be informed by it.",
+    "1. PROIT background research &mdash; ADDRESSED in v1.2, still to be confirmed",
+    "Was the most material gap: before contact the research team may compile a profile of "
+    "the respondent's organisation from public sources, which the respondent is then asked "
+    "to confirm or correct. The verification screen explained this at the point of use, "
+    "but the information sheet the respondent consents on the basis of did not mention it "
+    "at all. <b>v1.2 adds a paragraph</b> covering what is looked up, from what kinds of "
+    "source, what the respondent will be asked to do with it, that they may decline or "
+    "skip, and that their own answers are recorded separately and take precedence. "
+    "<b>For the reviewer to confirm:</b> whether that wording is sufficient disclosure, "
+    "and whether it sits in the right place in the sheet.",
+    bg=colors.HexColor("#EAF2EA"), edge=colors.HexColor("#5B8A5B"),
 ))
 S.append(Spacer(1, 7))
 for n, t in [

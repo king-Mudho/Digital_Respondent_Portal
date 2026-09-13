@@ -102,49 +102,47 @@ Flags a second submission from the *same organisation* within this window.
 
 # Part B — Participant Information Sheet
 
-Current version **v1.1**, live at `/i/<token>/information` and shown before consent.
+Current version **v1.2**, live at `/i/<token>/information` and shown before consent.
 Source: `frontend/lib/constants/participantInformation.ts`. The version string is recorded
 against every `ConsentRecord`, so consent is always traceable to the exact wording the
 respondent saw. **Bump the version whenever the text changes.**
 
+> **v1.2 (2026-09-13, PI-directed) adds the PROIT disclosure** — gap B2.1 below, which was
+> the most material of the seven. That closes the gap in the *text*. It does not make the
+> wording approved: the PIS as a whole has still never been reviewed by the ethics office,
+> and the remaining six gaps are untouched. The sign-off block at the end of this document
+> is still open.
+
 ## B1. The text as it currently stands
 
-> This study is being carried out by Happyson Saina, a doctoral researcher at Chinhoyi
-> University of Technology, supervised by Dr L. Chikazhe and Dr J. Kanyepe. It looks at
-> how agribusinesses in Zimbabwe can become better prepared for financing and investment.
-> This study has received ethics clearance from Chinhoyi University of Technology
-> (Research Ethics Clearance Letter, Annex 19, Form GRSD 17 SEBS/06/2025).
+> This study is being carried out by Happyson Saina, a doctoral researcher at Chinhoyi University of Technology, supervised by Dr L. Chikazhe and Dr J. Kanyepe. It looks at how agribusinesses in Zimbabwe can become better prepared for financing and investment. This study has received ethics clearance from Chinhoyi University of Technology (Research Ethics Clearance Letter, Annex 19, Form GRSD 17 SEBS/06/2025).
 >
-> Your organisation has been selected to take part. If you agree, you will be asked to
-> complete a questionnaire about your organisation (around 15-25 minutes), either yourself
-> online, or with help from a researcher by phone or WhatsApp if you prefer.
+> Your organisation has been selected to take part. If you agree, you will be asked to complete a questionnaire about your organisation (around 15-25 minutes), either yourself online, or with help from a researcher by phone or WhatsApp if you prefer.
 >
-> Taking part is voluntary. You can decline, or stop at any time, without any consequence.
-> Your answers are used for research purposes only — no score, rating, or financing
-> decision is generated or shown to you, and your individual answers will never be shared
-> with any lender or financial institution.
+> Before contacting you, we may look up information about your organisation that is already publicly available — for example from official registers, published reports, or reputable news sources — so that we do not ask you for facts that are already on record. Where we have done this, you will be shown what we found and asked to confirm or correct it. You can also tell us you do not know, that you would rather not say, or skip this step altogether. It is there to save you time, not to test you. What you tell us is always recorded separately from what we found, and your own answers take precedence over it.
 >
-> Your name and contact details are kept separately from your answers and are only used to
-> manage your participation in this study (for example, to send a reminder or arrange a
-> call). Only the research team can see this information. Results will only ever be
-> reported in combined, anonymised form.
+> Taking part is voluntary. You can decline, or stop at any time, without any consequence. Your answers are used for research purposes only — no score, rating, or financing decision is generated or shown to you, and your individual answers will never be shared with any lender or financial institution.
 >
-> If you have any questions, you can contact the research team: Happyson Saina, phone
-> 0773943709, email sales.proagromark2@gmail.com. The same details are also included in
-> your invitation message.
+> Your name and contact details are kept separately from your answers and are only used to manage your participation in this study (for example, to send a reminder or arrange a call). Only the research team can see this information. Results will only ever be reported in combined, anonymised form.
+>
+> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email sales.proagromark2@gmail.com. The same details are also included in your invitation message.
 
 ## B2. Gaps a reviewer will likely want addressed
 
 These are raised for the ethics office to rule on. They are omissions from the text, not
 defects in the system.
 
-1. **PROIT background research is not disclosed.** The most significant gap. Before
-   contact, the research team may compile a profile of the respondent's organisation from
-   public sources — statutory registers, official reports, media — which the respondent is
-   then asked to confirm or correct (`30_PROIT_MODULE.md`, live and respondent-facing).
-   The verification screen explains this at the point of use, but the information sheet
-   the respondent consents on the basis of does not mention it at all. A reviewer may well
-   consider that consent should be informed by it.
+1. ~~**PROIT background research is not disclosed.**~~ **ADDRESSED in v1.2
+   (2026-09-13).** Before contact, the research team may compile a profile of the
+   respondent's organisation from public sources — statutory registers, official reports,
+   media — which the respondent is then asked to confirm or correct
+   (`30_PROIT_MODULE.md`, live and respondent-facing). The verification screen explained
+   this at the point of use, but the information sheet the respondent consents on the
+   basis of did not mention it at all. v1.2 adds a paragraph covering what is looked up,
+   from what kinds of source, what the respondent will be asked to do with it, that they
+   may decline or skip, and that their own answers are recorded separately and take
+   precedence. **Still for the reviewer to confirm:** whether that wording is sufficient
+   disclosure, and whether it sits in the right place in the sheet.
 2. **No retention or destruction statement.** How long identifying contact data is kept,
    and what happens to it after the 30 November 2026 data lock. `18_DATA_PRIVACY_AND_
    COMPLIANCE.md` has a position; the PIS does not state it.
@@ -165,8 +163,8 @@ defects in the system.
    low-cost mitigation). Whether an English-only PIS is acceptable for this respondent
    population is a decision for the ethics office.
 
-**Decision:** approve v1.1 as-is / approve with the amendments attached / revise and
-re-issue as v1.2. Rationale: ____________________
+**Decision:** approve v1.2 as-is / approve with the amendments attached / revise and
+re-issue as v1.3. Rationale: ____________________
 
 ---
 
