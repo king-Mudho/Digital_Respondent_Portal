@@ -31,15 +31,15 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 2 &mdash; 13 September 2026"
+REVISION = "Revision 3 &mdash; 13 September 2026"
 REVISION_NOTE = (
     "Updated for role-scoped navigation (each role now sees only its own modules), "
     "the QA Dashboard, register search and paging, the PROIT pre-interview profile, "
-    "and the eligibility and consent gates on the respondent flow. Sections 4 and 8 "
-    "now reflect that organisations and sample cases are registered from the "
-    "Organisations screen rather than Django admin, and that the three registers are "
-    "already loaded. Main&ndash;Reserve pairing is now done from the case detail page "
-    "rather than Django admin."
+    "and the eligibility and consent gates on the respondent flow. Organisations, "
+    "sample cases and Main&ndash;Reserve pairing are all now handled from the Research "
+    "Operations Centre rather than Django admin (Sections 4, 5.7 and 8), and the "
+    "register figures throughout match the live system as at 13 September 2026. "
+    "Supersedes Revision 2 of the same date."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -543,10 +543,11 @@ story.append(PageBreak())
 story.append(h1("4. Setting Up Study Data (PI / Admin)", key="setup"))
 story.append(note(
     "The three registers are already loaded",
-    "The approved QUAN register (Main-400 and Reserve-400), the KII register (Core-60 and "
-    "Reserve-30) and the documentary-evidence register were imported into the live system "
-    "in September 2026, with each Main case already paired to its matched Reserve. This "
-    "section is for organisations added <i>after</i> that &mdash; a replacement, a "
+    "The three approved registers were imported into the live system in September 2026 "
+    "and are complete: <b>400 Main and 400 Reserve</b> sample cases across 800 "
+    "organisations, with all 400 Main cases paired to their matched Reserve; <b>90 KII "
+    "records</b> (Core-60 plus Reserve-30); and <b>100 documentary-evidence records</b>. "
+    "This section is for organisations added <i>after</i> that &mdash; a replacement, a "
     "late addition, or a correction &mdash; not for setting the study up from scratch."
 ))
 story.append(Spacer(1, 8))
@@ -624,6 +625,13 @@ story.append(P("The home screen for the PI, Field Coordinator, Analyst and Super
                "document targets, days remaining to the data-lock date, and the "
                "lowest-filled strata (where fieldwork attention is most needed). Quick "
                "links across the top open the sub-dashboards your role can reach."))
+story.append(P(
+    "These are <i>completion</i> targets, not how much is loaded. The registers "
+    "deliberately hold more than the target &mdash; 90 KII records against a target of "
+    "60 completed interviews, 100 documents against a 50&ndash;75 coded corpus &mdash; "
+    "because the surplus is reserve depth for nonresponse, not extra work to finish.",
+    "BodySmall",
+))
 
 story.append(h2("5.2 Sampling and Contact dashboards"))
 story.append(P("<b>Sampling</b>: Main-400 counts by province and stratum, reserve "
@@ -647,11 +655,11 @@ story.append(P("The KII RA's and Documentary RA's landing screen. KII and docume
 
 story.append(h2("5.5 Finding things: search and paging"))
 story.append(P(
-    "The registers hold real fieldwork volumes — 400 Main cases, 400 Reserve, 90 KII "
-    "records, the document corpus — and show 20 rows at a time. Every register "
-    "(Main-400, Organisations, KII, Documents, Appointments, Reserve Activation, Audit "
-    "Log) therefore has <b>Previous / Next</b> controls and a “Showing 21–40 of 402” "
-    "counter at the foot of the list."
+    "The registers hold real fieldwork volumes — 400 Main cases, 400 Reserve, 800 "
+    "organisations, 90 KII records and 100 documents — and show 20 rows at a time. Every "
+    "register (Main-400, Organisations, KII, Documents, Appointments, Reserve Activation, "
+    "Audit Log) therefore has <b>Previous / Next</b> controls and a “Showing 21–40 of "
+    "400” counter at the foot of the list."
 ))
 story.append(P(
     "Most also have a <b>search box</b> above the list. Search matches the identifiers and "
@@ -869,7 +877,7 @@ story.append(PageBreak())
 story.append(h1("8. A Complete Walkthrough", key="walkthrough"))
 story.append(P(
     "Start to finish, for one organisation &mdash; and who does each part. Steps 1 and 2 "
-    "are already done for the 400 organisations imported in September; they apply to an "
+    "are already done for every organisation in the imported registers; they apply to an "
     "organisation added afterwards."
 ))
 walk_steps = [
