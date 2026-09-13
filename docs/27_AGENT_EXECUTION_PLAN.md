@@ -54,6 +54,23 @@ work — resolve them with the PI before or during the phase noted, not silently
   contracts (`docs/11`, `docs/12`) with env-var placeholders; dev/staging must point at a
   dedicated Kobo test asset once one exists, never a production asset.
 
+- **Cross-stratum Main↔Reserve pairing — allowed, flagged, open to tightening
+  (2026-09-13).** The matched-case picker offers same-stratum Reserves first but does not
+  *refuse* a cross-stratum pairing: there may be no same-stratum Reserve left, and
+  substituting across strata is a sampling judgement for the PI rather than something
+  code should veto. It is never silent — the dropdown labels it, the screen warns, and
+  the `AuditEvent` records `same_stratum: false`. If the PI would rather it were blocked
+  outright, that is a one-line change in `sampling.services.set_matched_case()`.
+  `09_IDENTIFIER_AND_SAMPLING_CONTROL.md` does not state a rule either way, which is why
+  this is recorded here rather than decided silently.
+
+- **PROIT ethics/change-control review — open, deliberately (2026-09-12).** Respondent-
+  facing PROIT is live on the PI's own documented **risk acceptance**, not on an ethics
+  or change-control clearance; the supervision letter offered as sign-off predates the
+  PROIT specification and cannot serve as approval for it. See the PROIT section below
+  and `30_PROIT_MODULE.md`. If a supervisor or ethics body reviews PROIT later, record it
+  as a new event — do not retrospectively relabel the risk acceptance as a clearance.
+
 - **Phase 0 — POTRAZ / Data Protection Officer determination. RESOLVED (2026-09-12).**
   `18_DATA_PRIVACY_AND_COMPLIANCE.md` specified the compliance question; the PI's
   determination is that Chinhoyi University of Technology's Research Ethics Clearance
@@ -573,6 +590,127 @@ and the full Playwright suite stayed green through all three.
 pool and documentary evidence corpus now exist in production. No real invitation has
 been sent to any actual respondent, and no real KII/document work has started — that
 remains gated on the PI's own Phase 11 go-live decision below, unchanged.
+
+## PROIT — pre-interview profiling module (2026-09-12)
+
+The PI provided `ABF-FST_PROIT_v1.0_Portal_Deployment_Tool.docx` and, after a read-and-
+summarise pass, directed that it be built. Not part of the original Phase 0–11 plan; a
+controlled add-on, specified in full in `30_PROIT_MODULE.md`.
+
+- [x] `backend/apps/proit/` — models for the three-value architecture (documentary value,
+      respondent's own answer, researcher-reconciled value, kept permanently separate and
+      never merged), evidence records with source/date/locator/confidence and a four-tier
+      source-authority hierarchy, `EVID-<5>` identifiers.
+- [x] Admin pre-profile panel (`components/admin/PreProfilePanel.tsx`) on both the sample
+      case and KII detail pages, with the source-authority tier selector.
+- [x] KII adaptive gap engine — generates interview questions only for genuinely
+      unresolved gaps (KNOWN / VERIFY / UNKNOWN / CONTRADICTION / PROBE).
+- [x] Researcher review-and-lock screen (`/admin/proit/[id]`).
+- [x] Respondent verification screen (`/i/<token>/verify`), inserted after consent and
+      before the completion-mode choice. Self-skips entirely when there is nothing to
+      verify, so the flow is unchanged for a case with no locked pre-profile.
+- [x] Enforced in code: PROIT can never pre-fill, skip or infer a frozen
+      ABI/NFM/Digital-Readiness/FST scale item — only non-core descriptive background.
+
+**Governance.** The source document called itself "subject to supervisor/ethics
+change-control decision". The PhD supervision letter offered as that sign-off is dated
+20 Aug 2026 and predates the PROIT specification (12 Sep 2026), so it cannot serve as
+approval for it — this was raised rather than accepted. The PI then chose to make their
+own documented risk-acceptance decision, and respondent-facing PROIT was enabled behind
+`PROIT_ENABLED_FOR_RESPONDENTS` on that basis. It is recorded in `30_PROIT_MODULE.md` as
+a **PI risk acceptance, not an ethics or change-control clearance**; if a supervisor or
+ethics body reviews PROIT later, that is a new event and not a retroactive fix to this
+one.
+
+## Second audit pass — roles, registers, respondent flow (2026-09-13)
+
+Commissioned as a deep end-to-end audit: fix broken screens and flows, ensure every
+screen has working controls, and scope each role's navigation to its own modules. Every
+item below has a regression test, and where a test already existed but was passing for
+the wrong reason that is stated — those were the more dangerous cases.
+
+**Access control — two documented controls that did not exist**
+
+- [x] **The eligibility gate was never enforced.** `kobo.services.build_redirect_url()`
+      documented itself as issuing no questionnaire URL "without a passed eligibility
+      check and GIVEN participation consent", and `28_DEFINITION_OF_DONE.md` had the
+      corresponding item ticked. Only consent was checked. `/api/v1/consent/` is
+      `AllowAny` with a valid token as its only credential, so anyone the eligibility
+      screen turned away could POST consent directly and receive a Kobo URL. The test
+      that appeared to cover this passed only because it never gave consent — its own
+      comment said so. Fixed via `contacts.services.has_passed_eligibility`; the test now
+      consents first, which is what a bypass looks like.
+- [x] **`IsQAOrAdmin` was shared across three unrelated modules**, so a KII RA could edit
+      documentary evidence and a Documentary RA could take QUAN QA decisions. Split into
+      `IsQAOrAdmin` / `CanManageKII` / `CanManageDocuments`.
+- [x] **The KII/document dashboard excluded its own RAs** — it used `IsAnalystOrAdmin`,
+      refusing the KII and Documentary RAs that `18_DATA_PRIVACY_AND_COMPLIANCE.md`
+      grants it to. Now `CanViewKIIDocumentDashboard`.
+- [x] **Appointment requests are now consent-gated** (PI decision). An appointment records
+      a named person's availability against an identified organisation and puts them on an
+      RA's call list, so it sits behind the same gate as the self-administered route.
+- [x] **`matched_case` had no validation** — the API would accept a Main paired to another
+      Main, a case paired to itself, or one Reserve claimed by two Main cases, the last
+      silently breaking the reserve lock. Now routed through
+      `sampling.services.set_matched_case()` with an audit entry.
+
+**Role-scoped navigation**
+
+- [x] `backend/api/navigation.py` added as the single source of truth for role → screens,
+      served by `GET /api/v1/auth/me/`. Previously all 14 nav links showed to every role
+      and everyone landed on `/admin/dashboard`, which four of the eight roles are
+      refused. Each role now lands on its own first screen, and a screen outside the role
+      renders an explicit card rather than a page whose every fetch 403s.
+- [x] In-page gates (`WriteOnly` / `ReadOnly` / `IfScreen` / `IfRole`) so read-only roles
+      stop seeing write controls that 403 on submit.
+- [x] `seed_drp_dev` now creates one account per role, so this is checkable in a browser.
+
+**Missing and unusable screens**
+
+- [x] `/admin/dashboard/qa` built — `/api/v1/dashboards/qa/` had existed since Phase 6
+      with nothing consuming it and no nav link to it, so the QA dashboard specified in
+      `16_DASHBOARDS_AND_REPORTING.md` simply did not exist in the UI. Phase 6's own
+      checklist item ("all six dashboards") was satisfied by five plus an endpoint.
+- [x] Pagination and `?search=` across every register. Page size is 20 against 400 Main +
+      400 Reserve + 90 KII + 100 documents, and no register had a paging control, so every
+      row past the first twenty was unreachable from the UI.
+- [x] `KIIRecord` and `DocumentRecord` querysets explicitly ordered — unordered pagination
+      makes page boundaries arbitrary, so a row could appear on two pages or none.
+- [x] Matched-Reserve picker on the case detail page, replacing a Django admin workaround.
+
+**Respondent flow**
+
+- [x] Every step reported failure — each previously used `try/finally` with no `catch`, so
+      a failed request left the button re-enabled and the page unchanged. Worst on
+      consent, where the respondent could not tell whether their decision had registered.
+- [x] Appointments can no longer be requested in the past (picker, page, and server).
+- [x] PROIT verification submits sequentially rather than via `Promise.all`, which had
+      stranded the respondent mid-way on a partial failure; a skip option added.
+- [x] The Kobo handoff offers a retry and an assisted-completion route instead of being a
+      dead end on error.
+- [x] Someone who booked a call is no longer told they have finished participating.
+
+**Infrastructure**
+
+- [x] Sign-in given its own throttle scope. It shared the generic `anon` 30/minute bucket
+      with the public respondent endpoints, so a team behind one office NAT competed with
+      respondent traffic — and DRF's 429 reached the login screen as "Invalid username or
+      password". Found because the new role-navigation E2E spec exhausted the shared
+      bucket; the suite was reproducing a real deployment condition.
+- [x] The error envelope surfaces the first field error as `message`. A DRF
+      `ValidationError` has no top-level `detail`, so every validation failure returned
+      "An error occurred." — useless to the respondent flow, which has no field-level UI.
+
+Backend 260/260, Playwright 26 specs (25 run, 1 skipped), `ruff`, `tsc --noEmit` and
+`eslint` clean. All deployed to production and verified live. `README.md`, `AGENTS.md`,
+`docs/18`, `docs/28`, `docs/INDEX.md` and the end-user guide were updated in step.
+
+**Data-hygiene note.** `SID-2026-000801`, a duplicate MAIN case created via the UI on
+2026-09-12 against an organisation whose register role is RESERVE (`SID-2026-000676`),
+was deleted on the PI's instruction on 2026-09-13 — no import provenance, no dependent
+records, and it was inflating the Main count to 401. Its organisation was kept, since it
+legitimately backs the Reserve case. An `AuditEvent` records the deletion and its reason.
+Production is back to 400 Main / 400 Reserve, all 400 paired.
 
 ## Phase 11 — Go-live
 

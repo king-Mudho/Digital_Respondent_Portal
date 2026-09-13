@@ -516,8 +516,10 @@ green tick was the reason nobody looked.
    `IsAnalystOrAdmin`, refusing the KII and Documentary RAs that
    `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` grants it to.
    Now `CanViewKIIDocumentDashboard`.
-4. **`/api/v1/dashboards/qa/` had no page at all**, so the QUAN QA RA's nav entry pointed
-   at a 404. Built as `/admin/dashboard/qa`.
+4. **`/api/v1/dashboards/qa/` had no page at all** — the endpoint had existed since
+   Phase 6, but nothing consumed it and the nav offered no link to it, so the QA
+   dashboard `docs/16_DASHBOARDS_AND_REPORTING.md` specifies simply did not exist in the
+   UI. Built as `/admin/dashboard/qa`.
 5. **Every role saw all 14 nav links and landed on `/admin/dashboard`**, which four of
    the eight roles are refused. Replaced by `backend/api/navigation.py` as the single
    source of truth, served via `GET /api/v1/auth/me/`.
