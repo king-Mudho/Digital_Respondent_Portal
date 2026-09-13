@@ -45,6 +45,7 @@ See `AGENTS.md` § Keeping the documentation honest.
 | 29 | `29_RESPONDENT_GUIDE_AND_MESSAGING.md` | Plain-language respondent walkthrough and ready-to-send invitation message templates |
 | 30 | `30_PROIT_MODULE.md` | Pre-interview background research/verification tool (PROIT) — provenance rules, three-value architecture, and the record of the PI's risk-acceptance decision to enable it for respondents |
 | 31 | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` | Review-and-sign-off pack for the two items still running on engineering defaults: the QUAN QA rule thresholds and the Participant Information Sheet wording. **Awaiting sign-off** |
+| 32 | `32_RESEARCHOS_BRIEF_GAP_ANALYSIS.md` | The ResearchOS engineering brief (13 Sep 2026) mapped item by item onto what is actually deployed — Built / Partial / Absent, with the five P0-level gaps and the two architectural decisions |
 
 ## Not in the numbered set
 
