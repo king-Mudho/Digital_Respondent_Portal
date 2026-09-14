@@ -159,3 +159,12 @@ would have met a KoboToolbox login page. KII (`an49gwkpkGfYjS6B4NDNqh`) and Docu
 Server side: `sudo bash deploy/configure-kobo.sh` after deploying — writes the KOBO_*
 settings, blanks them for staging, restarts, runs one sync, and prints the webhook secret
 for the REST Service (send `_uuid` only).
+
+Completed 2026-09-14 15:5x: `configure-kobo.sh` run on production (link and sync configured,
+manual sync ok with 0 submissions, webhook 202 with the secret); REST Service
+`he5Nst8pNqjhjZAu493j5x` registered on the Questionnaire (JSON, `_uuid` only,
+`X-Kobo-Shared-Secret` header). A questionnaire link built in a rolled-back transaction
+has all nine prefill fields and opens on Enketo (HTTP 200). No test submission was made
+against production data. The API token used was shared in chat; rotate it, then re-run
+`configure-kobo.sh` and update the REST Service header if the secret changes (it is kept
+on re-run).
