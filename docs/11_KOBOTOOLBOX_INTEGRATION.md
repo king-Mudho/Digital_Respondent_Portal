@@ -145,3 +145,17 @@ Only the Questionnaire is reconciled by the portal. Its integration contract:
   present, otherwise the entered one. `reconcile()` uses `sample_id`, falling back to
   `SAMPLE_ID_FINAL`, and maps `ADMIN_MODE_FINAL` to a mode code when `administration_mode` is
   blank (`web_portal` 01, `telephone` 03, `whatsapp_assisted` 04, `face_to_face` 06).
+
+### Production connection (2026-09-14)
+
+KoboToolbox side, done through the API: the Questionnaire project
+(`aefzZwVQV927tqtTgsP9oz`, web form `https://ee.kobotoolbox.org/x/fSOJejrV`) runs the r2
+form, and AnonymousUser now has `add_submissions` on it. The account has "require
+authentication" on, so without that grant every respondent following the portal link
+would have met a KoboToolbox login page. KII (`an49gwkpkGfYjS6B4NDNqh`) and Documents
+(`a3vpgw6T4FbZGjQqmUgBND`) remain staff-only. The token was checked read-only with
+`KoboClient.fetch_submissions()` (0 submissions).
+
+Server side: `sudo bash deploy/configure-kobo.sh` after deploying — writes the KOBO_*
+settings, blanks them for staging, restarts, runs one sync, and prints the webhook secret
+for the REST Service (send `_uuid` only).
