@@ -150,6 +150,30 @@ EXPECTED_HIDDEN_FIELDS = (
     "respondent_role_category",
 )
 
+# The main-study XLSForm (ABF-FST_Main_Study_Questionnaire_v3.0_KOBO.xlsx,
+# r2 2026-09-14) also works when opened without the portal link, e.g. an RA
+# in KoboCollect. Then the hidden fields above are blank, and the form carries
+# the Sample_ID the RA entered, and its own mode choice, in these top-level
+# calculated fields instead.
+FORM_SAMPLE_ID_FIELD = "SAMPLE_ID_FINAL"
+FORM_MODE_FIELD = "ADMIN_MODE_FINAL"
+FORM_MODE_TO_CODE = {
+    "web_portal": "01",
+    "telephone": "03",
+    "whatsapp_assisted": "04",
+    "face_to_face": "06",
+}
+
+
+def _payload_sample_id(payload: dict) -> str | None:
+    return payload.get("sample_id") or payload.get(FORM_SAMPLE_ID_FIELD)
+
+
+def _payload_administration_mode(payload: dict) -> str:
+    if payload.get("administration_mode"):
+        return payload["administration_mode"]
+    return FORM_MODE_TO_CODE.get(payload.get(FORM_MODE_FIELD) or "", "01")
+
 
 def _parse_kobo_datetime(value):
     """Kobo timestamps arrive as ISO 8601 strings. Parse explicitly here
@@ -234,7 +258,7 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
     for payload in raw_submissions:
         submissions_pulled += 1
         kobo_uuid = payload.get("_uuid") or payload.get("meta/instanceID") or payload.get("_id")
-        sample_id = payload.get("sample_id")
+        sample_id = _payload_sample_id(payload)
 
         try:
             sample_case = SampleCase.objects.get(sample_id=sample_id)
@@ -256,7 +280,7 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             submission = QUANSubmission.objects.create(
                 sample_case=sample_case,
                 kobo_submission_uuid=kobo_uuid,
-                administration_mode=payload.get("administration_mode", "01"),
+                administration_mode=_payload_administration_mode(payload),
                 started_at=_parse_kobo_datetime(payload.get("start")),
                 submitted_at=_parse_kobo_datetime(payload.get("_submission_time")) or run_started_at,
                 raw_payload_ref=raw_payload_ref,

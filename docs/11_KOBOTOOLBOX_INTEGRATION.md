@@ -120,3 +120,28 @@ touching the live Main-400 Kobo asset.
   XLSForm (not inside a group — a grouped field needs its group path in the `d[...]`
   name), and their exact names still need freezing against the real live form per
   "Integration contract" above before Phase 11 go-live.
+
+## Main-study XLSForms (r2, 2026-09-14)
+
+Kobo-ready copies of the three frozen instruments, prepared from the PI's files in
+`D:\Mr Saina\Final Interview Forms from September to November\Kobo-ready 2026-09-14\`
+(originals untouched; every change is listed in each workbook's README sheet; no
+measurement, interview or coding item wording changed). All three pass ODK Validate.
+
+| Form | form_id | Who fills it | Portal link |
+|---|---|---|---|
+| Main Study Questionnaire v3.0 | `abf_fst_main_study_questionnaire_v3` | Respondent (web) or RA (Collect) | `KOBO_FORM_URL`, `KOBO_ASSET_UID` |
+| KII Guide v3.0 | `abf_fst_main_study_kii_v3` | Interviewer | `KII_ID` must be the register's `KII-NNNN` |
+| Document/Platform/Media Analysis Tool v2.0 | `abf_fst_main_study_doc_analysis_v2` | Coder | `DOC_ID` must be the register's `DOC-NNNN` |
+
+Only the Questionnaire is reconciled by the portal. Its integration contract:
+
+- Nine **top-level** `hidden` fields with exactly the names `build_redirect_url()` sends
+  (`master_id … ra_id`), checked name-for-name against the code.
+- `SAMPLE_ID`, `ORG_CODE` and `ADMIN_MODE` are asked only when `sample_id` / `administration_mode`
+  arrived blank, i.e. the form was opened without the portal link. The original required
+  `SAMPLE_ID` on the first screen blocked every web respondent.
+- Top-level calculates `SAMPLE_ID_FINAL` and `ADMIN_MODE_FINAL` hold the portal value when
+  present, otherwise the entered one. `reconcile()` uses `sample_id`, falling back to
+  `SAMPLE_ID_FINAL`, and maps `ADMIN_MODE_FINAL` to a mode code when `administration_mode` is
+  blank (`web_portal` 01, `telephone` 03, `whatsapp_assisted` 04, `face_to_face` 06).

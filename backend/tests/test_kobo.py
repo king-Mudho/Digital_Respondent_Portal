@@ -339,3 +339,33 @@ def test_build_redirect_url_succeeds_after_eligibility_and_consent(main_case):
     )
     assert main_case.sample_id in result["kobo_form_url"]
     assert main_case.organisation.master_id in result["kobo_form_url"]
+
+
+# --- Submissions started without the portal link (KoboCollect) ------------
+
+@pytest.mark.django_db
+def test_reconcile_matches_a_collect_submission_by_the_forms_own_sample_id(main_case):
+    """Opened in KoboCollect, the r2 questionnaire's portal hidden fields are
+    blank; the RA-entered Sample_ID arrives in SAMPLE_ID_FINAL instead.
+    Before, such a submission could only ever be flagged as a mismatch."""
+    payload = _submission_payload("", administration_mode="", ADMIN_MODE_FINAL="telephone")
+    payload["SAMPLE_ID_FINAL"] = main_case.sample_id
+
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    assert log.new_submissions == 1 and log.mismatches_flagged == 0
+    assert QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1").administration_mode == "03"
+
+
+@pytest.mark.django_db
+def test_the_portal_hidden_fields_win_over_the_forms_own_values(main_case):
+    payload = _submission_payload(main_case.sample_id, administration_mode="02",
+                                  SAMPLE_ID_FINAL="SID-2026-999999", ADMIN_MODE_FINAL="face_to_face")
+
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    submission = QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1")
+    assert submission.sample_case_id == main_case.id
+    assert submission.administration_mode == "02"
