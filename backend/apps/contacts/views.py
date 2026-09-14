@@ -3,11 +3,10 @@ from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
-from api.throttling import PerTokenThrottle
+from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.consent.services import has_given_consent
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
@@ -42,7 +41,7 @@ class EligibilityView(APIView):
     concern, not a backend endpoint)."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [PerTokenThrottle, AnonRateThrottle]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def post(self, request):
         raw_token = request.data.get("token", "")
@@ -107,6 +106,11 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
 
     serializer_class = AppointmentSerializer
     filterset_fields = ["status", "mode"]
+    # The public POST is the last step of the respondent journey, so it gets
+    # the respondent scope rather than falling back to the generic `anon`
+    # default. Anon-rate throttles ignore authenticated callers, so the
+    # internal GET used by RAs is unaffected.
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def get_permissions(self):
         if self.request.method == "POST":

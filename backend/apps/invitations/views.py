@@ -1,11 +1,10 @@
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
-from api.throttling import PerTokenThrottle
+from api.throttling import PerTokenThrottle, RespondentRateThrottle
 
 from .models import InvitationToken
 from .serializers import InvitationTokenSerializer
@@ -36,7 +35,7 @@ class InvitationValidateView(APIView):
     ground rule 6)."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [PerTokenThrottle, AnonRateThrottle]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def get(self, request):
         raw_token = request.query_params.get("t")

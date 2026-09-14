@@ -3,11 +3,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from api.permissions import IsFieldCoordinatorOrAdmin
-from api.throttling import PerTokenThrottle
+from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.invitations.services import TokenValidationError, validate_token
 
 from .models import PROIT_FIELD_CATALOG, EvidenceSource, PreProfile, PreProfileField
@@ -169,7 +168,7 @@ class RespondentPreProfileView(APIView):
     next step) rather than distinguishing "not built" from "not approved"."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [PerTokenThrottle, AnonRateThrottle]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def get(self, request):
         if not settings.PROIT_ENABLED_FOR_RESPONDENTS:
@@ -200,7 +199,7 @@ class RespondentVerifyView(APIView):
     field belonging to the pre-profile resolved from their own token."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [PerTokenThrottle, AnonRateThrottle]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def post(self, request):
         if not settings.PROIT_ENABLED_FOR_RESPONDENTS:

@@ -154,6 +154,10 @@ REST_FRAMEWORK = {
         # respondent traffic for the same allowance. Configurable so the
         # rate can be tightened in production without a code change.
         "login": env("LOGIN_THROTTLE_RATE", default="30/minute"),
+        # Public respondent journey, per IP (api/throttling.RespondentRateThrottle).
+        # Higher than `anon` because respondents on mobile networks share
+        # carrier-grade NAT addresses; the per-token limit above still applies.
+        "respondent": env("RESPONDENT_THROTTLE_RATE", default="120/minute"),
     },
     "EXCEPTION_HANDLER": "api.exceptions.drp_exception_handler",
 }

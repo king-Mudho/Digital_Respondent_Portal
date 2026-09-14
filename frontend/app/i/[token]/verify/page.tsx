@@ -24,7 +24,7 @@ import { useRespondentFlow } from "@/lib/store/respondentFlow";
 const RESPONSE_OPTIONS: { value: VerificationStatus; label: string; needsCorrection?: boolean }[] = [
   { value: "YES_CORRECT", label: "Yes, correct" },
   { value: "PARTLY_CORRECT", label: "Partly correct" },
-  { value: "NO_CORRECT_VALUE_PROVIDED", label: "No -- correct it", needsCorrection: true },
+  { value: "NO_CORRECT_VALUE_PROVIDED", label: "No — correct it", needsCorrection: true },
   { value: "DO_NOT_KNOW", label: "Don't know" },
   { value: "PREFER_NOT_TO_SAY", label: "Prefer not to say" },
   { value: "NOT_APPLICABLE", label: "Not applicable" },
@@ -130,13 +130,20 @@ export default function VerifyPage() {
                 <p className="text-sm text-text-muted mb-2">
                   We have this as: <span className="text-text">{field.preliminary_documentary_value}</span>
                 </p>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="group" aria-label={`Is this correct: ${field.label}?`}>
                   {RESPONSE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setResponses((r) => ({ ...r, [field.id]: opt.value }))}
-                      className={`rounded-md border px-2.5 py-1.5 text-xs ${
+                      aria-pressed={responses[field.id] === opt.value}
+                      // min-h-11 (44px) like every other respondent control.
+                      // These were 30px -- six undersized buttons per fact on
+                      // a phone, on a screen straight after consent, invited
+                      // mis-taps. No automated check caught it because PROIT
+                      // was disabled locally, so this screen never rendered
+                      // with real fields in any test.
+                      className={`min-h-11 rounded-md border px-3 py-2 text-sm text-left sm:text-center ${
                         responses[field.id] === opt.value
                           ? "border-accent bg-accent/10 font-medium"
                           : "border-border bg-surface"
@@ -147,12 +154,15 @@ export default function VerifyPage() {
                   ))}
                 </div>
                 {responses[field.id] === "NO_CORRECT_VALUE_PROVIDED" && (
-                  <input
-                    placeholder="What should it say instead?"
-                    value={corrections[field.id] ?? ""}
-                    onChange={(e) => setCorrections((c) => ({ ...c, [field.id]: e.target.value }))}
-                    className="mt-2 w-full rounded-md border border-border px-3 py-2 text-sm"
-                  />
+                  <label className="block mt-2">
+                    <span className="sr-only">Corrected value for {field.label}</span>
+                    <input
+                      placeholder="What should it say instead?"
+                      value={corrections[field.id] ?? ""}
+                      onChange={(e) => setCorrections((c) => ({ ...c, [field.id]: e.target.value }))}
+                      className="min-h-11 w-full rounded-md border border-border px-3 py-2.5 text-base"
+                    />
+                  </label>
                 )}
               </div>
             ))}

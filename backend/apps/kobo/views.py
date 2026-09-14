@@ -1,11 +1,10 @@
 from django.conf import settings
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
 from api.permissions import IsFieldCoordinatorOrAdmin
-from api.throttling import PerTokenThrottle
+from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.invitations.services import TokenValidationError, validate_token
 
 from .models import ReconciliationLog, ReconciliationTrigger
@@ -19,7 +18,7 @@ class KoboRedirectURLView(APIView):
     (docs/06_API_ARCHITECTURE.md "Security")."""
 
     permission_classes = [AllowAny]
-    throttle_classes = [PerTokenThrottle, AnonRateThrottle]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
 
     def get(self, request):
         raw_token = request.query_params.get("t", "")

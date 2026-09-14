@@ -25,6 +25,29 @@ class LoginRateThrottle(AnonRateThrottle):
     scope = "login"
 
 
+class RespondentRateThrottle(AnonRateThrottle):
+    """Per-IP throttle for the public respondent journey.
+
+    These endpoints previously used the generic `anon` scope at 30/minute.
+    One respondent's journey costs roughly 8-10 calls (validate, eligibility,
+    consent, PROIT profile and one verify per fact, Kobo redirect or
+    appointment). Zimbabwe's mobile networks put many subscribers behind
+    shared carrier-grade NAT addresses, so when an invitation wave goes out
+    on WhatsApp, three or four genuine respondents on one carrier IP in the
+    same minute were enough to be told to wait -- mid-consent. Found
+    2026-09-14 when the E2E suite reproduced exactly that.
+
+    Raising it costs little: link tokens are 32 random bytes and not
+    guessable at any rate, and manual codes are 8 characters from 36 symbols
+    (2.8 trillion combinations) -- finding one of ~400 valid codes from a
+    single IP takes on the order of a century even at this rate. The code
+    space is the real defence; PerTokenThrottle still caps attempts per
+    token independently of this.
+    """
+
+    scope = "respondent"
+
+
 class PerTokenThrottle(SimpleRateThrottle):
     scope = "invitation_token"
 

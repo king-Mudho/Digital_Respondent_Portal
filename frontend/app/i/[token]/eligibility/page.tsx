@@ -60,6 +60,23 @@ export default function EligibilityPage() {
               contact for this study, or ask them to reach out to the
               research team using the details in the original invitation?
             </p>
+            {/* Without this the referral was a dead end: a mis-tap on "None
+                of these" in a phone's native picker stranded a genuine
+                respondent with nothing to press. Re-answering adds nothing a
+                respondent couldn't already do by reopening their link, and a
+                later eligible answer is the supported gatekeeper-then-right-
+                person path (has_passed_eligibility). The role is cleared so
+                the second choice is a deliberate one. */}
+            <button
+              type="button"
+              onClick={() => {
+                setRoleCategory("");
+                setResult(null);
+              }}
+              className="w-full text-sm text-text-muted underline min-h-11"
+            >
+              I chose the wrong role — go back
+            </button>
           </Card>
         </section>
       </main>

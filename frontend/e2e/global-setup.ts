@@ -40,4 +40,38 @@ export default async function globalSetup() {
   process.env.E2E_RAW_TOKEN = rawToken;
   process.env.E2E_ADMIN_USERNAME = "e2e_admin";
   process.env.E2E_ADMIN_PASSWORD = "E2eDevPassword123!";
+
+  await warmRoutes();
+}
+
+/**
+ * Against `next dev`, each route compiles on its first request, which can
+ * take longer than a test's 30s timeout. The first spec then fails waiting
+ * for a redirect that is simply still compiling -- seen 2026-09-14 on
+ * admin-appointments, which passed in 5.7s on a rerun. Requesting every page
+ * once here moves that cost out of the tests. Against a production build
+ * this is a few fast no-ops.
+ */
+async function warmRoutes() {
+  const base = process.env.E2E_BASE_URL ?? "http://localhost:3000";
+  const routes = [
+    "/admin/login", "/admin", "/admin/account",
+    "/admin/dashboard", "/admin/dashboard/sampling", "/admin/dashboard/contact",
+    "/admin/dashboard/qa", "/admin/dashboard/kii-documents",
+    "/admin/sample", "/admin/sample/warm", "/admin/organisations", "/admin/appointments",
+    "/admin/qa", "/admin/qa/exceptions", "/admin/kii", "/admin/kii/new", "/admin/kii/1",
+    "/admin/documents", "/admin/documents/new", "/admin/documents/1",
+    "/admin/reserve", "/admin/cost", "/admin/audit", "/admin/export", "/admin/proit/1",
+    "/i/warm", "/i/warm/confirm", "/i/warm/eligibility", "/i/warm/information",
+    "/i/warm/consent", "/i/warm/verify", "/i/warm/choice", "/i/warm/appointment",
+    "/i/warm/kobo-redirect", "/i/warm/done",
+  ];
+  for (const route of routes) {
+    try {
+      await fetch(base + route, { signal: AbortSignal.timeout(120_000) });
+    } catch {
+      // A slow or failing warm-up is not a test failure; the specs will
+      // report anything genuinely broken.
+    }
+  }
 }
