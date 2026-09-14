@@ -36,6 +36,9 @@ ANALYSIS_FIELDS = [
     "qa_status",
     "submitted_at",
     "completion_seconds",
+    # True when the participant later withdrew. Their de-identified record is
+    # kept only where the ethics protocol permits (docs/18) -- filter on this.
+    "consent_withdrawn",
 ]
 
 OPERATIONAL_EXTRA_FIELDS = [
@@ -46,6 +49,14 @@ OPERATIONAL_EXTRA_FIELDS = [
     "gatekeeper_name",
     "gatekeeper_contact",
 ]
+
+
+def _withdrawn(case) -> bool:
+    from apps.consent.models import ConsentDecision, ConsentType
+    from apps.consent.services import latest_consent
+
+    record = latest_consent(case, ConsentType.PARTICIPATION)
+    return record is not None and record.decision == ConsentDecision.WITHDRAWN
 
 
 def _base_row(submission: QUANSubmission) -> dict:
@@ -62,6 +73,7 @@ def _base_row(submission: QUANSubmission) -> dict:
         "qa_status": submission.qa_status,
         "submitted_at": submission.submitted_at.isoformat(),
         "completion_seconds": submission.completion_seconds,
+        "consent_withdrawn": _withdrawn(case),
     }
 
 

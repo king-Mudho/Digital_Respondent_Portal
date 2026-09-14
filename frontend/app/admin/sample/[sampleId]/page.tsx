@@ -90,7 +90,96 @@ const INVITATION_CHANNELS = ["WHATSAPP", "EMAIL", "SMS", "PRINTED_CODE", "QR"];
 // (docs/10_INVITATION_AND_CONSENT.md).
 const OPEN_TOKEN_STATUSES = ["GENERATED", "SENT", "OPENED", "ELIGIBILITY_PASSED", "CONSENTED", "SURVEY_STARTED"];
 
-function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvitable: boolean }) {
+/** Invitation wording sent with the link. Pending PI approval alongside the
+ * reminder texts (docs/31) -- change it here, in one place. */
+function invitationMessage({ link, manualCode, expiresAt }: { link: string; manualCode: string; expiresAt: string }) {
+  return (
+    "Hello. You are invited to take part in the ABF-FST research study at Chinhoyi University of " +
+    "Technology on agribusiness financing in Zimbabwe. Taking part is voluntary.\n\n" +
+    `Your personal link: ${link}\n(valid until ${new Date(expiresAt).toLocaleDateString("en-GB")})\n\n` +
+    `Prefer to answer by phone? Reply to this message and quote code ${manualCode}.`
+  );
+}
+
+/**
+ * A participant withdrew by phone, WhatsApp or in person. The server records
+ * the withdrawal, revokes their invitation (which also stops reminders),
+ * marks the case Refused if it hasn't submitted, and erases their contact
+ * details (docs/10, docs/18). Until 2026-09-14 there was no way to do this.
+ */
+function WithdrawalPanel({ sampleId }: { sampleId: string }) {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = useState("");
+  const [method, setMethod] = useState("VERBAL_RA_RECORDED");
+  const [message, setMessage] = useState<string | null>(null);
+  const withdraw = useMutation({
+    mutationFn: () =>
+      adminFetch<{ invitations_revoked: number; moved_to_refused: boolean; respondents_contact_erased: number }>(
+        `/sample-cases/${sampleId}/withdraw/`,
+        { method: "POST", body: JSON.stringify({ reason: reason.trim(), method }) },
+      ),
+    onSuccess: (data) => {
+      setReason("");
+      setMessage(
+        `Withdrawal recorded. ${data.invitations_revoked} invitation(s) revoked` +
+          (data.moved_to_refused ? ", case marked Refused" : "") +
+          `, contact details erased for ${data.respondents_contact_erased} respondent(s).`,
+      );
+      queryClient.invalidateQueries();
+    },
+    onError: (err) => setMessage(err instanceof ApiError ? err.message : "Could not record the withdrawal."),
+  });
+
+  return (
+    <Card className="space-y-2">
+      <h3 className="font-medium">Record a withdrawal</h3>
+      <p className="text-text-muted text-xs">
+        Use when the participant asks to withdraw. Their link stops working, reminders stop, and their
+        phone, WhatsApp, email and gatekeeper contact are erased. This can&apos;t be undone.
+      </p>
+      <label className="block text-sm">
+        How they told us
+        <select
+          value={method}
+          onChange={(e) => setMethod(e.target.value)}
+          className="mt-1 block rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+        >
+          <option value="VERBAL_RA_RECORDED">By phone or in person</option>
+          <option value="WRITTEN">In writing (WhatsApp, email, letter)</option>
+        </select>
+      </label>
+      <label className="block text-sm">
+        Reason or their words
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+        />
+      </label>
+      <Button
+        variant="outline"
+        disabled={!reason.trim() || withdraw.isPending}
+        onClick={() => {
+          if (window.confirm("Record this participant as withdrawn? This can't be undone.")) withdraw.mutate();
+        }}
+      >
+        {withdraw.isPending ? "Recording…" : "Record withdrawal"}
+      </Button>
+      {message && <p className="text-sm">{message}</p>}
+    </Card>
+  );
+}
+
+function InvitationsPanel({
+  sampleId,
+  isInvitable,
+  notYetVerified,
+}: {
+  sampleId: string;
+  isInvitable: boolean;
+  notYetVerified: boolean;
+}) {
   const queryClient = useQueryClient();
   const [channel, setChannel] = useState("WHATSAPP");
   const [wave, setWave] = useState(1);
@@ -149,6 +238,13 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
           This case can&apos;t be invited right now (a locked Reserve case must be activated first).
         </p>
       )}
+      {isInvitable && notYetVerified && (
+        <p className="rounded-md border border-border bg-bg p-2 text-xs">
+          This case hasn&apos;t reached S03 (eligible respondent identified). You can still invite it,
+          but its status won&apos;t follow the respondent and no reminders will be offered until it is
+          moved through verification below.
+        </p>
+      )}
       {error && <p className="text-danger text-sm">{error}</p>}
 
       {justIssued && (
@@ -165,6 +261,25 @@ function InvitationsPanel({ sampleId, isInvitable }: { sampleId: string; isInvit
             <span className="font-mono">{justIssued.manualCode}</span> · expires{" "}
             {new Date(justIssued.expiresAt).toLocaleDateString()}
           </p>
+          {/* Sending by hand until the WhatsApp Business Platform is
+              connected: wa.me opens WhatsApp with the message ready, and the
+              RA picks the respondent's chat. */}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(invitationMessage(justIssued))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-sm"
+            >
+              Send via WhatsApp
+            </a>
+            <Button
+              variant="outline"
+              onClick={() => navigator.clipboard?.writeText(invitationMessage(justIssued))}
+            >
+              Copy message
+            </Button>
+          </div>
         </div>
       )}
 
@@ -486,7 +601,14 @@ export default function SampleCaseDetailPage() {
         <InvitationsPanel
           sampleId={sampleCase.sample_id}
           isInvitable={sampleCase.sample_type === "MAIN" || sampleCase.status === "ACTIVATED"}
+          notYetVerified={
+            sampleCase.sample_type === "MAIN" && ["S00", "S01", "S02"].includes(sampleCase.workflow_status ?? "")
+          }
         />
+
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+          <WithdrawalPanel sampleId={sampleCase.sample_id} />
+        </IfRole>
 
         {sampleCase.sample_type === "MAIN" && (
           <Card className="space-y-3">

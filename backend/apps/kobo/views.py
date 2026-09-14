@@ -5,7 +5,10 @@ from rest_framework.views import APIView
 
 from api.permissions import IsQAOrAdmin
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
-from apps.invitations.services import TokenValidationError, validate_token
+from apps.invitations.models import TokenStatus
+from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
+from apps.sampling.models import WorkflowStatus
+from apps.sampling.services import advance_case_on_respondent_event
 
 from .models import ReconciliationLog, ReconciliationTrigger
 from .services import (
@@ -53,6 +56,9 @@ class KoboRedirectURLView(APIView):
                 status=503,
             )
 
+        # The questionnaire link is being handed over: the survey has started.
+        advance_token_status(token, TokenStatus.SURVEY_STARTED)
+        advance_case_on_respondent_event(token.sample_case, WorkflowStatus.S07_SURVEY_STARTED)
         return Response(payload)
 
 

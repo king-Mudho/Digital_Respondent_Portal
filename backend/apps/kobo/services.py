@@ -23,6 +23,7 @@ are never missed (docs/11_KOBOTOOLBOX_INTEGRATION.md).
 """
 
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -41,7 +42,8 @@ from apps.consent.services import has_given_consent
 from apps.contacts.services import has_passed_eligibility
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import advance_token_status
-from apps.sampling.models import SampleCase
+from apps.sampling.models import SampleCase, WorkflowStatus
+from apps.sampling.services import advance_case_on_respondent_event
 
 from .client import KoboClient
 from .models import QAStatus, QUANSubmission, ReconciliationLog, ReconciliationTrigger
@@ -128,7 +130,7 @@ def build_redirect_url(
         "respondent_role_category": respondent_role_category,
         "consent_status": "GIVEN",
         "consent_version": consent_version,
-        "portal_token_id": str(token_id),
+        "portal_token_id": sign_portal_token(token_id, sample_case.sample_id),
         "ra_id": ra_id,
     }
     # Kobo's documented prefill syntax is ?d[<data column name>]=value
@@ -165,6 +167,49 @@ FORM_MODE_TO_CODE = {
     "whatsapp_assisted": "04",
     "face_to_face": "06",
 }
+
+
+def sign_portal_token(token_id, sample_id: str) -> str:
+    """`<token id>.<signature>` for the questionnaire link's portal_token_id.
+
+    The questionnaire accepts submissions without a Kobo login (respondents
+    have none), so anyone holding the form's web link can submit it, typing
+    any Sample_ID -- and Sample_IDs are sequential. The signature, which
+    only this server can produce, is what shows a login-free submission
+    really came through the portal for that case.
+    """
+    digest = hmac.new(
+        f"{settings.SECRET_KEY}:kobo-portal-token".encode(), f"{token_id}:{sample_id}".encode(), hashlib.sha256,
+    ).hexdigest()[:32]
+    return f"{token_id}.{digest}"
+
+
+def _submission_is_verified(payload: dict, sample_case: SampleCase) -> bool:
+    """A submission is accepted for a case when either an authenticated Kobo
+    user sent it (an interviewer in KoboCollect: Kobo records `_submitted_by`)
+    or it carries the portal's signature for that case."""
+    if payload.get("_submitted_by"):
+        return True
+    presented = str(payload.get("portal_token_id") or "")
+    token_id, _, _ = presented.partition(".")
+    return bool(token_id) and hmac.compare_digest(presented, sign_portal_token(token_id, sample_case.sample_id))
+
+
+def _submission_identity(payload: dict) -> str | None:
+    """The submission's stable identity across edits.
+
+    KoboToolbox gives an edited submission a new `_uuid` (and instanceID);
+    only `meta/rootUuid` stays the same for the life of the submission
+    (support.kobotoolbox.org/editing_deleting_data.html). Keyed on `_uuid`,
+    every edit arrived as a brand-new submission -- a duplicate in the QA
+    queue, with the original never marked edited. Both forms of the value
+    are normalised without the "uuid:" prefix.
+    """
+    for key in ("meta/rootUuid", "_uuid", "meta/instanceID"):
+        value = payload.get(key)
+        if value:
+            return str(value).removeprefix("uuid:")
+    return str(payload["_id"]) if payload.get("_id") is not None else None
 
 
 def _payload_sample_id(payload: dict) -> str | None:
@@ -278,7 +323,7 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
 
     for payload in raw_submissions:
         submissions_pulled += 1
-        kobo_uuid = payload.get("_uuid") or payload.get("meta/instanceID") or payload.get("_id")
+        kobo_uuid = _submission_identity(payload)
         sample_id = _payload_sample_id(payload)
 
         try:
@@ -294,6 +339,20 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             ).exists():
                 log_action(
                     "kobo.reconciliation_sample_id_mismatch",
+                    _MismatchStub(kobo_uuid),
+                    {"kobo_submission_uuid": kobo_uuid, "sample_id_in_payload": sample_id},
+                )
+            continue
+
+        if not _submission_is_verified(payload, sample_case):
+            # Not from the portal link and not from a signed-in interviewer:
+            # set aside, never matched to the case or put into QA.
+            mismatches_flagged += 1
+            if not AuditEvent.objects.filter(
+                action="kobo.reconciliation_unverified_submission", object_id=str(kobo_uuid)
+            ).exists():
+                log_action(
+                    "kobo.reconciliation_unverified_submission",
                     _MismatchStub(kobo_uuid),
                     {"kobo_submission_uuid": kobo_uuid, "sample_id_in_payload": sample_id},
                 )
@@ -319,6 +378,7 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             )
             new_submissions += 1
             _advance_token_on_submission(sample_case, TokenStatus.SUBMITTED)
+            advance_case_on_respondent_event(sample_case, WorkflowStatus.S08_SURVEY_SUBMITTED)
         elif existing.payload_content_hash != content_hash:
             raw_payload_ref = _store_payload(kobo_uuid, payload)
             existing.raw_payload_ref = raw_payload_ref

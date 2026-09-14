@@ -67,6 +67,11 @@ SCREENS = {
         "/admin/appointments", "Appointments",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
     ),
+    # Reminders due for sending by hand (messaging.views, CanManageContact).
+    "follow_ups": (
+        "/admin/follow-ups", "Follow-ups",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
+    ),
     "qa_queue": (
         "/admin/qa", "QA Queue",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.SUPERVISOR_READONLY},

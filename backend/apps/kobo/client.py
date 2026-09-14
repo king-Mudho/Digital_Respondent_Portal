@@ -38,3 +38,15 @@ class KoboClient:
             results.extend(body.get("results", []))
             url = body.get("next")
         return results
+
+    def fetch_form_survey(self) -> list[dict]:
+        """The deployed form's XLSForm survey rows (GET /api/v2/assets/{uid}/),
+        in form order -- the source of truth for question names and groups."""
+        response = requests.get(
+            f"{self.base_url}/api/v2/assets/{self.asset_uid}/",
+            headers={"Authorization": f"Token {self.api_token}"},
+            params={"format": "json"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()["content"]["survey"]

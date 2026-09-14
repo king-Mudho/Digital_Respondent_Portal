@@ -108,6 +108,95 @@ def transition_workflow_status(sample_case: SampleCase, new_status: str, *, user
     return sample_case
 
 
+# The verification stretch a Field Coordinator may apply to many cases at once.
+BULK_TRANSITIONS = {
+    WorkflowStatus.S00_SELECTED_MAIN: WorkflowStatus.S01_VERIFICATION_REQUIRED,
+    WorkflowStatus.S01_VERIFICATION_REQUIRED: WorkflowStatus.S02_ORGANISATION_VERIFIED,
+    WorkflowStatus.S02_ORGANISATION_VERIFIED: WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED,
+}
+
+
+@transaction.atomic
+def bulk_transition_workflow_status(*, from_status: str, sample_ids=None, user=None) -> list[str]:
+    """Move every MAIN case at `from_status` (or just `sample_ids` among
+    them) one verification step forward, each through
+    transition_workflow_status() so each case keeps its own audit trail.
+
+    Only S00 -> S01 -> S02 -> S03. All 400 imported Main cases start at S00
+    and the respondent-driven statuses (S04 onward) only begin from S03;
+    one at a time that was three clicks per case, around 1,200 for the
+    study. Later statuses stay per-case decisions.
+    """
+    to_status = BULK_TRANSITIONS.get(from_status)
+    if to_status is None:
+        raise InvalidWorkflowTransition(f"Bulk changes are only allowed from S00, S01 or S02, not {from_status}.")
+    cases = SampleCase.objects.select_for_update().filter(sample_type=SampleType.MAIN, workflow_status=from_status)
+    if sample_ids is not None:
+        cases = cases.filter(sample_id__in=sample_ids)
+    moved = []
+    for case in cases.order_by("sample_id"):
+        transition_workflow_status(case, to_status, user=user)
+        moved.append(case.sample_id)
+    log_action("sampling.bulk_workflow_transition", _BulkStub(f"{from_status}->{to_status}"), {
+        "from": from_status, "to": to_status, "count": len(moved), "user_id": getattr(user, "id", None),
+    })
+    return moved
+
+
+class _BulkStub:
+    """The audited "object" of a bulk change: the step itself, e.g. S00->S01."""
+
+    def __init__(self, step):
+        self.pk = step
+
+
+# The stretch of the workflow a respondent moves through themselves, in order.
+# Every consecutive pair is a legal transition in WORKFLOW_TRANSITIONS.
+RESPONDENT_PATH = [
+    WorkflowStatus.S04_INVITATION_PREPARED,
+    WorkflowStatus.S05_INVITATION_SENT,
+    WorkflowStatus.S06_INVITATION_OPENED,
+    WorkflowStatus.S07_SURVEY_STARTED,
+    WorkflowStatus.S08_SURVEY_SUBMITTED,
+]
+
+
+def advance_case_on_respondent_event(sample_case: SampleCase, target: str) -> SampleCase:
+    """Move a MAIN case forward to `target` when its respondent opens the
+    link (S06), starts the questionnaire (S07) or submits it (S08).
+
+    Until 2026-09-14 nothing did: a case reached S05 on invitation and sat
+    there, so reminders kept targeting respondents who had already
+    submitted, and the case page never showed progress. Steps are walked one
+    legal transition at a time (a Collect submission for a case still at
+    S05 passes through S06 and S07, which it genuinely did). Forward only,
+    and only within the respondent path: a case not yet at S04 (verification
+    steps are a researcher's call, never inferred) or already past S08 is
+    left exactly as it is.
+    """
+    if sample_case.sample_type != SampleType.MAIN:
+        return sample_case
+    current = sample_case.workflow_status
+    if current not in RESPONDENT_PATH or target not in RESPONDENT_PATH:
+        return sample_case
+    for status in RESPONDENT_PATH[RESPONDENT_PATH.index(current) + 1: RESPONDENT_PATH.index(target) + 1]:
+        transition_workflow_status(sample_case, status)
+    return sample_case
+
+
+def advance_case_on_qa_outcome(sample_case: SampleCase, *, passed: bool) -> SampleCase:
+    """S08 -> S09 when QA queries a submission; S08/S09 -> S10 when a human
+    accepts it. Never moves a case backwards or out of a terminal state."""
+    if sample_case.sample_type != SampleType.MAIN:
+        return sample_case
+    current = sample_case.workflow_status
+    if passed and current in (WorkflowStatus.S08_SURVEY_SUBMITTED, WorkflowStatus.S09_QA_QUERY):
+        transition_workflow_status(sample_case, WorkflowStatus.S10_QA_PASSED)
+    elif not passed and current == WorkflowStatus.S08_SURVEY_SUBMITTED:
+        transition_workflow_status(sample_case, WorkflowStatus.S09_QA_QUERY)
+    return sample_case
+
+
 @transaction.atomic
 def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evidence_note: str = "") -> SampleCase:
     """Reserve activation always requires an authorised reason, records the

@@ -36,7 +36,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_contact_ra",
     landing: "/admin/sample",
-    nav: ["Main-400 Register", "Appointments"],
+    nav: ["Main-400 Register", "Appointments", "Follow-ups"],
     refused: "/admin/audit",
   },
   {
@@ -85,7 +85,7 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Audit Log");
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
-  expect(labels.length).toBe(16);
+  expect(labels.length).toBe(17);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

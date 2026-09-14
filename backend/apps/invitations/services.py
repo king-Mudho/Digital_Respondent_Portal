@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from apps.audit.utils import log_action
 from apps.sampling.models import SampleCase, SampleType, WorkflowStatus
-from apps.sampling.services import is_invitable, transition_workflow_status
+from apps.sampling.services import advance_case_on_respondent_event, is_invitable, transition_workflow_status
 
 from .models import Channel, InvitationToken, TokenStatus
 
@@ -154,6 +154,7 @@ def _validate_common(token: InvitationToken) -> None:
     # the link after already consenting, or an RA re-checking a manual code,
     # must never regress the token back down to OPENED.
     advance_token_status(token, TokenStatus.OPENED)
+    advance_case_on_respondent_event(token.sample_case, WorkflowStatus.S06_INVITATION_OPENED)
 
 
 def validate_token(raw_token: str) -> InvitationToken:

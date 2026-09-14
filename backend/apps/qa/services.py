@@ -28,6 +28,7 @@ from apps.audit.utils import log_action
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import advance_token_status
 from apps.kobo.models import QAStatus, QUANSubmission
+from apps.sampling.services import advance_case_on_qa_outcome
 
 from .models import ExceptionStatus, QADecision, QAEvent, QARuleThreshold
 
@@ -139,6 +140,7 @@ def evaluate_submission(submission: QUANSubmission) -> list[tuple[str, bool]]:
     if triggered:
         submission.qa_status = QAStatus.QUERY
         submission.save(update_fields=["qa_status"])
+        advance_case_on_qa_outcome(submission.sample_case, passed=False)
 
     return triggered
 
@@ -251,6 +253,10 @@ def record_human_decision(
     else:
         submission.qa_status = QAStatus.QUERY
     submission.save(update_fields=["qa_status"])
+    if decision == QADecision.ACCEPT:
+        advance_case_on_qa_outcome(submission.sample_case, passed=True)
+    elif decision == QADecision.QUERY:
+        advance_case_on_qa_outcome(submission.sample_case, passed=False)
 
     log_action(
         "qa.decision",

@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { IfScreen } from "@/components/admin/RoleGate";
+import { IfRole, IfScreen } from "@/components/admin/RoleGate";
 import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,79 @@ interface SampleCase {
   sample_type: string;
   status: string;
   workflow_status: string | null;
+}
+
+const VERIFICATION_STEPS: Record<string, { to: string; label: string }> = {
+  S00: { to: "S01", label: "S00 Selected → S01 Verification required" },
+  S01: { to: "S02", label: "S01 Verification required → S02 Organisation verified" },
+  S02: { to: "S03", label: "S02 Organisation verified → S03 Eligible respondent identified" },
+};
+
+/**
+ * Moves every Main case at one verification step to the next. All 400 cases
+ * start at S00, and a case's status only follows its respondent (and
+ * reminders are only offered) from S03 onward -- one case at a time that was
+ * about 1,200 clicks. Each case still gets its own audited transition.
+ */
+function BulkVerificationPanel() {
+  const queryClient = useQueryClient();
+  const [from, setFrom] = useState("S00");
+  const [result, setResult] = useState<string | null>(null);
+  const { data: counts } = useQuery({
+    queryKey: ["sample-cases-at-step", from],
+    queryFn: () => adminFetch<Paginated<SampleCase>>(`/sample-cases/?sample_type=MAIN&workflow_status=${from}&page=1`),
+  });
+  const count = counts?.count ?? 0;
+  const move = useMutation({
+    mutationFn: () =>
+      adminFetch<{ moved: number }>("/sample-cases/bulk-transition/", {
+        method: "POST",
+        body: JSON.stringify({ from_status: from }),
+      }),
+    onSuccess: (data) => {
+      setResult(`Moved ${data.moved} case${data.moved === 1 ? "" : "s"} to ${VERIFICATION_STEPS[from].to}.`);
+      queryClient.invalidateQueries({ queryKey: ["sample-cases"] });
+      queryClient.invalidateQueries({ queryKey: ["sample-cases-at-step"] });
+    },
+    onError: (err) => setResult(err instanceof Error ? err.message : "Could not move the cases."),
+  });
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <h3 className="font-medium text-sm">Move cases through verification</h3>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-sm">
+          <span className="sr-only">Verification step</span>
+          <select
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setResult(null);
+            }}
+            className="rounded-md border border-border px-3 py-2 bg-surface text-sm"
+          >
+            {Object.entries(VERIFICATION_STEPS).map(([key, step]) => (
+              <option key={key} value={key}>
+                {step.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Button
+          variant="outline"
+          disabled={count === 0 || move.isPending}
+          onClick={() => {
+            if (window.confirm(`Move all ${count} Main cases at ${from} to ${VERIFICATION_STEPS[from].to}?`)) {
+              move.mutate();
+            }
+          }}
+        >
+          {move.isPending ? "Moving…" : `Move all ${count}`}
+        </Button>
+      </div>
+      {result && <p className="text-sm text-text-muted">{result}</p>}
+    </Card>
+  );
 }
 
 export default function SampleRegisterPage() {
@@ -74,6 +147,11 @@ export default function SampleRegisterPage() {
           </IfScreen>
         </div>
       </div>
+      {sampleType === "MAIN" && (
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+          <BulkVerificationPanel />
+        </IfRole>
+      )}
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>

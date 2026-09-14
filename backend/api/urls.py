@@ -6,6 +6,7 @@ urlpatterns = [
     path("", include("apps.invitations.urls")),
     path("", include("apps.consent.urls")),
     path("", include("apps.contacts.urls")),
+    path("", include("apps.messaging.urls")),
     path("", include("apps.kobo.urls")),
     path("", include("apps.kii.urls")),
     path("", include("apps.evidence.urls")),

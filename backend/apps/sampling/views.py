@@ -19,6 +19,7 @@ from .services import (
     InvalidWorkflowTransition,
     activate_reserve,
     available_reserves_for,
+    bulk_transition_workflow_status,
     create_organisation,
     create_sample_case,
     resolve_stratum_for_organisation,
@@ -212,3 +213,47 @@ class WorkflowTransitionView(APIView):
             return Response({"error": {"code": "invalid_transition", "message": str(exc), "field_errors": {}}}, status=400)
 
         return Response(SampleCaseSerializer(updated).data)
+
+
+class BulkWorkflowTransitionView(APIView):
+    """POST /api/v1/sample-cases/bulk-transition/ {from_status, sample_ids?}
+    -- moves Main cases one verification step (S00->S01->S02->S03) at once."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request):
+        sample_ids = request.data.get("sample_ids")
+        if sample_ids is not None and not isinstance(sample_ids, list):
+            return Response({"error": {"code": "invalid_input", "message": "sample_ids must be a list.", "field_errors": {}}}, status=400)
+        try:
+            moved = bulk_transition_workflow_status(
+                from_status=request.data.get("from_status", ""), sample_ids=sample_ids, user=request.user,
+            )
+        except InvalidWorkflowTransition as exc:
+            return Response({"error": {"code": "invalid_transition", "message": str(exc), "field_errors": {}}}, status=400)
+        return Response({"moved": len(moved), "sample_ids": moved})
+
+
+class RecordWithdrawalView(APIView):
+    """POST /api/v1/sample-cases/{sample_id}/withdraw/ {reason, method?} --
+    a participant withdrew by phone, WhatsApp or in person."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, sample_id):
+        from apps.consent.models import ConsentMethod
+        from apps.consent.withdrawal import AlreadyWithdrawn, record_withdrawal
+
+        sample_case = get_object_or_404(SampleCase, sample_id=sample_id)
+        method = request.data.get("method") or ConsentMethod.VERBAL_RA_RECORDED
+        if method not in ConsentMethod.values:
+            return Response({"error": {"code": "invalid_input", "message": "Unknown method.", "field_errors": {}}}, status=400)
+        try:
+            summary = record_withdrawal(
+                sample_case, reason=request.data.get("reason", ""), method=method, recorded_by=request.user,
+            )
+        except AlreadyWithdrawn as exc:
+            return Response({"error": {"code": "already_withdrawn", "message": str(exc), "field_errors": {}}}, status=409)
+        except ValueError as exc:
+            return Response({"error": {"code": "invalid_input", "message": str(exc), "field_errors": {}}}, status=400)
+        return Response(summary, status=201)

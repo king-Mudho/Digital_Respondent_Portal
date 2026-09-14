@@ -50,6 +50,8 @@ def _submission_payload(sample_id, **overrides):
         "start": "2026-09-01T08:00:00",
         "_submission_time": "2026-09-01T08:20:00",
         "turnover_band": "medium",
+        # As an interviewer's KoboCollect submission arrives: signed in.
+        "_submitted_by": "enumerator1",
     }
     payload.update(overrides)
     return payload
@@ -424,3 +426,64 @@ def test_an_unmatched_submission_is_audited_once_not_every_run():
         assert log.mismatches_flagged == 1  # still reported on every run
 
     assert AuditEvent.objects.filter(action="kobo.reconciliation_sample_id_mismatch").count() == 1
+
+
+@pytest.mark.django_db
+def test_an_edit_in_kobo_updates_the_submission_instead_of_duplicating_it(main_case):
+    """KoboToolbox changes `_uuid` on every edit; `meta/rootUuid` is stable."""
+    original = _submission_payload(main_case.sample_id, _uuid="first-uuid")
+    original["meta/rootUuid"] = "uuid:first-uuid"
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[original]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    edited = _submission_payload(main_case.sample_id, _uuid="second-uuid", turnover_band="high")
+    edited["meta/rootUuid"] = "uuid:first-uuid"
+    edited["meta/deprecatedID"] = "uuid:first-uuid"
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[edited]):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    assert (log.new_submissions, log.updated_submissions) == (0, 1)
+    assert QUANSubmission.objects.count() == 1
+    submission = QUANSubmission.objects.get()
+    assert submission.kobo_submission_uuid == "first-uuid"
+    assert submission.last_edited_at is not None
+
+
+# --- Login-free submissions must come through the portal ---------------------
+
+@pytest.mark.django_db
+def test_a_login_free_submission_with_the_portal_signature_is_accepted(main_case):
+    from apps.kobo.services import sign_portal_token
+
+    payload = _submission_payload(main_case.sample_id, _submitted_by=None, portal_token_id=sign_portal_token(7, main_case.sample_id))
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+    assert (log.new_submissions, log.mismatches_flagged) == (1, 0)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("portal_token_id", ["", "7", "7.0123456789abcdef0123456789abcdef"])
+def test_a_login_free_submission_without_a_valid_signature_is_set_aside(main_case, portal_token_id):
+    """Someone with the public form link typing a real Sample_ID."""
+    from apps.audit.models import AuditEvent
+
+    payload = _submission_payload(main_case.sample_id, _submitted_by=None, portal_token_id=portal_token_id)
+    for _ in range(2):
+        with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+            log = reconcile(triggered_by=ReconciliationTrigger.SCHEDULE)
+        assert (log.new_submissions, log.mismatches_flagged) == (0, 1)
+    assert QUANSubmission.objects.count() == 0
+    assert AuditEvent.objects.filter(action="kobo.reconciliation_unverified_submission").count() == 1
+
+
+@pytest.mark.django_db
+def test_a_signature_for_one_case_does_not_work_for_another(main_case, organisation, stratum):
+    from apps.kobo.services import sign_portal_token
+    from apps.sampling.models import SampleType
+    from apps.sampling.services import create_sample_case
+
+    other = create_sample_case(organisation=organisation, stratum=stratum, sample_type=SampleType.MAIN, year=2026)
+    payload = _submission_payload(main_case.sample_id, _submitted_by=None, portal_token_id=sign_portal_token(7, other.sample_id))
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+    assert log.new_submissions == 0
