@@ -369,3 +369,45 @@ def test_the_portal_hidden_fields_win_over_the_forms_own_values(main_case):
     submission = QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1")
     assert submission.sample_case_id == main_case.id
     assert submission.administration_mode == "02"
+
+
+# --- Timestamps and duration, as Kobo actually sends them ------------------
+
+@pytest.mark.django_db
+def test_kobo_submission_time_without_offset_is_read_as_utc(main_case):
+    """Kobo sends `_submission_time` in UTC with no offset. Read as Harare
+    time it landed two hours early, before the form was even started."""
+    from datetime import datetime
+    from datetime import timezone as tz
+
+    payload = _submission_payload(
+        main_case.sample_id,
+        start="2026-09-14T15:44:30.060+02:00",
+        end="2026-09-14T16:02:30.060+02:00",
+        _submission_time="2026-09-14T14:03:21",
+    )
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    submission = QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1")
+    assert submission.submitted_at == datetime(2026, 9, 14, 14, 3, 21, tzinfo=tz.utc)
+    assert submission.submitted_at > submission.started_at
+
+
+@pytest.mark.django_db
+def test_reconcile_records_completion_time_so_duration_rules_can_fire(main_case):
+    from apps.qa.services import seed_default_thresholds
+
+    seed_default_thresholds()
+    payload = _submission_payload(
+        main_case.sample_id,
+        start="2026-09-14T15:44:30+02:00",
+        end="2026-09-14T15:46:30+02:00",  # two minutes: under the 5-minute minimum
+        _submission_time="2026-09-14T13:46:31",
+    )
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    submission = QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1")
+    assert submission.completion_seconds == 120
+    assert submission.qa_status == QAStatus.QUERY

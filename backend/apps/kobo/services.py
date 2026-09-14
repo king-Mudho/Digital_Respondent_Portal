@@ -26,6 +26,7 @@ import hashlib
 import json
 import logging
 import os
+from datetime import timezone as dt_timezone
 from urllib.parse import quote
 
 import requests
@@ -182,15 +183,34 @@ def _parse_kobo_datetime(value):
     in-memory model instance (as returned by .objects.create()) would
     otherwise still hold a raw string, breaking any code (e.g.
     qa.services.evaluate_submission's duplicate-window check) that does
-    datetime arithmetic on it in the same request/task."""
+    datetime arithmetic on it in the same request/task.
+
+    A timestamp without an offset is UTC. Kobo's `_submission_time` is sent
+    that way (`2026-09-14T14:03:21`), while the form's own start/end carry
+    the device offset. Reading the naive value in TIME_ZONE (Africa/Harare,
+    UTC+2) filed every submission two hours early -- before the respondent
+    had even opened the form. Found by the first production test submission,
+    2026-09-14."""
     if not value:
         return None
     if isinstance(value, str):
         parsed = parse_datetime(value)
         if parsed and timezone.is_naive(parsed):
-            parsed = timezone.make_aware(parsed)
+            parsed = timezone.make_aware(parsed, dt_timezone.utc)
         return parsed
     return value
+
+
+def _completion_seconds(payload: dict, submitted_at) -> int | None:
+    """Time spent in the form: its own `end` minus `start` (both recorded by
+    the device), falling back to the server's submission time. Was never set
+    at all, so the QA duration rules could not fire and the QA queue showed
+    "duration unknown" for every submission."""
+    started = _parse_kobo_datetime(payload.get("start"))
+    finished = _parse_kobo_datetime(payload.get("end")) or submitted_at
+    if not started or not finished or finished < started:
+        return None
+    return int((finished - started).total_seconds())
 
 
 def _advance_token_on_submission(sample_case: SampleCase, new_status: str) -> None:
@@ -277,12 +297,14 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
         submission = None
         if existing is None:
             raw_payload_ref = _store_payload(kobo_uuid, payload)
+            submitted_at = _parse_kobo_datetime(payload.get("_submission_time")) or run_started_at
             submission = QUANSubmission.objects.create(
                 sample_case=sample_case,
                 kobo_submission_uuid=kobo_uuid,
                 administration_mode=_payload_administration_mode(payload),
                 started_at=_parse_kobo_datetime(payload.get("start")),
-                submitted_at=_parse_kobo_datetime(payload.get("_submission_time")) or run_started_at,
+                submitted_at=submitted_at,
+                completion_seconds=_completion_seconds(payload, submitted_at),
                 raw_payload_ref=raw_payload_ref,
                 payload_content_hash=content_hash,
                 qa_status=QAStatus.PENDING,
@@ -298,8 +320,9 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             # silently kept at whatever QA status it already had
             # (docs/11_KOBOTOOLBOX_INTEGRATION.md).
             existing.qa_status = QAStatus.PENDING
+            existing.completion_seconds = _completion_seconds(payload, existing.submitted_at)
             existing.save(update_fields=[
-                "raw_payload_ref", "payload_content_hash", "last_edited_at", "qa_status",
+                "raw_payload_ref", "payload_content_hash", "last_edited_at", "qa_status", "completion_seconds",
             ])
             updated_submissions += 1
             submission = existing
