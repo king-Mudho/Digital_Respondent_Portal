@@ -23,9 +23,9 @@ def default_thresholds(db):
 
 def _make_submission(main_case, *, completion_seconds=1800, payload=None, uuid="sub-1"):
     payload = payload if payload is not None else {"sample_id": main_case.sample_id}
-    os.makedirs(os.path.join(settings.MEDIA_ROOT, "kobo_submissions"), exist_ok=True)
+    os.makedirs(os.path.join(settings.PRIVATE_DATA_ROOT, "kobo_submissions"), exist_ok=True)
     ref = f"kobo_submissions/{uuid}.json"
-    with open(os.path.join(settings.MEDIA_ROOT, ref), "w", encoding="utf-8") as f:
+    with open(os.path.join(settings.PRIVATE_DATA_ROOT, ref), "w", encoding="utf-8") as f:
         json.dump(payload, f)
 
     return QUANSubmission.objects.create(

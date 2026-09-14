@@ -280,10 +280,10 @@ def _content_hash(payload: dict) -> str:
 
 
 def _store_payload(kobo_submission_uuid: str, payload: dict) -> str:
-    directory = os.path.join(settings.MEDIA_ROOT, "kobo_submissions")
+    directory = os.path.join(settings.PRIVATE_DATA_ROOT, "kobo_submissions")
     os.makedirs(directory, exist_ok=True)
     relative_path = os.path.join("kobo_submissions", f"{kobo_submission_uuid}.json")
-    with open(os.path.join(settings.MEDIA_ROOT, relative_path), "w", encoding="utf-8") as f:
+    with open(os.path.join(settings.PRIVATE_DATA_ROOT, relative_path), "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, default=str)
     return relative_path.replace("\\", "/")
 

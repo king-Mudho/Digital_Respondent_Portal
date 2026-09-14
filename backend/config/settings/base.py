@@ -114,6 +114,11 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+# Research data files the web server must never serve: the full Kobo
+# submission payloads reconciliation stores for QA. Until 2026-09-14 they
+# were written under MEDIA_ROOT, which nginx served publicly at /media/ --
+# anyone with a submission's file name could download its answers.
+PRIVATE_DATA_ROOT = Path(env("PRIVATE_DATA_ROOT", default=str(BASE_DIR / "private_data")))
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -5,6 +5,7 @@ backend/.venv/
 backend/.env
 backend/staticfiles/
 backend/media/
+backend/private_data/
 backend/*.sqlite3
 backend/.pytest_cache/
 backend/dev-server.log

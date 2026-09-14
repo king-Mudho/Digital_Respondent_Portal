@@ -35,6 +35,8 @@ EnvironmentFile=/srv/agribiz-drp/backend/.env
 # Overrides applied after the production env file, so staging inherits the
 # same credentials and settings but never touches the production database.
 EnvironmentFile=/srv/agribiz-drp/backend/.env.staging
+# Staging never reads or writes production's stored Kobo payloads.
+Environment=PRIVATE_DATA_ROOT=/srv/agribiz-drp/staging_private_data
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
 

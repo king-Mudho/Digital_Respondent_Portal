@@ -33,8 +33,17 @@ sudo -u postgres pg_dump "$DB_NAME" | gzip > "$OUT_FILE" || die "pg_dump failed"
 SIZE="$(du -h "$OUT_FILE" | cut -f1)"
 printf '    Backup written: %s (%s)\n' "$OUT_FILE" "$SIZE"
 
+# The Kobo submission payloads QA reads live on disk, not in the database,
+# so pg_dump alone never covered them (added 2026-09-14).
+PRIVATE_DIR="/srv/agribiz-drp/backend/private_data"
+if [[ -d "$PRIVATE_DIR" ]]; then
+    FILES_OUT="$BACKUP_DIR/drp-files-$TIMESTAMP.tar.gz"
+    tar czf "$FILES_OUT" -C "$(dirname "$PRIVATE_DIR")" "$(basename "$PRIVATE_DIR")" || die "file backup failed"
+    printf '    Files written: %s (%s)\n' "$FILES_OUT" "$(du -h "$FILES_OUT" | cut -f1)"
+fi
+
 log "Pruning backups older than $RETENTION_DAYS days"
-find "$BACKUP_DIR" -name 'drp-*.sql.gz' -mtime "+$RETENTION_DAYS" -print -delete
+find "$BACKUP_DIR" \( -name 'drp-*.sql.gz' -o -name 'drp-files-*.tar.gz' \) -mtime "+$RETENTION_DAYS" -print -delete
 
 log "Current backups"
 ls -lh "$BACKUP_DIR"/drp-*.sql.gz 2>/dev/null || echo "    (none yet)"

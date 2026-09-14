@@ -69,7 +69,7 @@ def _load_thresholds() -> dict:
 def _load_payload(submission: QUANSubmission) -> dict:
     if not submission.raw_payload_ref:
         return {}
-    path = os.path.join(settings.MEDIA_ROOT, submission.raw_payload_ref)
+    path = os.path.join(settings.PRIVATE_DATA_ROOT, submission.raw_payload_ref)
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:

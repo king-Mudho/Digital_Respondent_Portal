@@ -487,3 +487,15 @@ def test_a_signature_for_one_case_does_not_work_for_another(main_case, organisat
     with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
         log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
     assert log.new_submissions == 0
+
+
+@pytest.mark.django_db
+def test_submission_payloads_are_never_written_where_the_web_server_serves_files(main_case, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path / "media"
+    settings.PRIVATE_DATA_ROOT = tmp_path / "private_data"
+    with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[_submission_payload(main_case.sample_id)]):
+        reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+
+    submission = QUANSubmission.objects.get()
+    assert (settings.PRIVATE_DATA_ROOT / submission.raw_payload_ref).exists()
+    assert not (settings.MEDIA_ROOT).exists()
