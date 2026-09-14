@@ -309,7 +309,7 @@ meta_table = Table(
         [Paragraph("PRINCIPAL RESEARCHER", ParagraphStyle("m2", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),
          Paragraph("Happyson Saina &mdash; Doctor of Strategic Management candidate,\nChinhoyi University of Technology", cover_style_meta)],
         [Paragraph("CONTACT", ParagraphStyle("m4", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),
-         Paragraph("0773943709 &nbsp;&middot;&nbsp; sales.proagromark2@gmail.com", cover_style_meta)],
+         Paragraph("0773943709 &nbsp;&middot;&nbsp; abffst.research.cut@gmail.com", cover_style_meta)],
         [Paragraph("LIVE AT", ParagraphStyle("m3", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),
          Paragraph("research.agribizframework.com", cover_style_meta)],
         [Paragraph("REVISION", ParagraphStyle("m5", parent=cover_style_meta, fontName="Helvetica-Bold", fontSize=8, textColor=GOLD)),

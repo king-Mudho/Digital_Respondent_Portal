@@ -12,7 +12,7 @@ Chinhoyi University of Technology.
 
 **PI contact details** (for respondent-facing consent materials and invitation
 messages — `18_DATA_PRIVACY_AND_COMPLIANCE.md`, `29_RESPONDENT_GUIDE_AND_MESSAGING.md`):
-Phone `0773943709`, email `sales.proagromark2@gmail.com`.
+Phone `0773943709`, email `abffst.research.cut@gmail.com`.
 
 **Ethics clearance:** Chinhoyi University of Technology Research Ethics Clearance
 Letter, Annex 19, Form GRSD 17 SEBS/06/2025, approved 24.08.2026.

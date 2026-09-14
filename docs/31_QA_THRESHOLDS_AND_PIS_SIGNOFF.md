@@ -111,7 +111,7 @@ Flags a second submission from the *same organisation* within this window.
 
 # Part B — Participant Information Sheet
 
-Current version **v1.2**, live at `/i/<token>/information` and shown before consent.
+Current version **v1.3**, live at `/i/<token>/information` and shown before consent. v1.3 (2026-09-14) changes only the study contact email, to abffst.research.cut@gmail.com.
 Source: `frontend/lib/constants/participantInformation.ts`. The version string is recorded
 against every `ConsentRecord`, so consent is always traceable to the exact wording the
 respondent saw. **Bump the version whenever the text changes.**
@@ -134,7 +134,7 @@ respondent saw. **Bump the version whenever the text changes.**
 >
 > Your name and contact details are kept separately from your answers and are only used to manage your participation in this study (for example, to send a reminder or arrange a call). Only the research team can see this information. Results will only ever be reported in combined, anonymised form.
 >
-> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email sales.proagromark2@gmail.com. The same details are also included in your invitation message.
+> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email abffst.research.cut@gmail.com. The same details are also included in your invitation message.
 
 ## B2. Gaps a reviewer will likely want addressed
 
@@ -172,7 +172,7 @@ defects in the system.
    low-cost mitigation). Whether an English-only PIS is acceptable for this respondent
    population is a decision for the ethics office.
 
-**Decision:** approve v1.2 as-is / approve with the amendments attached / revise and
+**Decision:** approve v1.3 as-is / approve with the amendments attached / revise and
 re-issue as v1.3. Rationale: ____________________
 
 ---

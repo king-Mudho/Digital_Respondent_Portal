@@ -43,7 +43,7 @@ Coordinator to issue a fresh one from the case's detail page.
 The "Send Invitation" panel hands you the raw link and an 8-character manual code — it
 does not compose a message. Use one of these, filling in the bracketed fields.
 `[researcher name / phone / email]` and `[RA phone number]` default to the PI's own
-contact details (Happyson Saina, 0773943709, sales.proagromark2@gmail.com —
+contact details (Happyson Saina, 0773943709, abffst.research.cut@gmail.com —
 `docs/00_PROJECT_MASTER.md`) unless the sending RA has their own line to give instead.
 
 ### WhatsApp / SMS
@@ -59,7 +59,7 @@ in Zimbabwe. Please tap this secure, personal link to learn more and take part:
 This link is unique to you and expires on [EXPIRY DATE]. Your participation is
 voluntary and confidential -- no score or financing decision is generated from this
 study. Questions? Contact Happyson Saina, 0773943709,
-sales.proagromark2@gmail.com.
+abffst.research.cut@gmail.com.
 ```
 
 ### Email

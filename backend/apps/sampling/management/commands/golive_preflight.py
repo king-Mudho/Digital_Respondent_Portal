@@ -125,7 +125,7 @@ class Command(BaseCommand):
         # 4. Ineligible respondent
         self.api(public, "post", "/eligibility/", {"token": raw, "full_name": "Preflight Receptionist", "role_category": "RECEPTIONIST"})
         self.api(public, "post", "/consent/", {"token": raw, "consent_type": "PARTICIPATION", "decision": "GIVEN",
-                                               "information_sheet_version": "v1.2", "method": "WEB_CLICKTHROUGH"})
+                                               "information_sheet_version": "v1.3", "method": "WEB_CLICKTHROUGH"})
         r = self.api(public, "get", f"/kobo/redirect-url/?t={raw}")
         self.record("4 ineligible respondent never gets the questionnaire",
                    r.status_code == 403 and r.json()["error"]["code"] == "eligibility_required", f"HTTP {r.status_code}")
@@ -134,15 +134,15 @@ class Command(BaseCommand):
         raw2, _, _ = issue_invitation(main, invitation_wave=2)
         self.api(public, "post", "/eligibility/", {"token": raw2, "full_name": "Preflight CEO", "role_category": "CEO_MD"})
         self.api(public, "post", "/consent/", {"token": raw2, "consent_type": "PARTICIPATION", "decision": "DECLINED",
-                                               "information_sheet_version": "v1.2", "method": "WEB_CLICKTHROUGH"})
+                                               "information_sheet_version": "v1.3", "method": "WEB_CLICKTHROUGH"})
         r = self.api(public, "get", f"/kobo/redirect-url/?t={raw2}")
         self.record("5 no questionnaire without consent",
                    r.status_code == 403 and r.json()["error"]["code"] == "consent_required", f"declined -> HTTP {r.status_code}")
 
         # 6. Sample_ID and mode reach Kobo
         self.api(public, "post", "/consent/", {"token": raw2, "consent_type": "PARTICIPATION", "decision": "GIVEN",
-                                               "information_sheet_version": "v1.2", "method": "WEB_CLICKTHROUGH"})
-        r = self.api(public, "get", f"/kobo/redirect-url/?t={raw2}&administration_mode=01&consent_version=v1.2")
+                                               "information_sheet_version": "v1.3", "method": "WEB_CLICKTHROUGH"})
+        r = self.api(public, "get", f"/kobo/redirect-url/?t={raw2}&administration_mode=01&consent_version=v1.3")
         url = r.json().get("kobo_form_url", "") if r.status_code == 200 else ""
         self.record("6 Sample_ID and mode are in the questionnaire link",
                    f"d[sample_id]={main.sample_id}" in url and "d[administration_mode]=01" in url and "d[portal_token_id]=" in url,

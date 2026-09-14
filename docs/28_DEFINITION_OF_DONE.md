@@ -23,7 +23,7 @@ real Main-400 invitation is issued.
       screen. It blocks only automated sending. The invitation and reminder wording still
       needs PI approval — `31` Part A.)*
 - [ ] **The Participant Information Sheet wording is approved by the PI and the CUT
-      Research Ethics office.** *(v1.2 — which added the PROIT disclosure — is live and shown to respondents, but the
+      Research Ethics office.** *(v1.3 — v1.2 added the PROIT disclosure, v1.3 the study's own contact email — is live and shown to respondents, but the
       wording has never been reviewed by anyone qualified to approve it. Review pack with
       the full text and seven identified gaps: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md`
       Part B. The most material gap is that the PIS does not disclose PROIT background

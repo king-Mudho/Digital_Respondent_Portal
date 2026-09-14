@@ -1,5 +1,5 @@
 /**
- * Participant Information Sheet text, version v1.2.
+ * Participant Information Sheet text, version v1.3.
  *
  * History:
  *   v1.0  Placeholder draft pending PI/ethics-office confirmation
@@ -13,6 +13,9 @@
  *         explained this at the point of use, but the sheet the respondent
  *         consents on the basis of did not mention it at all -- a consent
  *         gap, not a UI one (docs/31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md B2.1).
+ *   v1.3  Study contact email changed to the study's own address,
+ *         abffst.research.cut@gmail.com (2026-09-14, PI-directed). No other
+ *         wording changed.
  *
  * IMPORTANT: this version bump closes that gap in the *text*. It does not
  * make the wording approved -- the PIS as a whole is still awaiting
@@ -20,7 +23,7 @@
  * the text changes; it is recorded against every ConsentRecord, so consent
  * stays traceable to the exact wording the respondent saw.
  */
-export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.2";
+export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.3";
 
 export const PARTICIPANT_INFORMATION_SHEET = `
 This study is being carried out by Happyson Saina, a doctoral researcher at
@@ -58,6 +61,6 @@ information. Results will only ever be reported in combined, anonymised
 form.
 
 If you have any questions, you can contact the research team: Happyson
-Saina, phone 0773943709, email sales.proagromark2@gmail.com. The same
+Saina, phone 0773943709, email abffst.research.cut@gmail.com. The same
 details are also included in your invitation message.
 `.trim();

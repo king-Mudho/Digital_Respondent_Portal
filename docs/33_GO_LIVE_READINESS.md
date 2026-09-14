@@ -49,7 +49,7 @@ In rough order of consequence. Each has a test that fails without the fix.
 
 | # | Item | Owner | How |
 |---|---|---|---|
-| 1 | Approve the Participant Information Sheet v1.2 | PI + CUT Research Ethics | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part B |
+| 1 | Approve the Participant Information Sheet v1.3 | PI + CUT Research Ethics | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part B |
 | 2 | Approve the QA thresholds **and** the invitation and two reminder texts | PI | `31` Part A; texts are what RAs now send by hand |
 | 3 | Collect respondent contact details | Field Coordinator + Contact RAs | Case page → *Respondents and contact details*; 349 Main cases have no number |
 | 4 | Assign cases to Contact RAs | Field Coordinator | Case page → *Assigned Contact RA*; an RA sees only assigned cases |
