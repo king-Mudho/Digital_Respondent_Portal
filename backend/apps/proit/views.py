@@ -109,6 +109,8 @@ class PreProfileFieldListCreateView(generics.ListCreateAPIView):
     serializer_class = PreProfileFieldSerializer
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # schema generation passes no kwargs
+            return PreProfileField.objects.none()
         return PreProfileField.objects.filter(pre_profile_id=self.kwargs["pre_profile_id"]).prefetch_related("sources")
 
     def create(self, request, *args, **kwargs):
@@ -134,6 +136,8 @@ class EvidenceSourceListCreateView(generics.ListCreateAPIView):
     serializer_class = EvidenceSourceSerializer
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # schema generation passes no kwargs
+            return EvidenceSource.objects.none()
         return EvidenceSource.objects.filter(field_id=self.kwargs["field_id"])
 
     def create(self, request, *args, **kwargs):

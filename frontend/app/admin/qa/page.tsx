@@ -36,12 +36,20 @@ interface ReconciliationStatus {
   error_message: string;
 }
 
+interface SyncState {
+  /** False until the production form's asset ID and API token are set. */
+  configured: boolean;
+  last_run: ReconciliationStatus | null;
+}
+
 function KoboSyncPanel() {
   const queryClient = useQueryClient();
-  const { data: status } = useQuery({
+  const { data: syncState, isLoading: statusLoading } = useQuery({
     queryKey: ["kobo-reconciliation-status"],
-    queryFn: () => adminFetch<ReconciliationStatus | null>("/kobo/reconciliation-status/"),
+    queryFn: () => adminFetch<SyncState>("/kobo/reconciliation-status/"),
   });
+  const status = syncState?.last_run ?? null;
+  const notConnected = syncState?.configured === false;
 
   const sync = useMutation({
     mutationFn: () => adminFetch<ReconciliationStatus>("/kobo/reconcile/", { method: "POST" }),
@@ -65,22 +73,48 @@ function KoboSyncPanel() {
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-sm">KoboToolbox sync</h3>
         <WriteOnly note={null}>
-          <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
+          <Button
+            variant="outline"
+            onClick={() => sync.mutate()}
+            // Also disabled until the status has loaded: before that we don't
+            // know whether Kobo is connected, and a click in that window fired
+            // a request that could only fail (found by the E2E suite).
+            disabled={sync.isPending || statusLoading || notConnected}
+          >
             {sync.isPending ? "Syncing…" : "Sync now"}
           </Button>
         </WriteOnly>
       </div>
-      {(syncError || status?.error_message) && (
-        <p className="text-danger text-sm">Last sync failed: {syncError ?? status?.error_message}</p>
+      {/* Not connected is a state, not a failure. This panel used to show
+          "Last sync failed: 404" every 15 minutes for a form that simply
+          hadn't been set up, which trains people to ignore it before a real
+          failure ever happens. */}
+      {statusLoading ? (
+        // Previously the panel said "No reconciliation run yet" while the
+        // status was still loading -- a flat statement that was often
+        // untrue for the half-second before it corrected itself.
+        <p className="text-text-muted text-xs">Checking sync status…</p>
+      ) : notConnected ? (
+        <p className="text-text-muted text-sm">
+          KoboToolbox is not connected yet. Submissions will start syncing automatically every
+          15 minutes once the production form&apos;s asset ID and API token are configured on the
+          server.
+        </p>
+      ) : (
+        (syncError || status?.error_message) && (
+          <p className="text-danger text-sm">Last sync failed: {syncError ?? status?.error_message}</p>
+        )
       )}
-      {status && !status.error_message && (
+      {!statusLoading && !notConnected && status && !status.error_message && (
         <p className="text-text-muted text-xs">
           Last synced {new Date(status.run_finished_at ?? status.run_started_at).toLocaleString()} ({status.triggered_by.toLowerCase()}) --{" "}
           {status.submissions_pulled} pulled, {status.new_submissions} new, {status.updated_submissions} updated
           {status.mismatches_flagged > 0 ? `, ${status.mismatches_flagged} mismatched` : ""}.
         </p>
       )}
-      {!status && !syncError && <p className="text-text-muted text-xs">No reconciliation run yet.</p>}
+      {!statusLoading && !notConnected && !status && !syncError && (
+        <p className="text-text-muted text-xs">No reconciliation run yet.</p>
+      )}
     </Card>
   );
 }

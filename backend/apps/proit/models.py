@@ -213,6 +213,11 @@ class PreProfileField(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Creation order. Without it Postgres returns rows in physical order,
+        # which changes once a row is updated (locking a profile rewrites
+        # every field) -- the respondent's facts could swap places between
+        # page loads. Found by the E2E suite 2026-09-14.
+        ordering = ["id"]
         constraints = [
             models.UniqueConstraint(fields=["pre_profile", "field_id"], name="unique_pre_profile_field"),
         ]

@@ -24,6 +24,7 @@ INVITATION_TOKEN_EXPIRY_DAYS=14
 KOBO_API_BASE_URL=https://kf.kobotoolbox.org
 KOBO_API_TOKEN=changeme
 KOBO_ASSET_UID=changeme
+KOBO_FORM_URL=https://ee.kobotoolbox.org/x/changeme
 KOBO_WEBHOOK_SHARED_SECRET=changeme
 KOBO_RECONCILIATION_INTERVAL_MINUTES=15
 
@@ -61,6 +62,7 @@ DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 DATABASE_URL=postgres://drp_user:devpassword@localhost:5432/drp_dev
 KOBO_ASSET_UID=<dedicated test/staging asset, never the production asset>
+KOBO_FORM_URL=<that test asset's web form link>
 CORS_ALLOWED_ORIGINS=http://localhost:3000
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 NEXT_PUBLIC_APP_ENV=development
@@ -76,4 +78,6 @@ NEXT_PUBLIC_APP_ENV=development
   hardcoded domain string inside components.
 - `KOBO_ASSET_UID` in dev/staging must point at the dedicated test asset
   (`11_KOBOTOOLBOX_INTEGRATION.md`) — a code review should treat a dev environment
-  pointed at the production Kobo asset as a blocking defect.
+  pointed at the production Kobo asset as a blocking defect. The same applies to
+  `KOBO_FORM_URL`, which is the respondent-facing half: it is the form's public web link
+  from the *Collect data* page (`ee.` host), a separate value from the asset UID.

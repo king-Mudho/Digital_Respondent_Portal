@@ -80,7 +80,8 @@ def test_kobo_redirect_denied_without_consent(client, issued_token):
     assert response.json()["error"]["code"] == "consent_required"
 
 
-def test_full_happy_path_to_kobo_redirect(client, issued_token):
+def test_full_happy_path_to_kobo_redirect(client, issued_token, settings):
+    settings.KOBO_FORM_URL = "https://ee.kobotoolbox.org/x/TeStFoRm"
     raw_token, _, _ = issued_token
 
     validate_resp = client.get(f"/api/v1/invitations/validate/?t={raw_token}")
@@ -104,7 +105,7 @@ def test_full_happy_path_to_kobo_redirect(client, issued_token):
         f"/api/v1/kobo/redirect-url/?t={raw_token}&administration_mode=01&respondent_role_category=CEO_MD&consent_version=v1.0"
     )
     assert redirect_resp.status_code == 200
-    assert "kobo_form_url" in redirect_resp.json()
+    assert redirect_resp.json()["kobo_form_url"].startswith("https://ee.kobotoolbox.org/x/TeStFoRm?")
 
 
 def test_ineligible_respondent_never_reaches_kobo_redirect(client, issued_token):

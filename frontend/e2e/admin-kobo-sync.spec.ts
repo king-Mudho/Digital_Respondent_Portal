@@ -22,15 +22,29 @@ test("Kobo sync panel degrades gracefully when no real Kobo asset is configured"
   await page.goto("/admin/qa");
 
   await expect(page.getByText("KoboToolbox sync")).toBeVisible();
-  await page.getByRole("button", { name: "Sync now" }).click();
+  const syncButton = page.getByRole("button", { name: "Sync now" });
+  await expect(syncButton).toBeVisible();
 
-  // Never hangs forever, never crashes the page -- resolves to either a
-  // successful run (if this environment is ever pointed at a real test
-  // asset) or a clearly surfaced failure message (the expected outcome
-  // today, with no KOBO_ASSET_UID configured).
-  await expect(page.getByRole("button", { name: "Sync now" })).toBeVisible({ timeout: 15000 });
-  const pageText = await page.locator("main").innerText();
-  expect(pageText).toMatch(/Last sync failed|pulled.*new.*updated/);
+  // Wait for the status to settle before deciding which state we're in.
+  // isVisible() is instantaneous, so checking it straight away raced the
+  // status request and took the wrong branch.
+  const settled = page.getByText(/KoboToolbox is not connected yet|Last synced|No reconciliation run yet|Last sync failed/);
+  await expect(settled.first()).toBeVisible();
+
+  if (await page.getByText("KoboToolbox is not connected yet").isVisible()) {
+    // No asset ID/API token here (dev, CI, and production until the PI
+    // connects the form). Since 2026-09-14 that reads as a state, not as a
+    // failed sync, and there is nothing to press.
+    await expect(syncButton).toBeDisabled();
+    await expect(page.getByText(/Last sync failed/)).toHaveCount(0);
+  } else {
+    // A connected (test) asset: a manual sync must resolve to a result or a
+    // clearly surfaced failure, never hang or crash the page.
+    await syncButton.click();
+    await expect(syncButton).toBeVisible({ timeout: 15000 });
+    const pageText = await page.locator("main").innerText();
+    expect(pageText).toMatch(/Last sync failed|pulled.*new.*updated/);
+  }
 
   // The rest of the page must still be fully usable after a failed sync --
   // this is the actual regression this pass fixed (a raw 500 used to

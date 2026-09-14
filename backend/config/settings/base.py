@@ -210,6 +210,14 @@ PROIT_ENABLED_FOR_RESPONDENTS = env.bool("PROIT_ENABLED_FOR_RESPONDENTS", defaul
 KOBO_API_BASE_URL = env("KOBO_API_BASE_URL", default="https://kf.kobotoolbox.org")
 KOBO_API_TOKEN = env("KOBO_API_TOKEN", default="")
 KOBO_ASSET_UID = env("KOBO_ASSET_UID", default="")
+# The deployed form's public web link, exactly as KoboToolbox shows it on the
+# project's "Collect data" page, e.g. https://ee.kobotoolbox.org/x/AbCd1234.
+# NOT derivable from KOBO_ASSET_UID: web forms are served by the Enketo host
+# (ee.) under their own short form ID, while the asset UID is the 22-character
+# project ID used only by the API on kf. Until 2026-09-14 the link was built
+# as kf.kobotoolbox.org/x/<asset_uid>, which would have 404'd for every
+# respondent even with a correct asset UID configured.
+KOBO_FORM_URL = env("KOBO_FORM_URL", default="")
 KOBO_WEBHOOK_SHARED_SECRET = env("KOBO_WEBHOOK_SHARED_SECRET", default="")
 KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
     "KOBO_RECONCILIATION_INTERVAL_MINUTES", default=15

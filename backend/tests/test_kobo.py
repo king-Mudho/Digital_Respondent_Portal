@@ -21,6 +21,18 @@ from apps.kobo.models import QAStatus, QUANSubmission, ReconciliationLog, Reconc
 from apps.kobo.services import KoboRedirectDenied, build_redirect_url, reconcile
 
 
+@pytest.fixture(autouse=True)
+def connected_kobo(settings):
+    """Every test here mocks Kobo's HTTP responses, i.e. describes a
+    *connected* form. They previously passed with no asset ID or token at
+    all, only because nothing checked -- which is how production ran the
+    scheduled pull against `/api/v2/assets//data/` for a day. The
+    unconfigured case has its own tests in test_kobo_not_configured.py."""
+    settings.KOBO_ASSET_UID = "test-asset-uid"
+    settings.KOBO_API_TOKEN = "test-api-token"
+    settings.KOBO_FORM_URL = "https://ee.kobotoolbox.org/x/TeStFoRm"
+
+
 @pytest.fixture
 def admin_client(db):
     role, _ = Role.objects.get_or_create(name=Role.PI_ADMIN)
@@ -222,15 +234,17 @@ def test_reconciliation_status_view_returns_latest_log(admin_client):
     )
     resp = admin_client.get("/api/v1/kobo/reconciliation-status/")
     assert resp.status_code == 200
-    assert resp.data["id"] == latest.pk
-    assert resp.data["submissions_pulled"] == 5
+    assert resp.data["configured"] is True
+    assert resp.data["last_run"]["id"] == latest.pk
+    assert resp.data["last_run"]["submissions_pulled"] == 5
 
 
 @pytest.mark.django_db
 def test_reconciliation_status_view_returns_null_when_never_run(admin_client):
     resp = admin_client.get("/api/v1/kobo/reconciliation-status/")
     assert resp.status_code == 200
-    assert resp.data is None
+    assert resp.data["configured"] is True
+    assert resp.data["last_run"] is None
 
 
 # --- Kobo redirect gating (docs/10: no redirect without a passed

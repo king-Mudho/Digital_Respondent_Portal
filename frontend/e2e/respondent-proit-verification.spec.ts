@@ -75,9 +75,17 @@ test("PROIT verification works and is usable on a phone", async ({ page, request
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(overflow).toBe(false);
 
+  // Facts appear in the order the researcher added them. Locking rewrites
+  // every field row, and before PreProfileField had a Meta ordering that
+  // was enough for Postgres to hand them back swapped.
   const groups = page.locator("main [role=group]");
-  await groups.nth(0).getByRole("button", { name: "Yes, correct" }).click();
-  await groups.nth(1).getByRole("button", { name: "No — correct it" }).click();
+  await expect(groups).toHaveCount(2);
+  expect(await groups.evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")))).toEqual([
+    "Is this correct: Year established?",
+    "Is this correct: HQ district?",
+  ]);
+  await page.getByRole("group", { name: "Is this correct: Year established?" }).getByRole("button", { name: "Yes, correct" }).click();
+  await page.getByRole("group", { name: "Is this correct: HQ district?" }).getByRole("button", { name: "No — correct it" }).click();
 
   // A correction left empty would record nothing distinguishable from "no answer".
   const cont = page.getByRole("button", { name: "Continue", exact: true });

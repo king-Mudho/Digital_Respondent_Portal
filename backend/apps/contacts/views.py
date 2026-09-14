@@ -76,6 +76,10 @@ class ContactEventListCreateView(generics.ListCreateAPIView):
     serializer_class = ContactEventSerializer
 
     def get_queryset(self):
+        # The API schema generator calls this with no URL kwargs; without the
+        # guard it raised KeyError and the endpoint vanished from /api/docs.
+        if getattr(self, "swagger_fake_view", False):
+            return ContactEvent.objects.none()
         queryset = ContactEvent.objects.filter(sample_case__sample_id=self.kwargs["sample_id"])
         if _is_contact_ra(self.request.user):
             queryset = queryset.filter(sample_case__assigned_ra=self.request.user)

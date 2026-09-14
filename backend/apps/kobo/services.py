@@ -26,6 +26,7 @@ import hashlib
 import json
 import logging
 import os
+from urllib.parse import quote
 
 import requests
 from django.conf import settings
@@ -50,6 +51,32 @@ class KoboRedirectDenied(Exception):
     def __init__(self, code: str, message: str):
         self.code = code
         super().__init__(message)
+
+
+class KoboNotConfigured(Exception):
+    """The KoboToolbox production form has not been connected yet.
+
+    A state, not a failure. Until 2026-09-14 neither path checked for it:
+    with KOBO_ASSET_UID empty (as in production), build_redirect_url()
+    produced `.../x/?d[...]` -- a respondent who consented and tapped
+    "Start the questionnaire" would have landed on Kobo's 404 page with no
+    way back -- and the scheduled reconciliation called
+    `/api/v2/assets//data/` every 15 minutes, writing 125 error rows and
+    telling staff on the QA screen that sync had failed.
+    """
+
+
+def redirect_is_configured() -> bool:
+    """The questionnaire link needs only the deployed form's public web link
+    (KOBO_FORM_URL) -- not the API token, and not the asset UID, which is a
+    different identifier on a different host."""
+    return bool((settings.KOBO_FORM_URL or "").strip())
+
+
+def reconciliation_is_configured() -> bool:
+    """Pulling submissions needs the asset UID and an API token. Independent
+    of the form link: the two are configured from different places in Kobo."""
+    return bool((settings.KOBO_ASSET_UID or "").strip()) and bool((settings.KOBO_API_TOKEN or "").strip())
 
 
 def build_redirect_url(
@@ -85,7 +112,12 @@ def build_redirect_url(
             "No eligible respondent has been recorded for this case.",
         )
 
-    asset_uid = settings.KOBO_ASSET_UID
+    # After the consent and eligibility gates, deliberately: those are
+    # checked and refused on their own terms regardless of configuration.
+    if not redirect_is_configured():
+        raise KoboNotConfigured("The questionnaire form has not been connected yet.")
+
+    form_url = settings.KOBO_FORM_URL.strip().rstrip("/")
     params = {
         "master_id": sample_case.organisation.master_id,
         "sample_id": sample_case.sample_id,
@@ -97,9 +129,15 @@ def build_redirect_url(
         "portal_token_id": str(token_id),
         "ra_id": ra_id,
     }
-    query = "&".join(f"d[{key}]={value}" for key, value in params.items())
+    # Kobo's documented prefill syntax is ?d[<data column name>]=value
+    # (support.kobotoolbox.org/data_through_webforms.html). Column names are
+    # used as-is; if the hidden fields sit inside a group in the XLSForm, the
+    # name must include the group path (e.g. group1/sample_id) -- keep them
+    # at the top level. Values are percent-encoded.
+    query = "&".join(f"d[{key}]={quote(str(value), safe='')}" for key, value in params.items())
+    separator = "&" if "?" in form_url else "?"
     return {
-        "kobo_form_url": f"{settings.KOBO_API_BASE_URL}/x/{asset_uid}?{query}",
+        "kobo_form_url": f"{form_url}{separator}{query}",
         "administration_mode": administration_mode,
     }
 
@@ -163,7 +201,16 @@ def _store_payload(kobo_submission_uuid: str, payload: dict) -> str:
 def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> ReconciliationLog:
     """The actual source of truth for QUAN submission status -- never
     removed or "optimised away" in favour of webhook-only sync
-    (docs/11_KOBOTOOLBOX_INTEGRATION.md)."""
+    (docs/11_KOBOTOOLBOX_INTEGRATION.md).
+
+    Raises KoboNotConfigured, and writes nothing, when there is no asset ID
+    or API token: an unconnected form is not a failed sync, and recording
+    it as one every 15 minutes buried any real failure in noise."""
+    if not reconciliation_is_configured():
+        raise KoboNotConfigured(
+            "KoboToolbox is not connected yet: KOBO_ASSET_UID and KOBO_API_TOKEN must both be set."
+        )
+
     run_started_at = timezone.now()
     submissions_pulled = new_submissions = updated_submissions = mismatches_flagged = 0
 

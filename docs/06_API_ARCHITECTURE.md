@@ -83,7 +83,7 @@ print('\n'.join(sorted(u for u in w(get_resolver()) if u.startswith('api/v1/')))
 | GET | `/kobo/redirect-url/?t=` | public | The tokenised Kobo launch URL. Requires **both** a passed eligibility check and GIVEN consent |
 | POST | `/kobo/webhook/` | shared secret | New-submission heads-up; never trusted alone (`11_KOBOTOOLBOX_INTEGRATION.md`) |
 | POST | `/kobo/reconcile/` | `IsQAOrAdmin` | Manually trigger a reconciliation pull |
-| GET | `/kobo/reconciliation-status/` | `IsQAOrAdmin` | Last run's timing, counts and error, for the sync panel |
+| GET | `/kobo/reconciliation-status/` | `IsQAOrAdmin` | `{configured, last_run}` — whether the asset UID and API token are set, and the last run's timing, counts and error |
 
 ### Contact, appointments, QA
 
@@ -163,7 +163,7 @@ rule 6.
 ### `GET /api/v1/kobo/redirect-url/?t=<token>`
 ```json
 {
-  "kobo_form_url": "https://kf.kobotoolbox.org/x/abcdef12?d[master_id]=MID-HA-000418&d[sample_id]=SID-2026-000418&d[invitation_wave]=2&d[administration_mode]=01&d[respondent_role_category]=CEO_MD&d[consent_status]=GIVEN&d[consent_version]=v1.0&d[portal_token_id]=b4f1...&d[ra_id]=",
+  "kobo_form_url": "https://ee.kobotoolbox.org/x/AbCd1234?d[master_id]=MID-HA-000418&d[sample_id]=SID-2026-000418&d[invitation_wave]=2&d[administration_mode]=01&d[respondent_role_category]=CEO_MD&d[consent_status]=GIVEN&d[consent_version]=v1.0&d[portal_token_id]=b4f1...&d[ra_id]=",
   "administration_mode": "01"
 }
 ```
@@ -171,6 +171,8 @@ Refused with `403 consent_required` without GIVEN participation consent, and
 `403 eligibility_required` without an eligible respondent recorded for the case. Both are
 enforced in `apps.kobo.services.build_redirect_url()` — the single point every caller goes
 through — because this endpoint is public and the frontend's routing is not a control.
+After both gates, `503 questionnaire_unavailable` if `KOBO_FORM_URL` is not set; the base
+of `kobo_form_url` is that setting verbatim, never built from the asset UID.
 
 ### `GET /api/v1/auth/me/`
 ```json

@@ -21,6 +21,9 @@ const MESSAGES: Record<string, string> = {
   throttled: "We've had a lot of requests from your connection. Please wait about a minute and try again.",
   consent_required: "We couldn't confirm your consent was recorded. Please go back and try the consent step again.",
   eligibility_required: "We couldn't confirm your role for this study. Please contact the research team using the details in your invitation.",
+  // The Kobo form is not connected yet. Previously the respondent was sent
+  // to a questionnaire link that 404'd on Kobo's own site.
+  questionnaire_unavailable: "The online questionnaire isn't open yet. A researcher can go through it with you by phone or WhatsApp instead.",
 };
 
 const FALLBACK = "Something went wrong on our side. Please try again in a moment — if it keeps happening, contact the research team using the details in your invitation.";

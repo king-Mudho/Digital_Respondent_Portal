@@ -3,12 +3,18 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import IsQAOrAdmin
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.invitations.services import TokenValidationError, validate_token
 
 from .models import ReconciliationLog, ReconciliationTrigger
-from .services import KoboRedirectDenied, build_redirect_url, reconcile
+from .services import (
+    KoboNotConfigured,
+    KoboRedirectDenied,
+    build_redirect_url,
+    reconcile,
+    reconciliation_is_configured,
+)
 from .tasks import reconcile_kobo_submissions
 
 
@@ -39,6 +45,13 @@ class KoboRedirectURLView(APIView):
             )
         except KoboRedirectDenied as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=403)
+        except KoboNotConfigured as exc:
+            # 503, not a broken link: the respondent flow turns this into
+            # "not open yet" with an assisted-completion route.
+            return Response(
+                {"error": {"code": "questionnaire_unavailable", "message": str(exc), "field_errors": {}}},
+                status=503,
+            )
 
         return Response(payload)
 
@@ -78,12 +91,22 @@ class KoboReconcileView(APIView):
     """POST /api/v1/kobo/reconcile/ -- internal manual trigger ("Sync now");
     calls the same service function the scheduled job calls. Returns 502
     (not 200) when the Kobo API call itself failed, so the admin UI can
-    distinguish "ran, found nothing new" from "couldn't reach Kobo"."""
+    distinguish "ran, found nothing new" from "couldn't reach Kobo".
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    IsQAOrAdmin, not IsFieldCoordinatorOrAdmin: the Sync panel lives on the
+    QA queue screen, and the QUAN QA RA -- whose job Kobo ingestion is --
+    got a 403 from the button in front of them (fixed 2026-09-14)."""
+
+    permission_classes = [IsQAOrAdmin]
 
     def post(self, request):
-        log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+        try:
+            log = reconcile(triggered_by=ReconciliationTrigger.MANUAL)
+        except KoboNotConfigured as exc:
+            return Response(
+                {"error": {"code": "kobo_not_configured", "message": str(exc), "field_errors": {}}},
+                status=503,
+            )
         if log.error_message:
             return Response(
                 {"error": {"code": "kobo_unreachable", "message": log.error_message, "field_errors": {}}},
@@ -96,12 +119,17 @@ class KoboReconciliationStatusView(APIView):
     """GET /api/v1/kobo/reconciliation-status/ -- the most recent
     reconciliation run (scheduled or manual), so the admin UI can show when
     Kobo was last synced and surface a failed run without an admin having to
-    trigger one themselves to find out."""
+    trigger one themselves to find out.
 
-    permission_classes = [IsFieldCoordinatorOrAdmin]
+    Returns {"configured": bool, "last_run": <run>|null}. `configured` is
+    separate so an unconnected form reads as "not connected yet" rather
+    than as the most recent failure."""
+
+    permission_classes = [IsQAOrAdmin]
 
     def get(self, request):
         log = ReconciliationLog.objects.order_by("-run_started_at").first()
-        if log is None:
-            return Response(None)
-        return Response(_serialize_log(log))
+        return Response({
+            "configured": reconciliation_is_configured(),
+            "last_run": _serialize_log(log) if log is not None else None,
+        })

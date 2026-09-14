@@ -97,10 +97,26 @@ touching the live Main-400 Kobo asset.
   existing `POST /api/v1/kobo/reconcile/` back a "KoboToolbox sync" panel on the admin QA
   queue page (`/admin/qa`) — a "Sync now" button plus last-run status, so an RA/PI/admin
   doesn't have to wait for the next scheduled Celery Beat tick to pull fresh submissions.
-- **Still open (needs the PI / a Kobo account owner, not engineering)**: `KOBO_ASSET_UID`
-  and `KOBO_API_TOKEN` are empty in production. "Sync now" correctly surfaces this today
-  as a `404 Not Found for url: https://kf.kobotoolbox.org/api/v2/assets//data/` (note the
-  empty asset segment) rather than failing silently — that 404 is expected until a real
-  Kobo asset is provisioned and its UID/token are set in `backend/.env`. The exact hidden
-  field names still need freezing against the real live form per "Integration contract"
-  above before Phase 11 go-live.
+- **Not connected is a state, not a failure (2026-09-14)**. Three settings, configured
+  from two different places in KoboToolbox:
+  - `KOBO_FORM_URL` — the deployed form's public web link, copied from the project's
+    *Collect data* page (e.g. `https://ee.kobotoolbox.org/x/AbCd1234`). The respondent's
+    questionnaire link is this URL plus `?d[<field>]=<value>` prefill parameters
+    (KoboToolbox's documented syntax), values percent-encoded. It is **not** derivable
+    from the asset UID: web forms are served by the Enketo host (`ee.`) under their own
+    short form ID. Until this date the link was built as `kf.kobotoolbox.org/x/<asset_uid>`,
+    which would have 404'd for every respondent even with a correct asset UID.
+  - `KOBO_ASSET_UID` + `KOBO_API_TOKEN` — needed only for reconciliation (the API on `kf.`).
+  With `KOBO_FORM_URL` blank, `GET /kobo/redirect-url/` returns `503
+  questionnaire_unavailable` (after the consent and eligibility gates, which are refused
+  on their own terms first) and the respondent is offered the assisted phone/WhatsApp
+  route instead of a dead link. With the asset UID or token blank, the scheduled task
+  skips without writing a `ReconciliationLog` row, `POST /kobo/reconcile/` returns `503
+  kobo_not_configured`, and the QA sync panel says "not connected yet" with Sync now
+  disabled. Before this, production wrote 125 error rows in a day against
+  `/api/v2/assets//data/`; those rows were left in place.
+- **Still open (needs the PI / a Kobo account owner, not engineering)**: all three
+  settings are empty in production. Hidden fields must sit at the top level of the
+  XLSForm (not inside a group — a grouped field needs its group path in the `d[...]`
+  name), and their exact names still need freezing against the real live form per
+  "Integration contract" above before Phase 11 go-live.
