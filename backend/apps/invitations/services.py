@@ -90,9 +90,17 @@ def issue_invitation(
 
     # Supersede any still-open prior token for this case (docs/10: "issuing a
     # new token automatically expires any still-open prior token").
+    # "Still open" is every status before submission. Until 2026-09-14 only
+    # GENERATED/SENT/OPENED were expired, so a link whose respondent had
+    # passed eligibility, consented or started the questionnaire stayed live
+    # next to the new one -- two working links for one case (found by the
+    # go-live pre-flight, check 7).
     InvitationToken.objects.filter(
         sample_case=sample_case,
-        status__in=[TokenStatus.GENERATED, TokenStatus.SENT, TokenStatus.OPENED],
+        status__in=[
+            TokenStatus.GENERATED, TokenStatus.SENT, TokenStatus.OPENED, TokenStatus.ELIGIBILITY_PASSED,
+            TokenStatus.CONSENTED, TokenStatus.SURVEY_STARTED,
+        ],
     ).update(status=TokenStatus.EXPIRED)
 
     token_bytes = getattr(settings, "INVITATION_TOKEN_BYTES", 32)

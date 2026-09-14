@@ -209,3 +209,21 @@ def test_revoke_endpoint_marks_token_revoked(admin_client, main_case):
     token.refresh_from_db()
     assert token.status == TokenStatus.REVOKED
     assert token.revoked_reason == "Issued in error"
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("progress", ["ELIGIBILITY_PASSED", "CONSENTED", "SURVEY_STARTED"])
+def test_a_new_invitation_expires_a_link_the_respondent_had_already_started(main_case, progress):
+    from apps.invitations.models import TokenStatus
+    from apps.invitations.services import TokenValidationError, issue_invitation, validate_token
+
+    raw, _, token = issue_invitation(main_case)
+    token.status = progress
+    token.save(update_fields=["status"])
+
+    issue_invitation(main_case, invitation_wave=2)
+
+    token.refresh_from_db()
+    assert token.status == TokenStatus.EXPIRED
+    with pytest.raises(TokenValidationError):
+        validate_token(raw)
