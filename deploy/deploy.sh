@@ -152,6 +152,7 @@ install -m 644 "$APP_DIR/systemd/drp-backend.service"       /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-frontend.service"      /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-celery-worker.service" /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-celery-beat.service"   /etc/systemd/system/
+install -m 644 "$APP_DIR/systemd/drp-offsite-backup.service" /etc/systemd/system/
 systemctl daemon-reload
 
 log "Restarting services"

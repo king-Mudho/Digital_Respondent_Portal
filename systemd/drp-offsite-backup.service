@@ -1,0 +1,14 @@
+[Unit]
+Description=DRP - copy the newest backup to Google Drive, encrypted
+Documentation=file:///srv/agribiz-drp/deploy/offsite-backup.sh
+After=network-online.target
+Wants=network-online.target
+
+# Started by drp-backup.service (OnSuccess=, drop-in installed by
+# configure-offsite-backup.sh). A failed upload fails this unit, not the
+# local backup, so each shows its own state in `systemctl --failed`.
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/bash /srv/agribiz-drp/deploy/offsite-backup.sh
+TimeoutStartSec=30min

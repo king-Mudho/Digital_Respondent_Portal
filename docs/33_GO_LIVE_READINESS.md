@@ -55,7 +55,7 @@ In rough order of consequence. Each has a test that fails without the fix.
 | 4 | Assign cases to Contact RAs | Field Coordinator | Case page → *Assigned Contact RA*; an RA sees only assigned cases |
 | 5 | Move cases through verification to S03 | Field Coordinator | Main-400 register → *Move cases through verification* |
 | 6 | Rotate the KoboToolbox password and API token | PI | Then `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh` with the new token |
-| 7 | Copy backups off the server | PI (choose destination) → engineering | Backups live only on the same VPS; a host failure loses them |
+| 7 | Finish offsite backups: sign in to Google Drive once, then store the encryption key in a password manager | PI | Built and tested; run the one command in `23` "Offsite backups". Until then backups live only on the same VPS |
 | 8 | Push to GitHub and let CI run once | PI | `.github/workflows/ci.yml` has never run |
 | 9 | User-acceptance run | PI, Field Coordinator, one RA | Invite one friendly test respondent end to end on a real phone |
 | 10 | Decide the open instrument questions | PI | Questionnaire Section 10 routing; Documents "Exclude" skip; KII category list and Executive-form wording; what happens to submitted data after a withdrawal |

@@ -167,3 +167,41 @@ not assumed to work.
    (`12_CONTACT_CRM_AND_MESSAGING.md`).
 6. Confirm reserve locks and the de-identified export are verified against synthetic
    data one final time in production before the first real invitation.
+
+## Offsite backups (Google Drive, encrypted) — added 2026-09-14
+
+Every successful `drp-backup.service` run triggers `drp-offsite-backup.service`
+(`OnSuccess=` drop-in), which copies the newest database dump and payload-file archive to
+Google Drive through an rclone **crypt** remote: files are encrypted on the server, with
+file names scrambled, so Google holds only ciphertext. Drive copies are kept 90 days
+(`DRP_OFFSITE_RETENTION_DAYS`). Each upload is verified by size through the decryption
+layer; a failed upload fails its own unit (`systemctl --failed`), never the local backup.
+
+- **Setup (once, from your own computer):**
+  `ssh -t -L 53682:127.0.0.1:53682 agribizframework 'sudo bash /srv/agribiz-drp/deploy/configure-offsite-backup.sh'`
+  — open the printed link, sign in to the Google account that should hold the backups,
+  allow. Scope is `drive.file`: the server can see only the files it created. The script
+  then uploads, downloads back, decrypts and checks the dump before installing the timer
+  hook.
+- **The key.** `/etc/drp/offsite-backup-key.txt` holds the crypt password and salt in
+  plain text. Copy both lines into a password manager; if the server is lost the Drive
+  copies are unreadable without them.
+- **Tested** 2026-09-14 on production with a local folder standing in for Drive: upload,
+  scrambled names at rest, byte-identical restore (42 tables), and the not-yet-configured
+  path exiting cleanly.
+
+### Restoring from Google Drive on a new server
+
+```bash
+sudo dnf install -y rclone
+rclone config create gdrive drive scope=drive.file          # sign in to the same Google account
+rclone config create drp-offsite crypt remote=gdrive:ABF-FST-DRP-backups \
+  filename_encryption=standard directory_name_encryption=true \
+  password='<password from the key>' password2='<password2 from the key>' --obscure
+rclone lsl drp-offsite:                                     # pick the newest drp-*.sql.gz
+rclone copy drp-offsite:drp-YYYYMMDD-HHMMSS.sql.gz .
+rclone copy drp-offsite:drp-files-YYYYMMDD-HHMMSS.tar.gz .
+sudo -u postgres createdb drp_prod
+gunzip -c drp-YYYYMMDD-HHMMSS.sql.gz | sudo -u postgres psql drp_prod
+sudo tar xzf drp-files-YYYYMMDD-HHMMSS.tar.gz -C /srv/agribiz-drp/backend   # restores private_data/
+```
