@@ -11,8 +11,8 @@ from apps.consent.services import has_given_consent
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token
 
-from .models import Appointment, AppointmentStatus, ContactEvent, RoleCategory
-from .serializers import AppointmentSerializer, ContactEventSerializer
+from .models import Appointment, AppointmentStatus, ContactEvent, Respondent, RoleCategory
+from .serializers import AppointmentSerializer, ContactEventSerializer, StaffRespondentSerializer
 from .services import record_eligibility_check
 
 
@@ -179,3 +179,90 @@ class AppointmentStatusView(APIView):
         appointment.status = status_value
         appointment.save(update_fields=["status"])
         return Response(AppointmentSerializer(appointment).data)
+
+
+def _consent_withdrawn(sample_case) -> bool:
+    from apps.consent.models import ConsentDecision, ConsentType
+    from apps.consent.services import latest_consent
+
+    record = latest_consent(sample_case, ConsentType.PARTICIPATION)
+    return record is not None and record.decision == ConsentDecision.WITHDRAWN
+
+
+_WITHDRAWN_RESPONSE = {
+    "error": {
+        "code": "consent_withdrawn",
+        "message": "This participant has withdrawn; contact details are not recorded.",
+        "field_errors": {},
+    }
+}
+
+
+def _save_respondent(serializer, user, **extra):
+    """Save a staff edit and audit which fields changed (names, not values --
+    the audit log must not become a second copy of the contact register)."""
+    from apps.audit.utils import log_action
+
+    instance = serializer.instance
+    before = {f: getattr(instance, f) for f in serializer.validated_data} if instance else {}
+    if "is_eligible" in serializer.validated_data and serializer.validated_data["is_eligible"] != before.get("is_eligible"):
+        extra["eligibility_checked_by"] = user
+    respondent = serializer.save(**extra)
+    changed = sorted(f for f, v in serializer.validated_data.items() if before.get(f) != v)
+    log_action(
+        "contacts.respondent_updated" if instance else "contacts.respondent_added",
+        respondent,
+        {"sample_id": respondent.sample_case.sample_id, "fields": changed, "user_id": user.id},
+    )
+    return respondent
+
+
+class RespondentListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/v1/contacts/{sample_id}/respondents/ -- the people at a
+    case and how to reach them. Until 2026-09-14 there was no way to add or
+    correct one: only the register import and the respondent's own
+    eligibility answer created them, so 349 of the 400 Main cases had no
+    phone number and nowhere to record one."""
+
+    permission_classes = [CanManageContact]
+    serializer_class = StaffRespondentSerializer
+    pagination_class = None
+
+    def _case(self):
+        from apps.sampling.models import SampleCase
+
+        sample_case = get_object_or_404(SampleCase, sample_id=self.kwargs["sample_id"])
+        _require_assigned(self.request.user, sample_case)
+        return sample_case
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Respondent.objects.none()
+        return Respondent.objects.filter(sample_case=self._case()).order_by("id")
+
+    def create(self, request, *args, **kwargs):
+        sample_case = self._case()
+        if _consent_withdrawn(sample_case):
+            return Response(_WITHDRAWN_RESPONSE, status=409)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        respondent = _save_respondent(serializer, request.user, sample_case=sample_case)
+        return Response(self.get_serializer(respondent).data, status=201)
+
+
+class RespondentUpdateView(generics.UpdateAPIView):
+    """PATCH /api/v1/contacts/respondents/{id}/"""
+
+    permission_classes = [CanManageContact]
+    serializer_class = StaffRespondentSerializer
+    http_method_names = ["patch"]
+    queryset = Respondent.objects.select_related("sample_case")
+
+    def update(self, request, *args, **kwargs):
+        respondent = self.get_object()
+        _require_assigned(request.user, respondent.sample_case)
+        if _consent_withdrawn(respondent.sample_case):
+            return Response(_WITHDRAWN_RESPONSE, status=409)
+        serializer = self.get_serializer(respondent, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        return Response(self.get_serializer(_save_respondent(serializer, request.user)).data)

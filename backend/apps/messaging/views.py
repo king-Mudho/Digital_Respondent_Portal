@@ -17,7 +17,8 @@ class FollowUpListView(APIView):
     permission_classes = [CanManageContact]
 
     def get(self, request):
-        return Response({"results": due_follow_ups()})
+        is_contact_ra = getattr(request.user.role, "name", None) == "CONTACT_RA"
+        return Response({"results": due_follow_ups(assigned_to=request.user if is_contact_ra else None)})
 
 
 class FollowUpMarkSentView(APIView):
@@ -28,6 +29,11 @@ class FollowUpMarkSentView(APIView):
 
     def post(self, request):
         sample_case = get_object_or_404(SampleCase, sample_id=request.data.get("sample_id", ""))
+        if getattr(request.user.role, "name", None) == "CONTACT_RA" and sample_case.assigned_ra_id != request.user.id:
+            return Response(
+                {"error": {"code": "permission_denied", "message": "This case is not assigned to you.", "field_errors": {}}},
+                status=403,
+            )
         template = request.data.get("template", "")
         if not ReminderSequenceStep.objects.filter(template__name=template).exists():
             return Response(

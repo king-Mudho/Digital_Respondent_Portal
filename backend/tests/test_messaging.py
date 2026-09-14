@@ -178,8 +178,17 @@ def test_whatsapp_numbers_are_normalised_for_wa_me(raw, expected):
 @pytest.mark.django_db
 def test_follow_up_endpoints_for_a_contact_ra(main_case):
     _invited(main_case, days_ago=2)
+    ra = _user(Role.CONTACT_RA, "fu_api")
+    other = APIClient()
+    other.force_authenticate(_user(Role.CONTACT_RA, "fu_other"))
+    main_case.assigned_ra = ra
+    main_case.save(update_fields=["assigned_ra"])
     client = APIClient()
-    client.force_authenticate(_user(Role.CONTACT_RA, "fu_api"))
+    client.force_authenticate(ra)
+
+    # Another Contact RA's queue holds only its own cases, and it can't mark this one.
+    assert other.get("/api/v1/follow-ups/").json()["results"] == []
+    assert other.post("/api/v1/follow-ups/mark-sent/", {"sample_id": main_case.sample_id, "template": "drp_reminder_day2"}).status_code == 403
 
     [item] = client.get("/api/v1/follow-ups/").json()["results"]
     assert item["whatsapp_link"].startswith("https://wa.me/263771234567?text=Hello")

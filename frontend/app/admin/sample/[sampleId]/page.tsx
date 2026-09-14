@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
+import { RespondentsPanel } from "@/components/admin/RespondentsPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -597,6 +598,8 @@ export default function SampleCaseDetailPage() {
         {sampleCase.sample_type === "MAIN" && <MatchedCasePanel sampleCase={sampleCase} />}
 
         <PreProfilePanel sampleCaseId={sampleCase.id} />
+
+        <RespondentsPanel sampleId={sampleCase.sample_id} />
 
         <InvitationsPanel
           sampleId={sampleCase.sample_id}

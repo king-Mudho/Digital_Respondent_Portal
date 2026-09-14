@@ -168,3 +168,26 @@ has all nine prefill fields and opens on Enketo (HTTP 200). No test submission w
 against production data. The API token used was shared in chat; rotate it, then re-run
 `configure-kobo.sh` and update the REST Service header if the secret changes (it is kept
 on re-run).
+
+### Hardening after the first live submission (2026-09-14)
+
+- **Edits.** KoboToolbox gives an edited submission a new `_uuid`; only `meta/rootUuid`
+  is stable. Reconciliation now keys on `rootUuid` (normalised without `uuid:`), so an
+  edit updates the existing `QUANSubmission` and re-enters QA instead of arriving as a
+  duplicate.
+- **Login-free submissions must come through the portal.** The questionnaire accepts
+  anonymous submissions, so anyone with its web link could submit for a guessed
+  (sequential) Sample_ID. `portal_token_id` is now `<token id>.<HMAC-SHA256>` keyed on the
+  server secret and the case; a submission without `_submitted_by` (i.e. not an
+  authenticated KoboCollect user) must carry a valid one or it is set aside, counted as
+  unmatched and audited once (`kobo.reconciliation_unverified_submission`).
+- **Unmatched submissions are audited once**, not on every 15-minute run.
+- **Times.** `_submission_time` (no offset) is read as UTC; it had been read as
+  Africa/Harare, filing submissions two hours early. `completion_seconds` is now recorded
+  (form `end` − `start`), so the QA duration rules can fire.
+- **Payload storage.** Full payloads are written to `PRIVATE_DATA_ROOT`
+  (`backend/private_data/`), not `MEDIA_ROOT`: nginx served `/media/` publicly. `/media/`
+  now returns 404, and `backup.sh` archives the payload folder, which `pg_dump` never
+  covered.
+- **QA required fields** come from the deployed form:
+  `manage.py qa_required_fields_from_kobo --apply` (65 fields; applied on production).

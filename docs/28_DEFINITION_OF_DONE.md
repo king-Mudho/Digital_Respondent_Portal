@@ -18,9 +18,12 @@ real Main-400 invitation is issued.
       (`18_DATA_PRIVACY_AND_COMPLIANCE.md`). *(2026-09-12: covered by CUT's Research
       Ethics Clearance and the study's institutional research governance.)*
 - [ ] WhatsApp Business Platform utility-category templates are Meta-approved
-      (`12_CONTACT_CRM_AND_MESSAGING.md`).
+      (`12_CONTACT_CRM_AND_MESSAGING.md`). *(No longer blocks fieldwork as of 2026-09-14:
+      invitations and reminders can be sent by hand from the case page and the Follow-ups
+      screen. It blocks only automated sending. The invitation and reminder wording still
+      needs PI approval — `31` Part A.)*
 - [ ] **The Participant Information Sheet wording is approved by the PI and the CUT
-      Research Ethics office.** *(v1.1 is live and being shown to respondents, but the
+      Research Ethics office.** *(v1.2 — which added the PROIT disclosure — is live and shown to respondents, but the
       wording has never been reviewed by anyone qualified to approve it. Review pack with
       the full text and seven identified gaps: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md`
       Part B. The most material gap is that the PIS does not disclose PROIT background
@@ -181,27 +184,53 @@ controls that did not fully exist when this checklist was written, and were buil
 the September 2026 audit. Notes below say what now backs them. That is context for the
 PI's run-through, not a substitute for it.)*
 
-- [ ] An unauthorised/public visitor cannot access the Main questionnaire.
+*(**Engineering pre-flight, 2026-09-14: 15/15 passed against production** —
+`manage.py golive_preflight`, which exercises items 1–11 and 14 through the real API
+inside a rolled-back transaction and proves row counts unchanged afterwards. Items 12 and
+13 are evidenced below. The run found and fixed one defect (item 7). Boxes stay unticked
+for the PI's own run-through.)*
+
+- [ ] An unauthorised/public visitor cannot access the Main questionnaire. — *pre-flight
+      PASS: bogus links refused; the questionnaire's public web link cannot be used to
+      submit for a guessed case (login-free submissions must carry the portal's per-case
+      signature, added 2026-09-14).*
 - [ ] A valid Main invitation opens the correct organisation/case without revealing
-      unnecessary data.
-- [ ] A locked Reserve cannot receive an invitation.
+      unnecessary data. — *pre-flight PASS (payload: confirmation name and status only).*
+- [ ] A locked Reserve cannot receive an invitation. — *pre-flight PASS (HTTP 403, no token).*
 - [ ] An ineligible respondent is routed to referral rather than questionnaire
       completion. — *now enforced server-side in `kobo.services.build_redirect_url()`;
-      until 2026-09-13 only the frontend routing prevented it.*
-- [ ] No questionnaire starts without the required consent state.
-- [ ] Sample_ID and administration mode arrive correctly in Kobo.
+      until 2026-09-13 only the frontend routing prevented it. Pre-flight PASS
+      (403 `eligibility_required` even with consent given).*
+- [ ] No questionnaire starts without the required consent state. — *pre-flight PASS
+      (declined → 403 `consent_required`).*
+- [ ] Sample_ID and administration mode arrive correctly in Kobo. — *proven live with a
+      synthetic submission on 2026-09-14 (matched to its case, mode 01), and pre-flight PASS.*
 - [ ] Duplicate or reused tokens are handled according to `10_INVITATION_AND_CONSENT.md`.
-- [ ] A Kobo submission (new or edited) updates the portal and enters QA.
-- [ ] Contact data is not present in the de-identified analytical export.
+      — *pre-flight FAILED first: a link that had reached consent stayed live after a
+      reissue. Fixed and deployed; now PASS.*
+- [ ] A Kobo submission (new or edited) updates the portal and enters QA. — *new: proven
+      live (webhook → sync → QA queue in about a second). Edited: covered by tests after
+      switching to `meta/rootUuid`, since an edit changes `_uuid`.*
+- [ ] Contact data is not present in the de-identified analytical export. — *pre-flight PASS.*
 - [ ] Role-based permissions prevent RAs from seeing records outside their duties.
+      — *pre-flight PASS (Contact RA 403 on audit, export, QA, KII); per-role navigation
+      E2E passes for all eight roles.*
       — *worth exercising per role rather than in aggregate: sign in as each of the eight
       and confirm the navigation bar matches `18_DATA_PRIVACY_AND_COMPLIANCE.md`'s access
       matrix. The three RA roles previously shared one permission class, so a KII RA could
       edit documentary evidence and a Documentary RA could take QUAN QA decisions.*
-- [ ] Reserve activation creates an audit event with reason and authoriser.
-- [ ] Backup and restore are tested.
-- [ ] Mobile pages work on typical Android screens and poor/variable connectivity.
-- [ ] Withdrawal and consent-revocation procedures are operationally testable.
+- [ ] Reserve activation creates an audit event with reason and authoriser. — *pre-flight PASS.*
+- [ ] Backup and restore are tested. — *4-hourly timer succeeding (last run checked
+      2026-09-14 16:00 UTC); staging is rebuilt from the latest backup on every deploy,
+      which is a restore test each time. Backups are still only on the same server — see
+      `33_GO_LIVE_READINESS.md`.*
+- [ ] Mobile pages work on typical Android screens and poor/variable connectivity. —
+      *E2E `respondent-poor-connectivity.spec.ts`: full journey on a 360×740 screen, 4×
+      CPU slowdown and a slow-3G link (≈66 s on the unminified dev build); a slow tap
+      cannot submit twice.*
+- [ ] Withdrawal and consent-revocation procedures are operationally testable. — *there
+      was no way to record a withdrawal until 2026-09-14. Built, E2E-tested
+      (`admin-withdrawal.spec.ts`) and pre-flight PASS.*
 - [x] The POTRAZ/data-protection position is resolved and reflected in the deployed
       access-control configuration. *(2026-09-12: see `18_DATA_PRIVACY_AND_
       COMPLIANCE.md` — covered by CUT's Research Ethics Clearance.)*

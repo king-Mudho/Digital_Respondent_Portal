@@ -83,3 +83,17 @@ eventual `QUANSubmission` — see `11_KOBOTOOLBOX_INTEGRATION.md`.
 After Kobo submission, the portal shows a neutral confirmation and study contact
 details. No provisional ABI score, band, or financing recommendation is ever shown — see
 `18_DATA_PRIVACY_AND_COMPLIANCE.md` and `20_EMBEDDING_WITH_ABI.md`.
+
+## Implementation notes (2026-09-14)
+
+- **Supersession covers every pre-submission status.** Issuing a new invitation expires
+  prior tokens at GENERATED, SENT, OPENED, ELIGIBILITY_PASSED, CONSENTED and
+  SURVEY_STARTED. Before, only the first three were expired, so a respondent who had
+  consented kept a working link beside the new one (found by `golive_preflight`).
+- **Withdrawal is operable.** Coordinators record it on the case page
+  (`consent.withdrawal.record_withdrawal`): a WITHDRAWN participation `ConsentRecord`
+  (method: verbal or written), every open invitation revoked (which also stops reminders),
+  S12 where the workflow allows, and respondent phone, WhatsApp, email and gatekeeper
+  contact erased. Submitted questionnaire data is not deleted — the analysis export gains
+  `consent_withdrawn` so it can be excluded — because what happens to it is the ethics
+  protocol's decision. Audited as `consent.withdrawal_processed`.

@@ -14,6 +14,22 @@ class RespondentSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "is_eligible"]
 
 
+class StaffRespondentSerializer(serializers.ModelSerializer):
+    """Contact details as recorded by staff on the case page. `is_eligible`
+    is writable here: an RA who screens the respondent by phone records the
+    outcome, and eligibility_checked_by records who did."""
+
+    eligibility_checked_by = serializers.StringRelatedField(read_only=True)
+
+    class Meta:
+        model = Respondent
+        fields = [
+            "id", "full_name", "role_category", "is_eligible", "eligibility_checked_by", "phone",
+            "whatsapp_number", "email", "gatekeeper_name", "gatekeeper_contact", "updated_at",
+        ]
+        read_only_fields = ["id", "eligibility_checked_by", "updated_at"]
+
+
 class ContactEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContactEvent

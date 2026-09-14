@@ -96,3 +96,24 @@ Implemented as a database enum with an explicit state-transition table in
 `AuditEvent` if attempted. `S12`–`S15` are the terminal states that make a case
 `S16`-eligible for reserve activation, subject to the approved follow-up sequence having
 been exhausted first.
+
+## Workflow advancement from events (2026-09-14)
+
+Until this date a case reached S05 when invited and never moved again. It now follows its
+respondent, one legal transition at a time and forward only
+(`sampling.services.advance_case_on_respondent_event` / `advance_case_on_qa_outcome`):
+
+| Event | Case moves to |
+|---|---|
+| Invitation link opened (validated) | S06 |
+| Questionnaire link handed over (`/kobo/redirect-url/`) | S07 |
+| Kobo submission reconciled (walks S05/S06 → S08 for a KoboCollect submission) | S08 |
+| Automated QA flag, or a human QUERY | S09 |
+| Human QA ACCEPT | S10 |
+| Withdrawal recorded (from S05–S07) | S12 |
+
+S01–S03 are never inferred: a case invited while still at S00–S02 keeps its status (the
+case page says so before inviting). Coordinators move cases through verification in bulk
+from the Main-400 register (`/sample-cases/bulk-transition/`, S00→S01→S02→S03 only, each
+case audited). S13 Nonresponse now requires every reminder in the sequence to have been
+**sent** for the live invitation (`12_CONTACT_CRM_AND_MESSAGING.md`).

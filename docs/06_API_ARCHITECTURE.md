@@ -61,7 +61,9 @@ print('\n'.join(sorted(u for u in w(get_resolver()) if u.startswith('api/v1/')))
 |---|---|---|---|
 | GET/POST | `/sample-cases/` | `CanViewSampleCases` (POST: FC/Admin) | List / create. `?search=` matches sample_id, organisation name, Master ID. Contact RA's GET is scoped to its assigned cases |
 | GET/PATCH | `/sample-cases/{sample_id}/` | `CanViewSampleCases` | Retrieve / update. Status fields are read-only here — use `/transition/`. `matched_case` routes through `set_matched_case()` |
-| POST | `/sample-cases/{sample_id}/transition/` | `IsFieldCoordinatorOrAdmin` | The only sanctioned way to change `workflow_status`; validates S00–S16 and audits |
+| POST | `/sample-cases/{sample_id}/transition/` | `IsFieldCoordinatorOrAdmin` | The only sanctioned way to change `workflow_status` by hand; validates S00–S16 and audits. S05→S10 also advance automatically from respondent and QA events (`09`) |
+| POST | `/sample-cases/bulk-transition/` | `IsFieldCoordinatorOrAdmin` | `{from_status, sample_ids?}` — move Main cases one verification step (S00→S01→S02→S03 only), each audited |
+| POST | `/sample-cases/{sample_id}/withdraw/` | `IsFieldCoordinatorOrAdmin` | `{reason, method?}` — record a withdrawal: WITHDRAWN consent, invitations revoked, S12 where allowed, contact details erased. 409 if already withdrawn |
 | POST | `/sample-cases/{sample_id}/activate-reserve/` | `IsFieldCoordinatorOrAdmin` | Activate a matched reserve; requires `activation_reason` |
 | GET | `/sample-cases/{sample_id}/available-reserves/` | `IsFieldCoordinatorOrAdmin` | Reserves this Main case may be paired with (still LOCKED, unclaimed), same stratum first |
 | GET/POST | `/organisations/` | `CanViewSampleCases` (POST: FC/Admin) | Register / list organisations. `?search=` matches name, Master ID, district |
@@ -80,7 +82,7 @@ print('\n'.join(sorted(u for u in w(get_resolver()) if u.startswith('api/v1/')))
 
 | Method | Path | Permission | Purpose |
 |---|---|---|---|
-| GET | `/kobo/redirect-url/?t=` | public | The tokenised Kobo launch URL. Requires **both** a passed eligibility check and GIVEN consent |
+| GET | `/kobo/redirect-url/?t=` | public | The tokenised Kobo launch URL. Requires **both** a passed eligibility check and GIVEN consent. `portal_token_id` is `<token id>.<HMAC>`; also marks the token SURVEY_STARTED and the case S07 |
 | POST | `/kobo/webhook/` | shared secret | New-submission heads-up; never trusted alone (`11_KOBOTOOLBOX_INTEGRATION.md`) |
 | POST | `/kobo/reconcile/` | `IsQAOrAdmin` | Manually trigger a reconciliation pull |
 | GET | `/kobo/reconciliation-status/` | `IsQAOrAdmin` | `{configured, last_run}` — whether the asset UID and API token are set, and the last run's timing, counts and error |
@@ -90,8 +92,12 @@ print('\n'.join(sorted(u for u in w(get_resolver()) if u.startswith('api/v1/')))
 | Method | Path | Permission | Purpose |
 |---|---|---|---|
 | GET/POST | `/contacts/{sample_id}/events/` | `CanManageContact` | Contact-attempt log |
+| GET/POST | `/contacts/{sample_id}/respondents/` | `CanManageContact` (Contact RA: assigned cases) | People at a case and their contact details; `is_eligible` records a staff screening (sets `eligibility_checked_by`). 409 after withdrawal. Audited with changed field names only |
+| PATCH | `/contacts/respondents/{id}/` | `CanManageContact` (Contact RA: assigned cases) | Correct a person's details |
 | GET/POST | `/appointments/` | `CanManageContact` (POST: public, token) | Appointment register. Public POST requires GIVEN consent and a future `scheduled_for` |
 | POST | `/appointments/{id}/status/` | `CanManageContact` | Confirm / complete / miss / cancel |
+| GET | `/follow-ups/` | `CanManageContact` (Contact RA: assigned cases) | Reminders due and not yet sent, with a `whatsapp_link` (wa.me) carrying the approved text |
+| POST | `/follow-ups/mark-sent/` | `CanManageContact` | `{sample_id, template}` — record a reminder sent by hand, against the RA, audited |
 | GET | `/qa/queue/` | `IsQAOrAdmin` | Submissions pending a human QA decision |
 | POST | `/qa/submission/{id}/decision/` | `IsQAOrAdmin` | Record a QA decision; a note is mandatory |
 

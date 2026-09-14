@@ -163,3 +163,12 @@ a case that already consented inherits that consent, which is the documented mod
 Never use "approved", "loan approval", "credit rating", "bankability score" or
 "guarantee" in respondent-facing product copy. This is a research data-collection
 instrument, not a financing product.
+
+## Public file exposure found and closed (2026-09-14)
+
+nginx aliased `backend/media/` at `/media/`, and reconciliation wrote each Kobo submission's
+full payload there. A probe file was downloadable from production (HTTP 200). The folder
+held no respondent data at the time: the only payload ever written there was the synthetic
+integration test submission, reachable for about 20 minutes before it was deleted. Payloads
+now go to a private folder no location serves, `/media/` returns 404, and the fix is
+covered by `tests/test_kobo.py::test_submission_payloads_are_never_written_where_the_web_server_serves_files`.

@@ -60,3 +60,29 @@ Automated (human-unsupervised) sending is limited strictly to the approved remin
 sequence above; every other outbound message is triggered by an RA action and recorded
 against that RA in `MessageLog.triggered_by` (`AGENTS.md` ground rule — messaging is
 never a silent background process beyond the one approved queue).
+
+## Sending by hand until the WhatsApp Business Platform is connected (2026-09-14)
+
+Before this date every due reminder was written as a FAILED `MessageLog` that no screen
+showed, so no reminder could reach anyone, and a case became S13 Nonresponse on day 8 by
+the calendar alone.
+
+- **Invitations.** After issuing, the case page offers *Send via WhatsApp* (wa.me with the
+  invitation text, link, expiry and manual code) and *Copy message*. The wording lives in
+  `frontend/app/admin/sample/[sampleId]/page.tsx` (`invitationMessage`) and still needs PI
+  approval.
+- **Follow-ups screen** (`/admin/follow-ups`; PI, Field Coordinator, Contact RA;
+  Supervisor read-only) lists every case at S04–S06 whose live invitation has a reminder
+  due and not yet sent — only the latest due step, so a missed Day 2 is superseded by Day
+  7 rather than sent twice. *Open in WhatsApp* uses the respondent's number (Zimbabwean
+  07… numbers get 263); *Mark as sent* records a SENT `MessageLog` against the RA and
+  audits it.
+- **Automated dispatch** sends only when the WhatsApp client is configured and writes
+  nothing otherwise.
+- **S13 Nonresponse** only after every step in the sequence was sent for the live
+  invitation.
+- **Contact details are editable.** The case page's *Respondents and contact details* panel
+  adds and corrects people, phone, WhatsApp, email and gatekeeper (Contact RA on assigned
+  cases, Field Coordinator, PI). On 2026-09-14 only 51 of the 400 Main cases had any phone
+  number and none had a WhatsApp number, with no way to record one; collecting these is
+  now the main fieldwork-readiness task (`33_GO_LIVE_READINESS.md`).

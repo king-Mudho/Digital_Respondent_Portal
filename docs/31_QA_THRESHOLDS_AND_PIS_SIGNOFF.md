@@ -29,17 +29,26 @@ sign-off: approving a value that nothing evaluates gives false assurance.
 
 | Threshold | Value | State |
 |---|---|---|
-| `min_plausible_duration_seconds` | 300 (5 min) | **Active** |
-| `max_plausible_duration_seconds` | 5400 (90 min) | **Active** |
+| `min_plausible_duration_seconds` | 300 (5 min) | **Active since 2026-09-14** — see note below |
+| `max_plausible_duration_seconds` | 5400 (90 min) | **Active since 2026-09-14** — see note below |
 | `duplicate_master_id_window_hours` | 24 | **Active** |
-| `required_field_names` | `[]` | Dormant — empty, so `hard_stop_missing_required_fields` never fires |
+| `required_field_names` | 65 fields from the deployed form | **Active since 2026-09-14** — set by `qa_required_fields_from_kobo`: the resolved Sample_ID, ADMIN_DATE, E1, P1–P10, all 58 Likert items and D1–D2 (every question the form requires and shows to every consenting respondent). A declined or ineligible respondent's submission is therefore flagged, which is intended |
 | `optional_field_names` | `[]` | Dormant — empty |
 | `max_missing_optional_fields_percent` | 10 | Dormant — guarded by `optional_field_names` being non-empty |
 | `logic_violation_hard_stop_rules` | `[]` | Dormant — no rules defined |
 | `logic_violation_soft_flag_rules` | `[]` | Dormant — no rules defined |
 | `mode_imbalance_alert_ratio` | 0.70 | **Not implemented** — defined but never read by `evaluate_submission()` |
 
-The five dormant thresholds cannot be populated until the real Kobo form's field names
+**Correction, 2026-09-14.** The two duration thresholds were listed as active, but
+reconciliation never recorded `completion_seconds`, so they could not fire on any real
+submission. They can now: a submission's duration is the form's own `end` − `start`.
+
+**Two more texts need approval alongside the PIS:** the WhatsApp invitation message
+(`invitationMessage` in the case page) and the two reminder texts seeded as
+`drp_reminder_day2` / `drp_reminder_day7_final` (editable in Django admin). They are what
+RAs now send by hand from the Follow-ups screen.
+
+The four remaining dormant thresholds cannot be populated until the real Kobo form's field names
 are frozen (`11_KOBOTOOLBOX_INTEGRATION.md`, and the open Kobo item in `docs/27`). They
 are listed here so the reviewer knows the QA engine is currently thinner than
 `15_QA_AND_DATA_QUALITY.md` describes.

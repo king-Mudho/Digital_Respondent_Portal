@@ -1,0 +1,77 @@
+# 33 — Go-live readiness (14 September 2026)
+
+The result of a full end-to-end audit of the deployed system and its KoboToolbox
+connection, what it fixed, and what still has to happen before the first live Main-400
+invitation. Evidence for each checklist item sits against it in
+`28_DEFINITION_OF_DONE.md`.
+
+**Position: engineering-ready, not yet cleared to go live.** Every technical item on the
+go-live checklist has been exercised against production and passes. What remains is
+approvals, contact data, credentials, and a user-acceptance run — none of which the
+software can do for the team.
+
+## What was verified
+
+| Area | Evidence |
+|---|---|
+| Go-live checklist items 1–11, 14 | `manage.py golive_preflight` on production: **15/15**, all writes rolled back, row counts unchanged |
+| Portal ↔ KoboToolbox | A synthetic submission went portal → questionnaire → KoboToolbox (no login) → webhook → portal → QA queue in about a second; test records removed afterwards |
+| Mobile and poor connectivity | Full respondent journey on a 360×740 screen, 4× CPU slowdown, slow-3G link; a slow tap cannot submit twice |
+| Automated suites | Backend 339 passed; E2E 34 passed, 1 deliberately skipped (WhatsApp Business Platform) |
+| Production health | 7 services active; 4-hourly backups succeeding; certificate valid to 10 Dec 2026; no errors since deploy; HSTS on pages and API |
+
+## What the audit found and fixed
+
+In rough order of consequence. Each has a test that fails without the fix.
+
+1. **Research answers were publicly downloadable.** nginx served `/media/`, where full Kobo
+   payloads were written. Now stored privately, `/media/` returns 404, payload files are
+   backed up (they never were).
+2. **Anyone with the questionnaire's public link could submit for a guessed case.** Portal
+   links now carry a per-case signature; login-free submissions without one are set aside.
+3. **Cases could be replaced by reserves without anyone following up.** S13 Nonresponse was
+   set on day 8 by the calendar while every reminder silently failed. It now needs every
+   reminder actually sent.
+4. **No reminder could ever reach a respondent.** They failed into rows no screen showed.
+   The new Follow-ups screen sends them by hand through WhatsApp and records who sent them.
+5. **Staff could not record a phone number.** Only 51 of 400 Main cases had one, with no
+   way to add more. The case page now has a contact-details panel.
+6. **Withdrawal could not be recorded at all.** Now one action: consent withdrawn,
+   invitations revoked, reminders stop, contact details erased, export flagged.
+7. **A reissued invitation left the old link working** once the respondent had consented.
+8. **Case status never moved past "Invitation sent".** It now follows the respondent to
+   QA passed. Coordinators can move cases through verification in bulk.
+9. **Kobo edits would have duplicated submissions** (an edit changes `_uuid`), **times were
+   two hours off**, and **duration was never recorded**, so the duration QA rules could not
+   fire. All fixed; required-field QA is now active with 65 fields from the live form.
+
+## Before the first live invitation — must happen
+
+| # | Item | Owner | How |
+|---|---|---|---|
+| 1 | Approve the Participant Information Sheet v1.2 | PI + CUT Research Ethics | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part B |
+| 2 | Approve the QA thresholds **and** the invitation and two reminder texts | PI | `31` Part A; texts are what RAs now send by hand |
+| 3 | Collect respondent contact details | Field Coordinator + Contact RAs | Case page → *Respondents and contact details*; 349 Main cases have no number |
+| 4 | Assign cases to Contact RAs | Field Coordinator | Case page → *Assigned Contact RA*; an RA sees only assigned cases |
+| 5 | Move cases through verification to S03 | Field Coordinator | Main-400 register → *Move cases through verification* |
+| 6 | Rotate the KoboToolbox password and API token | PI | Then `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh` with the new token |
+| 7 | Copy backups off the server | PI (choose destination) → engineering | Backups live only on the same VPS; a host failure loses them |
+| 8 | Push to GitHub and let CI run once | PI | `.github/workflows/ci.yml` has never run |
+| 9 | User-acceptance run | PI, Field Coordinator, one RA | Invite one friendly test respondent end to end on a real phone |
+| 10 | Decide the open instrument questions | PI | Questionnaire Section 10 routing; Documents "Exclude" skip; KII category list and Executive-form wording; what happens to submitted data after a withdrawal |
+
+## Should happen soon — does not block
+
+- **WhatsApp Business Platform** (Meta account, verified number, approved utility
+  templates) to send reminders automatically instead of by hand.
+- **PROIT ethics review** — PROIT is live on the PI's documented risk acceptance, not an
+  ethics clearance.
+- **Server memory**: 956 MB shared with the ABI site, running on swap. Move to 2 GB before
+  fieldwork peaks.
+- **QA engine gaps**: `mode_imbalance_alert_ratio` is configured but not implemented;
+  logic-violation rules are empty.
+- **API documentation**: about 40 views lack schema annotations (log noise only).
+- **ABI site** (separate project): its nginx config also serves `/media/` publicly — worth
+  checking there.
+- **ResearchOS backlog** (`32`): Kobo duplicate quarantine, case timeline, cost attribution,
+  export/data-lock pack; Identity Vault.

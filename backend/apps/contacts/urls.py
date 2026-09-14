@@ -5,13 +5,17 @@ from .views import (
     AppointmentStatusView,
     ContactEventListCreateView,
     EligibilityView,
+    RespondentListCreateView,
+    RespondentUpdateView,
 )
 
 app_name = "contacts"
 
 urlpatterns = [
     path("eligibility/", EligibilityView.as_view(), name="eligibility"),
+    path("contacts/respondents/<int:pk>/", RespondentUpdateView.as_view(), name="respondent-update"),
     path("contacts/<str:sample_id>/events/", ContactEventListCreateView.as_view(), name="contact-events"),
+    path("contacts/<str:sample_id>/respondents/", RespondentListCreateView.as_view(), name="respondents"),
     path("appointments/", AppointmentListCreateView.as_view(), name="appointments"),
     path("appointments/<int:pk>/status/", AppointmentStatusView.as_view(), name="appointment-status"),
 ]

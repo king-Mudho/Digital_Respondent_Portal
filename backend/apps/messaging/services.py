@@ -155,15 +155,19 @@ def whatsapp_link(phone: str, text: str) -> str:
     return f"https://wa.me/{digits}?text={quote(text)}" if digits else f"https://wa.me/?text={quote(text)}"
 
 
-def due_follow_ups(reference_date=None) -> list[dict]:
+def due_follow_ups(reference_date=None, *, assigned_to=None) -> list[dict]:
     """Every awaiting case with a reminder due and not yet sent, oldest
-    invitation first -- the Contact RA's Follow-ups screen."""
+    invitation first -- the Follow-ups screen. `assigned_to` limits it to one
+    Contact RA's assigned cases, like every other Contact RA list."""
     reference_date = reference_date or timezone.localdate()
     steps = list(ReminderSequenceStep.objects.select_related("template"))
     if not steps:
         return []
     items = []
-    for case in _awaiting_cases():
+    cases = _awaiting_cases()
+    if assigned_to is not None:
+        cases = cases.filter(assigned_ra=assigned_to)
+    for case in cases:
         token = _latest_token(case)
         if not token:
             continue
