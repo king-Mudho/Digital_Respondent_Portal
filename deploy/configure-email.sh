@@ -33,12 +33,14 @@ ask() {  # ask VAR "Prompt" "default"
     read -rp "$2${3:+ [$3]}: " reply
     printf -v "$1" '%s' "${reply:-$3}"
 }
-ask EMAIL_HOST "SMTP server" "smtp.gmail.com"
-ask EMAIL_PORT "SMTP port" "587"
-ask EMAIL_HOST_USER "SMTP username (usually the full address)" ""
+# Any of these can be preset in the environment, so only the password is typed:
+#   sudo PRESET_USER=abffst.research.cut@gmail.com bash configure-email.sh
+ask EMAIL_HOST "SMTP server" "${PRESET_HOST:-smtp.gmail.com}"
+ask EMAIL_PORT "SMTP port" "${PRESET_PORT:-587}"
+ask EMAIL_HOST_USER "SMTP username (usually the full address)" "${PRESET_USER:-}"
 read -rsp "SMTP password or app password: " EMAIL_HOST_PASSWORD; echo
 ask DEFAULT_FROM_EMAIL "From (name and address)" "ABF-FST Research <${EMAIL_HOST_USER}>"
-ask STUDY_REPLY_TO_EMAIL "Replies go to" "$EMAIL_HOST_USER"
+ask STUDY_REPLY_TO_EMAIL "Replies go to" "${PRESET_REPLY_TO:-$EMAIL_HOST_USER}"
 ask TEST_TO "Send a test message to" "$EMAIL_HOST_USER"
 [[ -n "$EMAIL_HOST_USER" && -n "$EMAIL_HOST_PASSWORD" ]] || die "username and password are required"
 
