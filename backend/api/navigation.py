@@ -72,6 +72,13 @@ SCREENS = {
         "/admin/follow-ups", "Follow-ups",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
     ),
+    # PDF copies of completed Kobo forms; each role sees only its own form
+    # (kobo.submission_copies.FORMS), enforced server-side per request.
+    "kobo_submissions": (
+        "/admin/submissions", "Form PDFs",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.KII_RA, Role.DOCUMENTARY_RA,
+         Role.SUPERVISOR_READONLY},
+    ),
     "qa_queue": (
         "/admin/qa", "QA Queue",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.SUPERVISOR_READONLY},

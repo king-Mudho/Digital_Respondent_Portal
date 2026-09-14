@@ -42,13 +42,13 @@ const EXPECTED: Array<{
   {
     username: "e2e_quan_qa_ra",
     landing: "/admin/dashboard/qa",
-    nav: ["QA Dashboard", "QA Queue", "QA Exceptions"],
+    nav: ["QA Dashboard", "Form PDFs", "QA Queue", "QA Exceptions"],
     refused: "/admin/kii",
   },
   {
     username: "e2e_kii_ra",
     landing: "/admin/dashboard/kii-documents",
-    nav: ["KII/Doc Dashboard", "KII Register"],
+    nav: ["KII/Doc Dashboard", "Form PDFs", "KII Register"],
     // The over-grant this pass fixed: IsQAOrAdmin let a KII RA edit
     // documents and take QA decisions.
     refused: "/admin/documents",
@@ -56,7 +56,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_documentary_ra",
     landing: "/admin/dashboard/kii-documents",
-    nav: ["KII/Doc Dashboard", "Documents"],
+    nav: ["KII/Doc Dashboard", "Form PDFs", "Documents"],
     refused: "/admin/qa",
   },
 ];
@@ -85,7 +85,7 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Audit Log");
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
-  expect(labels.length).toBe(17);
+  expect(labels.length).toBe(18);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

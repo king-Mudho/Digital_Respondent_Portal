@@ -58,7 +58,7 @@ async function warmRoutes() {
     "/admin/login", "/admin", "/admin/account",
     "/admin/dashboard", "/admin/dashboard/sampling", "/admin/dashboard/contact",
     "/admin/dashboard/qa", "/admin/dashboard/kii-documents",
-    "/admin/sample", "/admin/sample/warm", "/admin/organisations", "/admin/appointments", "/admin/follow-ups",
+    "/admin/sample", "/admin/sample/warm", "/admin/organisations", "/admin/appointments", "/admin/follow-ups", "/admin/submissions",
     "/admin/qa", "/admin/qa/exceptions", "/admin/kii", "/admin/kii/new", "/admin/kii/1",
     "/admin/documents", "/admin/documents/new", "/admin/documents/1",
     "/admin/reserve", "/admin/cost", "/admin/audit", "/admin/export", "/admin/proit/1",

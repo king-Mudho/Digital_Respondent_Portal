@@ -47,13 +47,17 @@ async function proxy(request: NextRequest, path: string[]) {
     }
   }
 
-  const responseBody = await upstream.text();
+  // Bytes, not text: .text() re-encoded binary bodies as UTF-8 and corrupted
+  // every PDF download (CSV exports only survived because CSV is text).
+  const responseBody = await upstream.arrayBuffer();
   const headers: Record<string, string> = {
     "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
   };
   // CSV export downloads rely on this to name/save the file correctly.
   const disposition = upstream.headers.get("Content-Disposition");
   if (disposition) headers["Content-Disposition"] = disposition;
+  const cacheControl = upstream.headers.get("Cache-Control");
+  if (cacheControl) headers["Cache-Control"] = cacheControl;
 
   const response = new NextResponse(responseBody, { status: upstream.status, headers });
 

@@ -224,9 +224,25 @@ KOBO_ASSET_UID = env("KOBO_ASSET_UID", default="")
 # respondent even with a correct asset UID configured.
 KOBO_FORM_URL = env("KOBO_FORM_URL", default="")
 KOBO_WEBHOOK_SHARED_SECRET = env("KOBO_WEBHOOK_SHARED_SECRET", default="")
+# The other two main-study forms (read on demand for PDF copies; not reconciled).
+KOBO_KII_ASSET_UID = env("KOBO_KII_ASSET_UID", default="")
+KOBO_DOCUMENTS_ASSET_UID = env("KOBO_DOCUMENTS_ASSET_UID", default="")
 KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
     "KOBO_RECONCILIATION_INTERVAL_MINUTES", default=15
 )
+
+# --- Email (PDF copies of completed forms) ---------------------------------
+# Blank EMAIL_HOST means "not set up": the portal says so instead of trying.
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="ABF-FST Research <noreply@research.agribizframework.com>")
+STUDY_REPLY_TO_EMAIL = env("STUDY_REPLY_TO_EMAIL", default="")
 
 # --- WhatsApp Business Platform (docs/12_CONTACT_CRM_AND_MESSAGING.md) -----
 WHATSAPP_API_BASE_URL = env("WHATSAPP_API_BASE_URL", default="")

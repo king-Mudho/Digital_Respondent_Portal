@@ -24,12 +24,12 @@ EXPECTED_SCREENS = {
     Role.FIELD_COORDINATOR: {
         "dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups",
-        "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
+        "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
     },
     Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups"},
-    Role.QUAN_QA_RA: {"dashboard_qa", "qa_queue", "qa_exceptions"},
-    Role.KII_RA: {"dashboard_kii_documents", "kii_register"},
-    Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "documents"},
+    Role.QUAN_QA_RA: {"dashboard_qa", "kobo_submissions", "qa_queue", "qa_exceptions"},
+    Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register"},
+    Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "kobo_submissions", "documents"},
     Role.ANALYST: {
         "dashboard_executive", "dashboard_sampling", "dashboard_contact",
         "dashboard_kii_documents", "cost", "export",
@@ -37,7 +37,7 @@ EXPECTED_SCREENS = {
     Role.SUPERVISOR_READONLY: {
         "dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups",
-        "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
+        "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
     },
 }
 
@@ -122,6 +122,7 @@ SCREEN_ENDPOINTS = {
     "organisations": "/api/v1/organisations/",
     "appointments": "/api/v1/appointments/",
     "follow_ups": "/api/v1/follow-ups/",
+    "kobo_submissions": "/api/v1/kobo/forms/",
     "qa_queue": "/api/v1/qa/queue/",
     "qa_exceptions": "/api/v1/qa/exceptions/",
     "kii_register": "/api/v1/kii/",

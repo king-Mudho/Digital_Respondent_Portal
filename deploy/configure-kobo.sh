@@ -29,6 +29,9 @@ STAGING_ENV="$BACKEND/.env.staging"
 KOBO_API_BASE_URL="https://kf.kobotoolbox.org"
 KOBO_ASSET_UID="aefzZwVQV927tqtTgsP9oz"
 KOBO_FORM_URL="https://ee.kobotoolbox.org/x/fSOJejrV"
+# The other two main-study forms, read on demand for PDF copies (not reconciled).
+KOBO_KII_ASSET_UID="an49gwkpkGfYjS6B4NDNqh"
+KOBO_DOCUMENTS_ASSET_UID="a3vpgw6T4FbZGjQqmUgBND"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -68,10 +71,12 @@ set_kv "$ENV_FILE" KOBO_ASSET_UID "$KOBO_ASSET_UID"
 set_kv "$ENV_FILE" KOBO_API_TOKEN "$KOBO_API_TOKEN"
 set_kv "$ENV_FILE" KOBO_FORM_URL "$KOBO_FORM_URL"
 set_kv "$ENV_FILE" KOBO_WEBHOOK_SHARED_SECRET "$secret"
+set_kv "$ENV_FILE" KOBO_KII_ASSET_UID "$KOBO_KII_ASSET_UID"
+set_kv "$ENV_FILE" KOBO_DOCUMENTS_ASSET_UID "$KOBO_DOCUMENTS_ASSET_UID"
 chown "$APP_USER:$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 
 if [[ -f "$STAGING_ENV" ]]; then
-    for key in KOBO_ASSET_UID KOBO_API_TOKEN KOBO_FORM_URL KOBO_WEBHOOK_SHARED_SECRET; do
+    for key in KOBO_ASSET_UID KOBO_API_TOKEN KOBO_FORM_URL KOBO_WEBHOOK_SHARED_SECRET KOBO_KII_ASSET_UID KOBO_DOCUMENTS_ASSET_UID; do
         set_kv "$STAGING_ENV" "$key" ""
     done
     chown "$APP_USER:$APP_USER" "$STAGING_ENV"

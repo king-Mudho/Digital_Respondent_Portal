@@ -86,6 +86,10 @@ print('\n'.join(sorted(u for u in w(get_resolver()) if u.startswith('api/v1/')))
 | POST | `/kobo/webhook/` | shared secret | New-submission heads-up; never trusted alone (`11_KOBOTOOLBOX_INTEGRATION.md`) |
 | POST | `/kobo/reconcile/` | `IsQAOrAdmin` | Manually trigger a reconciliation pull |
 | GET | `/kobo/reconciliation-status/` | `IsQAOrAdmin` | `{configured, last_run}` — whether the asset UID and API token are set, and the last run's timing, counts and error |
+| GET | `/kobo/forms/` | signed in (403 if the role has no form) | Main-study forms this role may open, and `email_configured` |
+| GET | `/kobo/forms/{key}/submissions/?page=` | per form: questionnaire → QA; kii → KII RA; documents → Documentary RA; plus FC, PI, Supervisor | Completed submissions from KoboToolbox, newest first |
+| GET | `/kobo/forms/{key}/submissions/{id}/pdf/` | as above | The submission as a PDF (labels, sections, repeats); audited |
+| POST | `/kobo/forms/{key}/submissions/{id}/email/` | as above, not Supervisor | `{recipient: me\|respondent}` — PDF to the user's own address, or (questionnaire) the respondent's address on file while consent stands. 503 if email isn't set up; audited with a masked address |
 
 ### Contact, appointments, QA
 
