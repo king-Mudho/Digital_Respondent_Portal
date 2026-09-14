@@ -35,6 +35,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from apps.audit.models import AuditEvent
 from apps.audit.utils import log_action
 from apps.consent.services import has_given_consent
 from apps.contacts.services import has_passed_eligibility
@@ -284,11 +285,18 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             sample_case = SampleCase.objects.get(sample_id=sample_id)
         except ObjectDoesNotExist:
             mismatches_flagged += 1
-            log_action(
-                "kobo.reconciliation_sample_id_mismatch",
-                _MismatchStub(kobo_uuid),
-                {"kobo_submission_uuid": kobo_uuid, "sample_id_in_payload": sample_id},
-            )
+            # Audited once per Kobo submission, not once per run. Every run
+            # pulls the whole dataset, so an unmatched submission -- a stray
+            # or spam entry on the public form, or one whose case was removed
+            # -- otherwise added an AuditEvent every 15 minutes, indefinitely.
+            if not AuditEvent.objects.filter(
+                action="kobo.reconciliation_sample_id_mismatch", object_id=str(kobo_uuid)
+            ).exists():
+                log_action(
+                    "kobo.reconciliation_sample_id_mismatch",
+                    _MismatchStub(kobo_uuid),
+                    {"kobo_submission_uuid": kobo_uuid, "sample_id_in_payload": sample_id},
+                )
             continue
 
         content_hash = _content_hash(payload)

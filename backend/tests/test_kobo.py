@@ -411,3 +411,16 @@ def test_reconcile_records_completion_time_so_duration_rules_can_fire(main_case)
     submission = QUANSubmission.objects.get(kobo_submission_uuid="kobo-uuid-1")
     assert submission.completion_seconds == 120
     assert submission.qa_status == QAStatus.QUERY
+
+
+@pytest.mark.django_db
+def test_an_unmatched_submission_is_audited_once_not_every_run():
+    from apps.audit.models import AuditEvent
+
+    payload = _submission_payload("SID-2026-999999")
+    for _ in range(3):
+        with patch("apps.kobo.services.KoboClient.fetch_submissions", return_value=[payload]):
+            log = reconcile(triggered_by=ReconciliationTrigger.SCHEDULE)
+        assert log.mismatches_flagged == 1  # still reported on every run
+
+    assert AuditEvent.objects.filter(action="kobo.reconciliation_sample_id_mismatch").count() == 1
