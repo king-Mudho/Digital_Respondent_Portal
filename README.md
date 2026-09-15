@@ -17,35 +17,59 @@ for why it is deliberately kept separate from the public ABI self-assessment dem
 
 ## Status
 
-**Built and deployed** (Phases 0–10 of `docs/27_AGENT_EXECUTION_PLAN.md`), **live at
-[research.agribizframework.com](https://research.agribizframework.com)**, pending
-go-live (Phase 11 — issuing real Main-400 invitations, which is explicitly the PI's
-decision, not an engineering one).
+**Built, deployed and engineering-ready for go-live** at
+**[research.agribizframework.com](https://research.agribizframework.com)**
+(`docs/33_GO_LIVE_READINESS.md`). Issuing the first real Main-400 invitation remains the
+PI's decision.
 
-**The three approved registers are loaded** (Sep 2026): 400 Main and 400 Reserve sample
-cases across 800 organisations with all 400 pairs wired, 90 KII records (Core-60 plus
-Reserve-30), and 100 documentary-evidence records. No invitation has been issued and no
-consent recorded — fieldwork itself has not started.
+**Where fieldwork stands (15 Sep 2026)**
 
-Two QA passes have run against this codebase, both by hand in a real browser as well as
-by test:
+- **Registers loaded:** 400 Main and 400 Reserve sample cases across 800 organisations
+  with all 400 pairs wired, 90 KII records (Core-60 plus Reserve-30), 100
+  documentary-evidence records.
+- **Connected to KoboToolbox:** the Main Study Questionnaire, KII Guide and Document
+  Analysis Tool. Scheduled sync and the webhook both run against the live forms.
+  Required-field QA uses 65 fields read from the live questionnaire.
+- **Approvals recorded by the PI (15 Sep 2026):** the ethics and POTRAZ position (covered
+  by his CUT student research clearance), PROIT, Participant Information Sheet v1.3, the
+  QA thresholds, and the invitation and reminder wording. Each is audited
+  (`qa.thresholds_approved`, `messaging.wording_approved`) and recorded in `docs/28`,
+  `30`, `31` and `33`.
+- **Cases ready for contact:** all 400 Main cases are assigned to a Contact RA and moved
+  through verification to **S03 Eligible respondent identified**. Every transition is
+  audited.
+- **Checks:** `manage.py golive_preflight` passes **15/15** on production. Its writes
+  are rolled back and row counts are confirmed unchanged.
 
-- **First hardening pass** — every screen and endpoint exercised; several real defects
-  fixed, most importantly a production routing bug that had silently broken every login
-  and dashboard load for hours.
-- **Second pass (role, register and respondent-flow audit)** — role-scoped navigation,
-  the missing QA dashboard, register paging/search, and two access-control gaps that
-  documentation claimed were closed but were not.
+**Still with the team before the first invitation:** collect respondent phone numbers
+(349 Main cases have none); rotate the KoboToolbox password and API token; add the Gmail
+App Password (`deploy/configure-email.sh`); do the one-time Google Drive sign-in for
+offsite backups; push to GitHub so CI runs; run a user-acceptance invitation on a real
+phone. WhatsApp Business Platform is optional: reminders are sent by hand from the
+Follow-ups screen until it is set up.
 
-Both are itemised under [Notable fixes](#notable-fixes). Current state: **260 backend
-tests** passing (`pytest`), **26 Playwright specs** (25 run, 1 intentionally skipped),
-`ruff check`, `tsc --noEmit` and `eslint` all clean.
+**Quality passes.** Four audits have run against this codebase, by hand in a real
+browser as well as by test:
 
-See `docs/27_AGENT_EXECUTION_PLAN.md` for the full phase-by-phase build record and
-`docs/28_DEFINITION_OF_DONE.md` for what remains before the PI's own go-live decision:
-WhatsApp Business Platform Meta template approval, a real KoboToolbox production
-asset, and the full go-live checklist run against this deployment. The POTRAZ/data-
-protection determination is resolved (`docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`).
+1. **Hardening pass:** every screen and endpoint.
+2. **Role, register and respondent-flow audit.**
+3. **Go-live audit (14 Sep):** private payload storage, signed questionnaire links,
+   reminders that actually reach people, withdrawal, contact details, Kobo edit and
+   time-zone handling.
+4. **Every-screen, every-role audit (15 Sep):** at desktop and phone widths, plus a
+   performance pass.
+
+All are itemised under [Notable fixes](#notable-fixes).
+
+**Current state:**
+
+- Backend: **363 tests** passing (`pytest`).
+- Playwright: **43 E2E tests** pass. **2 are skipped** on purpose: WhatsApp, and the
+  Kobo download tests when no KoboToolbox is reachable.
+- `ruff check`, `tsc --noEmit` and `eslint` are all clean.
+
+The full documentation set for users is under [Documentation](#documentation): a system
+manual, one guide per role, and a respondent guide.
 
 This is a research-operations tool supporting an active fieldwork study with a
 30 November 2026 data-lock date — not a production lending or credit-decision system.
@@ -136,9 +160,10 @@ administration). The respondent's link looks like
 8. **R08 Kobo questionnaire redirect** — requires **both** a passed eligibility check and
    `GIVEN` participation consent, enforced server-side in
    `apps.kobo.services.build_redirect_url()` — the single point every caller goes through,
-   not a disabled button. Launches the actual KoboToolbox form with `Master_ID`,
-   `Sample_ID`, administration mode, role category and a non-identifying token reference
-   passed as hidden fields.
+   not a disabled button. Opens the public KoboToolbox web form (`KOBO_FORM_URL`) with
+   `Master_ID`, `Sample_ID`, administration mode, role category and a **signed** token
+   reference (`<id>.<hmac>`) as hidden fields. The respondent needs no Kobo account. The
+   case moves to S07 Survey started.
 9. **R09 Appointment request** — if the respondent asked for a call instead, this
    captures a preferred time/mode. Also consent-gated (PI decision, Sep 2026): an
    appointment records a named person's availability against an identified organisation
@@ -173,8 +198,53 @@ lose every RA correction or respondent edit made after first submission. So:
   the submission for QA review rather than silently keeping a stale QA status.
 - A submission whose `sample_id` doesn't match any known `SampleCase` is flagged as a
   mismatch and audited — never dropped, never auto-matched to the nearest case.
+- **Identity, time and duration are taken from Kobo's own fields.** A submission is keyed
+  on `meta/rootUuid`, which survives edits; `_uuid` changes on every edit and would
+  duplicate rows. `_submission_time` is UTC. `completion_seconds` is `end − start`, which
+  the duration QA rules need.
+- **A login-free submission must carry a valid portal signature.** Anyone holding the
+  public form link could otherwise submit for a guessed Sample_ID. A submission that is
+  neither signed by the portal nor made by a logged-in Kobo user is set aside and
+  audited, never matched.
+- **Full payloads are private.** They are written under `PRIVATE_DATA_ROOT`, outside
+  anything nginx serves (`/media/` returns 404), and are included in backups.
+- **Submissions move the case.** Submitted → S08; the QA decision moves it to S09 QA
+  query or S10 QA passed.
 - Admins can also trigger a pull on demand from the **"KoboToolbox sync"** panel on the
   QA queue screen (`/admin/qa`) instead of waiting for the next scheduled tick.
+
+**Three forms are connected** (`apps/kobo/submission_copies.py` `FORMS`). Each role sees
+only its own form:
+
+| Form | Setting | Matched on | Roles |
+|---|---|---|---|
+| Main Study Questionnaire | `KOBO_ASSET_UID` | `SAMPLE_ID_FINAL` → Sample_ID | PI, Field Coordinator, QUAN QA RA, Supervisor |
+| Main Study KII Guide | `KOBO_KII_ASSET_UID` | `part_a/KII_ID` | PI, Field Coordinator, KII RA, Supervisor |
+| Document, Digital Platform & Media Analysis Tool | `KOBO_DOCUMENTS_ASSET_UID` | `section_a/DOC_ID` | PI, Field Coordinator, Documentary RA, Supervisor |
+
+- **Form PDFs** (`/admin/submissions`): lists the completed forms newest first. Any of
+  them can be downloaded as a readable PDF (sections, choice labels, repeats), or emailed
+  to yourself or to the respondent. Every email is audited with the address masked.
+- **On record pages:** the same PDFs appear on the matching case, KII and document pages.
+- **PI data exports** (`/admin/export` → *KoboToolbox data*, PI only, audited). Two
+  downloads per form:
+  - **Excel workbook** (`kobo/forms/<key>/export/xlsx/`):
+    - `README`;
+    - `data_codes`: answers as stored codes, for SPSS, Stata or R;
+    - `data_labels`: the same rows with choice labels;
+    - one `repeat_N` sheet per repeat group, linked by `_parent_id`;
+    - `questions` (the data dictionary) and `choices`;
+    - for the questionnaire, `portal_*` columns: matched case, QA status, consent
+      withdrawn, workflow status.
+
+    Answers beginning `= + - @` are stored as text, so a spreadsheet never runs them as
+    formulas.
+  - **All completed forms as PDFs** (`kobo/forms/<key>/export/pdfs/`): a ZIP streamed as
+    it is built, with `manifest.csv`.
+
+  The frontend proxy streams the bytes through unchanged.
+- **Connecting or reconnecting Kobo:** `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh`
+  sets the token, asset UIDs, form URL and webhook without echoing secrets.
 
 ### 4. QA and the Research Operations Centre (`/admin/*`, screens A01–A12)
 
@@ -192,14 +262,14 @@ UX only; the permission classes remain the real boundary.
 
 | Role | Screens | Lands on |
 |---|---|---|
-| PI / Admin | 15 (everything) | `/admin/dashboard` |
-| Field Coordinator | 14 (no Audit Log) | `/admin/dashboard` |
-| Supervisor (read-only) | 13 (no Audit Log or Export) | `/admin/dashboard` |
-| Analyst (read-only) | 6 (dashboards, Cost, Export) | `/admin/dashboard` |
-| Contact RA | 2 (Main-400 Register, Appointments) | `/admin/sample` |
-| QUAN/Kobo QA RA | 2 (QA Dashboard, QA Queue) | `/admin/dashboard/qa` |
-| KII RA | 2 (KII/Doc Dashboard, KII Register) | `/admin/dashboard/kii-documents` |
-| Documentary RA | 2 (KII/Doc Dashboard, Documents) | `/admin/dashboard/kii-documents` |
+| PI / Admin | 19 (everything) | `/admin/dashboard` |
+| Field Coordinator | 18 (no Audit Log) | `/admin/dashboard` |
+| Supervisor (read-only) | 17 (no Audit Log or Export) | `/admin/dashboard` |
+| Analyst (read-only) | 7 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, Cost, Export) | `/admin/dashboard` |
+| Contact RA | 3 (Main-400 Register, Appointments, Follow-ups) — only its assigned cases | `/admin/sample` |
+| QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
+| KII RA | 3 (KII/Doc Dashboard, Form PDFs, KII Register) | `/admin/dashboard/kii-documents` |
+| Documentary RA | 3 (KII/Doc Dashboard, Form PDFs, Documents) | `/admin/dashboard/kii-documents` |
 
 The three RA roles are deliberately **not** interchangeable — see
 [Notable fixes](#notable-fixes) for the over-grant this replaced. Read-only roles see
@@ -214,17 +284,21 @@ figures and lists on mixed screens but not the forms or buttons
 | — | `/admin/dashboard/contact` | Organisations verified, invitations sent/opened, appointments, refusals |
 | — | `/admin/dashboard/qa` | Submissions today/cumulative, QA queue depth, decisions recorded, administration-mode split |
 | — | `/admin/dashboard/kii-documents` | KII and document progress vs. targets |
+| — | `/admin/reports` | Fieldwork analytics: KPIs, response funnel, workflow, submissions per day, breakdowns by province/actor family/size with invited-vs-submitted share, administration modes with an imbalance alert, completion-time histogram, QA outcomes and flags, contact, KII and document progress. 7/30/90-day or all-time range; every chart has a table view |
 | — | `/admin/organisations` | Register an organisation and create its sample case |
-| A03 | `/admin/sample` | Main-400 / Reserve register |
-| A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, matched Reserve, PROIT pre-profile, invitations, workflow transitions, contact-attempt log |
+| A03 | `/admin/sample` | Main-400 / Reserve register, with bulk verification (move every Main case at S00, S01 or S02 one step forward at once, each move audited) |
+| A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, respondents and contact details, matched Reserve, PROIT pre-profile, invitations (with a ready WhatsApp message and copy button), workflow transitions, contact-attempt log, withdrawal, and the completed questionnaire PDF |
 | A05 | `/admin/appointments` | Appointment queue with status transition buttons |
+| — | `/admin/follow-ups` | Reminders due now from the approved reminder schedule, each with a one-tap WhatsApp link and "Mark as sent"; a Contact RA sees only its own cases |
+| — | `/admin/submissions` | Form PDFs: completed KoboToolbox forms for your role's form, download or email |
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
+| — | `/admin/qa/exceptions` | QA exceptions raised by the rules: assign, work, then resolve or dismiss with a note |
 | A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow |
 | A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]` | Documentary evidence corpus, authenticity assessment gate before a document can be included |
 | A09 | `/admin/reserve` | Reserve activation (five authorised reasons, mandatory evidence note) |
 | A10 | `/admin/cost` | Fieldwork cost dashboard and entry form |
 | A11 | `/admin/audit` | Full audit log — every sensitive action, correctly attributed to the admin who performed it |
-| A12 | `/admin/export` | De-identified analysis export and full operational export (CSV) |
+| A12 | `/admin/export` | De-identified analysis export, full operational export (CSV), and (PI only) each KoboToolbox form's full data workbook and PDF ZIP |
 | — | `/admin/proit/[id]` | Researcher pre-profile review and lock (see [PROIT](#proit--pre-interview-profiling)) |
 | — | `/admin/account` | Change your own password (available to every role) |
 
@@ -260,9 +334,31 @@ confirms or corrects them rather than answering from zero.
   item — only non-core descriptive background.
 
 Respondent-facing PROIT is gated behind `PROIT_ENABLED_FOR_RESPONDENTS`, currently on.
-That flag was flipped on the PI's own documented **risk acceptance**, which is recorded
-as exactly that in `docs/30_PROIT_MODULE.md` — it is not an ethics or change-control
-clearance, and the distinction is deliberate.
+It was first switched on (12 Sep 2026) on the PI's documented risk acceptance. On 15 Sep
+2026 the PI confirmed in writing that PROIT is covered by his CUT student research
+clearance. `docs/30_PROIT_MODULE.md` records both as the PI's statements.
+
+### Contact, reminders and withdrawal
+
+- **Assignment and verification.** Main cases are assigned to a Contact RA from the case
+  page. A Contact RA sees only its own cases. Coordinators move cases through
+  verification (S00 → S03) in bulk from the register. Bulk moves stop at S03: invitation
+  and later statuses follow real events only.
+- **Respondents and contact details.** The case page's *Respondents and contact details*
+  panel records the respondent's name, role, phone, WhatsApp and email.
+- **Invitations.** Issuing an invitation moves the case to S05 and shows a ready-to-send
+  WhatsApp message and copy button with the personal link and manual code. Reissuing
+  expires every earlier link that has not yet been submitted.
+- **Case status follows the respondent.** Invitation opened → S06, survey started → S07,
+  submitted → S08.
+- **Follow-ups** (`/admin/follow-ups`). Reminders fall due on the approved schedule.
+  Until WhatsApp Business Platform is set up, a person sends each one with a
+  pre-written WhatsApp link and marks it sent, and who sent it is recorded. A case can
+  only become **S13 Nonresponse** once every reminder was actually delivered.
+- **Withdrawal** (case page). One action records a WITHDRAWN consent and revokes live
+  invitations, which stops reminders. Where the workflow allows, it moves the case to
+  S12, erases the respondent's contact fields and writes an audit entry. Exports flag
+  the case `consent_withdrawn`.
 
 ### 5. Exports and the audit trail
 
@@ -270,12 +366,16 @@ Two CSV exports exist, with a deliberately different schema:
 
 - **De-identified analysis export** (`/admin/export` → "Download analysis export") —
   `sample_id, master_id, province, actor_family, value_chain, size_class,
-  administration_mode, qa_status, submitted_at, completion_seconds`. No name, phone,
-  email or gatekeeper field ever appears here. Safe to share with the wider research
-  team.
+  administration_mode, qa_status, submitted_at, completion_seconds, consent_withdrawn`.
+  No name, phone, email or gatekeeper field ever appears here. Safe to share with the
+  wider research team.
 - **Full operational export** — the same columns plus `organisation_name,
   respondent_full_name, respondent_phone, respondent_email, gatekeeper_name,
   gatekeeper_contact`. Internal fieldwork operations use only, PI/Admin role required.
+- **KoboToolbox data** (PI only): the answers themselves. For each of the three forms
+  there is an analysis-ready Excel workbook (codes, labels, repeats, data dictionary) and
+  a ZIP of every completed form as a PDF. See
+  [KoboToolbox integration](#3-kobotoolbox-integration-the-actual-questionnaire).
 
 Every sensitive action — consent recorded, invitation issued, reserve activated, KII
 status changed, document authenticity/QA decision, a rejected invalid workflow
@@ -302,7 +402,7 @@ Browser
 Nginx  (research.agribizframework.com, TLS via Certbot)
   ├── /api/v1/, /api/schema/, /api/docs/   → Django + gunicorn (127.0.0.1:8100)
   ├── /django-admin/                        → Django + gunicorn (127.0.0.1:8100)
-  ├── /static/, /media/                     → served from disk
+  ├── /static/                              → served from disk  (/media/ → 404: payloads are private)
   ├── /api/auth/*, /api/proxy/*             → Next.js (127.0.0.1:3100)  ← Next's own routes, NOT Django
   └── /  (everything else)                  → Next.js (127.0.0.1:3100)
 ```
@@ -310,7 +410,8 @@ Nginx  (research.agribizframework.com, TLS via Certbot)
 - **Backend**: Django 5.1 + Django REST Framework, Python 3.12, PostgreSQL, 13 apps
   (`accounts, sampling, contacts, consent, invitations, kobo, messaging, kii, evidence,
   qa, dashboards, costs, audit`).
-- **Frontend**: Next.js 15 (App Router) + TypeScript, Tailwind, TanStack Query.
+- **Frontend**: Next.js 15 (App Router) + TypeScript, Tailwind, TanStack Query (30 s
+  stale time, no retry on refusals), recharts for Reports.
 - **Background jobs**: Celery + Redis, for Kobo reconciliation and the reminder queue
   (`--pool=solo --concurrency=1` in production — the VPS shares its memory budget with a
   sibling project, `docs/27_AGENT_EXECUTION_PLAN.md` Phase 10).
@@ -375,10 +476,16 @@ celery -A config beat --loglevel=info
 | `INVITATION_TOKEN_BYTES`, `INVITATION_TOKEN_EXPIRY_DAYS` | Invitation token generation |
 | `KOBO_API_BASE_URL` | Kobo server, e.g. `https://kf.kobotoolbox.org` |
 | `KOBO_API_TOKEN` | Kobo API token — **server-side only, never sent to the frontend** |
-| `KOBO_ASSET_UID` | The production Kobo asset (form) UID |
-| `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/` |
+| `KOBO_ASSET_UID` | The Main Study Questionnaire asset UID |
+| `KOBO_FORM_URL` | The questionnaire's public web-form link (`https://ee.kobotoolbox.org/x/…`) that respondents are sent to |
+| `KOBO_KII_ASSET_UID`, `KOBO_DOCUMENTS_ASSET_UID` | KII Guide and Document Analysis Tool assets (Form PDFs, PI data exports) |
+| `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/`; also signs the portal token passed to the form |
 | `KOBO_RECONCILIATION_INTERVAL_MINUTES` | Celery Beat pull frequency |
-| `WHATSAPP_API_BASE_URL`, `WHATSAPP_API_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp Business Platform (blocked on Meta template approval — see Status) |
+| `PRIVATE_DATA_ROOT` | Where full Kobo payloads are stored; must not be under anything nginx serves |
+| `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research.cut@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
+| `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
+| `WHATSAPP_API_BASE_URL`, `WHATSAPP_API_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp Business Platform (optional; until set, reminders go out by hand from Follow-ups) |
 | `CELERY_BROKER_URL` | Redis URL |
 | `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS` | Must match the deployed frontend origin exactly |
 | `BACKUP_RPO_HOURS`, `BACKUP_RTO_HOURS` | Documented targets for `deploy/backup.sh` |
@@ -397,20 +504,35 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 260 tests: unit, API, privacy, role/navigation, gates, throttling, Kobo
+cd backend  && pytest              # 363 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
 cd frontend && npm run test        # Vitest component tests
-cd frontend && npx playwright test # E2E: 26 specs (25 run, 1 intentionally skipped -- see below)
+cd frontend && npx playwright test # E2E: 43 pass, 2 skipped on purpose -- see below
 ```
 
-The Playwright suite covers the respondent flow (invitation → consent → Kobo redirect)
-and its failure branches, privacy/reserve-lock invariants, role-scoped navigation per
-role, and every admin panel: workflow transitions and contact-attempt logging,
-appointment status, the cost-entry form, the KII recording-consent gate, the document
-authenticity-before-inclusion gate, reserve activation, and the Kobo sync panel's
-graceful degradation when no real Kobo asset is configured.
+The Playwright suite covers:
+
+- **Respondent flow:** invitation → consent → Kobo redirect, its failure branches, and
+  a poor-connection phone run.
+- **Invariants:** privacy and the reserve lock.
+- **Every screen for every role:** `all-screens-audit` at 1366px and 375px, failing on
+  server errors, refused calls, crashes, endless loading or sideways scrolling.
+- **Every admin panel:**
+  - workflow transitions and contact attempts, respondents and contact details,
+    withdrawal, and Follow-ups;
+  - appointment status and the cost-entry form;
+  - the KII recording-consent gate and the document authenticity-before-inclusion gate;
+  - reserve activation, Reports, and the Kobo sync panel;
+  - Form PDF downloads (checked byte for byte) and the PI's workbook/ZIP downloads.
+
+**Backend checks beyond the functional tests:**
+
+- `tests/test_query_counts.py` fails if a register, export or Follow-ups query starts
+  growing with the data.
+- On a server, `python manage.py golive_preflight` exercises the go-live checklist
+  inside a rolled-back transaction.
 
 Two things worth knowing before adding tests here:
 
@@ -425,11 +547,14 @@ Two things worth knowing before adding tests here:
   never fires. Use `issueTokenOnFreshCase()` from `e2e/helpers.ts`, which builds its own
   organisation and case. Two specs were caught passing for this reason.
 
-One spec (`e2e/pi-blocked-items.spec.ts`) is deliberately `test.skip`, not absent: the
-WhatsApp Business Platform integration has no code surface yet (no Meta-approved account
-or template). It stays visible with a written reason in every run's report until the
-underlying external action happens. (The POTRAZ/data-protection determination was
-tracked here too; resolved 2026-09-12, see `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`.)
+Two tests skip on purpose rather than being absent:
+
+- **`e2e/pi-blocked-items.spec.ts`:** the automatic WhatsApp Business Platform sending
+  has no Meta account yet.
+- **The Form PDF and PI download tests:** they skip when the environment cannot reach
+  KoboToolbox.
+
+Both skips appear with a written reason in every run's report.
 
 A full manual QA pass (this hardening round) also walked every respondent-flow screen
 and every admin screen in a real browser against a freshly seeded local database, and
@@ -454,6 +579,25 @@ the backend, frontend, and the full HTTPS path through Nginx — it fails loudly
 tells you where to look) rather than reporting success on a partial deploy. To roll
 back: `sudo bash /srv/agribiz-drp/deploy/rollback.sh`.
 
+One-time configuration scripts, all run on the server as root. None of them echoes a
+secret, so nothing sensitive needs pasting into chat or a ticket:
+
+| Script | Sets up |
+|---|---|
+| `deploy/configure-kobo.sh` | KoboToolbox token, the three asset UIDs, form URL, webhook and its secret |
+| `deploy/configure-email.sh` | Gmail SMTP for abffst.research.cut@gmail.com (needs a Google App Password) |
+| `deploy/configure-offsite-backup.sh` | Encrypted offsite backups to Google Drive (rclone crypt, `drive.file` scope); prints the encryption key once, to store in a password manager |
+
+Backups:
+
+- **Local:** `drp-backup.timer` runs `deploy/backup.sh` every 4 hours (database plus
+  private payloads).
+- **Offsite:** `drp-offsite-backup.service` copies each backup to Google Drive once it
+  is configured.
+
+After a deploy, `cd /srv/agribiz-drp/backend && sudo -u agribiz-drp venv/bin/python
+manage.py golive_preflight` checks the go-live path end to end without changing any data.
+
 **Nginx routing** — the one part of this stack that is easy to get subtly wrong, since
 Django and Next.js both technically live under `/api/` (see
 [Notable fixes](#notable-fixes) for what happens if you don't
@@ -462,7 +606,8 @@ get this right):
 ```
 /api/v1/, /api/schema/, /api/docs/   → Django   (gunicorn, 127.0.0.1:8100)
 /django-admin/                        → Django   (gunicorn, 127.0.0.1:8100)
-/static/, /media/                     → served from disk by Nginx directly
+/static/                              → served from disk by Nginx directly
+/media/                               → 404 (never serve Kobo payloads)
 /api/auth/*, /api/proxy/*             → Next.js  (127.0.0.1:3100) -- NOT Django
 /  (everything else)                  → Next.js  (127.0.0.1:3100)
 ```
@@ -487,7 +632,12 @@ works):
 | Symptom | Likely cause | Where to look |
 |---|---|---|
 | Login succeeds but the dashboard never loads / spins forever | Nginx routing `/api/auth/` or `/api/proxy/` to Django instead of Next.js | `sudo journalctl -u drp-backend` for 404s on those exact paths; check `/etc/nginx/conf.d/research.agribizframework.conf` against the table above |
-| "Sync now" always fails | No real `KOBO_ASSET_UID`/`KOBO_API_TOKEN` configured yet (expected pre-go-live), or the Kobo account/token is invalid/expired | The error message on the panel itself now shows the actual Kobo API error (e.g. a 404 with an empty asset segment means the UID isn't set) |
+| "Sync now" always fails | The Kobo API token was rotated or expired, or an asset UID is wrong | The panel shows the actual Kobo API error; re-run `deploy/configure-kobo.sh` with the new token |
+| Form PDFs says "isn't connected to KoboToolbox yet" | That form's asset UID is not set (`KOBO_KII_ASSET_UID` / `KOBO_DOCUMENTS_ASSET_UID`) | `deploy/configure-kobo.sh` |
+| "Email" on a form PDF is missing or fails | SMTP not configured, or the Gmail App Password was revoked | `deploy/configure-email.sh`; `journalctl -u drp-backend` for the SMTP error |
+| A submission appears in the audit log as not verified / not matched | Submitted through the public form link without the portal's signature, or with a Sample_ID the portal doesn't know | Expected protection; check the case and reissue the respondent's invitation |
+| A downloaded PDF or workbook will not open | A proxy change reading the response as text instead of streaming bytes | `frontend/app/api/proxy/[...path]/route.ts`; `e2e/admin-form-pdfs.spec.ts` |
+| A Contact RA sees an empty register | No cases assigned to that account | Case page → assigned Contact RA |
 | An admin's actions show up as "system" in the audit log | Should not happen after this hardening pass (`apps/audit/middleware.py`) — if it recurs, check that `AuditContextMiddleware` is still listed in `MIDDLEWARE` in `config/settings/base.py` | `backend/tests/test_audit.py` |
 | A workflow/appointment/contact-event admin action 400s | Check whether a serializer field that should be server-resolved (from the URL, or from the state machine) was accidentally made writable again | `backend/tests/test_sample_case_api_integrity.py`, `test_appointment_status.py`, `test_contact_event_api.py` |
 | `npm ci` fails with `EACCES: mkdir '/home/agribiz-drp'` | The `agribiz-drp` system user has no writable `$HOME` for npm's cache | `deploy/setup-server.sh` creates this directory explicitly; re-run it, or `mkdir -p /home/agribiz-drp && chown agribiz-drp:agribiz-drp /home/agribiz-drp` |
@@ -497,6 +647,47 @@ works):
 Every item below has a regression test. Where a test already existed but was passing for
 the wrong reason, that is called out — those were the most dangerous cases, because the
 green tick was the reason nobody looked.
+
+### Fourth pass — every screen, every role; performance; PI data access (15 Sep 2026)
+
+1. **Two panels refused the roles viewing them.** The PROIT panel and the reserve-pairing
+   list loaded data a KII RA or Contact RA may not see, so the case page showed errors.
+   Both now load only for roles that hold the grant.
+2. **Two wide menus pushed pages sideways on phones** (register and Form PDFs).
+3. **The PI could not get the answers out.** Every portal export held metadata only. The
+   PI now downloads each form's full data as an analysis-ready workbook and all
+   completed forms as PDFs.
+4. **The frontend proxy corrupted every binary download.** It read responses as text,
+   re-encoding PDF and Excel bytes. It now streams the body unchanged, and the E2E test
+   checks the bytes.
+5. **Per-row queries.**
+   - Main-400 register: 40 → 2 queries per page.
+   - KII register and both CSV exports: one consent query per row removed.
+   - Follow-ups: several queries per invited case → a fixed handful.
+   - Invitation checks no longer load every invitation.
+   - New indexes on the audit log, consent history and submissions.
+6. **The go-live preflight crashed once every Main case had been verified to S03.** It
+   now picks a clean case at S00–S03 and runs only the remaining steps.
+
+### Third pass — go-live audit (14 Sep 2026)
+
+1. **Research answers were publicly downloadable.** Full Kobo payloads sat under nginx's
+   `/media/`. Now stored in `PRIVATE_DATA_ROOT` (`/media/` → 404) and included in backups.
+2. **Anyone with the public form link could submit for a guessed case.** Portal links now
+   carry an HMAC signature; unsigned login-free submissions are set aside and audited.
+3. **Nonresponse was set by the calendar while every reminder silently failed**, making a
+   case replaceable by its reserve without anyone contacting the respondent. S13 now
+   needs every reminder delivered, and Follow-ups sends them by hand.
+4. **Staff could not record a phone number** (51 of 400 Main cases had one). Added the
+   respondents and contact details panel.
+5. **Withdrawal could not be recorded.** Added one audited action.
+6. **A reissued invitation left the old link working** once the respondent had consented.
+7. **Case status never moved past S05.** It now follows the respondent to S10, and
+   coordinators can verify in bulk.
+8. **Kobo:**
+   - an edit would have duplicated the submission (keyed on `_uuid`);
+   - submission times were two hours off;
+   - duration was never recorded, so the duration QA rules could not fire.
 
 ### Second pass — role, register and respondent-flow audit (Sep 2026)
 
@@ -589,10 +780,11 @@ Digital_Respondent_Portal/
 ├── AGENTS.md
 ├── README.md
 ├── docs/
-│   └── tools/    # build_guide.py -- builds the end-user guide PDF (PDF itself gitignored)
-├── deploy/       # deploy.sh, backup.sh, rollback.sh, setup-server.sh, env templates
+│   ├── manuals/  # Word manuals: system manual, 8 role guides, respondent guide (+ PDFs)
+│   └── tools/    # build_manuals.js + manuals/ (Word manuals), build_guide.py (older PDF guide)
+├── deploy/       # deploy.sh, backup.sh, rollback.sh, setup-server.sh, configure-{kobo,email,offsite-backup}.sh
 ├── nginx/        # research.agribizframework.conf (source of truth, mirrored on the VPS)
-├── systemd/      # drp-backend, drp-frontend, drp-celery-worker, drp-celery-beat unit files
+├── systemd/      # backend, frontend, celery worker/beat, backup timer, offsite backup units
 ├── frontend/     # Next.js + TypeScript
 └── backend/      # Django + Django REST Framework
 ```
@@ -622,12 +814,51 @@ for how the two projects share infrastructure without sharing a codebase.
 - `docs/30_PROIT_MODULE.md` — the pre-interview profiling tool: field modules, the
   source-authority hierarchy, the three-value architecture, and the record of the PI's
   risk-acceptance decision to enable it for respondents.
+- `docs/31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` — the approved QA thresholds and
+  Participant Information Sheet v1.3.
+- `docs/33_GO_LIVE_READINESS.md` — what was verified on production, what was fixed,
+  and what is left before the first live invitation.
 - `backend/api/navigation.py` — not documentation as such, but the single source of truth
   for which role sees which screens. Change it there and nowhere else;
   `backend/tests/test_role_navigation.py` and `frontend/e2e/role-scoped-navigation.spec.ts`
   will tell you if the API permissions disagree.
 
-### The end-user guide
+### User manuals (Word and PDF)
+
+`docs/manuals/` holds the complete documentation set for the people who use the portal.
+Every document has a table of contents:
+
+| File | For |
+|---|---|
+| `ABF-FST_Portal_System_Manual` | Everyone: how the system works end to end, every screen, KoboToolbox, data, security, administration and troubleshooting |
+| `Role_Guide_1_PI_Admin` | Principal Investigator / System Admin |
+| `Role_Guide_2_Field_Coordinator` | Field / Digital Coordinator |
+| `Role_Guide_3_Contact_RA` | Contact Research Assistant |
+| `Role_Guide_4_QUAN_QA_RA` | Questionnaire (QUAN/Kobo) QA Research Assistant |
+| `Role_Guide_5_KII_RA` | Key Informant Interview Research Assistant |
+| `Role_Guide_6_Documentary_RA` | Documentary Evidence Research Assistant |
+| `Role_Guide_7_Analyst` | Data Analyst |
+| `Role_Guide_8_Supervisor` | Supervisor (read-only) |
+| `Respondent_Guide` | Survey respondents |
+
+Each exists as `.docx` (editable) and `.pdf`. The content lives in
+`docs/tools/manuals/*.js` (`tasks.js` holds the step-by-step procedures shared by the
+manual and the role guides). Edit it there, not in the Word files. The screenshots in
+`docs/manuals/screens/` were taken from a separate database of **fictional
+demonstration data**, never the live registers.
+
+Rebuild the manuals on Windows with Microsoft Word installed. Word fills in the
+tables of contents and page numbers, then exports the PDFs:
+
+```bash
+cd docs/tools && npm install && node build_manuals.js
+```
+
+```bash
+powershell -ExecutionPolicy Bypass -File docs/tools/finalise_manuals.ps1
+```
+
+### The earlier end-user guide (superseded by the manuals above)
 
 `docs/tools/build_guide.py` builds a complete, non-technical **user guide PDF** for the
 research team — sign-in, what each role sees, every screen, inviting a respondent, the
@@ -648,7 +879,8 @@ Live at `research.agribizframework.com` (shares the ABI project's production hos
 TLS setup, deployed with its own Nginx server block, database, and systemd services —
 see `docs/20_EMBEDDING_WITH_ABI.md`).
 
-The real Main-400/Reserve-400, KII and documentary-evidence registers **are** loaded, but
-no invitation has been issued and no consent recorded — go-live (Phase 11) requires
-explicit PI sign-off per `docs/28_DEFINITION_OF_DONE.md`. Treat the production database as
+The real Main-400/Reserve-400, KII and documentary-evidence registers **are** loaded and
+all 400 Main cases are verified to S03, but no live invitation has been issued yet — the
+first one is the PI's call per `docs/28_DEFINITION_OF_DONE.md` and
+`docs/33_GO_LIVE_READINESS.md`. Treat the production database as
 holding real, identifying research data: it is not a scratch environment.

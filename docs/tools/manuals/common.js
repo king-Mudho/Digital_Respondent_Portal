@@ -1,0 +1,119 @@
+// Content shared by the system manual and the role guides.
+
+const REVISION = "Version 1.0 · 15 September 2026";
+const SITE = "https://research.agribizframework.com";
+
+const ROLE_TABLE = [
+  ["PI / System Admin", "All 19 screens, including the Audit Log and every export", "Executive Dashboard"],
+  ["Field / Digital Coordinator", "18 screens — everything except the Audit Log. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
+  ["Contact RA", "Main-400 Register, Appointments, Follow-ups — only the cases assigned to you", "Main-400 Register"],
+  ["QUAN/Kobo QA RA", "QA Dashboard, Form PDFs (questionnaire), QA Queue, QA Exceptions", "QA Dashboard"],
+  ["KII RA", "KII/Doc Dashboard, Form PDFs (KII Guide), KII Register", "KII/Doc Dashboard"],
+  ["Documentary RA", "KII/Doc Dashboard, Form PDFs (Document Analysis Tool), Documents", "KII/Doc Dashboard"],
+  ["Data Analyst", "Executive, Sampling, Reports, Contact and KII/Doc dashboards, Cost, Export (de-identified only). Read-only", "Executive Dashboard"],
+  ["Supervisor (read-only)", "17 screens — everything except the Audit Log and Export. Read-only", "Executive Dashboard"],
+];
+
+const STATUS_TABLE = [
+  ["S00", "Selected Main", "The case is in the Main-400 sample. Starting point for every Main case."],
+  ["S01", "Verification required", "The organisation's details are being checked."],
+  ["S02", "Organisation verified", "The organisation exists, is active and is the right one."],
+  ["S03", "Eligible respondent identified", "A knowledgeable senior person has been identified. Ready to invite."],
+  ["S04", "Invitation prepared", "Optional manual step before sending."],
+  ["S05", "Invitation sent", "Set automatically when an invitation is issued."],
+  ["S06", "Invitation opened", "Set automatically when the respondent opens the link."],
+  ["S07", "Survey started", "Set automatically when the respondent opens the questionnaire."],
+  ["S08", "Survey submitted", "Set automatically when the questionnaire arrives from KoboToolbox."],
+  ["S09", "QA query", "Set automatically when a QA reviewer re-queries the submission."],
+  ["S10", "QA passed", "Set automatically when a QA reviewer accepts the submission."],
+  ["S11", "Completed", "Final: the case is finished."],
+  ["S12", "Refused", "Drop state: the organisation declined or withdrew."],
+  ["S13", "Nonresponse", "Drop state: no response after every approved reminder was sent."],
+  ["S14", "Ineligible", "Drop state: the organisation or respondent does not qualify."],
+  ["S15", "Duplicate / inactive", "Drop state: duplicate record or organisation no longer operating."],
+  ["S16", "Reserve eligible for activation", "The matched Reserve may now be activated to replace this case."],
+];
+
+const MODES_TABLE = [
+  ["01", "Web self-administration", "The respondent completes the questionnaire alone from the link."],
+  ["02", "WhatsApp link, self-completion", "The link is sent by WhatsApp; the respondent completes it alone."],
+  ["03", "Telephone, interviewer-administered", "A researcher calls and completes the form while the respondent answers."],
+  ["04", "WhatsApp call, interviewer-assisted", "As 03, over a WhatsApp voice or video call."],
+  ["05", "Video call, interviewer-assisted", "As 03, over Teams, Zoom or Google Meet."],
+  ["06", "Face to face", "In person; the researcher operates the device."],
+];
+
+const signIn = (landing, role) => [
+  ["h2", "Signing in"],
+  ["steps", [
+    `Open **${SITE}/admin/login** in any modern browser (Chrome, Edge, Firefox or Safari), on a computer, tablet or phone.`,
+    { text: "Type your **Username** and **Password**, then select **Sign in**.", img: "adm_login.jpg", caption: "The sign-in screen for all internal staff." },
+    `You arrive on your start screen: **${landing}**. The bar across the top lists only the screens your role (${role}) can open.`,
+  ]],
+  ["tip", "Accounts", "There is no self-registration. The PI / System Admin creates every account and sets its role. Ask the PI if you need an account, a different role, or a password reset."],
+  ["h2", "Finding your way around"],
+  ["bullets", [
+    "The **top bar** shows your username and role, and the screens you can use. It is not a full menu with some items greyed out: anything absent is simply not part of your role.",
+    "Most screens have a **← Back to …** link at the top that returns you to the screen you came from.",
+    "Registers show **20 rows per page**. Use **Previous** and **Next** at the foot of the list, and the **Search** box above it.",
+    "**Change password** (top right) lets you set a new password at any time. Choose a long password you do not use anywhere else.",
+    "**Sign out** (top right) ends your session. Always sign out on a shared or public computer.",
+    "If you are inactive for a while you may be asked to sign in again. This protects research data on unattended devices.",
+  ]],
+  ["img", "adm_not_your_role.jpg", "Opening a screen outside your role (for example from an old bookmark) shows this card instead of the screen."],
+];
+
+const changePassword = [
+  ["h2", "Changing your password"],
+  ["steps", [
+    "Select **Change password** in the top right corner.",
+    { text: "Enter your **Current password**, then the **New password** twice, and select **Change password**.", img: "adm_account.jpg", caption: "Change Password screen." },
+    "Use the new password next time you sign in. If you have forgotten your password, ask the PI to reset it.",
+  ]],
+];
+
+const DATA_RULES = [
+  "Treat everything in the portal as **confidential research data**. Do not screenshot, copy, print or forward names, phone numbers, email addresses or answers except as your role requires.",
+  "Never share your username or password, and never sign in for someone else.",
+  "Use the respondent's contact details **only** to manage their participation in this study (invitations, reminders, appointments).",
+  "Never tell a respondent, lender or anyone else that answers affect financing. The study generates **no score, rating or financing decision**.",
+  "If a respondent asks to withdraw, stop contacting them and tell the Field Coordinator or PI the same day so the withdrawal is recorded.",
+  "Report a lost device, a suspected account compromise, or data sent to the wrong person to the PI immediately.",
+];
+
+const INTERNAL_TROUBLE = [
+  ["\"This screen isn't part of your role\"", "The screen belongs to another role (often an old bookmark or shared link).", "Select **Go to my start screen**. If you need that screen, ask the PI about your role."],
+  ["\"Too many sign-in attempts from this network\"", "Sign-in is rate-limited per network; an office shares one address.", "Wait a minute and try again. A wrong password says so explicitly."],
+  ["A register shows fewer rows than expected", "Registers show 20 rows per page; a Contact RA sees only assigned cases.", "Use **Next**, or search. Ask the Field Coordinator to assign the case."],
+  ["A button is greyed out", "A required step is missing (a note, an authenticity decision, a selection).", "Read the message beside the button; complete the missing step first."],
+  ["\"KoboToolbox couldn't be reached\"", "KoboToolbox is slow or the connection token has changed.", "Try again in a few minutes. If it persists, tell the PI."],
+  ["A page keeps loading", "A slow or dropped connection.", "Refresh the page. Your saved work is not lost; unsaved typing may be."],
+];
+
+const GLOSSARY = [
+  ["ABF-FST", "Agribusiness Bankability Framework for Food Systems Transformation — the doctoral study this portal supports."],
+  ["Main-400 / Reserve-400", "The 400 selected organisations and their 400 locked, matched replacements."],
+  ["Master ID", "System-generated organisation identifier, e.g. MID-HA-000001 (province code + sequence)."],
+  ["Sample ID", "System-generated case identifier, e.g. SID-2026-000001. Never typed by hand, never reused."],
+  ["Stratum", "The sampling cell: Province × Actor family × Size class."],
+  ["Case", "One organisation's place in the sample (a Sample ID)."],
+  ["Workflow status", "Where a Main case is, from S00 Selected to S11 Completed, or a drop state (S12–S15)."],
+  ["Invitation", "A personal link (valid 14 days) plus an 8-character manual code, issued per case."],
+  ["Eligibility", "The respondent's confirmation that they hold a senior, knowledgeable role."],
+  ["Consent", "The respondent's recorded agreement to take part (participation consent). KII recording consent is separate."],
+  ["PIS", "Participant Information Sheet, currently version 1.3."],
+  ["PROIT", "Pre-Interview Respondent & Organisation Intelligence and Verification Tool: background facts found before contact, confirmed by the respondent."],
+  ["KoboToolbox", "The external data-collection service that hosts the three study forms."],
+  ["Submission", "One completed KoboToolbox form."],
+  ["QA", "Quality assurance: automated checks plus a human decision on every questionnaire."],
+  ["QA exception", "An automated flag raised by a QA rule, worked and closed by a person."],
+  ["KII", "Key Informant Interview (target 60 completed)."],
+  ["Documentary evidence", "Documents, digital platform and media sources analysed (target 50–75)."],
+  ["Administration mode", "How the questionnaire was completed (codes 01–06)."],
+  ["Follow-up", "An approved reminder due to be sent to an invited respondent (Day 2, Day 7)."],
+  ["Withdrawal", "A participant's request to stop taking part, recorded once in the portal."],
+  ["Audit log", "The permanent record of every sensitive action and who took it."],
+  ["Data lock", "30 November 2026 — the date fieldwork data is frozen for analysis."],
+];
+
+module.exports = { REVISION, SITE, ROLE_TABLE, STATUS_TABLE, MODES_TABLE, signIn, changePassword, DATA_RULES, INTERNAL_TROUBLE, GLOSSARY };

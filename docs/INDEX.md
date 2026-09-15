@@ -63,9 +63,14 @@ Start with `00`, `01`, `02` for context, then `09`–`12` for the operational co
 (identifiers, tokens, Kobo, contact), then `18` for the compliance position, then `26` for
 the roadmap.
 
-Joining the research team rather than the codebase? Read the end-user guide PDF
-(`tools/build_guide.py` builds it) instead — it covers everything an RA or coordinator
-needs without the architecture.
+Joining the research team rather than the codebase? Read the user manuals in
+`manuals/` instead. They cover everything without the architecture:
+
+- the **System Manual**;
+- your **Role Guide** (one per role);
+- the **Respondent Guide**, to share with respondents.
+
+Each comes as Word and PDF, and `tools/build_manuals.js` builds them.
 
 ## Reading order for the agent
 

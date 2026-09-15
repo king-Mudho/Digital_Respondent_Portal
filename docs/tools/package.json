@@ -1,0 +1,8 @@
+{
+  "name": "drp-manuals",
+  "private": true,
+  "description": "Builds the Word user manuals in docs/manuals",
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

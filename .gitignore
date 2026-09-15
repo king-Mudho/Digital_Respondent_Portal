@@ -40,3 +40,4 @@ frontend/.tsbuildinfo
 # Generated PDF guide output -- docs/tools/build_guide.py is the tracked
 # source; the PDF it produces is a build artifact, not tracked.
 docs/tools/*.pdf
+docs/tools/node_modules/

@@ -1,0 +1,135 @@
+const C = require("./common");
+
+const phone = (file, caption) => ["img", file, caption, { phone: true }];
+
+module.exports = {
+  file: "Respondent_Guide",
+  meta: {
+    title: "Taking Part in the ABF-FST Study — Respondent Guide",
+    short: "Respondent Guide",
+    subtitle: "A simple, step-by-step guide for organisations invited to take part in the study, on a phone or computer.",
+    audience: "Invited respondents (owners, managing directors and senior managers of selected organisations)",
+    revision: C.REVISION,
+  },
+  blocks: [
+    ["h1", "1. Welcome", { newPage: false }],
+    ["p", "Thank you for considering taking part. Your organisation has been selected for a doctoral research study at **Chinhoyi University of Technology** on how agribusinesses in Zimbabwe can become better prepared for financing and investment."],
+    ["kv", [
+      ["The study", "Developing and Validating the Agribusiness Bankability Framework for Food Systems Transformation through Novel Financing Models in Zimbabwe (ABF-FST)"],
+      ["Researcher", "Happyson Saina, doctoral researcher, Chinhoyi University of Technology"],
+      ["Supervisors", "Dr L. Chikazhe and Dr J. Kanyepe"],
+      ["Ethics", "Research Ethics Clearance Letter, Chinhoyi University of Technology (Annex 19, Form GRSD 17 SEBS/06/2025)"],
+      ["Time needed", "About 15–25 minutes"],
+      ["Questions", "Happyson Saina · 0773943709 · abffst.research.cut@gmail.com"],
+    ]],
+    ["h2", "What you should know first"],
+    ["bullets", [
+      "Taking part is **voluntary**. You can say no, or stop at any time, with no consequence.",
+      "Your answers are used **for research only**. No score, rating or financing decision is produced, and your individual answers are **never shared with any lender or financial institution**.",
+      "Your name and contact details are kept **separately** from your answers and are only used to manage your participation (for example a reminder or arranging a call).",
+      "Results are only ever reported in **combined, anonymised** form.",
+    ]],
+
+    ["h1", "2. What you need"],
+    ["bullets", [
+      "Your **personal invitation link**, sent to you by WhatsApp, SMS or email. It starts with **research.agribizframework.com/i/**.",
+      "A phone, tablet or computer with internet access. No app to install and no account to create.",
+      "About **15–25 minutes** somewhere you will not be interrupted. If you prefer, a researcher can go through it with you by phone or WhatsApp.",
+    ]],
+    ["warn", "Your link is personal", "The link belongs to your organisation and works for 14 days. Please do not forward it to other organisations. If it has expired or does not work, contact the research team for a new one."],
+    ["tip", "Is this message genuine?", "The research team will only send links beginning **https://research.agribizframework.com/i/**. We will never ask for passwords, bank details or payment. If in doubt, call Happyson Saina on 0773943709."],
+
+    ["h1", "3. Taking part, step by step"],
+    ["h2", "Step 1 — Open your link"],
+    ["p", "Tap the link in the message. The study portal opens in your browser."],
+    ["h2", "Step 2 — Confirm your organisation"],
+    ["p", "The screen asks you to confirm the name of your organisation. If it is correct, tap **Yes, that's correct**. If it is not your organisation, do not continue — contact the research team using the details in your invitation."],
+    phone("resp_01_confirm.jpg", "Confirming the organisation."),
+    ["h2", "Step 3 — Tell us a little about you"],
+    ["steps", [
+      "Type **Your full name**.",
+      "Choose the option under **Which best describes your role?**: Owner / Founder, CEO / Managing Director, Finance / Credit / Risk, Operations, Strategy / Business Development, Supply Chain / Commercial, or Other senior manager.",
+      "Tap **Continue**.",
+    ]],
+    phone("resp_02_eligibility.jpg", "A little about you."),
+    ["tip", "Not the right person?", "If none of the roles describes you, choose **None of these describe me**. You will be thanked and no questions will be asked. It would help us greatly if you could tell the researcher who contacted you who the right senior person is."],
+    ["h2", "Step 4 — Read the participant information"],
+    ["p", "Read the information about the study: who is doing it, what taking part involves, how your information is protected, and your rights. When you are ready, tap **Continue to consent**. Tap **Go back** if you need to."],
+    phone("resp_03_information_top.jpg", "Participant Information."),
+    ["h2", "Step 5 — Give your decision"],
+    ["bullets", [
+      "Tap **I agree to take part** if you are happy to continue.",
+      "Tap **I do not wish to take part** if you would rather not. That is completely fine, and nobody will pressure you.",
+      "Tap **Re-read the participant information** to look at it again first.",
+    ]],
+    phone("resp_04_consent.jpg", "Your consent."),
+    ["h2", "Step 6 — Check what we already know (only if shown)"],
+    ["p", "To save you time, the research team may have looked up information about your organisation that is already public, such as registry records or published reports. If so, a screen called **Before we continue** shows each item. For each one you can choose **Yes, correct**, **Partly correct**, **No — correct it** (and type the right answer), **Don't know**, **Prefer not to say** or **Not applicable**. You can also skip this step. Your own answers always take precedence."],
+    ["h2", "Step 7 — Choose how you would like to take part"],
+    ["table", ["Option", "What happens next"], [
+      ["**Complete it myself now**", "You fill in the questionnaire online at your own pace (about 15–25 minutes)."],
+      ["**Have a researcher call me**", "You choose a convenient date and time, and a researcher calls to go through it with you."],
+      ["**Complete it via WhatsApp**", "A researcher guides you through it over a WhatsApp call."],
+      ["**Ask someone to contact me another way**", "The team gets in touch to find a way that works for you."],
+    ], [0.38, 0.62]],
+    phone("resp_06_choice.jpg", "How would you like to take part?"),
+    ["h2", "Step 8a — Complete the questionnaire yourself"],
+    ["steps", [
+      "Tap **Start the questionnaire**.",
+      "The questionnaire opens on KoboToolbox, the secure data-collection service used by the study. Read each question and choose or type your answer, then tap **Next**.",
+      "Continue to the end and tap **Submit**. Your answers are sent to the research team.",
+    ]],
+    phone("resp_07_ready.jpg", "Ready to begin."),
+    phone("resp_07b_kobo_form.jpg", "The questionnaire's first page."),
+    ["tip", "Tips for the questionnaire", [
+      "Answer for your organisation as a whole, from your own knowledge. There are no right or wrong answers.",
+      "If the questionnaire does not open, tap **Try again**, or choose **Ask a researcher to help me instead**.",
+      "Complete it in one sitting where possible, with a steady connection.",
+    ]],
+    ["h2", "Step 8b — Ask a researcher to call you"],
+    ["steps", [
+      "Choose your **Preferred date and time**. It must be in the future.",
+      "Tap **Request this time**.",
+      "You see **Your request has been sent**. A researcher will contact you to confirm. There is nothing else you need to do for now.",
+    ]],
+    phone("resp_08_appointment.jpg", "Choosing a time for a call."),
+    phone("resp_09_done_appointment.jpg", "Your request has been sent."),
+    ["h2", "Step 9 — Finished"],
+    ["p", "A thank-you screen confirms you have finished. You will not see any score or result, because the study does not produce one."],
+
+    ["h1", "4. Reminders"],
+    ["p", "If you have not yet taken part, you may receive up to two short reminders by WhatsApp (around two days and seven days after your invitation). They simply ask you to use the link you were sent. If you do not wish to take part, just tell the research team and the reminders will stop."],
+
+    ["h1", "5. Your rights and your information"],
+    ["bullets", [
+      "You may **decline** or **stop at any time**, without giving a reason and without any consequence.",
+      "You may **withdraw** after taking part by contacting the research team. Your link and reminders will be stopped and your contact details erased from the study system.",
+      "Your contact details are seen only by the research team and used only to manage your participation.",
+      "Your answers are stored securely, used for research purposes only, and reported only in combined, anonymised form.",
+      "No score, rating or financing decision is generated, and your individual answers are never given to lenders or financial institutions.",
+      "You may ask for a copy of your completed questionnaire; the team can email it to the address they hold for you.",
+    ]],
+
+    ["h1", "6. Questions and answers"],
+    ["table", ["Question", "Answer"], [
+      ["The link says it is not valid.", "It may have expired (links last 14 days), been replaced by a newer link, or been copied incompletely. Contact the research team for a new link."],
+      ["I started but was interrupted.", "Open your link again. If it does not continue where you were, contact the team and a researcher can help."],
+      ["I am not the right person to answer.", "Choose **None of these describe me**, and please let the researcher know who the right senior person is."],
+      ["Will my answers affect our access to finance?", "No. The study produces no score, rating or decision, and individual answers are never shared with lenders."],
+      ["Can someone help me complete it?", "Yes. Choose **Have a researcher call me** or **Complete it via WhatsApp**, or call 0773943709."],
+      ["I chose a time but need to change it.", "Contact the research team using the details in your invitation."],
+      ["Who can I speak to about the study?", "Happyson Saina, 0773943709, abffst.research.cut@gmail.com."],
+    ], [0.36, 0.64]],
+    phone("resp_10_invalid_link.jpg", "What an invalid or expired link looks like."),
+
+    ["h1", "7. Contact the research team"],
+    ["kv", [
+      ["Researcher", "Happyson Saina"],
+      ["Phone / WhatsApp", "0773943709"],
+      ["Email", "abffst.research.cut@gmail.com"],
+      ["Institution", "Chinhoyi University of Technology"],
+      ["Portal", C.SITE],
+    ]],
+    ["p", "Thank you for your time and for contributing to research on agribusiness financing in Zimbabwe."],
+  ],
+};

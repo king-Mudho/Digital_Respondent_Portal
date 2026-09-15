@@ -98,10 +98,14 @@ Chinhoyi University of Technology
 ```
 Your invitation code is: [MANUAL CODE]
 
-To take part: visit research.agribizframework.com on any phone or computer, choose
-"Have an invitation code?", and enter the code above. Or call 0773943709 and we
-will complete it together over the phone. This code expires on [EXPIRY DATE].
+To take part, call 0773943709 and quote the code above; a researcher will complete
+the questionnaire with you over the phone. This code expires on [EXPIRY DATE].
 ```
+
+The website has no box for typing a code: respondents start only from their personal
+link. For phone administration, the researcher opens the case's link on their own
+device and goes through the screens with the respondent (Role Guide 3, "Phone,
+WhatsApp-call or face-to-face administration").
 
 ## Administering the different participation modes
 
