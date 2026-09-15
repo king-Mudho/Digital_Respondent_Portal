@@ -1,4 +1,4 @@
-from django.http import HttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -72,5 +72,68 @@ class KoboSubmissionEmailView(APIView):
             return Response(copies.email_submission(
                 key, submission_id, recipient=request.data.get("recipient", ""), user=request.user,
             ))
+        except copies.CopyError as exc:
+            return _error(exc)
+
+
+def _pi_only(request):
+    if copies.role_of(request.user) != "PI_ADMIN":
+        raise copies.CopyError("permission_denied", "Full KoboToolbox data exports are for the PI only.", 403)
+
+
+class KoboFormDataExportView(APIView):
+    """GET /api/v1/kobo/forms/{key}/export/xlsx/ -- every submission with codes,
+    labels and a data dictionary. PI only."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, key):
+        from .data_export import build_workbook
+
+        try:
+            _pi_only(request)
+            content, filename = build_workbook(key, user=request.user)
+        except copies.CopyError as exc:
+            return _error(exc)
+        response = HttpResponse(content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class KoboFormPDFZipView(APIView):
+    """GET /api/v1/kobo/forms/{key}/export/pdfs/ -- every completed form as a
+    PDF, streamed as a ZIP with a manifest. PI only."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, key):
+        from .data_export import stream_pdf_zip
+
+        try:
+            _pi_only(request)
+            chunks, filename = stream_pdf_zip(key, user=request.user)
+        except copies.CopyError as exc:
+            return _error(exc)
+        response = StreamingHttpResponse(chunks, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "no-store"
+        response["X-Accel-Buffering"] = "no"
+        return response
+
+
+class KoboRecordLookupView(APIView):
+    """GET /api/v1/kobo/forms/{key}/lookup/?record=<Sample_ID|KII ID|DOC-ID> --
+    the completed forms for one portal record, so its page can link to them."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, key):
+        record = (request.query_params.get("record") or "").strip()
+        try:
+            copies.require_form(key, request.user)
+            if not record:
+                raise copies.CopyError("invalid_input", "record is required.")
+            return Response({"results": copies.find_submissions(key, record)})
         except copies.CopyError as exc:
             return _error(exc)

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
+import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { RespondentsPanel } from "@/components/admin/RespondentsPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -618,6 +619,10 @@ export default function SampleCaseDetailPage() {
             sampleCase.sample_type === "MAIN" && ["S00", "S01", "S02"].includes(sampleCase.workflow_status ?? "")
           }
         />
+
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
+          <KoboFormPanel formKey="questionnaire" record={sampleCase.sample_id} title="Completed questionnaire" />
+        </IfRole>
 
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
           <WithdrawalPanel sampleId={sampleCase.sample_id} />

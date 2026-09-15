@@ -3,7 +3,8 @@
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
+import { IfRole, ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
+import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -194,6 +195,11 @@ export default function DocumentDetailPage() {
             </p>
           </ReadOnly>
         </Card>
+      </div>
+      <div className="mt-4">
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "DOCUMENTARY_RA", "SUPERVISOR_READONLY"]}>
+          <KoboFormPanel formKey="documents" record={doc.document_id} title="Completed coding form (KoboToolbox)" />
+        </IfRole>
       </div>
     </AdminShell>
   );

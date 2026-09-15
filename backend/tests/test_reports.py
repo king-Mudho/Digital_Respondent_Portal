@@ -81,3 +81,18 @@ def test_report_access_follows_the_dashboard_roles():
 def test_an_unknown_range_falls_back_to_thirty_days():
     report = _client(Role.ANALYST, "rp_range").get("/api/v1/reports/overview/?range=forever").json()
     assert report["range"]["key"] == "30" and len(report["submissions_by_day"]) == 30
+
+
+@pytest.mark.django_db
+def test_a_dominant_administration_mode_raises_the_imbalance_alert(organisation, stratum):
+    from apps.qa.services import seed_default_thresholds
+    from apps.sampling.models import SampleType
+    from apps.sampling.services import create_sample_case
+
+    seed_default_thresholds()
+    for i in range(10):
+        case = create_sample_case(organisation=organisation, stratum=stratum, sample_type=SampleType.MAIN, year=2026)
+        QUANSubmission.objects.create(sample_case=case, kobo_submission_uuid=f"mi-{i}", submitted_at=timezone.now(),
+                                      administration_mode="01" if i < 9 else "03")
+    imbalance = _client(Role.PI_ADMIN, "rp_mi").get("/api/v1/reports/overview/?range=30").json()["mode_imbalance"]
+    assert (imbalance["alert"], imbalance["share"], imbalance["threshold"]) == (True, 0.9, 0.7)

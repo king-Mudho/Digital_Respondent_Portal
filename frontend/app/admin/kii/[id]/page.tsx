@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -252,6 +253,11 @@ export default function KIIDetailPage() {
             Supervisor read-only). Other roles on this page used to get a 403 from it. */}
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
           <PreProfilePanel kiiRecordId={record.id} />
+        </IfRole>
+      </div>
+      <div className="mt-4">
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA", "SUPERVISOR_READONLY"]}>
+          <KoboFormPanel formKey="kii" record={record.kii_id} title="Completed KII form (KoboToolbox)" />
         </IfRole>
       </div>
     </AdminShell>

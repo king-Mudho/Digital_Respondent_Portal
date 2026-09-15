@@ -183,6 +183,20 @@ def build_report(range_key: str = "30") -> dict:
         for row in submissions.values("administration_mode").annotate(n=Count("id")).order_by("-n")
     ]
 
+    # QARuleThreshold mode_imbalance_alert_ratio: configured since Phase 0 but
+    # never evaluated anywhere until 2026-09-15.
+    ratio_row = QARuleThreshold.objects.filter(code="mode_imbalance_alert_ratio").first()
+    ratio = float(ratio_row.value) if ratio_row else None
+    mode_total = sum(m["submissions"] for m in modes)
+    top_mode = modes[0] if modes else None
+    mode_imbalance = {
+        "threshold": ratio,
+        "dominant_mode": top_mode["label"] if top_mode else None,
+        "share": _rate(top_mode["submissions"], mode_total) if top_mode else None,
+        # Too few submissions to call a skew until there are at least ten.
+        "alert": bool(top_mode and ratio and mode_total >= 10 and top_mode["submissions"] / mode_total > ratio),
+    }
+
     qa_labels = dict(QAStatus.choices)
     qa_outcomes = {row["qa_status"]: row["n"] for row in submissions.values("qa_status").annotate(n=Count("id"))}
     qa_flags = [
@@ -241,6 +255,7 @@ def build_report(range_key: str = "30") -> dict:
             "size_class": _breakdown(rows, "organisation__size_class", SizeClass.choices),
         },
         "administration_modes": modes,
+        "mode_imbalance": mode_imbalance,
         "duration_histogram": histogram,
         "duration_thresholds_minutes": {
             "min": (thresholds.get("min_plausible_duration_seconds") or 0) / 60 or None,

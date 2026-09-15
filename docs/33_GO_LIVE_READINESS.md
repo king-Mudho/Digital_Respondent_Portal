@@ -49,11 +49,11 @@ In rough order of consequence. Each has a test that fails without the fix.
 
 | # | Item | Owner | How |
 |---|---|---|---|
-| 1 | Approve the Participant Information Sheet v1.3 | PI + CUT Research Ethics | `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part B |
-| 2 | Approve the QA thresholds **and** the invitation and two reminder texts | PI | `31` Part A; texts are what RAs now send by hand |
+| 1 | ~~Approve the Participant Information Sheet v1.3~~ | PI | **Done 2026-09-15** — PI approval; covered by his CUT research clearance (ethics, POTRAZ) |
+| 2 | ~~Approve the QA thresholds and the invitation and reminder texts~~ | PI | **Done 2026-09-15** |
 | 3 | Collect respondent contact details | Field Coordinator + Contact RAs | Case page → *Respondents and contact details*; 349 Main cases have no number |
-| 4 | Assign cases to Contact RAs | Field Coordinator | Case page → *Assigned Contact RA*; an RA sees only assigned cases |
-| 5 | Move cases through verification to S03 | Field Coordinator | Main-400 register → *Move cases through verification* |
+| 4 | ~~Assign cases to Contact RAs~~ | PI | **Done 2026-09-15** — all 400 Main cases assigned to the `contact_ra` account on the PI's instruction. Reassign per RA once named RA accounts exist |
+| 5 | ~~Move cases through verification to S03~~ | PI | **Done 2026-09-15** — all 400 at S03, each transition audited, on the PI's instruction |
 | 6 | Rotate the KoboToolbox password and API token | PI | Then `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh` with the new token |
 | 7 | Finish offsite backups: sign in to Google Drive once, then store the encryption key in a password manager | PI | Built and tested; run the one command in `23` "Offsite backups". Until then backups live only on the same VPS |
 | 8 | Push to GitHub and let CI run once | PI | `.github/workflows/ci.yml` has never run |
@@ -64,8 +64,7 @@ In rough order of consequence. Each has a test that fails without the fix.
 
 - **WhatsApp Business Platform** (Meta account, verified number, approved utility
   templates) to send reminders automatically instead of by hand.
-- **PROIT ethics review** — PROIT is live on the PI's documented risk acceptance, not an
-  ethics clearance.
+- **PROIT** — confirmed by the PI on 2026-09-15 as covered by his CUT research clearance (`30`).
 - **Server memory**: 956 MB shared with the ABI site, running on swap. Move to 2 GB before
   fieldwork peaks.
 - **QA engine gaps**: `mode_imbalance_alert_ratio` is configured but not implemented;

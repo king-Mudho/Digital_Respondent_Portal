@@ -47,6 +47,11 @@ only (`config.settings.base`'s own default stays `False`, so any new/staging
 environment still starts with the respondent-facing side off until deliberately
 configured).
 
+**2026-09-15: PI confirms PROIT is covered.** The PI stated in writing that he holds the
+permissions and rights, under his CUT student research clearance, to run PROIT as part of
+the study, and approved it. Recorded here as the PI's confirmation of coverage; no
+PROIT-specific review document is held in this repository.
+
 ## Implementation (`backend/apps/proit/`)
 
 - **Models**: `PreProfile` (one per `SampleCase` or `KIIRecord`, exactly one of the

@@ -145,6 +145,23 @@ def list_submissions(key: str, *, start: int = 0, limit: int = 25) -> dict:
     }
 
 
+def find_submissions(key: str, record: str) -> list[dict]:
+    """Completed submissions for one portal record (a Sample_ID, KII ID or
+    DOC-ID), matched on the form's own identifier field."""
+    spec = FORMS[key]
+    fields = (spec["record_field"], *spec["record_fallbacks"])
+    query = {"$or": [{field: record} for field in fields]}
+    body = _kobo_get(
+        f"/api/v2/assets/{asset_uid(key)}/data/",
+        query=json.dumps(query), fields=json.dumps(["_id", "_submission_time", "_submitted_by"]),
+        sort=json.dumps({"_submission_time": -1}), limit=20,
+    )
+    return [
+        {"id": row.get("_id"), "submitted_at": row.get("_submission_time"), "submitted_by": row.get("_submitted_by") or ""}
+        for row in body.get("results", [])
+    ]
+
+
 def fetch_submission(key: str, submission_id: int) -> dict:
     return _kobo_get(f"/api/v2/assets/{asset_uid(key)}/data/{int(submission_id)}/")
 

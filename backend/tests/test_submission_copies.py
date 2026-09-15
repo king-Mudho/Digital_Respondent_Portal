@@ -178,3 +178,11 @@ def test_kobo_being_down_is_a_clear_error_not_a_crash(settings):
     with patch("apps.kobo.submission_copies.requests.get", side_effect=requests.ConnectionError("down")):
         resp = client.get("/api/v1/kobo/forms/questionnaire/submissions/")
     assert resp.status_code == 502 and resp.json()["error"]["code"] == "kobo_unreachable"
+
+
+@pytest.mark.django_db
+def test_a_record_page_finds_its_completed_forms(kobo):
+    with patch("apps.kobo.submission_copies._kobo_get", return_value={"results": [{"_id": 77, "_submission_time": "2026-09-14T14:03:21"}]}) as get:
+        resp = _client(Role.KII_RA, "cp_lookup").get("/api/v1/kobo/forms/kii/lookup/?record=KII-0042")
+    assert resp.status_code == 200 and resp.json()["results"][0]["id"] == 77
+    assert '"part_a/KII_ID": "KII-0042"' in get.call_args.kwargs["query"]

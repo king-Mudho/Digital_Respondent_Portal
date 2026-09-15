@@ -59,6 +59,7 @@ interface Report {
   submissions_by_day: Array<{ date: string; submissions: number }>;
   breakdowns: Record<"province" | "actor_family" | "size_class", Breakdown[]>;
   administration_modes: Array<{ code: string; label: string; submissions: number }>;
+  mode_imbalance: { threshold: number | null; dominant_mode: string | null; share: number | null; alert: boolean };
   duration_histogram: Array<{ bucket: string; min_minutes: number; max_minutes: number | null; submissions: number }>;
   duration_thresholds_minutes: { min: number | null; max: number | null };
   qa: { outcomes: Array<{ status: string; label: string; count: number }>; flags: Array<{ rule: string; count: number }> };
@@ -317,7 +318,11 @@ export default function ReportsPage() {
 
             <ChartCard
               title="How questionnaires were completed"
-              subtitle={`Administration mode, ${rangeLabel}`}
+              subtitle={
+                data.mode_imbalance.alert
+                  ? `⚠ ${data.mode_imbalance.dominant_mode} is ${formatValue(data.mode_imbalance.share, "percent")} of submissions — above the ${formatValue(data.mode_imbalance.threshold, "percent")} QA alert level`
+                  : `Administration mode, ${rangeLabel}`
+              }
               rows={data.administration_modes}
               columns={[
                 { key: "label", label: "Mode", kind: "text" },

@@ -22,16 +22,18 @@ real Main-400 invitation is issued.
       invitations and reminders can be sent by hand from the case page and the Follow-ups
       screen. It blocks only automated sending. The invitation and reminder wording still
       needs PI approval — `31` Part A.)*
-- [ ] **The Participant Information Sheet wording is approved by the PI and the CUT
-      Research Ethics office.** *(v1.3 — v1.2 added the PROIT disclosure, v1.3 the study's own contact email — is live and shown to respondents, but the
-      wording has never been reviewed by anyone qualified to approve it. Review pack with
-      the full text and seven identified gaps: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md`
-      Part B. The most material gap is that the PIS does not disclose PROIT background
-      research, which respondents are nonetheless asked to verify.)*
-- [ ] **The QUAN QA rule thresholds are confirmed by the PI.** *(Running on engineering
-      defaults since Phase 0. Review pack: `31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` Part A.
-      Three thresholds are active, five are dormant pending the real Kobo form, and one
-      is configured but never evaluated.)*
+- [x] **The Participant Information Sheet wording is approved by the PI and the CUT
+      Research Ethics office.** *(2026-09-15, PI's written statement in the build session:
+      the study is carried out under his CUT student research clearance, which covers data
+      collection, ethics and POTRAZ, and he approves v1.3 — the live version, which
+      includes the PROIT disclosure. Recorded as the PI's statement; no separate ethics
+      office signature is held in this repository.)*
+- [x] **The QUAN QA rule thresholds are confirmed by the PI.** *(2026-09-15, PI-approved
+      as configured: 5–90 minute plausible duration, 24-hour duplicate window, 65 required
+      fields from the live form, 70% mode-imbalance alert (now evaluated on Reports). Every
+      `QARuleThreshold.set_by` is the PI; audit event `qa.thresholds_approved`. The
+      invitation and reminder wording was approved at the same time
+      (`messaging.wording_approved`).)*
 
 ## Sample & identifier integrity
 

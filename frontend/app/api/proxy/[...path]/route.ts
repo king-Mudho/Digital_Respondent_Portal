@@ -47,9 +47,10 @@ async function proxy(request: NextRequest, path: string[]) {
     }
   }
 
-  // Bytes, not text: .text() re-encoded binary bodies as UTF-8 and corrupted
-  // every PDF download (CSV exports only survived because CSV is text).
-  const responseBody = await upstream.arrayBuffer();
+  // Streamed through untouched: binary-safe (.text() re-encoded bodies as
+  // UTF-8 and corrupted every PDF), and a long export -- a ZIP of hundreds of
+  // PDFs -- starts arriving at once instead of waiting past nginx's timeout.
+  const responseBody = upstream.body;
   const headers: Record<string, string> = {
     "Content-Type": upstream.headers.get("Content-Type") ?? "application/json",
   };

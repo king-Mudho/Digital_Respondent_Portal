@@ -186,11 +186,12 @@ null), and bump `PARTICIPANT_INFORMATION_SHEET_VERSION` if the wording changed.
 
 | | Name | Role | Decision | Date | Signature |
 |---|---|---|---|---|---|
-| Part A — QA thresholds | | Principal Researcher | | | |
+| Part A — QA thresholds | Happyson Saina | Principal Researcher | Approved as configured | 2026-09-15 | Written instruction in the build session; audit `qa.thresholds_approved` |
+| Part A — invitation and reminder wording | Happyson Saina | Principal Researcher | Approved as live | 2026-09-15 | Audit `messaging.wording_approved` |
 | Part A — QA thresholds | | Supervisor | | | |
-| Part B — PIS wording | | Principal Researcher | | | |
+| Part B — PIS wording (v1.3) | Happyson Saina | Principal Researcher | Approved; stated to be covered by his CUT student research clearance (ethics and POTRAZ) | 2026-09-15 | Written statement in the build session |
 | Part B — PIS wording | | Supervisor | | | |
-| Part B — PIS wording | | CUT Research Ethics | | | |
+| Part B — PIS wording | | CUT Research Ethics | Covered by the study's existing clearance, per the PI | | |
 
 Until Part B is signed, the PIS remains a draft that respondents are nonetheless being
 shown. Until Part A is signed, the QA thresholds remain engineering defaults. Both are

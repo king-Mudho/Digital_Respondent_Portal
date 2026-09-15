@@ -176,6 +176,10 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # About 40 plain APIViews have no serializer for the schema generator to
+    # read. It says so on every schema build -- including each deploy's health
+    # check -- which buried real errors in the logs. The docs still render.
+    "DISABLE_ERRORS_AND_WARNINGS": True,
 }
 
 SIMPLE_JWT = {
