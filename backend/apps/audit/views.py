@@ -11,5 +11,5 @@ class AuditLogView(ListAPIView):
 
     permission_classes = [IsAdminOnly]
     serializer_class = AuditEventSerializer
-    queryset = AuditEvent.objects.all()
+    queryset = AuditEvent.objects.select_related("user")
     filterset_fields = ["action", "object_type"]

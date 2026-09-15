@@ -131,3 +131,32 @@ Read-only roles (Analyst, Supervisor) see the figures without the form.
 - **Full operational export** (`GET /api/v1/export/operational/`, `IsAdminOnly`):
   includes contact data, for internal operations use only, never distributed externally.
   The `/admin/export` screen does not show this download to anyone but the PI/Admin.
+
+
+## Reports screen (2026-09-15)
+
+`/admin/reports` (PI, Field Coordinator, Analyst, Supervisor) brings the study's analytics
+into one place, with charts and a table view behind every chart. One endpoint,
+`GET /api/v1/reports/overview/?range=`, computes it in about 16 queries and caches it for a
+minute per range; the date-range control (last 7/30/90 days, all time) scopes every
+time-based figure, while case progress is cumulative.
+
+- **Headline figures:** questionnaires submitted and QA-passed against the 400 target,
+  response rate, median completion time, follow-ups sent, withdrawals, reserve
+  activations, fieldwork cost and cost per QA-passed case.
+- **Case funnel:** each case counted once at every stage it has reached, from durable
+  evidence (invitation issued, link opened, eligible respondent, consent, questionnaire
+  handed over, submission, human QA pass). The Contact dashboard counts invitation
+  tokens, which grow with every reissue; the funnel counts cases.
+- **Coverage:** invited and submitted as a share of each province's, organisation type's
+  and size class's cases, so small strata compare fairly with Harare's 376.
+- **Timeliness and quality:** submissions per day; a completion-time histogram with the
+  QA duration limits; QA outcomes (status colours, always labelled) and why automated
+  flags fired; administration mode.
+- **Contact and the other strands:** contact-attempt outcomes; KII interviews by status;
+  KII and document progress against target.
+
+Ground rules hold: no organisation, person, Sample_ID or Master_ID appears in the
+payload (`tests/test_reports.py`), and no questionnaire answer is scored or combined
+(AGENTS.md ground rule 3). Chart colours were validated for colour-vision deficiency
+against the portal's surface.

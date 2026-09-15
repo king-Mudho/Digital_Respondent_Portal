@@ -75,3 +75,23 @@ In rough order of consequence. Each has a test that fails without the fix.
   checking there.
 - **ResearchOS backlog** (`32`): Kobo duplicate quarantine, case timeline, cost attribution,
   export/data-lock pack; Identity Vault.
+
+
+## Update 2026-09-15: screen audit, Reports, performance
+
+- **Every screen, every role.** `e2e/all-screens-audit.spec.ts` signs in as each of the
+  eight roles and opens every screen plus case, KII and document detail pages at 1366px
+  and 375px, failing on server errors, refused data calls, crashes, endless loading or
+  sideways scrolling. It found and fixed: the PROIT panel and the reserve-pairing list
+  refusing roles without those grants (KII RA, Contact RA), and two wide menus pushing
+  pages sideways on phones.
+- **Reports** (`16` "Reports screen"): fieldwork analytics with charts and table views.
+- **Performance.** Measured every data endpoint and removed the per-row queries: the
+  Main-400 register (40 → 2 queries per page), KII register, analysis and operational
+  exports (one consent query per submission), and the Follow-ups screen (several queries
+  per invited case → a fixed handful). Invitation-link checks no longer load every
+  invitation's full row. New indexes on the audit log, consent history and submissions.
+  `tests/test_query_counts.py` fails if any of these starts growing with the data again.
+  The frontend no longer refetches every query when a tab regains focus, and no longer
+  retries refusals. Suites: backend 356 passed; E2E 43 passed, 2 skipped (WhatsApp, and
+  Form PDFs where no KoboToolbox is connected).

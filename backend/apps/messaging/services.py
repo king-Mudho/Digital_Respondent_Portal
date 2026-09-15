@@ -42,28 +42,73 @@ def _latest_token(sample_case: SampleCase) -> InvitationToken | None:
     )
 
 
-def _step_delivered(case: SampleCase, step: ReminderSequenceStep, since) -> bool:
-    return MessageLog.objects.filter(
-        sample_case=case, template=step.template, status__in=DELIVERED_STATUSES, created_at__gte=since,
-    ).exists()
+class _Awaiting:
+    """One awaiting case with everything the reminder rules need, loaded in
+    bulk. The first version asked the database for each case's token,
+    respondent and message logs separately -- several queries per invited
+    case, which at 400 invitations meant well over a thousand per load of
+    the Follow-ups screen."""
+
+    __slots__ = ("case", "token", "respondent", "logs")
+
+    def __init__(self, case, token, respondent, logs):
+        self.case, self.token, self.respondent, self.logs = case, token, respondent, logs
+
+    def delivered(self, step: ReminderSequenceStep) -> bool:
+        return any(
+            template_id == step.template_id and created_at >= self.token.issued_at
+            for template_id, created_at in self.logs
+        )
+
+    @property
+    def phone(self) -> str:
+        return (self.respondent.whatsapp_number or self.respondent.phone) if self.respondent else ""
 
 
-def _awaiting_cases():
-    return SampleCase.objects.filter(
-        sample_type=SampleType.MAIN, workflow_status__in=AWAITING_RESPONSE_STATUSES,
-    ).select_related("organisation")
+def _awaiting(assigned_to=None) -> list[_Awaiting]:
+    cases = (
+        SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status__in=AWAITING_RESPONSE_STATUSES)
+        .select_related("organisation")
+        .prefetch_related("respondents")
+    )
+    if assigned_to is not None:
+        cases = cases.filter(assigned_ra=assigned_to)
+    cases = list(cases)
+    ids = [case.id for case in cases]
+
+    tokens: dict[int, InvitationToken] = {}
+    live = (
+        InvitationToken.objects.filter(sample_case_id__in=ids)
+        .exclude(status__in=[TokenStatus.EXPIRED, TokenStatus.REVOKED])
+        .order_by("-issued_at")
+    )
+    for token in live:
+        tokens.setdefault(token.sample_case_id, token)
+
+    logs: dict[int, list] = {}
+    delivered = MessageLog.objects.filter(sample_case_id__in=ids, status__in=DELIVERED_STATUSES)
+    for case_id, template_id, created_at in delivered.values_list("sample_case_id", "template_id", "created_at"):
+        logs.setdefault(case_id, []).append((template_id, created_at))
+
+    out = []
+    for case in cases:
+        token = tokens.get(case.id)
+        if token is None:
+            continue
+        people = sorted(case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
+        out.append(_Awaiting(case, token, people[0] if people else None, logs.get(case.id, [])))
+    return out
 
 
-def due_step_for(case: SampleCase, token: InvitationToken, steps, reference_date) -> ReminderSequenceStep | None:
+def _due_step(item: _Awaiting, steps, reference_date) -> ReminderSequenceStep | None:
     """The latest reminder step that is due and not yet delivered for this
     invitation. Only the latest: on day 8 an undelivered Day 2 reminder is
     superseded by the Day 7 one, never sent as a second message."""
-    days_elapsed = (reference_date - timezone.localtime(token.issued_at).date()).days
+    days_elapsed = (reference_date - timezone.localtime(item.token.issued_at).date()).days
     due = [step for step in steps if step.day_offset <= days_elapsed]
     if not due:
         return None
-    latest = due[-1]
-    return None if _step_delivered(case, latest, token.issued_at) else latest
+    return None if item.delivered(due[-1]) else due[-1]
 
 
 def dispatch_due_reminders(reference_date=None) -> list[MessageLog]:
@@ -83,23 +128,16 @@ def dispatch_due_reminders(reference_date=None) -> list[MessageLog]:
         return dispatched
     client = WhatsAppClient()
 
-    for case in _awaiting_cases():
-        token = _latest_token(case)
-        if not token:
-            continue
-        step = due_step_for(case, token, steps, reference_date)
-        if step is None or step.channel != MessageChannel.WHATSAPP:
-            continue
-        respondent = case.respondents.first()
-        phone = (respondent.whatsapp_number or respondent.phone) if respondent else ""
-        if not phone:
+    for item in _awaiting():
+        step = _due_step(item, steps, reference_date)
+        if step is None or step.channel != MessageChannel.WHATSAPP or not item.phone:
             continue
         try:
-            client.send_template_message(to_phone=phone, template_name=step.template.name)
+            client.send_template_message(to_phone=item.phone, template_name=step.template.name)
         except WhatsAppNotConfigured:
             return dispatched  # nothing can be sent automatically; the Follow-ups screen lists them
         dispatched.append(MessageLog.objects.create(
-            sample_case=case, template=step.template, channel=step.channel,
+            sample_case=item.case, template=step.template, channel=step.channel,
             status=MessageStatus.SENT, sent_at=timezone.now(), triggered_by=None,
         ))
     return dispatched
@@ -124,16 +162,11 @@ def exhaust_nonresponse_cases(reference_date=None) -> list[SampleCase]:
     final_offset = steps[-1].day_offset
 
     transitioned = []
-    for case in _awaiting_cases():
-        token = _latest_token(case)
-        if not token:
-            continue
-        days_elapsed = (reference_date - timezone.localtime(token.issued_at).date()).days
-        if days_elapsed <= final_offset:
-            continue
-        if all(_step_delivered(case, step, token.issued_at) for step in steps):
-            transition_workflow_status(case, WorkflowStatus.S13_NONRESPONSE)
-            transitioned.append(case)
+    for item in _awaiting():
+        days_elapsed = (reference_date - timezone.localtime(item.token.issued_at).date()).days
+        if days_elapsed > final_offset and all(item.delivered(step) for step in steps):
+            transition_workflow_status(item.case, WorkflowStatus.S13_NONRESPONSE)
+            transitioned.append(item.case)
     return transitioned
 
 
@@ -164,32 +197,24 @@ def due_follow_ups(reference_date=None, *, assigned_to=None) -> list[dict]:
     if not steps:
         return []
     items = []
-    cases = _awaiting_cases()
-    if assigned_to is not None:
-        cases = cases.filter(assigned_ra=assigned_to)
-    for case in cases:
-        token = _latest_token(case)
-        if not token:
-            continue
-        step = due_step_for(case, token, steps, reference_date)
+    for item in _awaiting(assigned_to):
+        step = _due_step(item, steps, reference_date)
         if step is None:
             continue
-        respondent = case.respondents.filter(is_eligible=True).first() or case.respondents.first()
-        phone = (respondent.whatsapp_number or respondent.phone) if respondent else ""
         items.append({
-            "sample_id": case.sample_id,
-            "organisation_name": case.organisation.name,
-            "workflow_status": case.workflow_status,
-            "invited_on": timezone.localtime(token.issued_at).date(),
+            "sample_id": item.case.sample_id,
+            "organisation_name": item.case.organisation.name,
+            "workflow_status": item.case.workflow_status,
+            "invited_on": timezone.localtime(item.token.issued_at).date(),
             "step_day": step.day_offset,
             "step_label": step.label or f"Day {step.day_offset} reminder",
             "template": step.template.name,
             "message": step.template.body,
-            "respondent_name": respondent.full_name if respondent else "",
-            "phone": phone,
-            "whatsapp_link": whatsapp_link(phone, step.template.body),
+            "respondent_name": item.respondent.full_name if item.respondent else "",
+            "phone": item.phone,
+            "whatsapp_link": whatsapp_link(item.phone, step.template.body),
         })
-    items.sort(key=lambda item: item["invited_on"])
+    items.sort(key=lambda entry: entry["invited_on"])
     return items
 
 

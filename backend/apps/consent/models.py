@@ -59,6 +59,8 @@ class ConsentRecord(models.Model):
 
     class Meta:
         ordering = ["-timestamp"]
+        # latest_consent(): the newest decision of one type for one case.
+        indexes = [models.Index(fields=["sample_case", "consent_type", "-timestamp"], name="consent_latest_idx")]
 
     def __str__(self):
         return f"{self.consent_type}:{self.decision} ({self.sample_case_id})"

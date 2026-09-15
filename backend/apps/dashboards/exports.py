@@ -51,12 +51,22 @@ OPERATIONAL_EXTRA_FIELDS = [
 ]
 
 
-def _withdrawn(case) -> bool:
-    from apps.consent.models import ConsentDecision, ConsentType
-    from apps.consent.services import latest_consent
+def _submissions():
+    """Submissions with everything a row needs, in one query: the case's
+    latest participation-consent decision is annotated rather than looked up
+    per row (the export ran one consent query per submission)."""
+    from django.db.models import OuterRef, Subquery
 
-    record = latest_consent(case, ConsentType.PARTICIPATION)
-    return record is not None and record.decision == ConsentDecision.WITHDRAWN
+    from apps.consent.models import ConsentRecord, ConsentType
+
+    latest_decision = (
+        ConsentRecord.objects.filter(sample_case=OuterRef("sample_case"), consent_type=ConsentType.PARTICIPATION)
+        .order_by("-timestamp")
+        .values("decision")[:1]
+    )
+    return QUANSubmission.objects.select_related("sample_case__organisation").annotate(
+        latest_consent_decision=Subquery(latest_decision)
+    ).order_by("submitted_at")
 
 
 def _base_row(submission: QUANSubmission) -> dict:
@@ -73,7 +83,7 @@ def _base_row(submission: QUANSubmission) -> dict:
         "qa_status": submission.qa_status,
         "submitted_at": submission.submitted_at.isoformat(),
         "completion_seconds": submission.completion_seconds,
-        "consent_withdrawn": _withdrawn(case),
+        "consent_withdrawn": getattr(submission, "latest_consent_decision", None) == "WITHDRAWN",
     }
 
 
@@ -90,7 +100,7 @@ class AnalysisExportView(APIView):
         response["Content-Disposition"] = 'attachment; filename="drp_analysis_export.csv"'
         writer = csv.DictWriter(response, fieldnames=ANALYSIS_FIELDS)
         writer.writeheader()
-        for submission in QUANSubmission.objects.select_related("sample_case__organisation"):
+        for submission in _submissions():
             writer.writerow(_base_row(submission))
 
         log_action("export.analysis_generated", _ExportRow("analysis"), {"requested_by_id": request.user.id})
@@ -110,9 +120,9 @@ class OperationalExportView(APIView):
         writer = csv.DictWriter(response, fieldnames=fieldnames)
         writer.writeheader()
 
-        for submission in QUANSubmission.objects.select_related("sample_case__organisation"):
+        for submission in _submissions().prefetch_related("sample_case__respondents"):
             row = _base_row(submission)
-            respondent = submission.sample_case.respondents.first()
+            respondent = next(iter(submission.sample_case.respondents.all()), None)
             row.update({
                 "organisation_name": submission.sample_case.organisation.name,
                 "respondent_full_name": getattr(respondent, "full_name", ""),

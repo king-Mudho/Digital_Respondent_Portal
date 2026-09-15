@@ -49,6 +49,10 @@ class QUANSubmission(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        indexes = [
+            models.Index(fields=["-submitted_at"], name="quan_submitted_idx"),
+            models.Index(fields=["qa_status", "submitted_at"], name="quan_qa_queue_idx"),
+        ]
 
     def __str__(self):
         return f"QUANSubmission({self.kobo_submission_uuid})"

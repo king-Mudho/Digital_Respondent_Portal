@@ -142,6 +142,7 @@ Documentary RA take QUAN QA decisions.
 
 | Method | Path | Permission | Purpose |
 |---|---|---|---|
+| GET | `/reports/overview/?range=7\|30\|90\|all` | `IsAnalystOrAdmin` | Reports screen: KPIs, case funnel (each case once, at its furthest stage), submissions per day, coverage by province/organisation type/size, workflow status, completion-time histogram, administration mode, QA outcomes and flag reasons, contact outcomes, KII/document progress. Counts and rates only; cached 60 s |
 | GET | `/dashboards/executive/` | `IsAnalystOrAdmin` | Executive aggregate |
 | GET | `/dashboards/sampling/` | `IsAnalystOrAdmin` | Sampling aggregate |
 | GET | `/dashboards/contact/` | `IsAnalystOrAdmin` | Contact aggregate |

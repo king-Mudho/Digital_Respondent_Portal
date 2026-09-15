@@ -51,7 +51,10 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
     search_fields = ["sample_id", "organisation__name", "organisation__master_id"]
 
     def get_queryset(self):
-        queryset = SampleCase.objects.select_related("organisation", "stratum").order_by("sample_id")
+        # Everything SampleCaseSerializer reads; this list ran 2 extra queries per row.
+        queryset = SampleCase.objects.select_related(
+            "organisation", "stratum", "assigned_ra", "matched_case__organisation"
+        ).order_by("sample_id")
         return _scope_to_assigned_cases_for_contact_ra(self.request, queryset)
 
     def create(self, request, *args, **kwargs):
@@ -89,7 +92,7 @@ class SampleCaseDetailView(generics.RetrieveUpdateAPIView):
     lookup_field = "sample_id"
 
     def get_queryset(self):
-        queryset = SampleCase.objects.select_related("organisation", "stratum", "matched_case")
+        queryset = SampleCase.objects.select_related("organisation", "stratum", "assigned_ra", "matched_case__organisation")
         return _scope_to_assigned_cases_for_contact_ra(self.request, queryset)
 
     def perform_update(self, serializer):

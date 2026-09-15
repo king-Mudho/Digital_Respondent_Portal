@@ -177,18 +177,19 @@ def validate_token(raw_token: str) -> InvitationToken:
     docs/10_INVITATION_AND_CONSENT.md) a full-table hash comparison is not a
     performance concern.
     """
-    for token in InvitationToken.objects.select_related("sample_case").all():
-        if _verify_secret(raw_token, token.token_hash):
+    for token_id, token_hash in InvitationToken.objects.values_list("id", "token_hash").iterator():
+        if _verify_secret(raw_token, token_hash):
+            token = InvitationToken.objects.select_related("sample_case").get(pk=token_id)
             _validate_common(token)
             return token
     raise TokenValidationError("token_invalid", "This invitation link is not valid.")
 
 
 def validate_manual_code(raw_code: str) -> InvitationToken:
-    for token in InvitationToken.objects.select_related("sample_case").filter(
-        manual_code_hash__isnull=False
-    ):
-        if _verify_secret(raw_code.upper(), token.manual_code_hash):
+    rows = InvitationToken.objects.filter(manual_code_hash__isnull=False).values_list("id", "manual_code_hash")
+    for token_id, code_hash in rows.iterator():
+        if _verify_secret(raw_code.upper(), code_hash):
+            token = InvitationToken.objects.select_related("sample_case").get(pk=token_id)
             _validate_common(token)
             return token
     raise TokenValidationError("token_invalid", "This invitation code is not valid.")

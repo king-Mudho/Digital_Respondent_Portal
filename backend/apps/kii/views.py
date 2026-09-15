@@ -33,7 +33,7 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
     # KIIRecord has no Meta.ordering -- an unordered queryset makes
     # PageNumberPagination's page boundaries arbitrary, so a record can
     # appear on two pages or on none.
-    queryset = KIIRecord.objects.order_by("kii_id")
+    queryset = KIIRecord.objects.select_related("participation_consent", "recording_consent").order_by("kii_id")
 
     def perform_create(self, serializer):
         serializer.save(kii_id=generate_kii_id())
@@ -42,7 +42,7 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
 class KIIRecordDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = [CanManageKII]
     serializer_class = KIIRecordSerializer
-    queryset = KIIRecord.objects.all()
+    queryset = KIIRecord.objects.select_related("participation_consent", "recording_consent")
 
 
 def _error(code, message, status=400):

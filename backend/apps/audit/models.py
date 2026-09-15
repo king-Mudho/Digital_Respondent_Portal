@@ -22,6 +22,12 @@ class AuditEvent(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        # The log only grows. Reconciliation looks events up by action and
+        # object on every run; the Audit Log screen pages newest first.
+        indexes = [
+            models.Index(fields=["action", "object_id"], name="audit_action_object_idx"),
+            models.Index(fields=["-created_at"], name="audit_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.action} {self.object_type}:{self.object_id}"
