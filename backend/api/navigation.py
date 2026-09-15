@@ -37,6 +37,11 @@ SCREENS = {
         "/admin/dashboard/sampling", "Sampling",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST, Role.SUPERVISOR_READONLY},
     ),
+    # Analytics and charts across the whole study (dashboards.reports, IsAnalystOrAdmin).
+    "reports": (
+        "/admin/reports", "Reports",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST, Role.SUPERVISOR_READONLY},
+    ),
     "dashboard_contact": (
         "/admin/dashboard/contact", "Contact",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST, Role.SUPERVISOR_READONLY},

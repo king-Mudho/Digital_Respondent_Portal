@@ -195,3 +195,16 @@ class CostDashboardView(APIView):
             "cost_per_qa_passed_quan": cost_per_qa_passed,
             "cost_per_completed_kii": cost_per_kii,
         })
+
+
+class ReportsOverviewView(APIView):
+    """GET /api/v1/reports/overview/?range=7|30|90|all -- the Reports screen's
+    analytics in one payload (apps.dashboards.reports). Counts and rates
+    only; cached for a minute per range."""
+
+    permission_classes = [IsAnalystOrAdmin]
+
+    def get(self, request):
+        from .reports import build_report
+
+        return Response(build_report(request.query_params.get("range", "30")))

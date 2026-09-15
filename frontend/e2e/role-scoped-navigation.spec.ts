@@ -85,7 +85,7 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Audit Log");
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
-  expect(labels.length).toBe(18);
+  expect(labels.length).toBe(19);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

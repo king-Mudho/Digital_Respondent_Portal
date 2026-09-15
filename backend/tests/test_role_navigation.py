@@ -22,7 +22,7 @@ from apps.accounts.models import Role, User
 EXPECTED_SCREENS = {
     Role.PI_ADMIN: set(SCREENS),  # everything
     Role.FIELD_COORDINATOR: {
-        "dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
+        "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups",
         "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
     },
@@ -31,11 +31,11 @@ EXPECTED_SCREENS = {
     Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register"},
     Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "kobo_submissions", "documents"},
     Role.ANALYST: {
-        "dashboard_executive", "dashboard_sampling", "dashboard_contact",
+        "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact",
         "dashboard_kii_documents", "cost", "export",
     },
     Role.SUPERVISOR_READONLY: {
-        "dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
+        "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups",
         "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
     },
@@ -122,6 +122,7 @@ SCREEN_ENDPOINTS = {
     "organisations": "/api/v1/organisations/",
     "appointments": "/api/v1/appointments/",
     "follow_ups": "/api/v1/follow-ups/",
+    "reports": "/api/v1/reports/overview/",
     "kobo_submissions": "/api/v1/kobo/forms/",
     "qa_queue": "/api/v1/qa/queue/",
     "qa_exceptions": "/api/v1/qa/exceptions/",
