@@ -13,7 +13,9 @@ import { backendBaseURL, getAdminAccessToken, issueTokenOnFreshCase, loginAsAdmi
 
 const PHONE = { width: 375, height: 812 };
 const BACKEND_DIR = path.resolve(__dirname, "../../backend");
-const PYTHON = [".venv/Scripts/python.exe", ".venv/bin/python"].map((p) => path.join(BACKEND_DIR, p)).find(existsSync);
+// CI has no virtualenv and names its interpreter in E2E_PYTHON, as global-setup uses.
+const PYTHON =
+  process.env.E2E_PYTHON ?? [".venv/Scripts/python.exe", ".venv/bin/python"].map((p) => path.join(BACKEND_DIR, p)).find(existsSync);
 
 /** Backdates a case's invitation and gives it a respondent with a number --
  * there is no API for moving time, and none should exist. */
