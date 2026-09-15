@@ -83,13 +83,19 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------ run
     def _run(self):
+        if not SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status__in=["S00", "S01", "S02", "S03"],
+                                         respondents__isnull=True, consent_records__isnull=True,
+                                         invitation_tokens__isnull=True).exists():
+            self.record("setup", False, "no untouched Main case at S00-S03 left to exercise the checks on")
+            return
         public = self.client()
         pi = self.client(Role.PI_ADMIN)
         fc = self.client(Role.FIELD_COORDINATOR)
         contact_ra = self.client(Role.CONTACT_RA)
 
         # Cases with no respondent, consent or invitation history, so every gate is tested from scratch.
-        main = (SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status="S00",
+        # Any clean case at S00-S03: after verification in bulk every Main case sits at S03.
+        main = (SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status__in=["S00", "S01", "S02", "S03"],
                                           respondents__isnull=True, consent_records__isnull=True,
                                           invitation_tokens__isnull=True)
                 .order_by("sample_id").first())
@@ -108,7 +114,8 @@ class Command(BaseCommand):
                    "login-free submissions need the per-case portal signature")
 
         # 2. Valid invitation reveals minimal data
-        for status in ("S01", "S02", "S03"):
+        order = ["S00", "S01", "S02", "S03"]
+        for status in order[order.index(main.workflow_status) + 1:]:
             transition_workflow_status(main, status)
         raw, _, token = issue_invitation(main)
         r = self.api(public, "get", f"/invitations/validate/?t={raw}")
