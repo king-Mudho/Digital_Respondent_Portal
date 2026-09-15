@@ -139,10 +139,11 @@ def test_ineligible_respondent_never_reaches_kobo_redirect(client, issued_token)
     assert redirect_resp.json()["error"]["code"] == "eligibility_required"
 
 
-def test_eligible_respondent_identified_after_a_gatekeeper_can_still_proceed(client, issued_token):
+def test_eligible_respondent_identified_after_a_gatekeeper_can_still_proceed(client, issued_token, settings):
     """record_eligibility_check never overwrites a prior attempt, so a case
     screened through a gatekeeper first must not be permanently blocked
     once the right person is identified."""
+    settings.KOBO_FORM_URL = "https://ee.kobotoolbox.org/x/TeStFoRm"  # never rely on a local .env
     raw_token, _, _ = issued_token
     client.post("/api/v1/eligibility/", {
         "token": raw_token, "full_name": "Gatekeeper", "role_category": "RECEPTIONIST",

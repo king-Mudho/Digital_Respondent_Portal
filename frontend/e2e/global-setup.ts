@@ -9,7 +9,9 @@ import path from "path";
  */
 export default async function globalSetup() {
   const backendDir = path.resolve(__dirname, "../../backend");
-  const pythonBin = process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python";
+  // CI installs the backend without a virtualenv and sets E2E_PYTHON=python.
+  const pythonBin =
+    process.env.E2E_PYTHON ?? (process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python");
 
   const output = execSync(`"${pythonBin}" manage.py seed_drp_dev`, {
     cwd: backendDir,
