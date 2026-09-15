@@ -139,6 +139,18 @@ T.appointments = [
   ]],
 ];
 
+T.reassign = [
+  ["h2", "Reassigning cases between Contact RAs"],
+  ["p", "Use **Reassign cases** on the Main-400 Register to hand many cases to a Contact RA at once — for example when new RAs start, or when an RA leaves. For a single case, use **Assigned Contact RA** on the case page."],
+  ["steps", [
+    "Open **Main-400 Register** and find **Reassign cases** (below the verification tool).",
+    { text: "Choose **From** (Anyone, Unassigned, or a Contact RA), a **Province** or All provinces, and **To** (the Contact RA receiving the cases, or Nobody to unassign).", img: "adm_reassign.jpg", caption: "Reassign cases: the button shows how many cases will move." },
+    "To split a large province, type a number in **How many**. Cases move in Sample ID order, so move part of the province to one RA, then the rest to the next.",
+    "Select **Move N cases** and confirm. The move is written to the audit log with every Sample ID.",
+  ]],
+  ["tip", "What the RA sees", "A Contact RA sees only the cases assigned to them, including on Follow-ups. Reassigning a case moves its reminders with it."],
+];
+
 T.workflow = [
   ["h2", "Changing a case's status by hand"],
   ["p", "Most statuses move automatically. Use **Advance workflow status** on the case page only for decisions a person makes, such as recording that an organisation is ineligible or has refused."],
@@ -163,7 +175,7 @@ T.withdrawal = [
     "Select **Record withdrawal** and confirm.",
   ]],
   ["p", "In one step the portal records the withdrawal, stops the invitation link and all reminders, moves the case to **S12 Refused** where allowed, erases the phone, WhatsApp, email and gatekeeper contact, and flags the case as `consent_withdrawn` in every export. This cannot be undone."],
-  ["tip", "Answers already submitted", "Withdrawal does not delete a questionnaire already in KoboToolbox. The PI decides how submitted data from a withdrawn participant is handled in analysis; the export flag makes such cases easy to find."],
+  ["tip", "Answers already submitted", "PI decision (15 September 2026): a questionnaire submitted before the withdrawal is **kept for the audit trail but never analysed**. It is left out of the de-identified analysis export automatically, flagged `consent_withdrawn` in the operational export, and marked in the PI's KoboToolbox workbook (README count and `portal_consent_withdrawn` = TRUE) and PDF ZIP (file name starts `WITHDRAWN-`)."],
 ];
 
 T.notEligible = [
@@ -288,8 +300,8 @@ T.exports = (who) => {
     ["h2", "Downloading data"],
     ["img", who === "analyst" ? "an_export.jpg" : "adm_export.jpg", "Data Export."],
     ["table", ["Download", "Contains", "Who"], [
-      ["**De-identified analysis export (CSV)**", "One row per questionnaire: sample_id, master_id, province, actor_family, value_chain, size_class, administration_mode, qa_status, submitted_at, completion_seconds, consent_withdrawn. No names or contact details.", "PI, Field Coordinator, Analyst"],
-      ["**Full operational export (CSV)**", "The same plus organisation name, respondent name, phone, email and gatekeeper details. Internal operations only.", "PI only"],
+      ["**De-identified analysis export (CSV)**", "One row per questionnaire: sample_id, master_id, province, actor_family, value_chain, size_class, administration_mode, qa_status, submitted_at, completion_seconds. No names or contact details. Participants who withdrew are left out.", "PI, Field Coordinator, Analyst"],
+      ["**Full operational export (CSV)**", "Every questionnaire, including withdrawn ones (consent_withdrawn), plus organisation name, respondent name, phone, email and gatekeeper details. Internal operations only.", "PI only"],
       ["**KoboToolbox data: Excel workbook**", "Every submission's answers for one form: data_codes (codes for SPSS/Stata/R), data_labels, a sheet per repeat group, the questions dictionary, the choices lists, and for the questionnaire the matched case, QA status, withdrawal flag and workflow status.", "PI only"],
       ["**KoboToolbox data: All completed forms (PDF ZIP)**", "Every completed form as a PDF, with manifest.csv listing file, record, KoboToolbox id and submission time.", "PI only"],
     ], [0.27, 0.53, 0.2]],

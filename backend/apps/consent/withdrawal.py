@@ -37,13 +37,14 @@ def record_withdrawal(sample_case: SampleCase, *, reason: str, method: str = Con
     2. every open invitation revoked, so the link stops working and no
        reminder is offered;
     3. the case moved to S12 Refused where the workflow allows it (a case
-       already submitted keeps its status -- what happens to submitted data
-       is the ethics protocol's decision, not the portal's);
+       already submitted keeps its status);
     4. respondent contact details (phone, WhatsApp, email, gatekeeper
        contact) erased, per docs/18.
 
-    Submitted questionnaire data in KoboToolbox and the portal is left in
-    place and flagged in the analysis export (consent_withdrawn).
+    Submitted questionnaire data in KoboToolbox and the portal is kept
+    (archived, audit trail) but left out of analysis -- PI decision, 15 Sep
+    2026: omitted from the analysis export, flagged in the operational export
+    and in the PI's KoboToolbox workbook and PDF ZIP.
     """
     if not reason.strip():
         raise ValueError("A reason is required to record a withdrawal.")

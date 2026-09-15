@@ -122,6 +122,7 @@ def build_workbook(key: str, *, user) -> tuple[bytes, str]:
     form = _Form(content)
     top, repeats = _survey_columns(content)
     portal = _portal_columns(payloads) if key == "questionnaire" else {}
+    withdrawn = sum(1 for values in portal.values() if values[2] is True)
 
     wb = Workbook(write_only=True)
     readme = wb.create_sheet("README")
@@ -139,7 +140,9 @@ def build_workbook(key: str, *, user) -> tuple[bytes, str]:
         *[[f"repeat_{i + 1}", f"{label}: one row per entry, linked by _parent_id"] for i, (label, _) in enumerate(repeats.values())],
         [],
         ["Columns starting with _ are KoboToolbox metadata. meta/rootUuid is the submission's stable id across edits."],
-        *([["portal_* columns: the matched case, its QA state, whether consent was later withdrawn, and its workflow status."]]
+        *([["portal_* columns: the matched case, its QA state, whether consent was later withdrawn, and its workflow status."],
+           [f"WITHDRAWN PARTICIPANTS: {withdrawn}. Leave every row with portal_consent_withdrawn = TRUE out of analysis "
+            "(PI decision, 15 Sep 2026: answers kept for the audit trail, never analysed)."]]
           if key == "questionnaire" else []),
         ["Confidential research data. Store and share only as the approved data management plan allows."],
     ]:
@@ -211,23 +214,26 @@ def stream_pdf_zip(key: str, *, user):
     payloads = KoboClient(asset_uid=copies.asset_uid(key)).fetch_submissions()
     title = copies.FORMS[key]["title"]
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    # Withdrawn participants' forms stay in the archive, visibly marked (PI decision, 15 Sep 2026).
+    portal = _portal_columns(payloads) if key == "questionnaire" else {}
 
     def generate():
         sink = _Sink()
         manifest = io.StringIO()
         writer = csv.writer(manifest)
-        writer.writerow(["file", "record", "kobo_id", "submitted_utc"])
+        writer.writerow(["file", "record", "kobo_id", "submitted_utc", "consent_withdrawn"])
         with zipfile.ZipFile(sink, "w", compression=zipfile.ZIP_DEFLATED) as archive:
             seen = set()
             for payload in payloads:
                 label = copies.record_label(key, payload)
-                name = f"{slugify(label) or 'record'}-{payload.get('_id')}.pdf"
+                withdrawn = portal.get(payload.get("_id"), [None, None, None])[2] is True
+                name = f"{'WITHDRAWN-' if withdrawn else ''}{slugify(label) or 'record'}-{payload.get('_id')}.pdf"
                 if name in seen:
                     continue
                 seen.add(name)
                 pdf = render_submission_pdf(form_content=content, payload=payload, form_title=title, record_label=label)
                 archive.writestr(name, pdf)
-                writer.writerow([name, label, payload.get("_id"), payload.get("_submission_time")])
+                writer.writerow([name, label, payload.get("_id"), payload.get("_submission_time"), withdrawn])
                 yield sink.drain()
             archive.writestr("manifest.csv", manifest.getvalue())
         yield sink.drain()

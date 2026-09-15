@@ -63,8 +63,8 @@ All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **376 tests** passing (`pytest`).
-- Playwright: **43 E2E tests** pass. **2 are skipped** on purpose: WhatsApp, and the
+- Backend: **383 tests** passing (`pytest`).
+- Playwright: **44 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
 
@@ -357,8 +357,18 @@ clearance. `docs/30_PROIT_MODULE.md` records both as the PI's statements.
   only become **S13 Nonresponse** once every reminder was actually delivered.
 - **Withdrawal** (case page). One action records a WITHDRAWN consent and revokes live
   invitations, which stops reminders. Where the workflow allows, it moves the case to
-  S12, erases the respondent's contact fields and writes an audit entry. Exports flag
-  the case `consent_withdrawn`.
+  S12, erases the respondent's contact fields and writes an audit entry. Answers already
+  submitted are kept but never analysed (PI decision, 15 Sep 2026): left out of the
+  analysis export, flagged `consent_withdrawn` in the operational export, and marked in
+  the PI's KoboToolbox workbook and PDF ZIP.
+- **Staff accounts and case assignment.**
+  - `manage.py create_staff_accounts --file docs/templates/ABF-FST_Staff_Accounts_Template.xlsx
+    [--assign-cases] [--dry-run]` creates named accounts from the PI's spreadsheet. The
+    temporary passwords are written to a private file.
+  - With `--assign-cases` it shares the shared account's Main cases evenly among the
+    Contact RAs covering each province.
+  - **Reassign cases** on the register (`POST /sample-cases/bulk-assign/`) moves cases by
+    current owner, province and count. Every move is audited.
 
 ### 5. Exports and the audit trail
 
@@ -366,10 +376,11 @@ Two CSV exports exist, with a deliberately different schema:
 
 - **De-identified analysis export** (`/admin/export` → "Download analysis export") —
   `sample_id, master_id, province, actor_family, value_chain, size_class,
-  administration_mode, qa_status, submitted_at, completion_seconds, consent_withdrawn`.
-  No name, phone, email or gatekeeper field ever appears here. Safe to share with the
-  wider research team.
-- **Full operational export** — the same columns plus `organisation_name,
+  administration_mode, qa_status, submitted_at, completion_seconds`. No name, phone,
+  email or gatekeeper field ever appears here, and participants who withdrew are left
+  out. Safe to share with the wider research team.
+- **Full operational export** — every submission, the same columns plus
+  `consent_withdrawn, organisation_name,
   respondent_full_name, respondent_phone, respondent_email, gatekeeper_name,
   gatekeeper_contact`. Internal fieldwork operations use only, PI/Admin role required.
 - **KoboToolbox data** (PI only): the answers themselves. For each of the three forms
@@ -504,7 +515,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 376 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 383 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint

@@ -93,6 +93,122 @@ function BulkVerificationPanel() {
   );
 }
 
+interface ContactRA {
+  id: number;
+  username: string;
+  full_name: string;
+}
+
+const PROVINCES: Array<[string, string]> = [
+  ["BULAWAYO", "Bulawayo"], ["HARARE", "Harare"], ["MANICALAND", "Manicaland"],
+  ["MASHONALAND_CENTRAL", "Mashonaland Central"], ["MASHONALAND_EAST", "Mashonaland East"],
+  ["MASHONALAND_WEST", "Mashonaland West"], ["MASVINGO", "Masvingo"], ["MATABELELAND_NORTH", "Matabeleland North"],
+  ["MATABELELAND_SOUTH", "Matabeleland South"], ["MIDLANDS", "Midlands"],
+];
+
+const raName = (ra: ContactRA) => (ra.full_name ? `${ra.full_name} (${ra.username})` : ra.username);
+
+/**
+ * Hands Main cases to a Contact RA in bulk (added 2026-09-15). All 400
+ * started on one shared account; one case page at a time that was 400
+ * dropdowns. "How many" splits a big province between several RAs.
+ */
+function BulkAssignmentPanel() {
+  const queryClient = useQueryClient();
+  const [from, setFrom] = useState("any");
+  const [province, setProvince] = useState("");
+  const [limit, setLimit] = useState("");
+  const [to, setTo] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  const { data: ras } = useQuery({
+    queryKey: ["contact-ras"],
+    queryFn: () => adminFetch<{ results: ContactRA[] }>("/auth/contact-ras/"),
+  });
+  const filters = {
+    from,
+    province,
+    limit: limit ? Number(limit) : null,
+    to_ra: to === "none" ? null : to ? Number(to) : null,
+  };
+  const { data: preview } = useQuery({
+    queryKey: ["bulk-assign-preview", filters],
+    queryFn: () =>
+      adminFetch<{ count: number }>("/sample-cases/bulk-assign/", {
+        method: "POST",
+        body: JSON.stringify({ ...filters, preview: true }),
+      }),
+    enabled: to !== "",
+  });
+  const count = preview?.count ?? 0;
+  const target = to === "none" ? "nobody (unassigned)" : raName(ras?.results.find((r) => String(r.id) === to) ?? { id: 0, username: "", full_name: "" });
+  const move = useMutation({
+    mutationFn: () =>
+      adminFetch<{ moved: number }>("/sample-cases/bulk-assign/", { method: "POST", body: JSON.stringify(filters) }),
+    onSuccess: (data) => {
+      setResult(`Moved ${data.moved} case${data.moved === 1 ? "" : "s"} to ${target}.`);
+      queryClient.invalidateQueries({ queryKey: ["bulk-assign-preview"] });
+      queryClient.invalidateQueries({ queryKey: ["sample-cases"] });
+    },
+    onError: (err) => setResult(err instanceof Error ? err.message : "Could not move the cases."),
+  });
+  const select = "w-full sm:w-auto max-w-full rounded-md border border-border px-3 py-2 bg-surface text-sm";
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <h3 className="font-medium text-sm">Reassign cases</h3>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-text-muted w-full sm:w-auto min-w-0">
+          From
+          <select value={from} onChange={(e) => { setFrom(e.target.value); setResult(null); }} className={`${select} block mt-1`}>
+            <option value="any">Anyone</option>
+            <option value="unassigned">Unassigned</option>
+            {ras?.results.map((ra) => <option key={ra.id} value={ra.id}>{raName(ra)}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-text-muted w-full sm:w-auto min-w-0">
+          Province
+          <select value={province} onChange={(e) => { setProvince(e.target.value); setResult(null); }} className={`${select} block mt-1`}>
+            <option value="">All provinces</option>
+            {PROVINCES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+          </select>
+        </label>
+        <label className="text-xs text-text-muted w-full sm:w-28 min-w-0">
+          How many
+          <input
+            type="number"
+            min={1}
+            value={limit}
+            placeholder="All"
+            onChange={(e) => { setLimit(e.target.value); setResult(null); }}
+            className={`${select} block mt-1 sm:w-28`}
+          />
+        </label>
+        <label className="text-xs text-text-muted w-full sm:w-auto min-w-0">
+          To
+          <select value={to} onChange={(e) => { setTo(e.target.value); setResult(null); }} className={`${select} block mt-1`}>
+            <option value="">Choose a Contact RA…</option>
+            {ras?.results.map((ra) => <option key={ra.id} value={ra.id}>{raName(ra)}</option>)}
+            <option value="none">Nobody (unassign)</option>
+          </select>
+        </label>
+        <Button
+          variant="outline"
+          disabled={!to || count === 0 || move.isPending}
+          onClick={() => {
+            if (window.confirm(`Move ${count} Main case${count === 1 ? "" : "s"} to ${target}?`)) move.mutate();
+          }}
+        >
+          {move.isPending ? "Moving…" : to ? `Move ${count} case${count === 1 ? "" : "s"}` : "Move cases"}
+        </Button>
+      </div>
+      <p className="text-xs text-text-muted">
+        Cases move in Sample ID order. To split a large province, move part of it with &quot;How many&quot;, then the rest to the next RA.
+      </p>
+      {result && <p className="text-sm text-text-muted">{result}</p>}
+    </Card>
+  );
+}
+
 export default function SampleRegisterPage() {
   const [sampleType, setSampleType] = useState("MAIN");
   const [search, setSearch] = useState("");
@@ -150,6 +266,7 @@ export default function SampleRegisterPage() {
       {sampleType === "MAIN" && (
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
           <BulkVerificationPanel />
+          <BulkAssignmentPanel />
         </IfRole>
       )}
       <Card>

@@ -15,10 +15,12 @@ from .serializers import (
     WorkflowTransitionSerializer,
 )
 from .services import (
+    InvalidAssignment,
     InvalidMatchedCase,
     InvalidWorkflowTransition,
     activate_reserve,
     available_reserves_for,
+    bulk_assign_cases,
     bulk_transition_workflow_status,
     create_organisation,
     create_sample_case,
@@ -235,6 +237,42 @@ class BulkWorkflowTransitionView(APIView):
         except InvalidWorkflowTransition as exc:
             return Response({"error": {"code": "invalid_transition", "message": str(exc), "field_errors": {}}}, status=400)
         return Response({"moved": len(moved), "sample_ids": moved})
+
+
+class BulkAssignmentView(APIView):
+    """POST /api/v1/sample-cases/bulk-assign/
+    {to_ra: id|null, from: "any"|"unassigned"|id, province?, limit?, sample_ids?, preview?}
+    -- hand Main cases to a Contact RA in bulk. `preview: true` returns the
+    count that would move without moving anything."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request):
+        from apps.accounts.models import User
+
+        def bad(message):
+            return Response({"error": {"code": "invalid_input", "message": message, "field_errors": {}}}, status=400)
+
+        data = request.data
+        try:
+            to_user = None if data.get("to_ra") in (None, "") else User.objects.get(pk=int(data["to_ra"]))
+            source = data.get("from", "any")
+            from_user = None if source in ("any", "unassigned", None, "") else User.objects.get(pk=int(source))
+            limit = None if data.get("limit") in (None, "") else int(data["limit"])
+        except (User.DoesNotExist, TypeError, ValueError):
+            return bad("Unknown account or an invalid number.")
+        sample_ids = data.get("sample_ids")
+        if sample_ids is not None and not isinstance(sample_ids, list):
+            return bad("sample_ids must be a list.")
+        try:
+            ids = bulk_assign_cases(
+                to_user=to_user, from_user=from_user, from_unassigned=source == "unassigned",
+                province=data.get("province") or None, sample_ids=sample_ids, limit=limit,
+                preview=bool(data.get("preview")), user=request.user,
+            )
+        except InvalidAssignment as exc:
+            return bad(str(exc))
+        return Response({"count": len(ids), "moved": 0 if data.get("preview") else len(ids), "sample_ids": ids})
 
 
 class RecordWithdrawalView(APIView):

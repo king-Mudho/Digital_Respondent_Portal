@@ -96,6 +96,30 @@ def test_every_completed_form_downloads_as_pdfs_in_a_zip(kobo):
 
 
 @pytest.mark.django_db
+def test_a_withdrawn_participant_is_marked_in_the_workbook_and_the_zip(kobo):
+    """PI decision, 15 Sep 2026: kept for the audit trail, never analysed."""
+    from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
+    from apps.consent.services import record_consent
+
+    QUANSubmission.objects.create(sample_case=kobo, kobo_submission_uuid="u-11", administration_mode="01",
+                                  submitted_at=timezone.now(), qa_status=QAStatus.QA_PASSED)
+    record_consent(sample_case=kobo, consent_type=ConsentType.PARTICIPATION, decision=ConsentDecision.WITHDRAWN,
+                   information_sheet_version="1.3", method=ConsentMethod.VERBAL_RA_RECORDED)
+    client = _client(Role.PI_ADMIN, "dx_wd")
+
+    wb = load_workbook(io.BytesIO(client.get("/api/v1/kobo/forms/questionnaire/export/xlsx/").content))
+    readme = " ".join(str(v) for row in wb["README"].values for v in row if v)
+    assert "WITHDRAWN PARTICIPANTS: 1" in readme
+    codes = list(wb["data_codes"].values)
+    assert dict(zip(codes[0], codes[1]))["portal_consent_withdrawn"] is True
+
+    archive = zipfile.ZipFile(io.BytesIO(b"".join(client.get("/api/v1/kobo/forms/questionnaire/export/pdfs/").streaming_content)))
+    [pdf] = [n for n in archive.namelist() if n.endswith(".pdf")]
+    assert pdf.startswith("WITHDRAWN-")
+    assert archive.read("manifest.csv").decode().splitlines()[1].endswith(",True")
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("role", [Role.FIELD_COORDINATOR, Role.ANALYST, Role.QUAN_QA_RA])
 def test_full_data_exports_are_for_the_pi_only(kobo, role):
     client = _client(role, f"dx_{role.lower()}")

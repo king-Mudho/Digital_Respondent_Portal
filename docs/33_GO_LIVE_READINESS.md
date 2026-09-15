@@ -52,13 +52,13 @@ In rough order of consequence. Each has a test that fails without the fix.
 | 1 | ~~Approve the Participant Information Sheet v1.3~~ | PI | **Done 2026-09-15** — PI approval; covered by his CUT research clearance (ethics, POTRAZ) |
 | 2 | ~~Approve the QA thresholds and the invitation and reminder texts~~ | PI | **Done 2026-09-15** |
 | 3 | Collect respondent contact details | Field Coordinator + Contact RAs | Case page → *Respondents and contact details*; 349 Main cases have no number |
-| 4 | ~~Assign cases to Contact RAs~~ | PI | **Done 2026-09-15** — all 400 Main cases assigned to the `contact_ra` account on the PI's instruction. Reassign per RA once named RA accounts exist |
+| 4 | ~~Assign cases to Contact RAs~~ | PI | **Done 2026-09-15** — all 400 Main cases assigned to the `contact_ra` account on the PI's instruction. Next: named accounts from `docs/templates/ABF-FST_Staff_Accounts_Template.xlsx` via `create_staff_accounts --assign-cases`, then **Reassign cases** on the register |
 | 5 | ~~Move cases through verification to S03~~ | PI | **Done 2026-09-15** — all 400 at S03, each transition audited, on the PI's instruction |
 | 6 | Rotate the KoboToolbox password and API token | PI | Then `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh` with the new token |
 | 7 | Finish offsite backups: sign in to Google Drive once, then store the encryption key in a password manager | PI | Built and tested; run the one command in `23` "Offsite backups". Until then backups live only on the same VPS |
 | 8 | Push to GitHub and let CI run once | PI | `.github/workflows/ci.yml` has never run |
 | 9 | User-acceptance run | PI, Field Coordinator, one RA | Invite one friendly test respondent end to end on a real phone |
-| 10 | Decide the open instrument questions | PI | Questionnaire Section 10 routing; Documents "Exclude" skip; KII category list and Executive-form wording; what happens to submitted data after a withdrawal |
+| 10 | ~~Decide the open instrument questions~~ | PI | **Done 2026-09-15** (recorded in System Manual 9.3; KII form redeployed):<br>• Section 10 stays shown to everyone, optional, as frozen.<br>• Documents "Exclude" keeps skipping C–L.<br>• KII category list confirmed identical to the source; Executive Short Form wording and K-codes restored.<br>• Withdrawn participants' submitted answers are kept but never analysed. |
 
 ## Should happen soon — does not block
 

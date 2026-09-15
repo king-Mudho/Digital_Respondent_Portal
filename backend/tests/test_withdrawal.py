@@ -92,9 +92,14 @@ def test_withdrawal_after_submission_keeps_status_and_flags_the_export(main_case
 
     main_case.refresh_from_db()
     assert main_case.workflow_status == submitted_status
-    export = _client(Role.ANALYST, "wd_an").get("/api/v1/export/analysis/")
-    [row] = list(csv.DictReader(io.StringIO(b"".join(export.streaming_content).decode() if hasattr(export, "streaming_content") else export.content.decode())))
-    assert row["consent_withdrawn"] == "True"
+    def rows(resp):
+        body = b"".join(resp.streaming_content) if hasattr(resp, "streaming_content") else resp.content
+        return list(csv.DictReader(io.StringIO(body.decode())))
+
+    # PI decision 15 Sep 2026: kept, but left out of analysis.
+    assert rows(_client(Role.ANALYST, "wd_an").get("/api/v1/export/analysis/")) == []
+    [row] = rows(_client(Role.PI_ADMIN, "wd_pi2").get("/api/v1/export/operational/"))
+    assert row["consent_withdrawn"] == "True" and row["sample_id"] == main_case.sample_id
 
 
 @pytest.mark.django_db

@@ -155,8 +155,12 @@ a case that already consented inherits that consent, which is the documented mod
   agents in `17_AI_FIELD_COORDINATOR.md` operate on this application's own infrastructure.
 - Retention, withdrawal and destruction procedures follow the approved ethics protocol;
   a withdrawal (`10_INVITATION_AND_CONSENT.md`) triggers removal of identifying contact
-  data while preserving the de-identified analytical record only where the ethics
-  protocol permits.
+  data. **PI decision, 15 Sep 2026:** answers submitted before a withdrawal are kept for
+  the audit trail but never analysed.
+  - The de-identified analysis export leaves them out automatically.
+  - The operational export flags them with `consent_withdrawn`.
+  - The PI's KoboToolbox downloads mark them: `portal_consent_withdrawn` and a README
+    count in the workbook, and `WITHDRAWN-` file names in the PDF ZIP.
 
 ## Language rules (repeat of `AGENTS.md` ground rule 2)
 

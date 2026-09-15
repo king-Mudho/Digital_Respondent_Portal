@@ -141,7 +141,7 @@ module.exports = {
     ["p", "For invited cases with no submission, the approved **Day 2 reminder** and **Day 7 final routine attempt** fall due and appear on **Follow-ups**, with the message and a one-tap WhatsApp link. A person sends each one and marks it sent. A case can become **S13 Nonresponse** only after every reminder has actually been recorded as sent; until then it is never treated as exhausted. Automatic sending through the WhatsApp Business Platform can be added later without changing this process."],
 
     ["h2", "3.11 Withdrawal"],
-    ["p", "A single **Record withdrawal** action records the WITHDRAWN consent, revokes the invitation, stops reminders, moves the case to S12 where allowed, erases the phone, WhatsApp, email and gatekeeper contact, audits the action, and flags the case in every export."],
+    ["p", "A single **Record withdrawal** action records the WITHDRAWN consent, revokes the invitation, stops reminders, moves the case to S12 where allowed, erases the phone, WhatsApp, email and gatekeeper contact, and audits the action. Answers already submitted are kept for the audit trail but never analysed (PI decision, 15 September 2026): they are left out of the analysis export and marked as withdrawn in the operational export and the PI's KoboToolbox downloads."],
 
     ["h2", "3.12 The KII and documentary strands"],
     ["bullets", [
@@ -270,6 +270,7 @@ module.exports = {
     ...T.withdrawal.map((b) => (b[0] === "h2" ? ["h2", "7.22 Recording a withdrawal (PI, FC)"] : b)),
     ...T.notEligible.map((b) => (b[0] === "h2" ? ["h2", "7.23 When the person is not eligible"] : b)),
     ...T.proit.map((b) => (b[0] === "h2" ? ["h2", "7.24 PROIT pre-interview profile (PI, FC)"] : b)),
+    ...T.reassign.map((b) => (b[0] === "h2" ? ["h2", "7.25 Reassigning cases in bulk (PI, FC)"] : b)),
 
     ["h1", "8. The respondent's experience"],
     ["p", "What respondents see on their phone. The separate **Respondent Guide** can be shared with respondents as it is."],
@@ -306,7 +307,15 @@ module.exports = {
       "After redeploying the questionnaire with new required questions, ask the technical administrator to refresh the required-field QA list (`qa_required_fields_from_kobo`).",
       "Test every change with one test submission launched from a test invitation, then delete the test submission in KoboToolbox.",
     ]],
-    ["h2", "9.3 Rotating the KoboToolbox password and API token"],
+    ["h2", "9.3 Instrument decisions (PI, 15 September 2026)"],
+    ["table", ["Question", "Decision"], [
+      ["Questionnaire Section 10 (Optional Routed Evidence Module)", "Shown to every consenting respondent; all questions optional, exactly as the frozen v3.0 instrument. No routing added."],
+      ["Document tool: records rated Exclude", "Keep Section A–B provenance and screening; skip Sections C–L. Publication/event date stays free text so year-only dates are accepted."],
+      ["KII respondent category list", "Confirmed identical to the frozen KII Guide v3.0 (10 named categories + Other)."],
+      ["KII Executive Short Form", "Source wording restored: 'Ask K1, K2, K3, K7 and K9 below', each question labelled with its source code. Data columns EXEC1–EXEC5 unchanged. Redeployed 15 September 2026."],
+      ["Answers from a participant who later withdraws", "Kept for the audit trail, never analysed: left out of the analysis export, marked in the operational export and KoboToolbox downloads."],
+    ], [0.35, 0.65]],
+    ["h2", "9.4 Rotating the KoboToolbox password and API token"],
     ["steps", [
       "Sign in to KoboToolbox (https://kf.kobotoolbox.org) and change the account password.",
       "In **Account settings → Security**, generate a new API token.",
@@ -317,12 +326,13 @@ module.exports = {
     ["h1", "10. System administration"],
     ["h2", "10.1 Creating and managing accounts (PI)"],
     ["steps", [
+      "For a whole team, fill in **docs/templates/ABF-FST_Staff_Accounts_Template.xlsx** and run `manage.py create_staff_accounts --file <sheet> --dry-run`, then again without `--dry-run` (add `--assign-cases` to share the shared account's Main cases among the new Contact RAs by province). Temporary passwords go to a private credentials file, never the screen. For one person:",
       `Open **${SITE}/django-admin/** and sign in with the PI account.`,
       "Select **Users → Add user**, enter a username and a strong temporary password, and save.",
       "On the next page, set the person's name and **email** (used for **Email to me**), choose the **Role** under **ABF-FST role**, and save.",
       "Give the person their username and temporary password separately and ask them to change it at first sign-in (**Change password**).",
       "When someone leaves the team, untick **Active** on their user record. Never delete users: their audit history must remain.",
-      "Reassign a departing Contact RA's cases from each case page (**Assigned Contact RA**) before deactivating them.",
+      "Reassign a departing Contact RA's cases with **Reassign cases** on the Main-400 Register before deactivating them.",
     ]],
     ["h2", "10.2 Server operations (technical administrator)"],
     ["table", ["Task", "Command (on the server, as root)"], [

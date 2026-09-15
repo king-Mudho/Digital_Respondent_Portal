@@ -414,3 +414,56 @@ def create_sample_case(
     case.full_clean()
     case.save()
     return case
+
+
+class InvalidAssignment(Exception):
+    pass
+
+
+class _AssignmentRun:
+    pk = "bulk_assignment"
+
+
+@transaction.atomic
+def bulk_assign_cases(*, to_user, from_user=None, from_unassigned=False, province=None, sample_ids=None,
+                      limit=None, preview=False, user=None) -> list[str]:
+    """Give Main cases to a Contact RA (or unassign them) in one audited step
+    (added 2026-09-15). All 400 Main cases started on one shared account;
+    reassigning them one case page at a time was 400 dropdowns.
+
+    Filters narrow which cases move: their current owner (`from_user`, or
+    `from_unassigned`), a province, explicit Sample IDs, and `limit` to move
+    only the first N by Sample ID -- how a province with more cases than one
+    RA can handle (Harare has 252) is split between several. `preview`
+    returns the matching Sample IDs without changing anything.
+    """
+    if to_user is not None and (getattr(to_user.role, "name", None) != "CONTACT_RA" or not to_user.is_active):
+        raise InvalidAssignment("Cases can only be assigned to an active Contact RA account.")
+    if limit is not None and limit < 1:
+        raise InvalidAssignment("The number of cases to move must be at least 1.")
+    cases = SampleCase.objects.filter(sample_type=SampleType.MAIN)
+    if from_unassigned:
+        cases = cases.filter(assigned_ra__isnull=True)
+    elif from_user is not None:
+        cases = cases.filter(assigned_ra=from_user)
+    if province:
+        cases = cases.filter(organisation__province=province)
+    if sample_ids is not None:
+        cases = cases.filter(sample_id__in=sample_ids)
+    if to_user is not None:
+        cases = cases.exclude(assigned_ra=to_user)
+    else:
+        cases = cases.exclude(assigned_ra__isnull=True)
+    ids = list(cases.order_by("sample_id").values_list("sample_id", flat=True))
+    if limit is not None:
+        ids = ids[:limit]
+    if preview or not ids:
+        return ids
+
+    SampleCase.objects.select_for_update().filter(sample_id__in=ids).update(assigned_ra=to_user, updated_at=timezone.now())
+    log_action("sampling.bulk_assignment", _AssignmentRun(), {
+        "to": getattr(to_user, "username", None),
+        "from": "unassigned" if from_unassigned else getattr(from_user, "username", "any"),
+        "province": province or "all", "moved": len(ids), "sample_ids": ids, "user_id": getattr(user, "id", None),
+    })
+    return ids

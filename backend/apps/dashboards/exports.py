@@ -36,12 +36,14 @@ ANALYSIS_FIELDS = [
     "qa_status",
     "submitted_at",
     "completion_seconds",
-    # True when the participant later withdrew. Their de-identified record is
-    # kept only where the ethics protocol permits (docs/18) -- filter on this.
-    "consent_withdrawn",
 ]
 
+# PI decision, 15 Sep 2026: a participant who withdraws after submitting keeps
+# their answers archived (audit trail) but is left out of analysis. The
+# analysis export therefore omits them entirely; the operational export keeps
+# every row and says which ones are withdrawn.
 OPERATIONAL_EXTRA_FIELDS = [
+    "consent_withdrawn",
     "organisation_name",
     "respondent_full_name",
     "respondent_phone",
@@ -83,8 +85,11 @@ def _base_row(submission: QUANSubmission) -> dict:
         "qa_status": submission.qa_status,
         "submitted_at": submission.submitted_at.isoformat(),
         "completion_seconds": submission.completion_seconds,
-        "consent_withdrawn": getattr(submission, "latest_consent_decision", None) == "WITHDRAWN",
     }
+
+
+def _is_withdrawn(submission: QUANSubmission) -> bool:
+    return getattr(submission, "latest_consent_decision", None) == "WITHDRAWN"
 
 
 class AnalysisExportView(APIView):
@@ -100,10 +105,15 @@ class AnalysisExportView(APIView):
         response["Content-Disposition"] = 'attachment; filename="drp_analysis_export.csv"'
         writer = csv.DictWriter(response, fieldnames=ANALYSIS_FIELDS)
         writer.writeheader()
+        left_out = 0
         for submission in _submissions():
+            if _is_withdrawn(submission):
+                left_out += 1
+                continue
             writer.writerow(_base_row(submission))
 
-        log_action("export.analysis_generated", _ExportRow("analysis"), {"requested_by_id": request.user.id})
+        log_action("export.analysis_generated", _ExportRow("analysis"),
+                   {"requested_by_id": request.user.id, "withdrawn_left_out": left_out})
         return response
 
 
@@ -124,6 +134,7 @@ class OperationalExportView(APIView):
             row = _base_row(submission)
             respondent = next(iter(submission.sample_case.respondents.all()), None)
             row.update({
+                "consent_withdrawn": _is_withdrawn(submission),
                 "organisation_name": submission.sample_case.organisation.name,
                 "respondent_full_name": getattr(respondent, "full_name", ""),
                 "respondent_phone": getattr(respondent, "phone", ""),

@@ -18,17 +18,17 @@ const PAGE_W = 11906; // A4 in DXA
 const MARGIN = 1247; // 2.2 cm
 const CONTENT_W = PAGE_W - 2 * MARGIN; // 9412 DXA = 6.54 in
 
-// "**bold**", "`code`" and "_italic_" inline markup.
+// "**bold**" and "`code`" inline markup. No underscore italics: status codes
+// (NO_ANSWER, IN_PROGRESS) and setting names (KOBO_ASSET_UID) are full of underscores.
 function runs(text, base = {}) {
   const out = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|_[^_]+_)/g;
+  const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
   let last = 0;
   for (const m of String(text).matchAll(re)) {
     if (m.index > last) out.push(new TextRun({ text: text.slice(last, m.index), ...base }));
     const t = m[0];
     if (t.startsWith("**")) out.push(new TextRun({ text: t.slice(2, -2), bold: true, ...base }));
-    else if (t.startsWith("`")) out.push(new TextRun({ text: t.slice(1, -1), font: "Consolas", size: (base.size ?? 21) - 2, color: C.navyDark, ...base, bold: false }));
-    else out.push(new TextRun({ text: t.slice(1, -1), italics: true, ...base }));
+    else out.push(new TextRun({ text: t.slice(1, -1), font: "Consolas", size: (base.size ?? 21) - 2, color: C.navyDark, ...base, bold: false }));
     last = m.index + t.length;
   }
   if (last < String(text).length) out.push(new TextRun({ text: String(text).slice(last), ...base }));

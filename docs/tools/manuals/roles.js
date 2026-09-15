@@ -101,16 +101,19 @@ module.exports = [
       ["Before data lock (30 Nov 2026)", "Close QA decisions and exceptions; final exports; store them securely."],
     ],
     tasks: [
-      [["h2", "Creating staff accounts"], ["steps", [
+      [["h2", "Creating staff accounts for the whole team"], ["steps", [
+        "Open **docs/templates/ABF-FST_Staff_Accounts_Template.xlsx**. On the **Staff** sheet, type one person per row in the yellow cells: full name, email, role (drop-down), and for Contact RAs the provinces they cover (or All).",
+        "Send the file to the technical administrator. They check it with a dry run, then run `manage.py create_staff_accounts --file <sheet> --assign-cases`.",
+        "Every new account gets a random temporary password in a private credentials file. Give each person their own username and password separately (e.g. username by email, password by phone) and ask them to change it at first sign-in. Then delete the file.",
+        "With --assign-cases, Main cases still on the shared `contact_ra` account are shared out evenly among the Contact RAs covering each province. Adjust later with **Reassign cases** on the register.",
+      ]], ["h3", "One account at a time"], ["steps", [
         `Open **${C.SITE}/django-admin/** and sign in with your PI account.`,
         "Select **Users → Add user**. Enter a username (e.g. firstname.lastname) and a strong temporary password; save.",
-        "Fill in the name and **email address**, choose the **Role** under **ABF-FST role**, and save.",
-        "Give the username and temporary password to the person separately (e.g. username by email, password by phone) and ask them to change it at first sign-in.",
+        "Fill in the name and **email address**, choose the **Role** under **ABF-FST role**, and save. Leave **Staff status** unticked for everyone except the PI.",
         "To remove access, untick **Active** and save. Do not delete users; their audit history must remain.",
       ]]],
       T.dashboards, T.reports,
-      [["h2", "Assigning cases to named Contact RAs"], ["p", "All 400 Main cases are currently assigned to the shared `contact_ra` account. Once individual Contact RA accounts exist, assign each case to its RA from the case page (**Assigned Contact RA**), then deactivate the shared account."]],
-      T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.withdrawal, T.reserve, T.qaReview, T.qaExceptions,
+      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.withdrawal, T.reserve, T.qaReview, T.qaExceptions,
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"),
       [["h2", "KoboToolbox: rotating credentials and changing forms"], ["steps", [
         "Change the KoboToolbox password, then create a new API token (**Account settings → Security**).",
@@ -174,7 +177,7 @@ module.exports = [
       ["End of day", "Reports (last 7 days): submissions, response rate, coverage; note strata falling behind."],
       ["Weekly", "Cases stuck at S05–S07 beyond Day 7; Reserve activations; cost entries; brief the PI."],
     ],
-    tasks: [T.dashboards, T.reports, T.bulkVerify, T.pairAssign, T.respondents, T.invite, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
+    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.respondents, T.invite, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
     extraRules: ["Record a withdrawal the same day you hear of it.", "Activate a Reserve only with an authorised reason and written evidence."],
     trouble: [
       ["\"Move all\" shows 0", "No Main cases are at that step.", "Choose the next step in the list."],
@@ -410,7 +413,7 @@ module.exports = [
       [["h2", "Working with the analysis export"], ["bullets", [
         "One row per questionnaire submission. `sample_id` links to the case; `master_id` to the organisation.",
         "`qa_status`: use only **QA_PASSED** rows for the main analysis unless the PI says otherwise.",
-        "`consent_withdrawn` = True marks a participant who later withdrew; follow the PI's decision on how to treat these.",
+        "Participants who withdrew after submitting are already left out of this export (PI decision, 15 September 2026).",
         "`completion_seconds` is the time taken; `administration_mode` is 01–06 (see the table in the Quick reference).",
         "Store exports only on encrypted, access-controlled storage and delete working copies when no longer needed.",
       ]]],
