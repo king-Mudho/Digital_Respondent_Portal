@@ -94,3 +94,19 @@ In rough order of consequence. Each has a test that fails without the fix.
   The frontend no longer refetches every query when a tab regains focus, and no longer
   retries refusals. Suites: backend 356 passed; E2E 43 passed, 2 skipped (WhatsApp, and
   Form PDFs where no KoboToolbox is connected).
+
+## Update 2026-09-15 (evening): test case reset, imported contacts cleaned
+
+- **SID-2026-000400 reset.** The PI's end-to-end test case was advanced S03 → S10 QA passed through
+  the state machine on his instruction, then reset to a fresh S03 case like the other 399:
+  - Removed: its test submission in KoboToolbox and, in the portal, 3 test respondents,
+    1 invitation, 3 consent records, the QA-passed submission and its QA decision, and an
+    empty PROIT draft.
+  - Kept: the earlier audit entries; the reset itself is audited as
+    `sampling.test_case_reset`.
+  - Backup: `/srv/agribiz-drp/backups/test-case-reset-SID-2026-000400-20260915-201353/`.
+- **Imported contact details split into proper fields** (`clean_imported_contacts`, audited
+  as `contacts.imported_contacts_cleaned`, originals backed up first). Names, phone lists,
+  WhatsApp numbers and emails now sit in their own fields, and a multi-number phone field no
+  longer produces a broken WhatsApp link. This does not add numbers: most Main cases still
+  have no contact details and must be collected (item 3 above).

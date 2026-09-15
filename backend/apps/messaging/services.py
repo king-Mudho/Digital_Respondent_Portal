@@ -6,12 +6,12 @@ explicit RA action recorded against them (MessageLog.triggered_by), never
 this automated path.
 """
 
-import re
 from urllib.parse import quote
 
 from django.utils import timezone
 
 from apps.audit.utils import log_action
+from apps.contacts.contact_text import first_number_digits
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.sampling.models import SampleCase, SampleType, WorkflowStatus
 from apps.sampling.services import transition_workflow_status
@@ -130,10 +130,11 @@ def dispatch_due_reminders(reference_date=None) -> list[MessageLog]:
 
     for item in _awaiting():
         step = _due_step(item, steps, reference_date)
-        if step is None or step.channel != MessageChannel.WHATSAPP or not item.phone:
+        to_phone = whatsapp_digits(item.phone)
+        if step is None or step.channel != MessageChannel.WHATSAPP or not to_phone:
             continue
         try:
-            client.send_template_message(to_phone=item.phone, template_name=step.template.name)
+            client.send_template_message(to_phone=to_phone, template_name=step.template.name)
         except WhatsAppNotConfigured:
             return dispatched  # nothing can be sent automatically; the Follow-ups screen lists them
         dispatched.append(MessageLog.objects.create(
@@ -174,8 +175,10 @@ def exhaust_nonresponse_cases(reference_date=None) -> list[SampleCase]:
 
 def whatsapp_digits(phone: str) -> str:
     """Digits for a wa.me link. Zimbabwean local numbers (07x...) get the
-    263 country code; anything already international is kept."""
-    digits = re.sub(r"\D", "", phone or "")
+    263 country code; anything already international is kept. A field
+    holding several numbers ("0772 686106; 0773 626999") gives the first
+    mobile -- joining every digit made a number that opened nobody."""
+    digits = first_number_digits(phone)
     if digits.startswith("00"):
         digits = digits[2:]
     if digits.startswith("0") and len(digits) == 10:

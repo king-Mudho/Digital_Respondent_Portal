@@ -28,6 +28,7 @@ import openpyxl
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from apps.contacts.contact_text import split_contact_text
 from apps.contacts.models import Respondent
 from apps.sampling.models import Organisation, SampleCase, SampleType
 from apps.sampling.services import create_organisation, create_sample_case, resolve_stratum_for_organisation
@@ -187,11 +188,15 @@ class Command(BaseCommand):
 
         existing_contact = row[COL["existing_contact"]]
         if existing_contact:
+            # The cell mixes names, numbers, emails and notes; never store it
+            # whole as the person's name (clean_imported_contacts, 2026-09-15).
+            parts = split_contact_text(str(existing_contact), str(row[COL["phone"]] or ""))
             Respondent.objects.create(
                 sample_case=case,
-                full_name=existing_contact,
-                phone=row[COL["phone"]] or "",
-                email=row[COL["email"]] or "",
+                full_name=parts.name,
+                phone=parts.phone,
+                whatsapp_number=parts.whatsapp,
+                email=str(row[COL["email"]] or "").strip() or parts.email,
             )
             stats["respondents_created"] += 1
 

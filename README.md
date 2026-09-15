@@ -63,7 +63,7 @@ All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **363 tests** passing (`pytest`).
+- Backend: **376 tests** passing (`pytest`).
 - Playwright: **43 E2E tests** pass. **2 are skipped** on purpose: WhatsApp, and the
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
@@ -504,7 +504,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 363 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 376 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
@@ -668,6 +668,16 @@ green tick was the reason nobody looked.
    - New indexes on the audit log, consent history and submissions.
 6. **The go-live preflight crashed once every Main case had been verified to S03.** It
    now picks a clean case at S00–S03 and runs only the remaining steps.
+7. **Imported contacts were unusable for WhatsApp.**
+   - The importer stored the register's whole "Existing Contact" cell (numbers, emails,
+     notes) as the person's name.
+   - It left invisible zero-width characters in numbers.
+   - The WhatsApp link joined every digit of a multi-number field into one number that
+     opened no chat.
+   - Fix: `apps/contacts/contact_text.py` splits the cell into name, phone list, first
+     reachable mobile and email. It is used by the importer, the WhatsApp links and the
+     one-off `manage.py clean_imported_contacts`, which backs up the original values
+     first.
 
 ### Third pass — go-live audit (14 Sep 2026)
 
