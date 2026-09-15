@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { WriteOnly } from "@/components/admin/RoleGate";
+import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -248,7 +248,11 @@ export default function KIIDetailPage() {
       </div>
 
       <div className="mt-4">
-        <PreProfilePanel kiiRecordId={record.id} />
+        {/* PROIT is the Field Coordinator's and PI's tool (api/permissions IsFieldCoordinatorOrAdmin,
+            Supervisor read-only). Other roles on this page used to get a 403 from it. */}
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
+          <PreProfilePanel kiiRecordId={record.id} />
+        </IfRole>
       </div>
     </AdminShell>
   );

@@ -59,7 +59,7 @@ function BulkVerificationPanel() {
     <Card className="mb-4 space-y-2">
       <h3 className="font-medium text-sm">Move cases through verification</h3>
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-sm">
+        <label className="text-sm w-full sm:w-auto min-w-0">
           <span className="sr-only">Verification step</span>
           <select
             value={from}
@@ -67,7 +67,7 @@ function BulkVerificationPanel() {
               setFrom(e.target.value);
               setResult(null);
             }}
-            className="rounded-md border border-border px-3 py-2 bg-surface text-sm"
+            className="w-full sm:w-auto max-w-full rounded-md border border-border px-3 py-2 bg-surface text-sm"
           >
             {Object.entries(VERIFICATION_STEPS).map(([key, step]) => (
               <option key={key} value={key}>

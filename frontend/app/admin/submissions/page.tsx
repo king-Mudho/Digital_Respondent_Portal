@@ -92,7 +92,7 @@ export default function SubmissionsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="font-semibold text-xl">Completed form PDFs</h2>
         {forms && forms.forms.length > 1 && (
-          <label className="text-sm">
+          <label className="text-sm w-full sm:w-auto min-w-0">
             <span className="sr-only">Form</span>
             <select
               value={formKey ?? ""}
@@ -101,7 +101,7 @@ export default function SubmissionsPage() {
                 setPage(1);
                 setStatus(null);
               }}
-              className="rounded-md border border-border px-3 py-2 bg-surface text-sm"
+              className="w-full sm:w-auto max-w-full rounded-md border border-border px-3 py-2 bg-surface text-sm"
             >
               {forms.forms.map((f) => (
                 <option key={f.key} value={f.key}>

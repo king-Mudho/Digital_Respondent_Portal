@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
+import { useAdminUser } from "@/lib/auth/session";
 
 interface SampleCaseDetail {
   id: number;
@@ -438,6 +439,10 @@ function AssignedRaPanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
 function MatchedCasePanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  // Only the roles that can change the pairing need the candidate list; the
+  // endpoint refuses everyone else, which showed up as a 403 on every case
+  // page a Contact RA opened.
+  const canEdit = ["PI_ADMIN", "FIELD_COORDINATOR"].includes(useAdminUser()?.role ?? "");
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ["available-reserves", sampleCase.sample_id],
@@ -445,6 +450,7 @@ function MatchedCasePanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
       adminFetch<{ results: AvailableReserve[] }>(
         `/sample-cases/${sampleCase.sample_id}/available-reserves/`,
       ),
+    enabled: canEdit,
   });
 
   const setMatch = useMutation({
@@ -497,7 +503,7 @@ function MatchedCasePanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
             : "No matched Reserve"}
         </span>
       </div>
-      {!isLoading && options.length === 0 && !sampleCase.matched_case && (
+      {canEdit && !isLoading && options.length === 0 && !sampleCase.matched_case && (
         <p className="text-text-muted text-xs">
           No unclaimed, still-locked Reserve cases are available to pair with.
         </p>
@@ -597,7 +603,11 @@ export default function SampleCaseDetailPage() {
         {/* Reserve cases don't have a matched Reserve of their own. */}
         {sampleCase.sample_type === "MAIN" && <MatchedCasePanel sampleCase={sampleCase} />}
 
-        <PreProfilePanel sampleCaseId={sampleCase.id} />
+        {/* PROIT is the Field Coordinator's and PI's tool (api/permissions IsFieldCoordinatorOrAdmin,
+            Supervisor read-only). Other roles on this page used to get a 403 from it. */}
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
+          <PreProfilePanel sampleCaseId={sampleCase.id} />
+        </IfRole>
 
         <RespondentsPanel sampleId={sampleCase.sample_id} />
 
