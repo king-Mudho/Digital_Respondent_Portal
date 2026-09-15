@@ -181,6 +181,22 @@ def test_kobo_being_down_is_a_clear_error_not_a_crash(settings):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("path, status, code", [
+    ("/api/v1/kobo/forms/questionnaire/submissions/", 404, "kobo_form_not_found"),  # wrong asset UID
+    ("/api/v1/kobo/forms/questionnaire/submissions/", 401, "kobo_auth_failed"),  # rotated token
+    ("/api/v1/kobo/forms/questionnaire/submissions/77/pdf/", 404, "not_found"),  # one missing submission
+])
+def test_kobo_misconfiguration_is_told_apart_from_a_missing_submission(settings, path, status, code):
+    from unittest.mock import Mock
+
+    settings.KOBO_API_TOKEN, settings.KOBO_ASSET_UID = "token", "q-asset"
+    client = _client(Role.PI_ADMIN, f"cp_cfg_{status}_{code}")
+    with patch("apps.kobo.submission_copies.requests.get", return_value=Mock(status_code=status, ok=False)):
+        resp = client.get(path)
+    assert resp.json()["error"]["code"] == code
+
+
+@pytest.mark.django_db
 def test_a_record_page_finds_its_completed_forms(kobo):
     with patch("apps.kobo.submission_copies._kobo_get", return_value={"results": [{"_id": 77, "_submission_time": "2026-09-14T14:03:21"}]}) as get:
         resp = _client(Role.KII_RA, "cp_lookup").get("/api/v1/kobo/forms/kii/lookup/?record=KII-0042")

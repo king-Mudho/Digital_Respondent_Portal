@@ -15,6 +15,7 @@ never the answers).
 """
 
 import json
+import re
 
 import requests
 from django.conf import settings
@@ -106,7 +107,13 @@ def _kobo_get(path: str, **params):
     except requests.RequestException as exc:
         raise CopyError("kobo_unreachable", f"KoboToolbox couldn't be reached: {exc.__class__.__name__}.", 502) from exc
     if response.status_code == 404:
-        raise CopyError("not_found", "That submission doesn't exist in KoboToolbox.", 404)
+        if re.search(r"/data/\d+/$", path):
+            raise CopyError("not_found", "That submission doesn't exist in KoboToolbox.", 404)
+        # The form itself is missing: a wrong or deleted asset UID, not a
+        # missing submission, and something only an administrator can fix.
+        raise CopyError("kobo_form_not_found", "This form wasn't found in KoboToolbox. Check the portal's form setting.", 502)
+    if response.status_code in (401, 403):
+        raise CopyError("kobo_auth_failed", "KoboToolbox refused the portal's API token. It may have been changed.", 502)
     if not response.ok:
         raise CopyError("kobo_error", f"KoboToolbox answered HTTP {response.status_code}.", 502)
     return response.json()

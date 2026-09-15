@@ -14,7 +14,9 @@ test("a completed questionnaire downloads as an intact PDF", async ({ page }) =>
   await page.goto("/admin/submissions");
   await expect(page.getByRole("heading", { name: "Completed form PDFs" })).toBeVisible();
 
-  const notConnected = page.getByText(/isn't connected to KoboToolbox yet/);
+  // Not connected, or connected to something that isn't a usable form (CI's
+  // placeholder asset and token): the screen must explain it either way.
+  const notConnected = page.getByText(/isn't connected to KoboToolbox yet|wasn't found in KoboToolbox|KoboToolbox refused|KoboToolbox couldn't be reached|KoboToolbox answered HTTP/);
   const download = page.getByRole("button", { name: "Download PDF" }).first();
   await expect(notConnected.or(download).or(page.getByText("No submissions yet."))).toBeVisible();
   test.skip(!(await download.isVisible()), "No KoboToolbox submissions reachable from this environment.");
@@ -40,7 +42,7 @@ test("the PI downloads a form's full data workbook and all its PDFs intact", asy
   await expect(card.getByRole("link", { name: "Excel workbook" }).first()).toBeVisible();
 
   const probe = await page.request.get("/api/proxy/kobo/forms/questionnaire/export/xlsx/");
-  test.skip(probe.status() === 503, "No KoboToolbox connection in this environment.");
+  test.skip(probe.status() !== 200, `No usable KoboToolbox form in this environment (HTTP ${probe.status()}).`);
 
   const read = async (linkName: string) => {
     const [file] = await Promise.all([page.waitForEvent("download"), card.getByRole("link", { name: linkName }).first().click()]);

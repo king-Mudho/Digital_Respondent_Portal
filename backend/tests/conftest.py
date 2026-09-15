@@ -11,6 +11,18 @@ from apps.sampling.models import (
 from apps.sampling.services import create_organisation, create_sample_case
 
 
+@pytest.fixture(autouse=True)
+def _empty_cache():
+    """Cached values (KoboToolbox form content, report figures) must not leak
+    between tests: test_data_export only passed when it ran before
+    test_submission_copies, which had cached different form content."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def stratum(db):
     return StratumDefinition.objects.create(

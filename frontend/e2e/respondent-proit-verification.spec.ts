@@ -58,7 +58,9 @@ test("PROIT verification works and is usable on a phone", async ({ page, request
   const { token, sampleId } = await issueTokenOnFreshCase(request, backend, "PROIT Verify");
   const { profileId, auth } = await seedLockedProfile(request, backend, sampleId);
 
-  const shown = await (await request.get(`${backend}/api/v1/proit/respondent-profile/?t=${encodeURIComponent(token)}`)).json();
+  // With the flag off the endpoint answers an empty body (DRF renders None as nothing).
+  const body = await (await request.get(`${backend}/api/v1/proit/respondent-profile/?t=${encodeURIComponent(token)}`)).text();
+  const shown = body.trim() ? JSON.parse(body) : null;
   test.skip(shown === null, "PROIT_ENABLED_FOR_RESPONDENTS is off in this environment, so the verify screen self-skips.");
 
   await page.setViewportSize(PHONE);

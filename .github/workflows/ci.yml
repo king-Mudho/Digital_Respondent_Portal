@@ -106,6 +106,8 @@ jobs:
       KOBO_FORM_URL: https://ee.kobotoolbox.org/x/ci-placeholder
       KOBO_WEBHOOK_SHARED_SECRET: ci-placeholder-secret
       E2E_PYTHON: python
+      # On in production; off, the PROIT verification spec has nothing to test.
+      PROIT_ENABLED_FOR_RESPONDENTS: "True"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6

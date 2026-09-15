@@ -41,9 +41,11 @@ test("Kobo sync panel degrades gracefully when no real Kobo asset is configured"
     // A connected (test) asset: a manual sync must resolve to a result or a
     // clearly surfaced failure, never hang or crash the page.
     await syncButton.click();
-    await expect(syncButton).toBeVisible({ timeout: 15000 });
-    const pageText = await page.locator("main").innerText();
-    expect(pageText).toMatch(/Last sync failed|pulled.*new.*updated/);
+    // The button reads "Syncing…" while the run is in flight, and a request to
+    // an unusable asset can take up to the client's 30s timeout. Checking the
+    // "Sync now" button straight away passed before the click had registered.
+    await expect(page.getByText(/Last sync failed|pulled.*new.*updated/)).toBeVisible({ timeout: 45_000 });
+    await expect(syncButton).toBeEnabled();
   }
 
   // The rest of the page must still be fully usable after a failed sync --

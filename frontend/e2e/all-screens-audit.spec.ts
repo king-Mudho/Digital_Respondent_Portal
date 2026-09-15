@@ -18,7 +18,11 @@ const ROLES = [
   "e2e_documentary_ra", "e2e_analyst", "e2e_supervisor_readonly",
 ];
 // Handled "not set up here" states, which the screens explain rather than fail on.
-const EXPECTED_ERROR_CODES = new Set(["kobo_not_configured", "email_not_configured", "questionnaire_unavailable"]);
+// CI points at a placeholder KoboToolbox form and token, so the form-not-found
+// and token-refused answers are expected there too.
+const EXPECTED_ERROR_CODES = new Set([
+  "kobo_not_configured", "kobo_form_not_found", "kobo_auth_failed", "email_not_configured", "questionnaire_unavailable",
+]);
 
 async function signIn(page: Page, username: string) {
   await page.goto("/admin/login");
@@ -45,6 +49,7 @@ for (const username of ROLES) {
 
     page.on("pageerror", (err) => problems.push(`${current}: uncaught ${err.message}`));
     page.on("response", async (response) => {
+      const screen = current; // before any await: the page may move on meanwhile
       const url = response.url();
       if (!url.includes("/api/proxy/")) return;
       const status = response.status();
@@ -53,10 +58,14 @@ for (const username of ROLES) {
       try {
         code = (await response.json())?.error?.code ?? "";
       } catch {
-        /* not JSON */
+        // The body is discarded once the page navigates away. A GET can be
+        // asked again to learn which error it was.
+        if (response.request().method() === "GET") {
+          code = await page.request.get(url).then((r) => r.json()).then((b) => b?.error?.code ?? "", () => "");
+        }
       }
       if (EXPECTED_ERROR_CODES.has(code)) return;
-      if (status >= 500 || status === 403) problems.push(`${current}: HTTP ${status} ${code} ${url.split("/api/proxy")[1]}`);
+      if (status >= 500 || status === 403) problems.push(`${screen}: HTTP ${status} ${code} ${url.split("/api/proxy")[1]}`);
     });
 
     await signIn(page, username);
