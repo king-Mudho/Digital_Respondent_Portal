@@ -103,6 +103,8 @@ def split_contact_text(*sources: str) -> ContactParts:
 def looks_like_contact_text(full_name: str) -> bool:
     """A full_name that is really numbers, an email or a note about the contact."""
     text = clean(full_name)
+    if text in (UNNAMED, NOT_IDENTIFIED):
+        return False  # already tidied
     return bool(re.search(r"\d{3}|@", text)) or bool(
         re.search(r"\b(contacts?|institutional|to verify|not visible)\b", text, re.I)
     )

@@ -70,7 +70,7 @@ class Command(BaseCommand):
         if dry_run or not changes:
             return
 
-        stamp = timezone.localtime().strftime("%Y%m%d-%H%M%S")
+        stamp = timezone.localtime().strftime("%Y%m%d-%H%M%S-%f")
         backup = Path(backup_dir) / f"imported-contacts-before-cleanup-{stamp}.json"
         backup.write_text(json.dumps(
             [{"id": r.id, "sample_id": r.sample_case.sample_id, **old} for r, old, _ in changes], indent=2, ensure_ascii=False))

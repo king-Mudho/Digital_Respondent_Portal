@@ -59,7 +59,17 @@ def test_cleanup_moves_contact_text_out_of_the_name_and_leaves_edited_people_alo
     real_name.refresh_from_db()
     assert screened.full_name == "+263 77 123 4567" and real_name.whatsapp_number == ""
 
-    [backup] = tmp_path.glob("imported-contacts-before-cleanup-*.json")
+    # A second run finds nothing to do, including email-only contacts whose
+    # placeholder name must not be re-read as contact text.
+    email_only = Respondent.objects.create(sample_case=main_case, full_name="farm@watershed.ac.zw", email="farm@watershed.ac.zw")
+    call_command("clean_imported_contacts", "--backup-dir", str(tmp_path), stdout=StringIO())
+    out = StringIO()
+    call_command("clean_imported_contacts", "--dry-run", stdout=out)
+    assert "'respondents_changed': 0" in out.getvalue()
+    email_only.refresh_from_db()
+    assert email_only.full_name == UNNAMED
+
+    backup = sorted(tmp_path.glob("imported-contacts-before-cleanup-*.json"))[0]
     assert json.loads(backup.read_text())[0]["full_name"] == "0772324322; chamisaa@gmail.com"
-    event = AuditEvent.objects.get(action="contacts.imported_contacts_cleaned")
+    event = AuditEvent.objects.filter(action="contacts.imported_contacts_cleaned").earliest("created_at")
     assert event.metadata["respondent_ids"] == [imported.id] and "0772324322" not in json.dumps(event.metadata)
