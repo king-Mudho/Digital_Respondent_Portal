@@ -53,7 +53,7 @@ PI's decision.
 WhatsApp Business Platform is optional: invitations and reminders go out by hand from
 the shared study WhatsApp number until it is set up.
 
-**Quality passes.** Four audits have run against this codebase, by hand in a real
+**Quality passes.** Five passes have run against this codebase, by hand in a real
 browser as well as by test:
 
 1. **Hardening pass:** every screen and endpoint.
@@ -63,13 +63,15 @@ browser as well as by test:
    time-zone handling.
 4. **Every-screen, every-role audit (15 Sep):** at desktop and phone widths, plus a
    performance pass.
+5. **Document analysis on the platform (16 Sep):** a prefilled coding link and source-file
+   upload/download for the Documentary Evidence module.
 
 All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **386 tests** passing (`pytest`).
-- Playwright: **44 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
+- Backend: **397 tests** passing (`pytest`).
+- Playwright: **45 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
 
@@ -250,6 +252,15 @@ only its own form:
   The frontend proxy streams the bytes through unchanged.
 - **Connecting or reconnecting Kobo:** `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh`
   sets the token, asset UIDs, form URL and webhook without echoing secrets.
+- **Document analysis on the platform, not by hand.** A document's page
+  (`/admin/documents/[id]`) has a **Code this document** link (`KOBO_DOCUMENTS_FORM_URL`,
+  `apps/evidence/services.py build_document_coding_url`) that opens the Document Analysis
+  Tool with the record's DOC-ID, title, author and source already filled in — a
+  Documentary RA never retypes them, so the completed form is guaranteed to match back up
+  with the right record. The page also stores the source file itself (a scan, a platform
+  screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 20 MB) under
+  `PRIVATE_DATA_ROOT`, downloadable only by roles with document access; uploading replaces
+  any earlier file for that record. Every upload and download is audited.
 
 ### 4. QA and the Research Operations Centre (`/admin/*`, screens A01–A12)
 
@@ -299,7 +310,7 @@ figures and lists on mixed screens but not the forms or buttons
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
 | — | `/admin/qa/exceptions` | QA exceptions raised by the rules: assign, work, then resolve or dismiss with a note |
 | A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow |
-| A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]` | Documentary evidence corpus, authenticity assessment gate before a document can be included |
+| A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]` | Documentary evidence corpus, authenticity assessment gate before a document can be included; upload the source file, open KoboToolbox's Document Analysis Tool prefilled with the record's DOC-ID via **Code this document** |
 | A09 | `/admin/reserve` | Reserve activation (five authorised reasons, mandatory evidence note) |
 | A10 | `/admin/cost` | Fieldwork cost dashboard and entry form |
 | A11 | `/admin/audit` | Full audit log — every sensitive action, correctly attributed to the admin who performed it |
@@ -495,9 +506,11 @@ celery -A config beat --loglevel=info
 | `KOBO_ASSET_UID` | The Main Study Questionnaire asset UID |
 | `KOBO_FORM_URL` | The questionnaire's public web-form link (`https://ee.kobotoolbox.org/x/…`) that respondents are sent to |
 | `KOBO_KII_ASSET_UID`, `KOBO_DOCUMENTS_ASSET_UID` | KII Guide and Document Analysis Tool assets (Form PDFs, PI data exports) |
+| `KOBO_DOCUMENTS_FORM_URL` | Document Analysis Tool's public web-form link — powers the document page's **Code this document** prefilled link |
 | `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/`; also signs the portal token passed to the form |
 | `KOBO_RECONCILIATION_INTERVAL_MINUTES` | Celery Beat pull frequency |
-| `PRIVATE_DATA_ROOT` | Where full Kobo payloads are stored; must not be under anything nginx serves |
+| `PRIVATE_DATA_ROOT` | Where full Kobo payloads and uploaded document source files are stored; must not be under anything nginx serves |
+| `DOCUMENT_MAX_UPLOAD_MB` | Size limit for an uploaded document source file (default 20) |
 | `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research.cut@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
@@ -520,7 +533,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 386 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 397 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
@@ -663,6 +676,30 @@ works):
 Every item below has a regression test. Where a test already existed but was passing for
 the wrong reason, that is called out — those were the most dangerous cases, because the
 green tick was the reason nobody looked.
+
+### Fifth pass — document analysis on the platform (16 Sep 2026)
+
+The PI asked how document analysis is done on the platform rather than by hand, against
+the uploaded documents. It wasn't yet: a Documentary RA registered a `DocumentRecord` in
+the portal and separately, by hand, retyped its DOC-ID and details into the KoboToolbox
+Document Analysis Tool — a typo there meant the completed coding form could never be
+matched back to the right record — and there was nowhere to keep the source file itself.
+
+1. **Code this document.** The document page now builds a KoboToolbox web-form link
+   (`KOBO_DOCUMENTS_FORM_URL`) prefilled with the record's DOC-ID, title, author and
+   source, the same `?d[...]` mechanism the main questionnaire uses
+   (`apps/evidence/services.py build_document_coding_url`). Nothing is retyped, and the
+   completed form is guaranteed to land on the right record.
+2. **Source file upload.** The document page stores the scan, screenshot or recording
+   itself under `PRIVATE_DATA_ROOT` (`DOCUMENT_MAX_UPLOAD_MB`, default 20 MB; a fixed
+   extension allow-list), downloadable only by roles with document access, replacing any
+   earlier file for that record; every upload and download is audited
+   (`apps/evidence/views.py DocumentFileView`).
+3. **The frontend proxy corrupted binary request bodies the same way it once corrupted
+   binary responses** (see the fourth-pass fix below) — it read the request as text and
+   always sent `Content-Type: application/json` upstream, so a multipart file upload
+   would have been mangled and rejected by Django. It now forwards the request body as
+   bytes and the browser's own `Content-Type` (`frontend/app/api/proxy/[...path]/route.ts`).
 
 ### Fourth pass — every screen, every role; performance; PI data access (15 Sep 2026)
 

@@ -1,16 +1,21 @@
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageDocuments
+from apps.audit.utils import log_action
 
 from .models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord
 from .serializers import DocumentRecordSerializer
 from .services import (
+    DocumentFileError,
     DocumentWorkflowError,
     generate_document_id,
+    open_source_file,
     record_authenticity_assessment,
+    save_source_file,
     set_qa_status,
 )
 
@@ -66,3 +71,35 @@ class DocumentQAStatusView(APIView):
         except DocumentWorkflowError as exc:
             return Response({"error": {"code": "workflow_error", "message": str(exc), "field_errors": {}}}, status=400)
         return Response(DocumentRecordSerializer(document).data)
+
+
+class DocumentFileView(APIView):
+    """POST /api/v1/documents/{id}/file/ -- upload/replace the source file
+    (multipart, field "file"). GET -- download it. Same CanManageDocuments
+    grant as the rest of the register (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md);
+    Supervisor's read-only access covers the download, not the upload."""
+
+    permission_classes = [CanManageDocuments]
+
+    def post(self, request, pk):
+        document = get_object_or_404(DocumentRecord, pk=pk)
+        uploaded = request.FILES.get("file")
+        if uploaded is None:
+            return Response({"error": {"code": "no_file", "message": "No file was sent.", "field_errors": {}}}, status=400)
+        try:
+            save_source_file(document, uploaded, user=request.user)
+        except DocumentFileError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        return Response(DocumentRecordSerializer(document).data)
+
+    def get(self, request, pk):
+        document = get_object_or_404(DocumentRecord, pk=pk)
+        try:
+            path, filename, content_type = open_source_file(document)
+        except DocumentFileError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        log_action("document.file_downloaded", document, {"filename": filename, "user_id": request.user.id})
+        response = FileResponse(open(path, "rb"), content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        response["Cache-Control"] = "no-store"
+        return response

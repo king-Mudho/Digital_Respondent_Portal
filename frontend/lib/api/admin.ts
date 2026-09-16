@@ -26,6 +26,29 @@ export async function adminFetch<T>(path: string, init: RequestInit = {}): Promi
   return response.json() as Promise<T>;
 }
 
+/**
+ * Same relay as adminFetch, for a multipart file upload (e.g. a
+ * documentary-evidence source file). No Content-Type header is set here --
+ * the browser adds `multipart/form-data; boundary=...` itself, and the
+ * proxy route now forwards whatever Content-Type it's given rather than
+ * hardcoding application/json.
+ */
+export async function adminUpload<T>(path: string, formData: FormData): Promise<T> {
+  const response = await fetch(`/api/proxy${path}`, { method: "POST", body: formData });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    const error = body?.error;
+    throw new ApiError(
+      response.status,
+      error?.code ?? "unknown_error",
+      error?.message ?? response.statusText,
+      error?.field_errors ?? {},
+    );
+  }
+  return response.json() as Promise<T>;
+}
+
 export async function login(username: string, password: string): Promise<void> {
   const response = await fetch("/api/auth/login", {
     method: "POST",

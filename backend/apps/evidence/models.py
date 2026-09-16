@@ -73,6 +73,16 @@ class DocumentRecord(models.Model):
         related_name="reviewed_documents",
     )
     qa_status = models.CharField(max_length=16, choices=DocumentQAStatus.choices, default=DocumentQAStatus.PENDING)
+    # The uploaded source file itself (screenshot, scan, recording), stored
+    # privately under PRIVATE_DATA_ROOT/documents/ -- never a web-served
+    # path, downloaded only through the permission-checked, audited
+    # DocumentFileView. source_file_ref is the path relative to
+    # PRIVATE_DATA_ROOT; the other fields are display/download metadata.
+    source_file_ref = models.CharField(max_length=255, blank=True)
+    source_file_name = models.CharField(max_length=255, blank=True)
+    source_file_content_type = models.CharField(max_length=100, blank=True)
+    source_file_size = models.PositiveIntegerField(null=True, blank=True)
+    source_file_uploaded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

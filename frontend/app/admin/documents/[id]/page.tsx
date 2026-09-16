@@ -8,8 +8,8 @@ import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
-import { adminFetch } from "@/lib/api/admin";
-import { useState } from "react";
+import { adminFetch, adminUpload } from "@/lib/api/admin";
+import { useRef, useState } from "react";
 
 interface DocumentRecord {
   id: number;
@@ -20,6 +20,15 @@ interface DocumentRecord {
   qa_status: string;
   evidence_extract: string;
   interpretive_memo: string;
+  coding_url: string | null;
+  source_file_name: string;
+  source_file_size: number | null;
+  source_file_uploaded_at: string | null;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 /** A08-adjacent document detail/provenance workflow page --
@@ -33,6 +42,8 @@ export default function DocumentDetailPage() {
   // textarea to `memo || doc.interpretive_memo` made an empty string fall
   // back to the saved text, so a memo could never be cleared.
   const [memo, setMemo] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", params.id],
@@ -82,6 +93,21 @@ export default function DocumentDetailPage() {
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the memo."),
+  });
+
+  const uploadFile = useMutation({
+    mutationFn: (file: File) => {
+      const body = new FormData();
+      body.append("file", file);
+      return adminUpload(`/documents/${params.id}/file/`, body);
+    },
+    onSuccess: () => {
+      setUploadError(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      invalidate();
+    },
+    onError: (err) =>
+      setUploadError(err instanceof ApiError ? err.message : "Could not upload the file."),
   });
 
   if (isLoading || !doc) {
@@ -154,6 +180,75 @@ export default function DocumentDetailPage() {
           {doc.authenticity_assessment === "UNVERIFIED" && (
             <p className="text-xs text-text-muted">
               Cannot be included until authenticity is assessed.
+            </p>
+          )}
+        </Card>
+
+        <Card className="space-y-3 md:col-span-2">
+          <h3 className="font-medium">Source file</h3>
+          {doc.source_file_name ? (
+            <p className="text-sm">
+              <a
+                href={`/api/proxy/documents/${params.id}/file/`}
+                className="underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {doc.source_file_name}
+              </a>
+              {doc.source_file_size != null && ` · ${formatFileSize(doc.source_file_size)}`}
+              {doc.source_file_uploaded_at &&
+                ` · uploaded ${new Date(doc.source_file_uploaded_at).toLocaleDateString()}`}
+            </p>
+          ) : (
+            <p className="text-sm text-text-muted">No file uploaded yet.</p>
+          )}
+          <WriteOnly>
+            <div className="flex items-center gap-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.mp3,.m4a,.wav,.mp4"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadFile.mutate(file);
+                }}
+                disabled={uploadFile.isPending}
+                className="text-sm"
+              />
+              {uploadFile.isPending && <span className="text-sm text-text-muted">Uploading…</span>}
+            </div>
+            <p className="text-xs text-text-muted">
+              A scan, photo, screenshot or recording of the source (PDF, image, Office file or audio/video,
+              up to 20 MB). Uploading replaces any earlier file for this record.
+            </p>
+            {uploadError && <p className="text-danger text-sm">{uploadError}</p>}
+          </WriteOnly>
+        </Card>
+
+        <Card className="space-y-2 md:col-span-2">
+          <h3 className="font-medium">Coding</h3>
+          {doc.coding_url ? (
+            <>
+              <p className="text-sm text-text-muted">
+                Opens the KoboToolbox Document Analysis Tool with this record&rsquo;s DOC-ID and details
+                already filled in.
+              </p>
+              <WriteOnly>
+                <a
+                  href={doc.coding_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors min-h-11 bg-header text-white hover:opacity-90"
+                >
+                  Code this document
+                </a>
+              </WriteOnly>
+            </>
+          ) : (
+            <p className="text-sm text-text-muted">
+              The Document Analysis Tool link hasn&rsquo;t been set up yet (KOBO_DOCUMENTS_FORM_URL). Ask
+              the administrator to configure it.
             </p>
           )}
         </Card>

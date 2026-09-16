@@ -25,13 +25,20 @@ async function proxy(request: NextRequest, path: string[]) {
   let accessToken = request.cookies.get(ACCESS_COOKIE)?.value;
   const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
 
-  const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.text();
+  // Read as bytes, not .text(): a multipart file upload (the documentary-
+  // evidence source file) is binary and .text() re-encodes it as UTF-8,
+  // corrupting it exactly the way the response side used to for PDFs (see
+  // the comment below). Forward the browser's own Content-Type rather than
+  // hardcoding application/json -- a multipart body carries a boundary in
+  // that header that the Django side needs to parse it at all.
+  const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
+  const contentType = request.headers.get("Content-Type") ?? "application/json";
 
   const doFetch = (token?: string) =>
     fetch(targetUrl, {
       method: request.method,
       headers: {
-        "Content-Type": "application/json",
+        "Content-Type": contentType,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body,

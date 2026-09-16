@@ -231,9 +231,21 @@ KOBO_WEBHOOK_SHARED_SECRET = env("KOBO_WEBHOOK_SHARED_SECRET", default="")
 # The other two main-study forms (read on demand for PDF copies; not reconciled).
 KOBO_KII_ASSET_UID = env("KOBO_KII_ASSET_UID", default="")
 KOBO_DOCUMENTS_ASSET_UID = env("KOBO_DOCUMENTS_ASSET_UID", default="")
+# The Document, Digital Platform & Media Analysis Tool's public web link
+# (same kind of value as KOBO_FORM_URL, a different form). Used to build a
+# prefilled coding link from a DocumentRecord (apps/evidence/services.py) so
+# a Documentary RA never retypes the DOC-ID -- and a mistyped one can never
+# make the coding form land on the wrong record.
+KOBO_DOCUMENTS_FORM_URL = env("KOBO_DOCUMENTS_FORM_URL", default="")
 KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
     "KOBO_RECONCILIATION_INTERVAL_MINUTES", default=15
 )
+
+# --- Documentary evidence source files (apps/evidence) ----------------------
+# Stored under PRIVATE_DATA_ROOT, never a web-served directory -- downloaded
+# only through the permission-checked, audited DocumentFileView. Kept modest
+# because the current VPS disk is small (docs/33_GO_LIVE_READINESS.md).
+DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=20)
 
 # --- Email (PDF copies of completed forms) ---------------------------------
 # Blank EMAIL_HOST means "not set up": the portal says so instead of trying.

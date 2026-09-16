@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     DocumentAuthenticityView,
+    DocumentFileView,
     DocumentQAStatusView,
     DocumentRecordDetailView,
     DocumentRecordListCreateView,
@@ -14,4 +15,5 @@ urlpatterns = [
     path("documents/<int:pk>/", DocumentRecordDetailView.as_view(), name="detail"),
     path("documents/<int:pk>/authenticity/", DocumentAuthenticityView.as_view(), name="authenticity"),
     path("documents/<int:pk>/qa-status/", DocumentQAStatusView.as_view(), name="qa-status"),
+    path("documents/<int:pk>/file/", DocumentFileView.as_view(), name="file"),
 ]
