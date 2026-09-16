@@ -41,12 +41,17 @@ PI's decision.
 - **Checks:** `manage.py golive_preflight` passes **15/15** on production. Its writes
   are rolled back and row counts are confirmed unchanged.
 
-**Still with the team before the first invitation:** collect respondent phone numbers
-(349 Main cases have none); rotate the KoboToolbox password and API token; add the Gmail
-App Password (`deploy/configure-email.sh`); do the one-time Google Drive sign-in for
-offsite backups; push to GitHub so CI runs; run a user-acceptance invitation on a real
-phone. WhatsApp Business Platform is optional: reminders are sent by hand from the
-Follow-ups screen until it is set up.
+**Still with the team before the first invitation:**
+
+- Create named staff accounts from `docs/templates/ABF-FST_Staff_Accounts_Template.xlsx`.
+- Collect respondent contact details (347 Main cases have none).
+- Rotate the KoboToolbox password and API token.
+- Add the Gmail App Password (`deploy/configure-email.sh`).
+- Do the one-time Google Drive sign-in for offsite backups.
+- Run a user-acceptance invitation on a real phone.
+
+WhatsApp Business Platform is optional: invitations and reminders go out by hand from
+the shared study WhatsApp number until it is set up.
 
 **Quality passes.** Four audits have run against this codebase, by hand in a real
 browser as well as by test:
