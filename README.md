@@ -866,6 +866,8 @@ Every document has a table of contents:
 | `Role_Guide_7_Analyst` | Data Analyst |
 | `Role_Guide_8_Supervisor` | Supervisor (read-only) |
 | `Respondent_Guide` | Survey respondents |
+| `RA_Training_Programme_and_Facilitator_Guide` | PI and Field Coordinator running the three-day RA training (schedule, session plans, role-plays, assessment with answer key, register) |
+| `RA_Training_Manual` | Research Assistants in training and in the field (study, ethics, data protection, role modules, scripts, scenarios, exercises, checklists, confidentiality declaration) |
 
 Each exists as `.docx` (editable) and `.pdf`. The content lives in
 `docs/tools/manuals/*.js` (`tasks.js` holds the step-by-step procedures shared by the

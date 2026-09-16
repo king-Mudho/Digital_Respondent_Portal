@@ -3,6 +3,7 @@
 # Run after build_manuals.js:  powershell -ExecutionPolicy Bypass -File finalise_manuals.ps1
 # A PDF that is open in a viewer can't be overwritten: that document is
 # reported and skipped, and the rest still finish. Close it and run again.
+param([string]$Only = "")
 $ErrorActionPreference = "Stop"
 $dir = Resolve-Path (Join-Path $PSScriptRoot "..\manuals")
 $word = New-Object -ComObject Word.Application
@@ -10,7 +11,7 @@ $word.Visible = $false
 $word.DisplayAlerts = 0
 $failed = @()
 try {
-    foreach ($file in Get-ChildItem -Path $dir -Filter *.docx | Where-Object { $_.Name -notlike "~$*" }) {
+    foreach ($file in Get-ChildItem -Path $dir -Filter *.docx | Where-Object { $_.Name -notlike "~$*" -and $_.Name -like "$Only*" }) {
         $pdf = [System.IO.Path]::ChangeExtension($file.FullName, ".pdf")
         try {
             if (Test-Path $pdf) {
@@ -21,8 +22,8 @@ try {
             $failed += $file.Name
             continue
         }
-        $doc = $word.Documents.Open($file.FullName, $false, $false, $false)
         try {
+            $doc = $word.Documents.Open($file.FullName, $false, $false, $false)
             foreach ($toc in $doc.TablesOfContents) { $toc.Update() }
             $doc.Fields.Update() | Out-Null
             $doc.Repaginate()
@@ -37,7 +38,7 @@ try {
             $failed += $file.Name
         }
         finally {
-            $doc.Close($false)
+            if ($doc) { $doc.Close($false); $doc = $null }
         }
     }
 }
