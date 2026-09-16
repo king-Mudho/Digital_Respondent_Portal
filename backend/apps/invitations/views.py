@@ -28,6 +28,20 @@ def _require_assigned(user, sample_case):
         raise PermissionDenied("This case is not assigned to you.")
 
 
+def _whatsapp_recipient(sample_case) -> dict:
+    """Who "Send via WhatsApp" should open: the case's respondent (eligible
+    first, as on Follow-ups), in wa.me digits. Empty when no number is on
+    file, and WhatsApp then asks the RA to pick the chat."""
+    from apps.messaging.services import whatsapp_digits
+
+    people = sorted(sample_case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
+    for person in people:
+        digits = whatsapp_digits(person.whatsapp_number or person.phone)
+        if digits:
+            return {"whatsapp_to": digits, "whatsapp_to_name": person.full_name}
+    return {"whatsapp_to": "", "whatsapp_to_name": ""}
+
+
 class InvitationValidateView(APIView):
     """GET /api/v1/invitations/validate/?t=<token> (or ?code=<manual_code>)
     -- public. Deliberately omits Sample_ID, stratum, Main/Reserve status,
@@ -117,6 +131,7 @@ class InvitationIssueView(APIView):
             "raw_token": raw_token,
             "raw_manual_code": raw_code,
             "expires_at": token.expires_at,
+            **_whatsapp_recipient(sample_case),
         }, status=201)
 
 

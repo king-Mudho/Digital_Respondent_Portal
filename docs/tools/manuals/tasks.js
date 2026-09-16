@@ -83,7 +83,7 @@ T.invite = [
   ["steps", [
     "Open the case. Check the status is **S03** and a respondent with a number is recorded.",
     { text: "In **Invitations**, leave **Channel** as **WHATSAPP** (or choose EMAIL, SMS, PRINTED_CODE or QR to record how it was delivered) and **Wave** as **1**. Select **Send invitation**.", img: "cra_case_invitations_before.jpg", caption: "Invitations panel before sending, with the history of earlier invitations." },
-    { text: "The personal link and 8-character manual code appear **once**. Select **Send via WhatsApp** to open WhatsApp with the approved message and link already written, choose the respondent's chat and send. Or select **Copy message** and paste it into SMS or email.", img: "cra_case_invitation_sent.jpg", caption: "The link, manual code and expiry date are shown once, with ready-to-send buttons." },
+    { text: "The personal link and 8-character manual code appear **once**. Select **Send via WhatsApp**. WhatsApp opens **that respondent's chat** (their WhatsApp number, or their phone number if none) with the approved message, personal link and study contact details already written: check you are on the study WhatsApp number, then press Send. If the case has no number on file, the panel says so and WhatsApp asks you to choose the chat. Or select **Copy message** and paste it into SMS or email.", img: "cra_case_invitation_sent.jpg", caption: "The link, manual code and expiry date are shown once, with ready-to-send buttons." },
     "The case moves to **S05 Invitation sent** automatically. Log the attempt in **Contact timeline** (see Logging a contact attempt).",
   ]],
   ["warn", "The link is shown only once", [

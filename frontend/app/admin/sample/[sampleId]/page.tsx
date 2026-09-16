@@ -100,7 +100,12 @@ function invitationMessage({ link, manualCode, expiresAt }: { link: string; manu
     "Hello. You are invited to take part in the ABF-FST research study at Chinhoyi University of " +
     "Technology on agribusiness financing in Zimbabwe. Taking part is voluntary.\n\n" +
     `Your personal link: ${link}\n(valid until ${new Date(expiresAt).toLocaleDateString("en-GB")})\n\n` +
-    `Prefer to answer by phone? Reply to this message and quote code ${manualCode}.`
+    `Prefer to answer by phone? Reply to this message and quote code ${manualCode}.
+
+` +
+    // Added 2026-09-16 (PI): the portal's screens send respondents to "the
+    // details in your invitation message", which had none.
+    "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com"
   );
 }
 
@@ -186,7 +191,13 @@ function InvitationsPanel({
   const queryClient = useQueryClient();
   const [channel, setChannel] = useState("WHATSAPP");
   const [wave, setWave] = useState(1);
-  const [justIssued, setJustIssued] = useState<{ link: string; manualCode: string; expiresAt: string } | null>(null);
+  const [justIssued, setJustIssued] = useState<{
+    link: string;
+    manualCode: string;
+    expiresAt: string;
+    whatsappTo: string;
+    whatsappToName: string;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data: history } = useQuery({
@@ -198,7 +209,13 @@ function InvitationsPanel({
 
   const issue = useMutation({
     mutationFn: () =>
-      adminFetch<{ raw_token: string; raw_manual_code: string; expires_at: string }>("/invitations/", {
+      adminFetch<{
+        raw_token: string;
+        raw_manual_code: string;
+        expires_at: string;
+        whatsapp_to: string;
+        whatsapp_to_name: string;
+      }>("/invitations/", {
         method: "POST",
         body: JSON.stringify({ sample_id: sampleId, channel, invitation_wave: wave }),
       }),
@@ -211,6 +228,8 @@ function InvitationsPanel({
         link: `${window.location.origin}/i/${data.raw_token}`,
         manualCode: data.raw_manual_code,
         expiresAt: data.expires_at,
+        whatsappTo: data.whatsapp_to,
+        whatsappToName: data.whatsapp_to_name,
       });
       invalidate();
     },
@@ -269,7 +288,7 @@ function InvitationsPanel({
               RA picks the respondent's chat. */}
           <div className="flex flex-wrap gap-2 pt-1">
             <a
-              href={`https://wa.me/?text=${encodeURIComponent(invitationMessage(justIssued))}`}
+              href={`https://wa.me/${justIssued.whatsappTo}?text=${encodeURIComponent(invitationMessage(justIssued))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-sm"
@@ -283,6 +302,11 @@ function InvitationsPanel({
               Copy message
             </Button>
           </div>
+          <p className="text-text-muted text-xs">
+            {justIssued.whatsappTo
+              ? `Opens the chat with ${justIssued.whatsappToName} (+${justIssued.whatsappTo}). Send it from the study WhatsApp number.`
+              : "No WhatsApp number on file, so WhatsApp will ask you to choose the chat. Add the number under Respondents and contact details."}
+          </p>
         </div>
       )}
 

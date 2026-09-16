@@ -101,7 +101,7 @@ module.exports = {
       "Each invitation is a random personal link plus an 8-character manual code, valid for **14 days**.",
       "Only a scrambled fingerprint is stored, so the link is shown once to the person issuing it and never again.",
       "Issuing a new invitation for a case immediately stops every earlier link for that case that has not yet been submitted. **Revoke** stops a link without replacing it.",
-      "The invitation screen writes the approved WhatsApp message for you (**Send via WhatsApp** / **Copy message**).",
+      "The invitation screen writes the approved WhatsApp message for you, including the study contact details, and **Send via WhatsApp** opens the respondent's own chat (**Copy message** for SMS or email).",
       "A locked Reserve can never be invited.",
     ]],
 

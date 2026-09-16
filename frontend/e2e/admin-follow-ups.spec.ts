@@ -93,7 +93,17 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   const href = decodeURIComponent((await wa.getAttribute("href")) ?? "");
   expect(href).toMatch(/^https:\/\/wa\.me\/\?text=Hello\. You are invited/);
   expect(href).toMatch(/\/i\/[A-Za-z0-9_-]{20,}/);
-  expect(href).toMatch(/quote code \S+\.$/);
+  expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research\.cut@gmail\.com$/);
+  await expect(page.getByText("No WhatsApp number on file")).toBeVisible();
+
+  // With a number on file, the button opens that respondent's chat directly.
+  await request.post(`${backend}/api/v1/contacts/${sampleId}/respondents/`, {
+    headers: auth, data: { full_name: "Chat Tester", whatsapp_number: "0771234567", is_eligible: true },
+  });
+  await page.reload();
+  await page.getByRole("button", { name: /^Send (new )?invitation/ }).click();
+  await expect(page.getByRole("link", { name: "Send via WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/263771234567\?text=Hello/);
+  await expect(page.getByText("Opens the chat with Chat Tester (+263771234567)")).toBeVisible();
 });
 
 test("the coordinator's bulk verification control asks before moving anything", async ({ page, request }) => {

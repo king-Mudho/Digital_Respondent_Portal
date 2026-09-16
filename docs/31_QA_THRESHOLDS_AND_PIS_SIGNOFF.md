@@ -188,6 +188,7 @@ null), and bump `PARTICIPANT_INFORMATION_SHEET_VERSION` if the wording changed.
 |---|---|---|---|---|---|
 | Part A — QA thresholds | Happyson Saina | Principal Researcher | Approved as configured | 2026-09-15 | Written instruction in the build session; audit `qa.thresholds_approved` |
 | Part A — invitation and reminder wording | Happyson Saina | Principal Researcher | Approved as live | 2026-09-15 | Audit `messaging.wording_approved` |
+| Part A — invitation wording, amendment | Happyson Saina | Principal Researcher | Approved: add the closing line "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com" so the invitation carries the contact details the PIS refers to | 2026-09-16 | Written instruction in the build session |
 | Part A — QA thresholds | | Supervisor | | | |
 | Part B — PIS wording (v1.3) | Happyson Saina | Principal Researcher | Approved; stated to be covered by his CUT student research clearance (ethics and POTRAZ) | 2026-09-15 | Written statement in the build session |
 | Part B — PIS wording | | Supervisor | | | |

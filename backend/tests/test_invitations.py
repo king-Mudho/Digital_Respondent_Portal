@@ -165,6 +165,20 @@ def test_issue_endpoint_returns_raw_token_once(admin_client, main_case):
     assert resp.data["raw_manual_code"]
 
 
+def test_issue_response_names_the_whatsapp_chat_to_open(admin_client, main_case):
+    from apps.contacts.models import Respondent
+
+    body = {"sample_id": main_case.sample_id, "channel": "WHATSAPP", "invitation_wave": 1}
+    resp = admin_client.post("/api/v1/invitations/", body, format="json")
+    assert (resp.data["whatsapp_to"], resp.data["whatsapp_to_name"]) == ("", "")
+
+    Respondent.objects.create(sample_case=main_case, full_name="Gatekeeper", phone="0712 000 111")
+    Respondent.objects.create(sample_case=main_case, full_name="Jane Doe", is_eligible=True,
+                              whatsapp_number="+263 77 123 4567; 0712 999 888")
+    resp = admin_client.post("/api/v1/invitations/", body, format="json")
+    assert (resp.data["whatsapp_to"], resp.data["whatsapp_to_name"]) == ("263771234567", "Jane Doe")
+
+
 def test_issue_endpoint_rejects_locked_reserve(admin_client, locked_reserve_case):
     resp = admin_client.post(
         "/api/v1/invitations/", {"sample_id": locked_reserve_case.sample_id, "channel": "WHATSAPP"}, format="json",

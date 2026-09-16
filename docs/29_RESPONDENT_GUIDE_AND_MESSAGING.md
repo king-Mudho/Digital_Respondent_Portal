@@ -48,6 +48,13 @@ contact details (Happyson Saina, 0773943709, abffst.research.cut@gmail.com —
 
 ### WhatsApp / SMS
 
+Since 2026-09-14 the portal writes the WhatsApp invitation itself (**Send via WhatsApp** /
+**Copy message** after issuing an invitation), and since 2026-09-16 it opens the
+respondent's own chat and ends with the study contact line approved by the PI:
+*Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.* Send from the
+shared study WhatsApp number, never a personal one, so replies reach the team. The
+longer template below remains for SMS or a manually written message.
+
 ```
 Hello [Contact Name], this is [RA Name] from the Agribusiness Bankability Framework
 research team at Chinhoyi University of Technology. [Organisation Name] has been
