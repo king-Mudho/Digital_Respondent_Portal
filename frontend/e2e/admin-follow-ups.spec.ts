@@ -96,14 +96,26 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research\.cut@gmail\.com$/);
   await expect(page.getByText("No WhatsApp number on file")).toBeVisible();
 
-  // With a number on file, the button opens that respondent's chat directly.
+  // With contact details on file, every channel is addressed and written for them.
   await request.post(`${backend}/api/v1/contacts/${sampleId}/respondents/`, {
-    headers: auth, data: { full_name: "Chat Tester", whatsapp_number: "0771234567", is_eligible: true },
+    headers: auth,
+    data: { full_name: "Chat Tester", phone: "0712 999 888", whatsapp_number: "0771234567", email: "chat.tester@example.org", is_eligible: true },
   });
   await page.reload();
   await page.getByRole("button", { name: /^Send (new )?invitation/ }).click();
   await expect(page.getByRole("link", { name: "Send via WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/263771234567\?text=Hello/);
   await expect(page.getByText("Opens the chat with Chat Tester (+263771234567)")).toBeVisible();
+
+  await page.getByRole("tab", { name: "SMS message" }).click();
+  await expect(page.getByRole("link", { name: "Send by SMS" })).toHaveAttribute("href", /^sms:\+263712999888\?&body=ABF-FST/);
+  await expect(page.getByLabel("Message preview")).toHaveValue(/Your personal link: http\S+\/i\//);
+
+  await page.getByRole("tab", { name: "Email message" }).click();
+  await expect(page.getByLabel("Message preview")).toHaveValue(/^Subject: Invitation to take part[\s\S]*Dear Chat Tester,[\s\S]*0773943709/);
+  await expect(page.getByRole("link", { name: "Open in email app" })).toHaveAttribute("href", /^mailto:chat\.tester@example\.org\?subject=Invitation/);
+  await page.getByRole("button", { name: "Email from study address" }).click();
+  await expect(page.getByText("Invitation emailed to c***@example.org from the study address.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Emailed" })).toBeDisabled();
 });
 
 test("the coordinator's bulk verification control asks before moving anything", async ({ page, request }) => {

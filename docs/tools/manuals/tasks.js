@@ -83,7 +83,15 @@ T.invite = [
   ["steps", [
     "Open the case. Check the status is **S03** and a respondent with a number is recorded.",
     { text: "In **Invitations**, leave **Channel** as **WHATSAPP** (or choose EMAIL, SMS, PRINTED_CODE or QR to record how it was delivered) and **Wave** as **1**. Select **Send invitation**.", img: "cra_case_invitations_before.jpg", caption: "Invitations panel before sending, with the history of earlier invitations." },
-    { text: "The personal link and 8-character manual code appear **once**. Select **Send via WhatsApp**. WhatsApp opens **that respondent's chat** (their WhatsApp number, or their phone number if none) with the approved message, personal link and study contact details already written: check you are on the study WhatsApp number, then press Send. If the case has no number on file, the panel says so and WhatsApp asks you to choose the chat. Or select **Copy message** and paste it into SMS or email.", img: "cra_case_invitation_sent.jpg", caption: "The link, manual code and expiry date are shown once, with ready-to-send buttons." },
+    { text: "The personal link and 8-character manual code appear **once**, with the invitation already written for each channel. Choose **WhatsApp message**, **SMS message** or **Email message** to see exactly what will be sent: the personal link, its expiry date, the manual code and the study contact line.", img: "cra_case_invitation_sent.jpg", caption: "The link, manual code and ready-written messages are shown once, with a send button for each channel." },
+    { text: "Send it on the channel that suits the respondent:", sub: [
+      "**Send via WhatsApp** opens that respondent's chat (their WhatsApp number, or phone number if none) with the message ready. Check you are on the study WhatsApp number, then press Send.",
+      "**Send by SMS** opens the phone's messages app addressed to the respondent, with the shorter SMS message. Use it on a phone.",
+      "**Email from study address** sends the email from abffst.research.cut@gmail.com to the respondent's email on file; replies go to the study inbox. The email is recorded in the audit log.",
+      "**Open in email app** opens the same email in your own mail program, if you need to add something first.",
+      "**Copy message** copies the message shown, for any other channel.",
+    ] },
+    "If a button says no number or email is on file, add it under **Respondents and contact details**, then send a new invitation.",
     "The case moves to **S05 Invitation sent** automatically. Log the attempt in **Contact timeline** (see Logging a contact attempt).",
   ]],
   ["warn", "The link is shown only once", [

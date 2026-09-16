@@ -101,7 +101,7 @@ module.exports = {
       "Each invitation is a random personal link plus an 8-character manual code, valid for **14 days**.",
       "Only a scrambled fingerprint is stored, so the link is shown once to the person issuing it and never again.",
       "Issuing a new invitation for a case immediately stops every earlier link for that case that has not yet been submitted. **Revoke** stops a link without replacing it.",
-      "The invitation screen writes the approved WhatsApp message for you, including the study contact details, and **Send via WhatsApp** opens the respondent's own chat (**Copy message** for SMS or email).",
+      "The invitation screen writes the invitation for WhatsApp, SMS and email, each with the link, expiry, manual code and study contact details. **Send via WhatsApp** and **Send by SMS** open the respondent's own chat or messages app, **Email from study address** emails it from abffst.research.cut@gmail.com, and **Copy message** covers any other channel.",
       "A locked Reserve can never be invited.",
     ]],
 
@@ -217,7 +217,7 @@ module.exports = {
       ["Matched Reserve case", "The Reserve that would replace it."],
       ["Pre-Interview Profile (PROIT)", "Background facts with sources; lock for use with the respondent."],
       ["Respondents and contact details", "People at the organisation, their role, eligibility and contact details."],
-      ["Invitations", "Issue, send (WhatsApp/copy), reissue and revoke links; invitation history."],
+      ["Invitations", "Issue links and send them with a ready-written message by WhatsApp, SMS or email (from the study address or your own mail app); reissue and revoke; invitation history."],
       ["Completed questionnaire", "The KoboToolbox submission(s) for this case, with Download PDF."],
       ["Record a withdrawal", "One action for a participant who withdraws (PI/FC)."],
       ["Advance workflow status", "Allowed manual status changes."],

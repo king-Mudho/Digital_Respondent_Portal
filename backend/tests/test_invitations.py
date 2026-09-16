@@ -241,3 +241,65 @@ def test_a_new_invitation_expires_a_link_the_respondent_had_already_started(main
     assert token.status == TokenStatus.EXPIRED
     with pytest.raises(TokenValidationError):
         validate_token(raw)
+
+
+def _issue(client, main_case, **extra):
+    return client.post("/api/v1/invitations/", {"sample_id": main_case.sample_id, "channel": "EMAIL", **extra}, format="json")
+
+
+def test_every_channel_gets_a_ready_message_with_the_link_code_and_contact_line(admin_client, main_case, settings):
+    from apps.contacts.models import Respondent
+
+    Respondent.objects.create(sample_case=main_case, full_name="Jane Doe", is_eligible=True,
+                              phone="0712 999 888", whatsapp_number="0771234567", email="jane@example.org")
+    data = _issue(admin_client, main_case, link_base="https://evil.example.com").data
+    assert data["link"].startswith("https://research.agribizframework.com/i/")  # never a foreign site
+    assert (data["whatsapp_to"], data["sms_to"], data["email_to"]) == ("263771234567", "263712999888", "jane@example.org")
+    msgs = data["messages"]
+    for key in ("whatsapp", "sms", "email_body"):
+        assert data["link"] in msgs[key] and data["raw_manual_code"] in msgs[key], key
+    assert "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com" in msgs["whatsapp"]
+    assert msgs["email_body"].startswith("Dear Jane Doe,") and main_case.organisation.name in msgs["email_body"]
+    assert "0773943709" in msgs["sms"]
+
+    settings.DEBUG = False
+    assert _issue(admin_client, main_case, link_base="http://localhost:3000").data["link"].startswith("https://research.")
+    settings.DEBUG = True  # local development only
+    assert _issue(admin_client, main_case, link_base="http://localhost:3000").data["link"].startswith("http://localhost:3000/i/")
+
+
+def test_an_invitation_is_emailed_from_the_study_address_only_with_its_own_link(admin_client, main_case, settings):
+    from django.core import mail
+
+    from apps.audit.models import AuditEvent
+    from apps.contacts.models import Respondent
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    settings.DEFAULT_FROM_EMAIL = "ABF-FST Research <abffst.research.cut@gmail.com>"
+    data = _issue(admin_client, main_case).data
+    url = f"/api/v1/invitations/{data['token_id']}/send-email/"
+    body = {"link": data["link"], "manual_code": data["raw_manual_code"]}
+
+    assert admin_client.post(url, body, format="json").data["error"]["code"] == "no_email"
+    Respondent.objects.create(sample_case=main_case, full_name="Jane Doe", is_eligible=True, email="jane@example.org")
+    data = _issue(admin_client, main_case).data  # a fresh invitation now that there is an address
+    url = f"/api/v1/invitations/{data['token_id']}/send-email/"
+    body = {"link": data["link"], "manual_code": data["raw_manual_code"]}
+
+    forged = admin_client.post(url, {**body, "link": data["link"][:-3] + "xyz"}, format="json")
+    assert forged.status_code == 400 and forged.data["error"]["code"] == "link_mismatch"
+    wrong_code = admin_client.post(url, {**body, "manual_code": "AAAAAAAA"}, format="json")
+    assert wrong_code.data["error"]["code"] == "link_mismatch"
+    assert mail.outbox == []
+
+    resp = admin_client.post(url, body, format="json")
+    assert resp.status_code == 200 and resp.data["sent_to"] == "j***@example.org"
+    [message] = mail.outbox
+    assert message.to == ["jane@example.org"] and data["link"] in message.body
+    assert message.subject == data["messages"]["email_subject"]
+    event = AuditEvent.objects.get(action="invitation.emailed")
+    assert "jane@example.org" not in str(event.metadata)
+
+    # A superseded invitation can't be emailed any more.
+    _issue(admin_client, main_case)
+    assert admin_client.post(url, body, format="json").data["error"]["code"] == "invitation_not_open"

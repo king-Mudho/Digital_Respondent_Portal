@@ -5,7 +5,9 @@ from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
+from apps.kobo.submission_copies import email_is_configured
 
+from .messages import InvitationSendError, build_messages, email_invitation, portal_base, recipients
 from .models import InvitationToken
 from .serializers import InvitationTokenSerializer
 from .services import (
@@ -26,20 +28,6 @@ def _require_assigned(user, sample_case):
     """Contact RA's "assigned cases" grant (docs/18)."""
     if _is_contact_ra(user) and sample_case.assigned_ra_id != user.id:
         raise PermissionDenied("This case is not assigned to you.")
-
-
-def _whatsapp_recipient(sample_case) -> dict:
-    """Who "Send via WhatsApp" should open: the case's respondent (eligible
-    first, as on Follow-ups), in wa.me digits. Empty when no number is on
-    file, and WhatsApp then asks the RA to pick the chat."""
-    from apps.messaging.services import whatsapp_digits
-
-    people = sorted(sample_case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
-    for person in people:
-        digits = whatsapp_digits(person.whatsapp_number or person.phone)
-        if digits:
-            return {"whatsapp_to": digits, "whatsapp_to_name": person.full_name}
-    return {"whatsapp_to": "", "whatsapp_to_name": ""}
 
 
 class InvitationValidateView(APIView):
@@ -126,13 +114,46 @@ class InvitationIssueView(APIView):
         except TokenNotInvitable as exc:
             return Response({"error": {"code": "not_invitable", "message": str(exc), "field_errors": {}}}, status=403)
 
+        # The invitation ready to send on every channel (messages.py), for the
+        # person on file -- the only moment the raw link exists.
+        link = f"{portal_base(request.data.get('link_base'))}/i/{raw_token}"
+        who = recipients(sample_case)
         return Response({
             "token_id": token.id,
             "raw_token": raw_token,
             "raw_manual_code": raw_code,
             "expires_at": token.expires_at,
-            **_whatsapp_recipient(sample_case),
+            "link": link,
+            **who,
+            "email_configured": email_is_configured(),
+            "messages": build_messages(sample_case=sample_case, link=link, manual_code=raw_code,
+                                       expires_at=token.expires_at,
+                                       to_name=who["email_to_name"] or who["whatsapp_to_name"]),
         }, status=201)
+
+
+class InvitationEmailView(APIView):
+    """POST /api/v1/invitations/{token_id}/send-email/ {link, manual_code} --
+    email a just-issued invitation from the study address to the
+    respondent's email on file."""
+
+    permission_classes = [CanManageContact]
+
+    def post(self, request, token_id):
+        try:
+            token = InvitationToken.objects.select_related("sample_case__organisation").get(pk=token_id)
+        except InvitationToken.DoesNotExist:
+            return Response({"error": {"code": "not_found", "message": "No such invitation.", "field_errors": {}}}, status=404)
+        _require_assigned(request.user, token.sample_case)
+        try:
+            result = email_invitation(token, link=str(request.data.get("link", "")),
+                                      manual_code=str(request.data.get("manual_code", "")), user=request.user)
+        except InvitationSendError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        except Exception as exc:  # SMTP refused, timed out, ...
+            return Response({"error": {"code": "email_failed", "message": f"The email could not be sent ({exc.__class__.__name__}).",
+                                       "field_errors": {}}}, status=502)
+        return Response(result)
 
 
 class InvitationRevokeView(APIView):

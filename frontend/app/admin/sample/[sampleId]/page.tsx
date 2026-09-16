@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
@@ -93,22 +94,6 @@ const INVITATION_CHANNELS = ["WHATSAPP", "EMAIL", "SMS", "PRINTED_CODE", "QR"];
 // (docs/10_INVITATION_AND_CONSENT.md).
 const OPEN_TOKEN_STATUSES = ["GENERATED", "SENT", "OPENED", "ELIGIBILITY_PASSED", "CONSENTED", "SURVEY_STARTED"];
 
-/** Invitation wording sent with the link. Pending PI approval alongside the
- * reminder texts (docs/31) -- change it here, in one place. */
-function invitationMessage({ link, manualCode, expiresAt }: { link: string; manualCode: string; expiresAt: string }) {
-  return (
-    "Hello. You are invited to take part in the ABF-FST research study at Chinhoyi University of " +
-    "Technology on agribusiness financing in Zimbabwe. Taking part is voluntary.\n\n" +
-    `Your personal link: ${link}\n(valid until ${new Date(expiresAt).toLocaleDateString("en-GB")})\n\n` +
-    `Prefer to answer by phone? Reply to this message and quote code ${manualCode}.
-
-` +
-    // Added 2026-09-16 (PI): the portal's screens send respondents to "the
-    // details in your invitation message", which had none.
-    "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com"
-  );
-}
-
 /**
  * A participant withdrew by phone, WhatsApp or in person. The server records
  * the withdrawal, revokes their invitation (which also stops reminders),
@@ -191,13 +176,7 @@ function InvitationsPanel({
   const queryClient = useQueryClient();
   const [channel, setChannel] = useState("WHATSAPP");
   const [wave, setWave] = useState(1);
-  const [justIssued, setJustIssued] = useState<{
-    link: string;
-    manualCode: string;
-    expiresAt: string;
-    whatsappTo: string;
-    whatsappToName: string;
-  } | null>(null);
+  const [justIssued, setJustIssued] = useState<(IssuedInvitation & { channel: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const { data: history } = useQuery({
@@ -209,28 +188,18 @@ function InvitationsPanel({
 
   const issue = useMutation({
     mutationFn: () =>
-      adminFetch<{
-        raw_token: string;
-        raw_manual_code: string;
-        expires_at: string;
-        whatsapp_to: string;
-        whatsapp_to_name: string;
-      }>("/invitations/", {
+      adminFetch<IssuedInvitation>("/invitations/", {
         method: "POST",
-        body: JSON.stringify({ sample_id: sampleId, channel, invitation_wave: wave }),
+        body: JSON.stringify({
+          sample_id: sampleId, channel, invitation_wave: wave, link_base: window.location.origin,
+        }),
       }),
     onSuccess: (data) => {
       setError(null);
       // The only moment this raw token/code is ever visible again -- only
       // its salted hash is persisted server-side from here on
       // (docs/10_INVITATION_AND_CONSENT.md).
-      setJustIssued({
-        link: `${window.location.origin}/i/${data.raw_token}`,
-        manualCode: data.raw_manual_code,
-        expiresAt: data.expires_at,
-        whatsappTo: data.whatsapp_to,
-        whatsappToName: data.whatsapp_to_name,
-      });
+      setJustIssued({ ...data, channel });
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to issue invitation."),
@@ -269,46 +238,7 @@ function InvitationsPanel({
       )}
       {error && <p className="text-danger text-sm">{error}</p>}
 
-      {justIssued && (
-        <div className="rounded-md border border-border bg-bg p-3 space-y-2 text-sm">
-          <p className="font-medium">Invitation link (shown once -- copy it now)</p>
-          <input
-            readOnly
-            value={justIssued.link}
-            onFocus={(e) => e.target.select()}
-            className="w-full rounded-md border border-border px-2 py-1.5 font-mono text-xs bg-surface"
-          />
-          <p className="text-text-muted text-xs">
-            Manual code (for phone-assisted administration):{" "}
-            <span className="font-mono">{justIssued.manualCode}</span> · expires{" "}
-            {new Date(justIssued.expiresAt).toLocaleDateString()}
-          </p>
-          {/* Sending by hand until the WhatsApp Business Platform is
-              connected: wa.me opens WhatsApp with the message ready, and the
-              RA picks the respondent's chat. */}
-          <div className="flex flex-wrap gap-2 pt-1">
-            <a
-              href={`https://wa.me/${justIssued.whatsappTo}?text=${encodeURIComponent(invitationMessage(justIssued))}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-sm"
-            >
-              Send via WhatsApp
-            </a>
-            <Button
-              variant="outline"
-              onClick={() => navigator.clipboard?.writeText(invitationMessage(justIssued))}
-            >
-              Copy message
-            </Button>
-          </div>
-          <p className="text-text-muted text-xs">
-            {justIssued.whatsappTo
-              ? `Opens the chat with ${justIssued.whatsappToName} (+${justIssued.whatsappTo}). Send it from the study WhatsApp number.`
-              : "No WhatsApp number on file, so WhatsApp will ask you to choose the chat. Add the number under Respondents and contact details."}
-          </p>
-        </div>
-      )}
+      {justIssued && <InvitationSendPanel key={justIssued.token_id} invitation={justIssued} preferred={justIssued.channel} />}
 
       {isInvitable && (
         <WriteOnly>

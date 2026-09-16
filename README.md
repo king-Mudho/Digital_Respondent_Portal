@@ -68,7 +68,7 @@ All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **384 tests** passing (`pytest`).
+- Backend: **386 tests** passing (`pytest`).
 - Playwright: **44 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
@@ -292,7 +292,7 @@ figures and lists on mixed screens but not the forms or buttons
 | — | `/admin/reports` | Fieldwork analytics: KPIs, response funnel, workflow, submissions per day, breakdowns by province/actor family/size with invited-vs-submitted share, administration modes with an imbalance alert, completion-time histogram, QA outcomes and flags, contact, KII and document progress. 7/30/90-day or all-time range; every chart has a table view |
 | — | `/admin/organisations` | Register an organisation and create its sample case |
 | A03 | `/admin/sample` | Main-400 / Reserve register, with bulk verification (move every Main case at S00, S01 or S02 one step forward at once, each move audited) |
-| A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, respondents and contact details, matched Reserve, PROIT pre-profile, invitations (with a ready WhatsApp message and copy button), workflow transitions, contact-attempt log, withdrawal, and the completed questionnaire PDF |
+| A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, respondents and contact details, matched Reserve, PROIT pre-profile, invitations (sent with a ready-written message by WhatsApp, SMS or email, including email from the study address), workflow transitions, contact-attempt log, withdrawal, and the completed questionnaire PDF |
 | A05 | `/admin/appointments` | Appointment queue with status transition buttons |
 | — | `/admin/follow-ups` | Reminders due now from the approved reminder schedule, each with a one-tap WhatsApp link and "Mark as sent"; a Contact RA sees only its own cases |
 | — | `/admin/submissions` | Form PDFs: completed KoboToolbox forms for your role's form, download or email |
@@ -520,7 +520,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 384 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 386 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint

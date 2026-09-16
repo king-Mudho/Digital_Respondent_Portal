@@ -48,12 +48,21 @@ contact details (Happyson Saina, 0773943709, abffst.research.cut@gmail.com —
 
 ### WhatsApp / SMS
 
-Since 2026-09-14 the portal writes the WhatsApp invitation itself (**Send via WhatsApp** /
-**Copy message** after issuing an invitation), and since 2026-09-16 it opens the
-respondent's own chat and ends with the study contact line approved by the PI:
-*Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.* Send from the
-shared study WhatsApp number, never a personal one, so replies reach the team. The
-longer template below remains for SMS or a manually written message.
+Since 2026-09-16 the portal writes the invitation for every channel when it is issued
+(`backend/apps/invitations/messages.py`, the single source). Each version carries the
+personal link, its expiry, the manual code and the study contact line approved by the PI:
+*Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.*
+
+| Channel | Button | What it does |
+|---|---|---|
+| WhatsApp | **Send via WhatsApp** | Opens the respondent's own chat |
+| SMS | **Send by SMS** | Opens the phone's messages app, addressed to the respondent |
+| Email | **Email from study address** | Sent by the portal from abffst.research.cut@gmail.com and audited |
+| Email | **Open in email app** | Opens the same email in the RA's own mail program |
+| Any other | **Copy message** | Copies the message shown |
+
+Send WhatsApp messages from the shared study number, never a personal one, so replies
+reach the team. The templates below are for messages written by hand.
 
 ```
 Hello [Contact Name], this is [RA Name] from the Agribusiness Bankability Framework
