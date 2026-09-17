@@ -106,8 +106,14 @@ export default function DocumentDetailPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       invalidate();
     },
-    onError: (err) =>
-      setUploadError(err instanceof ApiError ? err.message : "Could not upload the file."),
+    onError: (err) => {
+      setUploadError(err instanceof ApiError ? err.message : "Could not upload the file.");
+      // Cleared on error too, not just success: a browser only fires the file
+      // input's change event when the selection changes, so leaving a
+      // rejected file "selected" would silently swallow a retry of the same
+      // path (e.g. after shrinking it below the size limit).
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
   });
 
   if (isLoading || !doc) {

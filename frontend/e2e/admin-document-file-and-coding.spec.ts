@@ -54,3 +54,43 @@ test("a document's source file can be uploaded, and the coding link is prefilled
   expect(decodeURIComponent(href!)).toContain(`d[section_a/DOC_ID]=${doc.document_id}`);
   expect(decodeURIComponent(href!)).toContain("d[section_a/org_author]=E2E Test Platform");
 });
+
+test("an unsupported file is refused with a clear message, and the field is ready for another try", async ({
+  page,
+  request,
+}) => {
+  const backend = backendBaseURL();
+  const access = await getAdminAccessToken(request, backend);
+
+  const createResponse = await request.post(`${backend}/api/v1/documents/`, {
+    headers: { Authorization: `Bearer ${access}` },
+    data: { title: "E2E Rejected Upload Source", document_type: "PLATFORM" },
+  });
+  const doc = await createResponse.json();
+
+  await loginAsAdmin(page);
+  await page.goto(`/admin/documents/${doc.id}`);
+
+  const fileInput = page.locator('input[type="file"]');
+  await fileInput.setInputFiles({
+    name: "malware.exe",
+    mimeType: "application/x-msdownload",
+    buffer: Buffer.from("not really an executable"),
+  });
+  await expect(page.getByText(/aren.t accepted/)).toBeVisible();
+  await expect(page.getByText("No file uploaded yet.")).toBeVisible(); // nothing was saved
+
+  // The field must be cleared, not just visually reset: a browser only
+  // fires "change" when the selected file differs from what's already
+  // there, so a stale value would silently swallow a retry of the exact
+  // same path (e.g. after renaming/converting the same file).
+  await expect(fileInput).toHaveValue("");
+
+  // A valid file straight after the rejection still works.
+  await fileInput.setInputFiles({
+    name: "retry.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 retry after rejection"),
+  });
+  await expect(page.getByRole("link", { name: "retry.pdf" })).toBeVisible();
+});
