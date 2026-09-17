@@ -9,7 +9,7 @@
 # backend/.env is backed up first.
 #
 # What it does:
-#   1. Writes the five KOBO_* settings into backend/.env. The API token is
+#   1. Writes the six KOBO_* settings into backend/.env. The API token is
 #      read from a hidden prompt (or $KOBO_API_TOKEN), never stored in this repo.
 #   2. Blanks the same settings in backend/.env.staging, which otherwise
 #      inherits them -- staging must never pull the production form
@@ -32,12 +32,17 @@ KOBO_FORM_URL="https://ee.kobotoolbox.org/x/fSOJejrV"
 # The other two main-study forms, read on demand for PDF copies (not reconciled).
 KOBO_KII_ASSET_UID="an49gwkpkGfYjS6B4NDNqh"
 KOBO_DOCUMENTS_ASSET_UID="a3vpgw6T4FbZGjQqmUgBND"
+# The Document Analysis Tool's public web-form link (PI, 2026-09-17) -- powers
+# the document page's "Code this document" prefilled link (apps/evidence).
+KOBO_DOCUMENTS_FORM_URL="https://ee.kobotoolbox.org/x/nM616hqU"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 [[ -f "$ENV_FILE" ]] || die "$ENV_FILE not found"
 grep -q KOBO_FORM_URL "$BACKEND/config/settings/base.py" \
     || die "the deployed code predates KOBO_FORM_URL -- run deploy.sh with the latest release first"
+grep -q KOBO_DOCUMENTS_FORM_URL "$BACKEND/config/settings/base.py" \
+    || die "the deployed code predates KOBO_DOCUMENTS_FORM_URL -- run deploy.sh with the latest release first"
 
 if [[ -z "${KOBO_API_TOKEN:-}" ]]; then
     read -rsp "KoboToolbox API token: " KOBO_API_TOKEN; echo
@@ -73,10 +78,11 @@ set_kv "$ENV_FILE" KOBO_FORM_URL "$KOBO_FORM_URL"
 set_kv "$ENV_FILE" KOBO_WEBHOOK_SHARED_SECRET "$secret"
 set_kv "$ENV_FILE" KOBO_KII_ASSET_UID "$KOBO_KII_ASSET_UID"
 set_kv "$ENV_FILE" KOBO_DOCUMENTS_ASSET_UID "$KOBO_DOCUMENTS_ASSET_UID"
+set_kv "$ENV_FILE" KOBO_DOCUMENTS_FORM_URL "$KOBO_DOCUMENTS_FORM_URL"
 chown "$APP_USER:$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"
 
 if [[ -f "$STAGING_ENV" ]]; then
-    for key in KOBO_ASSET_UID KOBO_API_TOKEN KOBO_FORM_URL KOBO_WEBHOOK_SHARED_SECRET KOBO_KII_ASSET_UID KOBO_DOCUMENTS_ASSET_UID; do
+    for key in KOBO_ASSET_UID KOBO_API_TOKEN KOBO_FORM_URL KOBO_WEBHOOK_SHARED_SECRET KOBO_KII_ASSET_UID KOBO_DOCUMENTS_ASSET_UID KOBO_DOCUMENTS_FORM_URL; do
         set_kv "$STAGING_ENV" "$key" ""
     done
     chown "$APP_USER:$APP_USER" "$STAGING_ENV"
