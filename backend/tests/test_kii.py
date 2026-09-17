@@ -13,6 +13,7 @@ from apps.kii.models import KIIStatus
 from apps.kii.services import (
     InvalidKIITransition,
     KIIRecordingConsentRequired,
+    build_kii_coding_url,
     create_kii_record,
     mark_completed,
     transition_kii_status,
@@ -121,3 +122,71 @@ def test_serializer_reflects_recorded_consent_decision(qa_client, kii_record):
     resp = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
     assert resp.data["participation_consent_decision"] == ConsentDecision.GIVEN
     assert resp.data["recording_consent_decision"] is None
+
+
+# --- KII Guide: prefilled interview link ------------------------------------
+
+def _consent(kii_record, consent_type):
+    record_consent(
+        kii_record=kii_record, consent_type=consent_type, decision=ConsentDecision.GIVEN,
+        information_sheet_version="v1.0", method=ConsentMethod.VERBAL_RA_RECORDED,
+    )
+
+
+def test_coding_url_none_when_not_configured(kii_record, settings):
+    settings.KOBO_KII_FORM_URL = ""
+    _consent(kii_record, ConsentType.PARTICIPATION)
+    assert build_kii_coding_url(kii_record) is None
+
+
+def test_coding_url_none_before_participation_consent(kii_record, settings):
+    """There is no legitimate reason to hand out a link to run the
+    interview instrument on someone before they have consented to take
+    part -- the gate this test protects."""
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    assert build_kii_coding_url(kii_record) is None
+
+
+def test_coding_url_after_consent(kii_record, settings):
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    _consent(kii_record, ConsentType.PARTICIPATION)
+
+    url = build_kii_coding_url(kii_record)
+
+    assert url.startswith("https://ee.kobotoolbox.org/x/abcd1234?")
+    assert f"d[part_a/KII_ID]={kii_record.kii_id}" in url
+
+
+def test_coding_url_never_carries_participant_identity(kii_record, settings):
+    """A KIIRecord identifies a real person -- unlike a DocumentRecord's
+    title/author, participant_name/role/organisation must never appear in
+    a URL handed to a third-party service or left in browser history."""
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    _consent(kii_record, ConsentType.PARTICIPATION)
+
+    url = build_kii_coding_url(kii_record)
+
+    assert "Moyo" not in url
+    assert "SME" not in url
+    assert "participant_name" not in url
+    assert "participant_role" not in url
+
+
+def test_coding_url_recording_consent_alone_is_not_enough(kii_record, settings):
+    """Recording consent is a separate decision from participation consent
+    (AGENTS.md ground rule 6) -- it must not accidentally satisfy this gate."""
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    _consent(kii_record, ConsentType.KII_RECORDING)
+    assert build_kii_coding_url(kii_record) is None
+
+
+def test_serializer_exposes_coding_state(qa_client, kii_record, settings):
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+
+    not_consented = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
+    assert not_consented.data["kii_form_configured"] is True
+    assert not_consented.data["coding_url"] is None
+
+    _consent(kii_record, ConsentType.PARTICIPATION)
+    consented = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
+    assert consented.data["coding_url"] is not None

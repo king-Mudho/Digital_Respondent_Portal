@@ -237,6 +237,11 @@ KOBO_DOCUMENTS_ASSET_UID = env("KOBO_DOCUMENTS_ASSET_UID", default="")
 # a Documentary RA never retypes the DOC-ID -- and a mistyped one can never
 # make the coding form land on the wrong record.
 KOBO_DOCUMENTS_FORM_URL = env("KOBO_DOCUMENTS_FORM_URL", default="")
+# The Main Study KII Guide's public web link. Used the same way, from
+# apps/kii/services.py build_kii_coding_url() -- gated on participation
+# consent already being GIVEN, since unlike a document this identifies a
+# person (docs/13_KII_MODULE.md).
+KOBO_KII_FORM_URL = env("KOBO_KII_FORM_URL", default="")
 KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
     "KOBO_RECONCILIATION_INTERVAL_MINUTES", default=15
 )

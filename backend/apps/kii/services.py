@@ -6,6 +6,10 @@ DECLINED/NO_SHOW), independent of transcript_status and coding_status,
 which progress after the interview itself is complete.
 """
 
+from urllib.parse import quote
+
+from django.conf import settings
+
 from apps.audit.utils import log_action
 from apps.consent.models import ConsentType
 from apps.consent.services import has_given_consent
@@ -84,3 +88,44 @@ def advance_coding_status(record: KIIRecord, new_status: str) -> KIIRecord:
     record.coding_status = new_status
     record.save(update_fields=["coding_status"])
     return record
+
+
+# --- KoboToolbox KII Guide: prefilled interview link ------------------------
+
+def kii_form_is_configured() -> bool:
+    return bool((settings.KOBO_KII_FORM_URL or "").strip())
+
+
+def build_kii_coding_url(record: KIIRecord) -> str | None:
+    """Prefills the KoboToolbox Main Study KII Guide with this record's
+    KII-ID, so a KII RA doesn't retype it and a typo can't make the
+    completed interview fail to match back up with this record
+    (docs/13_KII_MODULE.md), the same ?d[<data column>]=value mechanism as
+    the other two forms (apps/kobo/services.py, apps/evidence/services.py).
+
+    Deliberately narrower than the document coding link: a KIIRecord
+    identifies a real person, so nothing participant-identifying
+    (participant_name, organisation, role) goes into the URL -- only the
+    system-generated ID and the interviewer's own username, mirroring
+    apps/kobo/services.py build_redirect_url()'s minimal-identifiers
+    pattern for the respondent questionnaire link. And unlike a document,
+    the link is withheld entirely until participation consent is GIVEN --
+    there is no legitimate reason to open the interview instrument on
+    someone before they have consented to take part.
+
+    Returns None when KOBO_KII_FORM_URL isn't set, or when participation
+    consent hasn't been given yet.
+    """
+    if not kii_form_is_configured():
+        return None
+    if not has_given_consent(record, ConsentType.PARTICIPATION):
+        return None
+    form_url = settings.KOBO_KII_FORM_URL.strip().rstrip("/")
+    fields = {"part_a/KII_ID": record.kii_id}
+    if record.interviewer_id and record.interviewer.username:
+        fields["part_a/interviewer_code"] = record.interviewer.username
+    if record.interview_date:
+        fields["part_a/interview_date"] = record.interview_date.isoformat()
+    query = "&".join(f"d[{key}]={quote(str(value), safe='')}" for key, value in fields.items() if value)
+    separator = "&" if "?" in form_url else "?"
+    return f"{form_url}{separator}{query}"

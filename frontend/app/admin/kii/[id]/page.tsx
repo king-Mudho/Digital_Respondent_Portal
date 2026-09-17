@@ -24,6 +24,8 @@ interface KIIRecord {
   coding_status: string;
   participation_consent_decision: string | null;
   recording_consent_decision: string | null;
+  kii_form_configured: boolean;
+  coding_url: string | null;
 }
 
 const STATUS_OPTIONS: Record<string, string[]> = {
@@ -209,6 +211,37 @@ export default function KIIDetailPage() {
               </span>
             </div>
           </div>
+        </Card>
+
+        <Card className="space-y-2 md:col-span-2">
+          <h3 className="font-medium">Coding</h3>
+          {!record.kii_form_configured ? (
+            <p className="text-sm text-text-muted">
+              The KII Guide link hasn&rsquo;t been set up yet (KOBO_KII_FORM_URL). Ask the
+              administrator to configure it.
+            </p>
+          ) : record.coding_url ? (
+            <>
+              <p className="text-sm text-text-muted">
+                Opens the KoboToolbox KII Guide with this record&rsquo;s KII-ID already filled
+                in.
+              </p>
+              <WriteOnly>
+                <a
+                  href={record.coding_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors min-h-11 bg-header text-white hover:opacity-90"
+                >
+                  Continue this interview
+                </a>
+              </WriteOnly>
+            </>
+          ) : (
+            <p className="text-sm text-text-muted">
+              Record participation consent first — the interview link is withheld until then.
+            </p>
+          )}
         </Card>
 
         <Card className="space-y-3">

@@ -53,7 +53,7 @@ PI's decision.
 WhatsApp Business Platform is optional: invitations and reminders go out by hand from
 the shared study WhatsApp number until it is set up.
 
-**Quality passes.** Five passes have run against this codebase, by hand in a real
+**Quality passes.** Six passes have run against this codebase, by hand in a real
 browser as well as by test:
 
 1. **Hardening pass:** every screen and endpoint.
@@ -65,13 +65,15 @@ browser as well as by test:
    performance pass.
 5. **Document analysis on the platform (16 Sep):** a prefilled coding link and source-file
    upload/download for the Documentary Evidence module.
+6. **The KII Guide's own prefilled link (17 Sep):** the same idea, narrower and
+   consent-gated because it identifies a person rather than a document.
 
 All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **397 tests** passing (`pytest`).
-- Playwright: **45 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
+- Backend: **403 tests** passing (`pytest`).
+- Playwright: **46 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
 
@@ -261,6 +263,13 @@ only its own form:
   screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 20 MB) under
   `PRIVATE_DATA_ROOT`, downloadable only by roles with document access; uploading replaces
   any earlier file for that record. Every upload and download is audited.
+- **The KII Guide has the same prefilled launch link, deliberately narrower.** A KII
+  record's page (`/admin/kii/[id]`) has a **Continue this interview** link
+  (`KOBO_KII_FORM_URL`, `apps/kii/services.py build_kii_coding_url`) prefilled with the
+  record's KII-ID. Unlike a document, a KIIRecord identifies a real person: the link never
+  carries `participant_name`/role/organisation, only the system-generated ID and the
+  interviewer's own username, and it is withheld entirely — not just hidden, refused
+  server-side too — until participation consent is GIVEN.
 
 ### 4. QA and the Research Operations Centre (`/admin/*`, screens A01–A12)
 
@@ -309,7 +318,7 @@ figures and lists on mixed screens but not the forms or buttons
 | — | `/admin/submissions` | Form PDFs: completed KoboToolbox forms for your role's form, download or email |
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
 | — | `/admin/qa/exceptions` | QA exceptions raised by the rules: assign, work, then resolve or dismiss with a note |
-| A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow |
+| A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow; **Continue this interview** opens the KoboToolbox KII Guide prefilled with the record's KII-ID, offered only once participation consent is GIVEN |
 | A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]` | Documentary evidence corpus, authenticity assessment gate before a document can be included; upload the source file, open KoboToolbox's Document Analysis Tool prefilled with the record's DOC-ID via **Code this document** |
 | A09 | `/admin/reserve` | Reserve activation (five authorised reasons, mandatory evidence note) |
 | A10 | `/admin/cost` | Fieldwork cost dashboard and entry form |
@@ -507,6 +516,7 @@ celery -A config beat --loglevel=info
 | `KOBO_FORM_URL` | The questionnaire's public web-form link (`https://ee.kobotoolbox.org/x/…`) that respondents are sent to |
 | `KOBO_KII_ASSET_UID`, `KOBO_DOCUMENTS_ASSET_UID` | KII Guide and Document Analysis Tool assets (Form PDFs, PI data exports) |
 | `KOBO_DOCUMENTS_FORM_URL` | Document Analysis Tool's public web-form link — powers the document page's **Code this document** prefilled link |
+| `KOBO_KII_FORM_URL` | Main Study KII Guide's public web-form link — powers the KII page's **Continue this interview** prefilled link, offered only once participation consent is GIVEN |
 | `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/`; also signs the portal token passed to the form |
 | `KOBO_RECONCILIATION_INTERVAL_MINUTES` | Celery Beat pull frequency |
 | `PRIVATE_DATA_ROOT` | Where full Kobo payloads and uploaded document source files are stored; must not be under anything nginx serves |
@@ -533,7 +543,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 397 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 403 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
@@ -676,6 +686,31 @@ works):
 Every item below has a regression test. Where a test already existed but was passing for
 the wrong reason, that is called out — those were the most dangerous cases, because the
 green tick was the reason nobody looked.
+
+### Sixth pass — the KII Guide's own prefilled link (17 Sep 2026)
+
+The PI asked whether the same "code this record" idea applied to Key Informant
+Interviews too. It didn't yet, and building it turned up a real query-count regression
+before it ever reached a test run.
+
+1. **Continue this interview.** The KII record page now builds a KoboToolbox web-form
+   link (`KOBO_KII_FORM_URL`) prefilled with the record's KII-ID
+   (`apps/kii/services.py build_kii_coding_url`) -- but deliberately narrower than the
+   document version: a KIIRecord identifies a real person, so `participant_name`,
+   `participant_role` and organisation never go into the URL, only the system-generated
+   ID and the interviewer's own username. The link is withheld -- not merely hidden,
+   refused server-side too -- until participation consent is GIVEN; there is no
+   legitimate reason to hand out a link to run the interview instrument on someone
+   before they have consented to take part.
+2. **Caught before merging: the KII register's fixed N+1 query bug, reintroduced.**
+   The new `coding_url` field calls the consent check for every row, and
+   `has_given_consent()` always issues a fresh query rather than using the
+   already-`select_related` consent FK -- exactly the one-query-per-row growth
+   `test_kii_register_queries_do_not_grow_with_rows` was written to catch (README
+   "Per-row queries", fourth pass). The serializer now only computes `coding_url` /
+   `kii_form_configured` for a single-record fetch, never inside the list serializer
+   (`isinstance(self.parent, serializers.ListSerializer)`) -- the register itself never
+   pays for a field it doesn't use.
 
 ### Fifth pass — document analysis on the platform (16 Sep 2026)
 
