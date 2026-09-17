@@ -107,6 +107,10 @@ jobs:
       KOBO_DOCUMENTS_FORM_URL: https://ee.kobotoolbox.org/x/ci-placeholder-docs
       KOBO_KII_FORM_URL: https://ee.kobotoolbox.org/x/ci-placeholder-kii
       KOBO_WEBHOOK_SHARED_SECRET: ci-placeholder-secret
+      KOBO_OPENROSA_BASE_URL: https://kc.kobotoolbox.org
+      KOBO_ACCOUNT_USERNAME: ci-placeholder-account
+      # Left unset: AI drafting must show as "not configured" in CI, not attempt a real call.
+      ANTHROPIC_API_KEY: ""
       E2E_PYTHON: python
       # On in production; off, the PROIT verification spec has nothing to test.
       PROIT_ENABLED_FOR_RESPONDENTS: "True"

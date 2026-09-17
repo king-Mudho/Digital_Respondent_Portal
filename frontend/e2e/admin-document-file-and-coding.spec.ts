@@ -37,7 +37,9 @@ test("a document's source file can be uploaded, and the coding link is prefilled
     buffer: Buffer.from("%PDF-1.4 e2e test file"),
   });
   await expect(page.getByRole("link", { name: /source\.pdf/ })).toBeVisible();
-  await expect(page.getByText(/uploaded/)).toBeVisible();
+  // Scoped to the file-info line specifically: the page's Auto-fill blurb
+  // also contains the word "uploaded", which a bare /uploaded/ match hits too.
+  await expect(page.getByText(/source\.pdf.*uploaded/)).toBeVisible();
 
   // The download link goes through the same proxy and returns the file.
   const downloadResponse = await request.get(`${backend}/api/v1/documents/${doc.id}/file/`, {

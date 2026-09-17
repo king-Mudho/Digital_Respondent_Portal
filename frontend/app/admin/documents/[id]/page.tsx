@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -24,6 +25,9 @@ interface DocumentRecord {
   source_file_name: string;
   source_file_size: number | null;
   source_file_uploaded_at: string | null;
+  ai_coding_configured: boolean;
+  ai_draft_generated_at: string | null;
+  kobo_submitted_at: string | null;
 }
 
 function formatFileSize(bytes: number): string {
@@ -241,14 +245,32 @@ export default function DocumentDetailPage() {
                 already filled in.
               </p>
               <WriteOnly>
-                <a
-                  href={doc.coding_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors min-h-11 bg-header text-white hover:opacity-90"
-                >
-                  Code this document
-                </a>
+                <div className="flex flex-wrap items-center gap-3">
+                  <a
+                    href={doc.coding_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors min-h-11 bg-header text-white hover:opacity-90"
+                  >
+                    Code this document
+                  </a>
+                  {doc.ai_coding_configured && (
+                    <Link
+                      href={`/admin/documents/${params.id}/ai-draft`}
+                      className="inline-flex items-center justify-center rounded-md px-4 py-2.5 text-sm font-medium transition-colors min-h-11 border border-border text-text hover:bg-surface"
+                    >
+                      Auto-fill
+                    </Link>
+                  )}
+                </div>
+                {doc.ai_coding_configured && (
+                  <p className="text-xs text-text-muted">
+                    Auto-fill has AI read the uploaded source file and draft the whole form for you to
+                    review, edit and submit yourself &mdash; nothing reaches KoboToolbox until you do.
+                    {doc.kobo_submitted_at &&
+                      ` Already submitted this way on ${new Date(doc.kobo_submitted_at).toLocaleDateString()}.`}
+                  </p>
+                )}
               </WriteOnly>
             </>
           ) : (

@@ -51,9 +51,11 @@ PI's decision.
 - Run a user-acceptance invitation on a real phone.
 
 WhatsApp Business Platform is optional: invitations and reminders go out by hand from
-the shared study WhatsApp number until it is set up.
+the shared study WhatsApp number until it is set up. AI-assisted document coding
+(`deploy/configure-ai-coding.sh`) is also optional and needs the PI's own Anthropic API
+key (a paid, per-request cost) — the Documentary RA workflow works fully by hand without it.
 
-**Quality passes.** Six passes have run against this codebase, by hand in a real
+**Quality passes.** Seven passes have run against this codebase, by hand in a real
 browser as well as by test:
 
 1. **Hardening pass:** every screen and endpoint.
@@ -67,13 +69,16 @@ browser as well as by test:
    upload/download for the Documentary Evidence module.
 6. **The KII Guide's own prefilled link (17 Sep):** the same idea, narrower and
    consent-gated because it identifies a person rather than a document.
+7. **AI-assisted document coding, human-reviewed (17 Sep):** a full draft coding of the
+   Document Analysis Tool from the uploaded source file, reviewed and submitted by a
+   Documentary RA — never generated and filed automatically.
 
 All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **403 tests** passing (`pytest`).
-- Playwright: **46 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
+- Backend: **437 tests** passing (`pytest`).
+- Playwright: **47 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
 
@@ -263,6 +268,24 @@ only its own form:
   screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 20 MB) under
   `PRIVATE_DATA_ROOT`, downloadable only by roles with document access; uploading replaces
   any earlier file for that record. Every upload and download is audited.
+- **AI-assisted coding, always reviewed by a person before it reaches KoboToolbox.**
+  Sections B–L of the Document Analysis Tool are the study's actual documentary-analysis
+  method — evidence-strength ratings, hypothesis-support codes, authenticity calls — so
+  **Auto-fill** (`/admin/documents/[id]/ai-draft`, next to Code this document) never
+  submits anything on its own. It has Claude read the uploaded source file
+  (`apps/evidence/ai_coding.py`, `ANTHROPIC_API_KEY`) and draft an answer for every field,
+  grounded in the document with page/paragraph locators. A Documentary RA reviews the
+  draft in the portal, corrects anything wrong, and only then clicks **Submit to
+  KoboToolbox**, which posts the reviewed answers as a completed record via the OpenRosa
+  submission API (`apps/evidence/kobo_submit.py`). Deterministic fields (DOC-ID, title,
+  author, date, source) are always taken from the document record itself, never from the
+  model. Every draft and submission is audited, so the methodology write-up can state
+  exactly which records were AI-assisted.
+  - **A real platform quirk, found and fixed:** this KoboToolbox deployment's OpenRosa
+    submission endpoint routes a submission by the root XML element's `id` matching the
+    **asset UID**, not the XLSForm's `id_string` the ODK/OpenRosa spec would suggest —
+    confirmed live against the actual project (two test submissions created under a
+    `TEST-DELETE-ME` DOC-ID, verified, then deleted; 0 submissions before and after).
 - **The KII Guide has the same prefilled launch link, deliberately narrower.** A KII
   record's page (`/admin/kii/[id]`) has a **Continue this interview** link
   (`KOBO_KII_FORM_URL`, `apps/kii/services.py build_kii_coding_url`) prefilled with the
@@ -319,7 +342,7 @@ figures and lists on mixed screens but not the forms or buttons
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
 | — | `/admin/qa/exceptions` | QA exceptions raised by the rules: assign, work, then resolve or dismiss with a note |
 | A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow; **Continue this interview** opens the KoboToolbox KII Guide prefilled with the record's KII-ID, offered only once participation consent is GIVEN |
-| A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]` | Documentary evidence corpus, authenticity assessment gate before a document can be included; upload the source file, open KoboToolbox's Document Analysis Tool prefilled with the record's DOC-ID via **Code this document** |
+| A08 | `/admin/documents`, `/admin/documents/new`, `/admin/documents/[id]`, `/admin/documents/[id]/ai-draft` | Documentary evidence corpus, authenticity assessment gate before a document can be included; upload the source file, open KoboToolbox's Document Analysis Tool prefilled with the record's DOC-ID via **Code this document**; or **Auto-fill** to have AI draft the whole form for review before a human submits it |
 | A09 | `/admin/reserve` | Reserve activation (five authorised reasons, mandatory evidence note) |
 | A10 | `/admin/cost` | Fieldwork cost dashboard and entry form |
 | A11 | `/admin/audit` | Full audit log — every sensitive action, correctly attributed to the admin who performed it |
@@ -517,6 +540,8 @@ celery -A config beat --loglevel=info
 | `KOBO_KII_ASSET_UID`, `KOBO_DOCUMENTS_ASSET_UID` | KII Guide and Document Analysis Tool assets (Form PDFs, PI data exports) |
 | `KOBO_DOCUMENTS_FORM_URL` | Document Analysis Tool's public web-form link — powers the document page's **Code this document** prefilled link |
 | `KOBO_KII_FORM_URL` | Main Study KII Guide's public web-form link — powers the KII page's **Continue this interview** prefilled link, offered only once participation consent is GIVEN |
+| `ANTHROPIC_API_KEY`, `AI_DOCUMENT_CODING_MODEL` | AI-assisted document coding drafts (`deploy/configure-ai-coding.sh`); blank key = the **Auto-fill** button doesn't appear. Paid, per-request cost to the PI's own Anthropic account |
+| `KOBO_OPENROSA_BASE_URL`, `KOBO_ACCOUNT_USERNAME` | Where a reviewed AI draft is submitted to KoboToolbox (`deploy/configure-ai-coding.sh`) — a different host and mechanism from the `kf.` API v2 used everywhere else |
 | `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/`; also signs the portal token passed to the form |
 | `KOBO_RECONCILIATION_INTERVAL_MINUTES` | Celery Beat pull frequency |
 | `PRIVATE_DATA_ROOT` | Where full Kobo payloads and uploaded document source files are stored; must not be under anything nginx serves |
@@ -543,7 +568,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 403 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 437 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
@@ -625,6 +650,7 @@ secret, so nothing sensitive needs pasting into chat or a ticket:
 |---|---|
 | `deploy/configure-kobo.sh` | KoboToolbox token, the three asset UIDs, form URL, webhook and its secret |
 | `deploy/configure-email.sh` | Gmail SMTP for abffst.research.cut@gmail.com (needs a Google App Password) |
+| `deploy/configure-ai-coding.sh` | AI-assisted document coding (needs an Anthropic API key with billing set up — a paid, per-request cost to the PI's own account) |
 | `deploy/configure-offsite-backup.sh` | Encrypted offsite backups to Google Drive (rclone crypt, `drive.file` scope); prints the encryption key once, to store in a password manager |
 
 Backups:
@@ -680,10 +706,50 @@ works):
 | An admin's actions show up as "system" in the audit log | Should not happen after this hardening pass (`apps/audit/middleware.py`) — if it recurs, check that `AuditContextMiddleware` is still listed in `MIDDLEWARE` in `config/settings/base.py` | `backend/tests/test_audit.py` |
 | A workflow/appointment/contact-event admin action 400s | Check whether a serializer field that should be server-resolved (from the URL, or from the state machine) was accidentally made writable again | `backend/tests/test_sample_case_api_integrity.py`, `test_appointment_status.py`, `test_contact_event_api.py` |
 | `npm ci` fails with `EACCES: mkdir '/home/agribiz-drp'` | The `agribiz-drp` system user has no writable `$HOME` for npm's cache | `deploy/setup-server.sh` creates this directory explicitly; re-run it, or `mkdir -p /home/agribiz-drp && chown agribiz-drp:agribiz-drp /home/agribiz-drp` |
+| "Submit to KoboToolbox" returns `kobo_submission_rejected` (HTTP 404) | The submission's root XML element `id` doesn't match the asset UID -- this deployment routes by asset UID, not the XLSForm's `id_string` | `apps/evidence/kobo_submit.py`; should not recur, `test_root_element_id_is_the_asset_uid_not_the_form_id_string` pins it |
+| "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
 
-Every item below has a regression test. Where a test already existed but was passing for
+### Seventh pass — AI-assisted document coding, human-reviewed (17 Sep 2026)
+
+The PI asked to have AI read an uploaded document, fill the Document Analysis Tool and
+submit it, with a second button next to Code this document to choose that option. Built,
+with one boundary held regardless of the request: Sections B–L of this form ARE the
+study's documentary-analysis method (evidence-strength ratings, hypothesis-support
+codes), so nothing generates and files them as a completed research record without a
+person checking it first — see `apps/evidence/ai_coding.py`'s docstring for the full
+reasoning. Section A's factual metadata (title, author, date, source) is filled from the
+document record itself, not the AI, either way.
+
+1. **Auto-fill** (`/admin/documents/[id]/ai-draft`) has Claude read the uploaded source
+   file and draft a full answer set (`apps/evidence/ai_coding.py`), grounded with
+   page/paragraph locators. A Documentary RA reviews every field in the portal, edits
+   what needs it, then clicks **Submit to KoboToolbox**, which posts the reviewed
+   answers via KoboToolbox's OpenRosa submission API (`apps/evidence/kobo_submit.py`) —
+   the one place in this feature that writes to Kobo, and only on that explicit click.
+2. **A real platform quirk, found through live testing before this shipped.** The
+   documented OpenRosa submission pattern (`POST {kc-host}/{username}/submission` with a
+   root XML element named for the XLSForm's `id_string`) 404s against this deployment.
+   Redeploying the asset didn't fix it. The actual requirement, found by testing
+   variations against the live project: the root element's `id` must be the **asset
+   UID**, not the form's `id_string` — this deployment's OpenRosa backend routes by
+   asset UID. Verified with two real test submissions under DOC-ID `TEST-DELETE-ME-0001`
+   (confirmed via the data API, then deleted; 0 submissions before and after), then
+   pinned in `test_root_element_id_is_the_asset_uid_not_the_form_id_string`.
+3. **A second bug, caught in manual UI testing before anyone else saw it:** a document
+   that has never had a draft generated has `ai_draft = {}` (the model default) — but an
+   empty *object* is truthy in JavaScript, so the review screen showed a brand-new
+   document as if it already had a complete AI draft. `DocumentRecordSerializer` now
+   serializes an empty draft as `null`.
+4. `document_tool_schema.json` (110 fields, checked in) is generated from the deployed
+   XLSForm by `manage.py build_document_tool_schema`, then cross-checked against the
+   live asset's own parsed field list (`$xpath`) with zero mismatches — the same schema
+   drives the AI prompt, the Claude tool-use JSON schema (so a model can't return a
+   choice code that doesn't exist on the live form) and the submission XML builder, so
+   the three can't quietly drift apart.
+
+### Sixth pass — the KII Guide's own prefilled link (17 Sep 2026)
 the wrong reason, that is called out — those were the most dangerous cases, because the
 green tick was the reason nobody looked.
 

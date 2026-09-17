@@ -5,6 +5,7 @@ recorded; a DISPUTED document is retained, never deleted.
 """
 
 import os
+from unittest.mock import patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -197,3 +198,153 @@ def test_file_endpoint_requires_a_file(documentary_ra_client, document):
     resp = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/file/", {}, format="multipart")
     assert resp.status_code == 400
     assert resp.data["error"]["code"] == "no_file"
+
+
+# --- AI-assisted coding draft ------------------------------------------------
+
+@pytest.fixture
+def supervisor_client(db):
+    role, _ = Role.objects.get_or_create(name=Role.SUPERVISOR_READONLY)
+    user = User.objects.create_user(username="doc_supervisor", password="testpass123", role=role)
+    client = APIClient()
+    client.force_authenticate(user=user)
+    return client
+
+
+@pytest.fixture
+def document_with_file(documentary_ra_client, document, settings, tmp_path):
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    resp = documentary_ra_client.post(
+        f"/api/v1/documents/{document.pk}/file/", {"file": _pdf_file()}, format="multipart",
+    )
+    assert resp.status_code == 200
+    return document
+
+
+def test_ai_draft_schema_view(documentary_ra_client, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.KOBO_ACCOUNT_USERNAME = "mudho"
+    resp = documentary_ra_client.get("/api/v1/documents/ai-draft-schema/")
+    assert resp.status_code == 200
+    assert resp.data["schema"]["form_id"] == "abf_fst_main_study_doc_analysis_v2"
+    assert "section_a/DOC_ID" in resp.data["deterministic_fields"]
+    assert resp.data["ai_configured"] is True
+    assert resp.data["kobo_submit_configured"] is True
+
+
+def test_new_document_serializes_ai_draft_as_null_not_empty_object(documentary_ra_client, document):
+    """The model default is {} (an empty dict), but an empty *object*
+    is truthy in JavaScript -- the frontend's "has a draft ever been
+    generated?" check needs a real falsy value, or a brand new document
+    renders as if it already had a completed AI draft."""
+    resp = documentary_ra_client.get(f"/api/v1/documents/{document.pk}/")
+    assert resp.data["ai_draft"] is None
+
+
+def test_ai_draft_generate_requires_a_source_file(documentary_ra_client, document, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/")
+    assert resp.status_code == 404
+    assert resp.data["error"]["code"] == "not_found"
+
+
+def test_ai_draft_generate_requires_ai_configured(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = ""
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.status_code == 503
+    assert resp.data["error"]["code"] == "ai_not_configured"
+
+
+def test_ai_draft_generate_success_saves_draft_and_audits(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    fake_draft = {
+        "section_a/DOC_ID": document_with_file.document_id,
+        "section_b/RELEVANCE": "high",
+        "_generated_by_model": "claude-opus-5",
+        "_generated_at": "2026-09-17T12:00:00",
+    }
+    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.status_code == 200
+    assert resp.data["ai_draft"]["section_b/RELEVANCE"] == "high"
+    assert resp.data["ai_draft_model"] == "claude-opus-5"
+    assert resp.data["ai_draft_generated_at"] is not None
+
+    from apps.audit.models import AuditEvent
+
+    assert AuditEvent.objects.filter(action="document.ai_draft_generated").exists()
+
+
+def test_ai_draft_put_saves_edits(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    fake_draft = {"section_a/DOC_ID": document_with_file.document_id, "section_b/RELEVANCE": "low"}
+    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+        documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+
+    resp = documentary_ra_client.put(
+        f"/api/v1/documents/{document_with_file.pk}/ai-draft/",
+        {"answers": {"section_b/RELEVANCE": "high"}},
+        format="json",
+    )
+    assert resp.status_code == 200
+    assert resp.data["ai_draft"]["section_b/RELEVANCE"] == "high"
+    assert resp.data["ai_draft"]["section_a/DOC_ID"] == document_with_file.document_id  # untouched fields kept
+
+
+def test_ai_draft_put_without_a_draft_yet_errors(documentary_ra_client, document):
+    resp = documentary_ra_client.put(
+        f"/api/v1/documents/{document.pk}/ai-draft/", {"answers": {"x": "y"}}, format="json",
+    )
+    assert resp.status_code == 400
+    assert resp.data["error"]["code"] == "no_draft"
+
+
+def test_ai_submit_requires_a_draft(documentary_ra_client, document):
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
+    assert resp.status_code == 400
+    assert resp.data["error"]["code"] == "no_draft"
+
+
+def test_ai_submit_success_records_submission_state(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    fake_draft = {"section_a/DOC_ID": document_with_file.document_id}
+    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+        documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+
+    with patch("apps.evidence.views.submit_to_kobo", return_value={"instance_uuid": "abc-123", "status_code": 201}):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/submit/")
+    assert resp.status_code == 200
+    assert resp.data["kobo_submission_uuid"] == "abc-123"
+    assert resp.data["kobo_submitted_at"] is not None
+
+
+def test_ai_submit_failure_returns_error_and_does_not_mark_submitted(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    fake_draft = {"section_a/DOC_ID": document_with_file.document_id}
+    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+        documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+
+    from apps.evidence.kobo_submit import KoboSubmitError
+
+    with patch("apps.evidence.views.submit_to_kobo", side_effect=KoboSubmitError("kobo_submission_rejected", "nope", 502)):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/submit/")
+    assert resp.status_code == 502
+    assert resp.data["error"]["code"] == "kobo_submission_rejected"
+
+    document_with_file.refresh_from_db()
+    assert document_with_file.kobo_submission_uuid == ""
+    assert document_with_file.kobo_submitted_at is None
+
+
+def test_supervisor_read_only_cannot_generate_or_submit_draft(supervisor_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    generate_resp = supervisor_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert generate_resp.status_code == 403
+
+    submit_resp = supervisor_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/submit/")
+    assert submit_resp.status_code == 403
+
+
+def test_supervisor_read_only_can_still_read_schema(supervisor_client):
+    resp = supervisor_client.get("/api/v1/documents/ai-draft-schema/")
+    assert resp.status_code == 200

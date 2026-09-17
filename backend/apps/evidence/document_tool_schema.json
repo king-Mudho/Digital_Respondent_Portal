@@ -1,0 +1,1728 @@
+{
+  "form_id": "abf_fst_main_study_doc_analysis_v2",
+  "form_title": "ABF-FST Document, Digital Platform & Media Analysis Tool",
+  "version": "20260914_r2",
+  "groups": [
+    "section_a",
+    "section_b",
+    "section_c",
+    "section_d",
+    "section_e",
+    "section_f",
+    "section_g",
+    "section_h",
+    "section_i",
+    "section_j",
+    "section_k",
+    "section_l"
+  ],
+  "fields": [
+    {
+      "name": "DOC_ID",
+      "path": "section_a/DOC_ID",
+      "label": "DOC-ID",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "org_author",
+      "path": "section_a/org_author",
+      "label": "Organisation / author",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "title_evidence_unit",
+      "path": "section_a/title_evidence_unit",
+      "label": "Title / evidence unit",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "SOURCE_CLASS",
+      "path": "section_a/SOURCE_CLASS",
+      "label": "Source class",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "policy_legislation",
+          "label": "Policy/legislation"
+        },
+        {
+          "code": "annual_financial_report",
+          "label": "Annual/financial report"
+        },
+        {
+          "code": "programme_project",
+          "label": "Programme/project"
+        },
+        {
+          "code": "financing_product_guideline",
+          "label": "Financing product/guideline"
+        },
+        {
+          "code": "research_publication",
+          "label": "Research/publication"
+        },
+        {
+          "code": "website",
+          "label": "Website"
+        },
+        {
+          "code": "app_platform_dashboard",
+          "label": "App/platform/dashboard"
+        },
+        {
+          "code": "video_speech_webinar_podcast",
+          "label": "Video/speech/webinar/podcast"
+        },
+        {
+          "code": "social_media",
+          "label": "Social media"
+        },
+        {
+          "code": "whatsapp_platform_data",
+          "label": "WhatsApp/platform data"
+        },
+        {
+          "code": "dataset_database",
+          "label": "Dataset/database"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "SOURCE_CLASS_OTHER",
+      "path": "section_a/SOURCE_CLASS_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "pub_event_date",
+      "path": "section_a/pub_event_date",
+      "label": "Publication/event date",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "access_capture_date",
+      "path": "section_a/access_capture_date",
+      "label": "Access/capture date",
+      "type": "date",
+      "in_repeat": false
+    },
+    {
+      "name": "url_file_platform",
+      "path": "section_a/url_file_platform",
+      "label": "URL / file / platform",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "universal_locator",
+      "path": "section_a/universal_locator",
+      "label": "Universal locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "ACCESS_STATUS",
+      "path": "section_a/ACCESS_STATUS",
+      "label": "Access status",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "public",
+          "label": "Public"
+        },
+        {
+          "code": "restricted_authorised",
+          "label": "Restricted/authorised"
+        },
+        {
+          "code": "dynamic",
+          "label": "Dynamic"
+        },
+        {
+          "code": "personalised",
+          "label": "Personalised"
+        },
+        {
+          "code": "user_generated",
+          "label": "User-generated"
+        }
+      ]
+    },
+    {
+      "name": "CAPTURE_METHOD",
+      "path": "section_a/CAPTURE_METHOD",
+      "label": "Capture method",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "original_file",
+          "label": "Original file"
+        },
+        {
+          "code": "download",
+          "label": "Download"
+        },
+        {
+          "code": "screenshot",
+          "label": "Screenshot"
+        },
+        {
+          "code": "transcript",
+          "label": "Transcript"
+        },
+        {
+          "code": "field_note",
+          "label": "Field note"
+        },
+        {
+          "code": "export",
+          "label": "Export"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "CAPTURE_METHOD_OTHER",
+      "path": "section_a/CAPTURE_METHOD_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "authenticity_note",
+      "path": "section_a/authenticity_note",
+      "label": "Authenticity/provenance note",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "transcription_note",
+      "path": "section_a/transcription_note",
+      "label": "Transcription note",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "RELEVANCE",
+      "path": "section_b/RELEVANCE",
+      "label": "Direct relevance to ABF-FST/ABI",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "high",
+          "label": "High"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "low",
+          "label": "Low"
+        },
+        {
+          "code": "exclude",
+          "label": "Exclude"
+        }
+      ]
+    },
+    {
+      "name": "SOURCE_AUTHORITY",
+      "path": "section_b/SOURCE_AUTHORITY",
+      "label": "Source authority",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "primary_official",
+          "label": "Primary/official"
+        },
+        {
+          "code": "credible_secondary",
+          "label": "Credible secondary"
+        },
+        {
+          "code": "user_generated_experiential",
+          "label": "User-generated/experiential"
+        },
+        {
+          "code": "unclear",
+          "label": "Unclear"
+        }
+      ]
+    },
+    {
+      "name": "EVIDENCE_TYPE",
+      "path": "section_b/EVIDENCE_TYPE",
+      "label": "Evidence type",
+      "type": "select_multiple",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "policy_normative",
+          "label": "Policy/normative"
+        },
+        {
+          "code": "financial_transactional",
+          "label": "Financial/transactional"
+        },
+        {
+          "code": "operational",
+          "label": "Operational"
+        },
+        {
+          "code": "evaluation_outcome",
+          "label": "Evaluation/outcome"
+        },
+        {
+          "code": "opinion_position",
+          "label": "Opinion/position"
+        },
+        {
+          "code": "statistical",
+          "label": "Statistical"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "independence_conflict_note",
+      "path": "section_b/independence_conflict_note",
+      "label": "Independence/conflict note",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "OVERALL_STRENGTH",
+      "path": "section_b/OVERALL_STRENGTH",
+      "label": "Overall evidence strength for this record",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "context_only",
+          "label": "Context only"
+        }
+      ]
+    },
+    {
+      "name": "reason_for_rating",
+      "path": "section_b/reason_for_rating",
+      "label": "Reason for rating",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "NFM_MODELS",
+      "path": "section_c/NFM_MODELS",
+      "label": "Financing models evidenced",
+      "type": "select_multiple",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "contract_offtake",
+          "label": "Contract/offtake"
+        },
+        {
+          "code": "value_chain",
+          "label": "Value-chain"
+        },
+        {
+          "code": "guarantee_risk_sharing",
+          "label": "Guarantee/risk sharing"
+        },
+        {
+          "code": "blended_concessional",
+          "label": "Blended/concessional"
+        },
+        {
+          "code": "warehouse_receipt",
+          "label": "Warehouse receipt"
+        },
+        {
+          "code": "invoice_receivables",
+          "label": "Invoice/receivables"
+        },
+        {
+          "code": "leasing_asset",
+          "label": "Leasing/asset finance"
+        },
+        {
+          "code": "digital_platform",
+          "label": "Digital/platform"
+        },
+        {
+          "code": "insurance_linked",
+          "label": "Insurance-linked"
+        },
+        {
+          "code": "equity_investor",
+          "label": "Equity/investor"
+        },
+        {
+          "code": "capital_market",
+          "label": "Capital market"
+        },
+        {
+          "code": "performance_transaction_based",
+          "label": "Performance/transaction-based"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "NFM_MODELS_OTHER",
+      "path": "section_c/NFM_MODELS_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "nfm_evidence_summary",
+      "path": "section_c/nfm_evidence_summary",
+      "label": "Exact evidence summary + locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D1_STRENGTH",
+      "path": "section_d/D1_STRENGTH",
+      "label": "D1 Governance & Risk Management — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D1_SUMMARY",
+      "path": "section_d/D1_SUMMARY",
+      "label": "D1 Governance & Risk Management — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D1_LOCATOR",
+      "path": "section_d/D1_LOCATOR",
+      "label": "D1 Governance & Risk Management — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D2_STRENGTH",
+      "path": "section_d/D2_STRENGTH",
+      "label": "D2 Contractual Credibility — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D2_SUMMARY",
+      "path": "section_d/D2_SUMMARY",
+      "label": "D2 Contractual Credibility — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D2_LOCATOR",
+      "path": "section_d/D2_LOCATOR",
+      "label": "D2 Contractual Credibility — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D3_STRENGTH",
+      "path": "section_d/D3_STRENGTH",
+      "label": "D3 Cash-Flow Predictability — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D3_SUMMARY",
+      "path": "section_d/D3_SUMMARY",
+      "label": "D3 Cash-Flow Predictability — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D3_LOCATOR",
+      "path": "section_d/D3_LOCATOR",
+      "label": "D3 Cash-Flow Predictability — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D4_STRENGTH",
+      "path": "section_d/D4_STRENGTH",
+      "label": "D4 Financial Discipline — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D4_SUMMARY",
+      "path": "section_d/D4_SUMMARY",
+      "label": "D4 Financial Discipline — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D4_LOCATOR",
+      "path": "section_d/D4_LOCATOR",
+      "label": "D4 Financial Discipline — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D5_STRENGTH",
+      "path": "section_d/D5_STRENGTH",
+      "label": "D5 Digital Transaction Evidence — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D5_SUMMARY",
+      "path": "section_d/D5_SUMMARY",
+      "label": "D5 Digital Transaction Evidence — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D5_LOCATOR",
+      "path": "section_d/D5_LOCATOR",
+      "label": "D5 Digital Transaction Evidence — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D6_STRENGTH",
+      "path": "section_d/D6_STRENGTH",
+      "label": "D6 Aggregation / Delivery Evidence — Strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "D6_SUMMARY",
+      "path": "section_d/D6_SUMMARY",
+      "label": "D6 Aggregation / Delivery Evidence — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "D6_LOCATOR",
+      "path": "section_d/D6_LOCATOR",
+      "label": "D6 Aggregation / Delivery Evidence — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "DR_OVERALL",
+      "path": "section_e/DR_OVERALL",
+      "label": "Overall digital readiness",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "high",
+          "label": "High"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "low",
+          "label": "Low"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "dr_key_capabilities",
+      "path": "section_e/dr_key_capabilities",
+      "label": "Key capabilities",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "dr_key_constraints",
+      "path": "section_e/dr_key_constraints",
+      "label": "Key constraints",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "dr_evidence_locator",
+      "path": "section_e/dr_evidence_locator",
+      "label": "Evidence of digital finance/technology impact + locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "AGG_OVERALL",
+      "path": "section_f/AGG_OVERALL",
+      "label": "Overall aggregation capability",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None / no usable evidence"
+        }
+      ]
+    },
+    {
+      "name": "AGG_MECHANISMS",
+      "path": "section_f/AGG_MECHANISMS",
+      "label": "Mechanisms improving finance",
+      "type": "select_multiple",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "reduced_transaction_costs",
+          "label": "Reduced transaction costs"
+        },
+        {
+          "code": "pooled_alt_security",
+          "label": "Pooled/alternative security"
+        },
+        {
+          "code": "due_diligence",
+          "label": "Due diligence"
+        },
+        {
+          "code": "bulk_marketing",
+          "label": "Bulk marketing"
+        },
+        {
+          "code": "shared_infrastructure",
+          "label": "Shared infrastructure"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "AGG_MECHANISMS_OTHER",
+      "path": "section_f/AGG_MECHANISMS_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "AGG_CONSTRAINTS",
+      "path": "section_f/AGG_CONSTRAINTS",
+      "label": "Constraining factors",
+      "type": "select_multiple",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "governance_failures",
+          "label": "Governance failures"
+        },
+        {
+          "code": "elite_capture",
+          "label": "Elite capture"
+        },
+        {
+          "code": "free_rider_problems",
+          "label": "Free-rider problems"
+        },
+        {
+          "code": "certification_costs",
+          "label": "Certification costs"
+        },
+        {
+          "code": "exclusion",
+          "label": "Exclusion"
+        },
+        {
+          "code": "coordination_failure",
+          "label": "Coordination failure"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "AGG_CONSTRAINTS_OTHER",
+      "path": "section_f/AGG_CONSTRAINTS_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "agg_evidence_summary_locator",
+      "path": "section_f/agg_evidence_summary_locator",
+      "label": "Evidence summary + locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "IE_OVERALL",
+      "path": "section_g/IE_OVERALL",
+      "label": "Overall environment",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "highly_enabling",
+          "label": "Highly enabling"
+        },
+        {
+          "code": "enabling",
+          "label": "Enabling"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "constraining",
+          "label": "Constraining"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "ie_major_enablers",
+      "path": "section_g/ie_major_enablers",
+      "label": "Major enablers",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "ie_major_barriers",
+      "path": "section_g/ie_major_barriers",
+      "label": "Major barriers",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "ie_coordination_evidence_locator",
+      "path": "section_g/ie_coordination_evidence_locator",
+      "label": "Institutional coordination evidence + locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H1_STRENGTH",
+      "path": "section_h/H1_STRENGTH",
+      "label": "Market responsiveness — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H1_SUMMARY",
+      "path": "section_h/H1_SUMMARY",
+      "label": "Market responsiveness — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H1_LOCATOR",
+      "path": "section_h/H1_LOCATOR",
+      "label": "Market responsiveness — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H2_STRENGTH",
+      "path": "section_h/H2_STRENGTH",
+      "label": "Productivity/operational efficiency — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H2_SUMMARY",
+      "path": "section_h/H2_SUMMARY",
+      "label": "Productivity/operational efficiency — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H2_LOCATOR",
+      "path": "section_h/H2_LOCATOR",
+      "label": "Productivity/operational efficiency — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H3_STRENGTH",
+      "path": "section_h/H3_STRENGTH",
+      "label": "Processing/value addition — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H3_SUMMARY",
+      "path": "section_h/H3_SUMMARY",
+      "label": "Processing/value addition — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H3_LOCATOR",
+      "path": "section_h/H3_LOCATOR",
+      "label": "Processing/value addition — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H4_STRENGTH",
+      "path": "section_h/H4_STRENGTH",
+      "label": "Producer-market coordination/integration — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H4_SUMMARY",
+      "path": "section_h/H4_SUMMARY",
+      "label": "Producer-market coordination/integration — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H4_LOCATOR",
+      "path": "section_h/H4_LOCATOR",
+      "label": "Producer-market coordination/integration — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H5_STRENGTH",
+      "path": "section_h/H5_STRENGTH",
+      "label": "Employment/enterprise/supplier opportunities — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H5_SUMMARY",
+      "path": "section_h/H5_SUMMARY",
+      "label": "Employment/enterprise/supplier opportunities — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H5_LOCATOR",
+      "path": "section_h/H5_LOCATOR",
+      "label": "Employment/enterprise/supplier opportunities — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H6_STRENGTH",
+      "path": "section_h/H6_STRENGTH",
+      "label": "Food availability/access/nutrition outcomes — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H6_SUMMARY",
+      "path": "section_h/H6_SUMMARY",
+      "label": "Food availability/access/nutrition outcomes — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H6_LOCATOR",
+      "path": "section_h/H6_LOCATOR",
+      "label": "Food availability/access/nutrition outcomes — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H7_STRENGTH",
+      "path": "section_h/H7_STRENGTH",
+      "label": "Climate/production/market resilience — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H7_SUMMARY",
+      "path": "section_h/H7_SUMMARY",
+      "label": "Climate/production/market resilience — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H7_LOCATOR",
+      "path": "section_h/H7_LOCATOR",
+      "label": "Climate/production/market resilience — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H8_STRENGTH",
+      "path": "section_h/H8_STRENGTH",
+      "label": "Higher-value domestic/regional/export participation — Evidence strength",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "strong",
+          "label": "Strong"
+        },
+        {
+          "code": "moderate",
+          "label": "Moderate"
+        },
+        {
+          "code": "weak",
+          "label": "Weak"
+        },
+        {
+          "code": "none",
+          "label": "None"
+        }
+      ]
+    },
+    {
+      "name": "H8_SUMMARY",
+      "path": "section_h/H8_SUMMARY",
+      "label": "Higher-value domestic/regional/export participation — Evidence summary",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "H8_LOCATOR",
+      "path": "section_h/H8_LOCATOR",
+      "label": "Higher-value domestic/regional/export participation — Locator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "WOMEN_INCLUSION",
+      "path": "section_i/WOMEN_INCLUSION",
+      "label": "Women",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        },
+        {
+          "code": "adverse_exclusionary",
+          "label": "Adverse or exclusionary evidence"
+        }
+      ]
+    },
+    {
+      "name": "YOUTH_INCLUSION",
+      "path": "section_i/YOUTH_INCLUSION",
+      "label": "Youth",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        },
+        {
+          "code": "adverse_exclusionary",
+          "label": "Adverse or exclusionary evidence"
+        }
+      ]
+    },
+    {
+      "name": "SMALLHOLDER_INCLUSION",
+      "path": "section_i/SMALLHOLDER_INCLUSION",
+      "label": "Smallholder inclusion",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        },
+        {
+          "code": "adverse_exclusionary",
+          "label": "Adverse or exclusionary evidence"
+        }
+      ]
+    },
+    {
+      "name": "CLIMATE_SMART",
+      "path": "section_i/CLIMATE_SMART",
+      "label": "Climate-smart/resilience practices",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        }
+      ]
+    },
+    {
+      "name": "ESG_SUSTAINABILITY",
+      "path": "section_i/ESG_SUSTAINABILITY",
+      "label": "ESG/sustainability",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        }
+      ]
+    },
+    {
+      "name": "FINANCIAL_INCLUSION",
+      "path": "section_i/FINANCIAL_INCLUSION",
+      "label": "Financial inclusion",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        }
+      ]
+    },
+    {
+      "name": "TECH_INCLUSION",
+      "path": "section_i/TECH_INCLUSION",
+      "label": "Technology inclusion/digital exclusion",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "evidence",
+          "label": "Evidence"
+        },
+        {
+          "code": "no_evidence",
+          "label": "No evidence"
+        }
+      ]
+    },
+    {
+      "name": "METRIC_NAME",
+      "path": "section_j/metric_repeat/METRIC_NAME",
+      "label": "Metric",
+      "type": "select_one",
+      "in_repeat": true,
+      "choices": [
+        {
+          "code": "agri_lending_amount_share",
+          "label": "Agriculture lending amount/share"
+        },
+        {
+          "code": "loan_approval_rate",
+          "label": "Loan approval rate"
+        },
+        {
+          "code": "loan_rejection_rate",
+          "label": "Loan rejection rate"
+        },
+        {
+          "code": "npl_defaults",
+          "label": "Non-performing loans/defaults"
+        },
+        {
+          "code": "collateral_security_requirement",
+          "label": "Collateral/security requirement"
+        },
+        {
+          "code": "interest_finance_cost",
+          "label": "Interest/finance cost"
+        },
+        {
+          "code": "loan_tenor",
+          "label": "Loan tenor"
+        },
+        {
+          "code": "enterprises_financed",
+          "label": "Number of enterprises financed"
+        },
+        {
+          "code": "women_beneficiaries",
+          "label": "Women beneficiaries"
+        },
+        {
+          "code": "youth_beneficiaries",
+          "label": "Youth beneficiaries"
+        },
+        {
+          "code": "employment_created",
+          "label": "Employment created"
+        },
+        {
+          "code": "investment_mobilised",
+          "label": "Investment mobilised"
+        },
+        {
+          "code": "production_productivity_outcome",
+          "label": "Production/productivity outcome"
+        },
+        {
+          "code": "market_export_outcome",
+          "label": "Market/export outcome"
+        },
+        {
+          "code": "climate_resilience_outcome",
+          "label": "Climate/resilience outcome"
+        },
+        {
+          "code": "other",
+          "label": "Other"
+        }
+      ]
+    },
+    {
+      "name": "METRIC_NAME_OTHER",
+      "path": "section_j/metric_repeat/METRIC_NAME_OTHER",
+      "label": "If Other, please specify",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "value",
+      "path": "section_j/metric_repeat/value",
+      "label": "Value",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "unit_currency",
+      "path": "section_j/metric_repeat/unit_currency",
+      "label": "Unit/currency",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "period",
+      "path": "section_j/metric_repeat/period",
+      "label": "Period",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "population_geography",
+      "path": "section_j/metric_repeat/population_geography",
+      "label": "Population/geography",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "TARGET_FORECAST_ACTUAL",
+      "path": "section_j/metric_repeat/TARGET_FORECAST_ACTUAL",
+      "label": "Target/forecast/actual",
+      "type": "select_one",
+      "in_repeat": true,
+      "choices": [
+        {
+          "code": "target",
+          "label": "Target"
+        },
+        {
+          "code": "forecast",
+          "label": "Forecast"
+        },
+        {
+          "code": "actual",
+          "label": "Actual"
+        }
+      ]
+    },
+    {
+      "name": "locator",
+      "path": "section_j/metric_repeat/locator",
+      "label": "Locator",
+      "type": "text",
+      "in_repeat": true
+    },
+    {
+      "name": "H1_MAP",
+      "path": "section_k/H1_MAP",
+      "label": "H1 NFM → BANK",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "supports",
+          "label": "Supports"
+        },
+        {
+          "code": "contradicts",
+          "label": "Contradicts"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H2_MAP",
+      "path": "section_k/H2_MAP",
+      "label": "H2 BANK → FST",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "supports",
+          "label": "Supports"
+        },
+        {
+          "code": "contradicts",
+          "label": "Contradicts"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H3_MAP",
+      "path": "section_k/H3_MAP",
+      "label": "H3 NFM → FST",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "supports",
+          "label": "Supports"
+        },
+        {
+          "code": "contradicts",
+          "label": "Contradicts"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H4_MAP",
+      "path": "section_k/H4_MAP",
+      "label": "H4 BANK mediation",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "mechanism_evidence",
+          "label": "Mechanism evidence"
+        },
+        {
+          "code": "contrary_evidence",
+          "label": "Contrary evidence"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H5A_MAP",
+      "path": "section_k/H5A_MAP",
+      "label": "H5a DR moderation",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "enabling",
+          "label": "Enabling"
+        },
+        {
+          "code": "constraining",
+          "label": "Constraining"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H5B_MAP",
+      "path": "section_k/H5B_MAP",
+      "label": "H5b AGG moderation",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "enabling",
+          "label": "Enabling"
+        },
+        {
+          "code": "constraining",
+          "label": "Constraining"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "H5C_MAP",
+      "path": "section_k/H5C_MAP",
+      "label": "H5c IE moderation",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "enabling",
+          "label": "Enabling"
+        },
+        {
+          "code": "constraining",
+          "label": "Constraining"
+        },
+        {
+          "code": "mixed",
+          "label": "Mixed"
+        },
+        {
+          "code": "not_addressed",
+          "label": "Not addressed"
+        }
+      ]
+    },
+    {
+      "name": "key_findings",
+      "path": "section_l/key_findings",
+      "label": "Key finding(s) relevant to ABI/ABF-FST",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "mechanisms_suggested",
+      "path": "section_l/mechanisms_suggested",
+      "label": "Mechanism(s) suggested by the source",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "CONVERGES",
+      "path": "section_l/CONVERGES",
+      "label": "Converges with QUAN/KII evidence?",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "yes",
+          "label": "Yes"
+        },
+        {
+          "code": "partly",
+          "label": "Partly"
+        },
+        {
+          "code": "no",
+          "label": "No"
+        },
+        {
+          "code": "not_yet_assessable",
+          "label": "Not yet assessable"
+        }
+      ]
+    },
+    {
+      "name": "contradictory_evidence",
+      "path": "section_l/contradictory_evidence",
+      "label": "Contradictory / negative-case evidence",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "new_theme",
+      "path": "section_l/new_theme",
+      "label": "New/emergent theme not adequately represented in current framework",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "bias_limitation",
+      "path": "section_l/bias_limitation",
+      "label": "Potential bias / limitation / promotional framing / missing denominator",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "followup_required",
+      "path": "section_l/followup_required",
+      "label": "Follow-up source or KII required",
+      "type": "text",
+      "in_repeat": false
+    },
+    {
+      "name": "FINAL_USE",
+      "path": "section_l/FINAL_USE",
+      "label": "Final use classification",
+      "type": "select_one",
+      "in_repeat": false,
+      "choices": [
+        {
+          "code": "core_evidence",
+          "label": "Core evidence"
+        },
+        {
+          "code": "supporting_evidence",
+          "label": "Supporting evidence"
+        },
+        {
+          "code": "context_background",
+          "label": "Context/background"
+        },
+        {
+          "code": "negative_case",
+          "label": "Negative case"
+        },
+        {
+          "code": "exclude",
+          "label": "Exclude"
+        }
+      ]
+    },
+    {
+      "name": "researcher_final_assessment",
+      "path": "section_l/researcher_final_assessment",
+      "label": "Researcher final assessment",
+      "type": "text",
+      "in_repeat": false
+    }
+  ],
+  "meta_fields": {
+    "start": "start",
+    "end": "end",
+    "deviceid": "device_id",
+    "today": "today",
+    "username": "coder_username"
+  }
+}

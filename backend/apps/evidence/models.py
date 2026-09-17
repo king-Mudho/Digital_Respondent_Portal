@@ -83,6 +83,23 @@ class DocumentRecord(models.Model):
     source_file_content_type = models.CharField(max_length=100, blank=True)
     source_file_size = models.PositiveIntegerField(null=True, blank=True)
     source_file_uploaded_at = models.DateTimeField(null=True, blank=True)
+    # AI-assisted coding draft (apps/evidence/ai_coding.py) -- an editable
+    # proposal, never itself a submission. ai_draft holds the same shape
+    # kobo_submit.py consumes (field path -> value; the Section J repeat
+    # group as a list of dicts). Cleared of meaning once kobo_submitted_at
+    # is set, but kept as a record of what was actually submitted.
+    ai_draft = models.JSONField(default=dict, blank=True)
+    ai_draft_generated_at = models.DateTimeField(null=True, blank=True)
+    ai_draft_model = models.CharField(max_length=64, blank=True)
+    # Set only by a Documentary RA's explicit "Submit to KoboToolbox" click
+    # on the reviewed draft (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md) --
+    # never by ai_coding.py itself. kobo_submission_uuid is the instance's
+    # meta/instanceID, useful for tracing this exact submission in Kobo.
+    kobo_submission_uuid = models.CharField(max_length=64, blank=True)
+    kobo_submitted_at = models.DateTimeField(null=True, blank=True)
+    kobo_submitted_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

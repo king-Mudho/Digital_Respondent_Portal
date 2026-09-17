@@ -252,6 +252,26 @@ KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
 # because the current VPS disk is small (docs/33_GO_LIVE_READINESS.md).
 DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=20)
 
+# --- AI-assisted document coding draft (apps/evidence/ai_coding.py) ---------
+# PI decision, 2026-09-17: AI may draft a full answer set for the Document
+# Analysis Tool from the uploaded source file, but the draft is only ever
+# submitted to KoboToolbox after a Documentary RA has reviewed it -- the
+# ABI dimension ratings and hypothesis-support codes this form captures ARE
+# the study's documentary-analysis method, and nothing generates them as a
+# completed research record without a human confirming it first
+# (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md). Blank key = feature not offered.
+ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
+AI_DOCUMENT_CODING_MODEL = env("AI_DOCUMENT_CODING_MODEL", default="claude-opus-5")
+
+# --- KoboToolbox submission (apps/evidence/kobo_submit.py) ------------------
+# The OpenRosa endpoint every ODK-compatible client (KoboCollect, Enketo)
+# submits completed forms to: POST {base}/{KOBO_ACCOUNT_USERNAME}/submission.
+# A different host from KOBO_API_BASE_URL (kf.) -- confirmed 2026-09-17
+# against the live project's own deployment__data_download_links, which are
+# all served from kc., not kf.
+KOBO_OPENROSA_BASE_URL = env("KOBO_OPENROSA_BASE_URL", default="https://kc.kobotoolbox.org")
+KOBO_ACCOUNT_USERNAME = env("KOBO_ACCOUNT_USERNAME", default="")
+
 # --- Email (PDF copies of completed forms) ---------------------------------
 # Blank EMAIL_HOST means "not set up": the portal says so instead of trying.
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")

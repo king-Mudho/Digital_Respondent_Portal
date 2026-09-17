@@ -29,3 +29,16 @@ construct on the KII/document dashboard, with evidence gaps requiring targeted
 collection surfaced by the Documentary Evidence Agent (`17_AI_FIELD_COORDINATOR.md`) for
 researcher verification — the agent assists metadata extraction and construct-mapping
 suggestions only; inclusion and construct-tag decisions remain human.
+
+## AI-assisted coding of the KoboToolbox Document Analysis Tool (PI decision, 17 Sep 2026)
+
+The Document Analysis Tool's Sections B–L (evidence-strength ratings, hypothesis-support
+codes, authenticity calls) are this study's documentary-analysis method, in the same
+sense the paragraph above already draws for construct-mapping: extraction assistance is
+fine, but the analytical judgment stays human. The portal's **Auto-fill** feature
+(`apps/evidence/ai_coding.py`) applies that same line to the Kobo form itself — it drafts
+a full answer set from the uploaded source file, but a Documentary RA reviews and edits
+every field in the portal before anything is submitted to KoboToolbox
+(`apps/evidence/kobo_submit.py`). Every AI-assisted draft and its eventual submission are
+audited, so this file's methodology claim ("inclusion decisions remain human") stays true
+for the coding as a whole, not only for construct tags.
