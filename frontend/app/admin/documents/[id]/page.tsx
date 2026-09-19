@@ -120,6 +120,15 @@ export default function DocumentDetailPage() {
     },
   });
 
+  const removeFile = useMutation({
+    mutationFn: () => adminFetch(`/documents/${params.id}/file/`, { method: "DELETE" }),
+    onSuccess: () => {
+      setUploadError(null);
+      invalidate();
+    },
+    onError: (err) => setUploadError(err instanceof ApiError ? err.message : "Could not remove the file."),
+  });
+
   if (isLoading || !doc) {
     return (
       <AdminShell backHref="/admin/documents" backLabel="Documents">
@@ -209,6 +218,25 @@ export default function DocumentDetailPage() {
               {doc.source_file_size != null && ` · ${formatFileSize(doc.source_file_size)}`}
               {doc.source_file_uploaded_at &&
                 ` · uploaded ${new Date(doc.source_file_uploaded_at).toLocaleDateString()}`}
+              <WriteOnly note={null}>
+                <button
+                  type="button"
+                  disabled={removeFile.isPending}
+                  className="ml-3 text-danger underline disabled:opacity-50"
+                  onClick={() => {
+                    // Named plainly: what goes, and what goes with it.
+                    const draftNote =
+                      doc.ai_draft_generated_at && !doc.kobo_submitted_at
+                        ? " The AI draft made from it will be discarded too."
+                        : "";
+                    if (window.confirm(`Remove ${doc.source_file_name} from this document?${draftNote}`)) {
+                      removeFile.mutate();
+                    }
+                  }}
+                >
+                  {removeFile.isPending ? "Removing…" : "Remove file"}
+                </button>
+              </WriteOnly>
             </p>
           ) : (
             <p className="text-sm text-text-muted">No file uploaded yet.</p>
@@ -230,7 +258,7 @@ export default function DocumentDetailPage() {
             </div>
             <p className="text-xs text-text-muted">
               A scan, photo, screenshot or recording of the source (PDF, image, Office file or audio/video,
-              up to 20 MB). Uploading replaces any earlier file for this record.
+              up to 20 MB). Uploaded the wrong one? Remove it above, or choose another file to replace it.
             </p>
             {uploadError && <p className="text-danger text-sm">{uploadError}</p>}
           </WriteOnly>

@@ -77,8 +77,8 @@ All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **437 tests** passing (`pytest`).
-- Playwright: **47 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
+- Backend: **445 tests** passing (`pytest`).
+- Playwright: **48 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
 
@@ -268,6 +268,11 @@ only its own form:
   screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 20 MB) under
   `PRIVATE_DATA_ROOT`, downloadable only by roles with document access; uploading replaces
   any earlier file for that record. Every upload and download is audited.
+  **Remove file** (next to the file name, with a confirmation) deletes a wrongly attached
+  file from the server and clears its details; the removal is audited with the file name.
+  An AI draft made from a file that is removed or replaced is discarded with it, so a draft
+  of the wrong document can't be reviewed and submitted for the right one — unless it was
+  already submitted to KoboToolbox, in which case it is kept as the record of what was filed.
 - **AI-assisted coding, always reviewed by a person before it reaches KoboToolbox.**
   Sections B–L of the Document Analysis Tool are the study's actual documentary-analysis
   method — evidence-strength ratings, hypothesis-support codes, authenticity calls — so
@@ -568,7 +573,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 437 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 445 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint

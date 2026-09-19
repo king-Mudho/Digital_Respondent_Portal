@@ -96,3 +96,50 @@ test("an unsupported file is refused with a clear message, and the field is read
   });
   await expect(page.getByRole("link", { name: "retry.pdf" })).toBeVisible();
 });
+
+test("a wrongly uploaded file can be removed, and the record goes back to having no file", async ({ page, request }) => {
+  const backend = backendBaseURL();
+  const access = await getAdminAccessToken(request, backend);
+  const authHeader = { Authorization: `Bearer ${access}` };
+
+  const createResponse = await request.post(`${backend}/api/v1/documents/`, {
+    headers: authHeader,
+    data: { title: "E2E Remove Wrong File", document_type: "PLATFORM" },
+  });
+  const doc = await createResponse.json();
+
+  await loginAsAdmin(page);
+  await page.goto(`/admin/documents/${doc.id}`);
+  await page.setInputFiles('input[type="file"]', {
+    name: "wrong-document.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 the wrong file"),
+  });
+  await expect(page.getByRole("link", { name: "wrong-document.pdf" })).toBeVisible();
+
+  // Declining the confirmation must leave the file alone.
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "Remove file" }).click();
+  await expect(page.getByRole("link", { name: "wrong-document.pdf" })).toBeVisible();
+
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("wrong-document.pdf");
+    return dialog.accept();
+  });
+  await page.getByRole("button", { name: "Remove file" }).click();
+
+  await expect(page.getByText("No file uploaded yet.")).toBeVisible();
+  const after = await (await request.get(`${backend}/api/v1/documents/${doc.id}/`, { headers: authHeader })).json();
+  expect(after.source_file_name).toBe("");
+  // Gone for real, not just hidden from the page.
+  const download = await request.get(`${backend}/api/v1/documents/${doc.id}/file/`, { headers: authHeader });
+  expect(download.status()).toBe(404);
+
+  // ...and the right file can go in afterwards.
+  await page.setInputFiles('input[type="file"]', {
+    name: "right-document.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4 the right file"),
+  });
+  await expect(page.getByRole("link", { name: "right-document.pdf" })).toBeVisible();
+});

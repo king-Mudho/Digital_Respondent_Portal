@@ -19,6 +19,7 @@ from .services import (
     generate_document_id,
     open_source_file,
     record_authenticity_assessment,
+    remove_source_file,
     save_source_file,
     set_qa_status,
 )
@@ -107,6 +108,16 @@ class DocumentFileView(APIView):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         response["Cache-Control"] = "no-store"
         return response
+
+    def delete(self, request, pk):
+        """DELETE /api/v1/documents/{id}/file/ -- remove the uploaded file
+        (the wrong document was attached). Same write grant as uploading."""
+        document = get_object_or_404(DocumentRecord, pk=pk)
+        try:
+            remove_source_file(document, user=request.user)
+        except DocumentFileError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        return Response(DocumentRecordSerializer(document).data)
 
 
 class DocumentAISchemaView(APIView):

@@ -154,17 +154,64 @@ def save_source_file(document: DocumentRecord, uploaded_file, *, user) -> Docume
         for chunk in uploaded_file.chunks():
             out.write(chunk)
 
+    had_file = bool(document.source_file_ref)
     document.source_file_ref = rel_path
     document.source_file_name = original_name
     document.source_file_content_type = uploaded_file.content_type or "application/octet-stream"
     document.source_file_size = uploaded_file.size
     document.source_file_uploaded_at = timezone.now()
+    # A draft written from the file being replaced describes the wrong
+    # document now -- leaving it would let it be reviewed and submitted as
+    # if it matched the new file.
+    draft_discarded = had_file and _discard_unsubmitted_draft(document)
     document.save(update_fields=[
         "source_file_ref", "source_file_name", "source_file_content_type",
         "source_file_size", "source_file_uploaded_at",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model",
     ])
     log_action("document.file_uploaded", document, {
         "filename": original_name, "size": uploaded_file.size, "user_id": getattr(user, "id", None),
+        "ai_draft_discarded": draft_discarded,
+    })
+    return document
+
+
+def _discard_unsubmitted_draft(document: DocumentRecord) -> bool:
+    """Clears the AI draft unless it has already been submitted to
+    KoboToolbox -- a submitted draft is kept as the record of exactly what
+    was filed. Returns whether a draft was discarded. Caller saves."""
+    if document.kobo_submitted_at or not document.ai_draft:
+        return False
+    document.ai_draft = {}
+    document.ai_draft_generated_at = None
+    document.ai_draft_model = ""
+    return True
+
+
+def remove_source_file(document: DocumentRecord, *, user) -> DocumentRecord:
+    """Deletes the stored source file (e.g. the wrong document was
+    uploaded) and clears its metadata. The register then shows 'No file
+    uploaded yet' again. An unsubmitted AI draft made from that file is
+    discarded with it; the removal is audited with the file name."""
+    if not document.source_file_ref:
+        raise DocumentFileError("not_found", "No file has been uploaded for this document.", 404)
+    path = os.path.join(settings.PRIVATE_DATA_ROOT, document.source_file_ref)
+    if os.path.exists(path):
+        os.remove(path)
+    removed_name = document.source_file_name
+    document.source_file_ref = ""
+    document.source_file_name = ""
+    document.source_file_content_type = ""
+    document.source_file_size = None
+    document.source_file_uploaded_at = None
+    draft_discarded = _discard_unsubmitted_draft(document)
+    document.save(update_fields=[
+        "source_file_ref", "source_file_name", "source_file_content_type",
+        "source_file_size", "source_file_uploaded_at",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model",
+    ])
+    log_action("document.file_removed", document, {
+        "filename": removed_name, "user_id": getattr(user, "id", None), "ai_draft_discarded": draft_discarded,
     })
     return document
 

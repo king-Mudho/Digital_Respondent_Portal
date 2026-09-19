@@ -348,3 +348,91 @@ def test_supervisor_read_only_cannot_generate_or_submit_draft(supervisor_client,
 def test_supervisor_read_only_can_still_read_schema(supervisor_client):
     resp = supervisor_client.get("/api/v1/documents/ai-draft-schema/")
     assert resp.status_code == 200
+
+
+# --- Removing the uploaded file ----------------------------------------------
+
+def _draft(document_with_file, client):
+    with patch("apps.evidence.views.generate_draft", return_value={"section_a/DOC_ID": document_with_file.document_id}):
+        client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+
+
+def test_remove_file_deletes_it_from_disk_and_clears_metadata(documentary_ra_client, document_with_file, settings):
+    document_with_file.refresh_from_db()
+    path = os.path.join(settings.PRIVATE_DATA_ROOT, document_with_file.source_file_ref)
+    assert os.path.exists(path)
+
+    resp = documentary_ra_client.delete(f"/api/v1/documents/{document_with_file.pk}/file/")
+
+    assert resp.status_code == 200
+    assert resp.data["source_file_name"] == ""
+    assert resp.data["source_file_size"] is None
+    assert not os.path.exists(path)  # actually gone, not just hidden
+    assert documentary_ra_client.get(f"/api/v1/documents/{document_with_file.pk}/file/").status_code == 404
+
+
+def test_remove_file_is_audited_with_the_file_name(documentary_ra_client, document_with_file):
+    documentary_ra_client.delete(f"/api/v1/documents/{document_with_file.pk}/file/")
+    from apps.audit.models import AuditEvent
+
+    event = AuditEvent.objects.filter(action="document.file_removed").latest("id")
+    assert event.metadata["filename"] == "scan.pdf"
+
+
+def test_remove_file_with_no_file_is_a_clean_404(documentary_ra_client, document):
+    resp = documentary_ra_client.delete(f"/api/v1/documents/{document.pk}/file/")
+    assert resp.status_code == 404
+    assert resp.data["error"]["code"] == "not_found"
+
+
+def test_remove_file_discards_an_unsubmitted_ai_draft(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    _draft(document_with_file, documentary_ra_client)
+    document_with_file.refresh_from_db()
+    assert document_with_file.ai_draft
+
+    resp = documentary_ra_client.delete(f"/api/v1/documents/{document_with_file.pk}/file/")
+
+    assert resp.data["ai_draft"] is None  # written from the wrong file, so it goes too
+    assert resp.data["ai_draft_generated_at"] is None
+
+
+def test_remove_file_keeps_a_draft_already_submitted_to_kobo(documentary_ra_client, document_with_file, settings):
+    """A submitted draft is the record of exactly what was filed."""
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    _draft(document_with_file, documentary_ra_client)
+    from django.utils import timezone
+
+    DocumentRecord.objects.filter(pk=document_with_file.pk).update(kobo_submitted_at=timezone.now())
+
+    resp = documentary_ra_client.delete(f"/api/v1/documents/{document_with_file.pk}/file/")
+
+    assert resp.data["ai_draft"] is not None
+
+
+def test_replacing_a_file_discards_the_draft_made_from_the_old_one(documentary_ra_client, document_with_file, settings):
+    """Uploading the right document over the wrong one must not leave the
+    wrong document's draft to be reviewed and submitted for it."""
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    _draft(document_with_file, documentary_ra_client)
+
+    resp = documentary_ra_client.post(
+        f"/api/v1/documents/{document_with_file.pk}/file/", {"file": _pdf_file("right.pdf")}, format="multipart",
+    )
+
+    assert resp.data["source_file_name"] == "right.pdf"
+    assert resp.data["ai_draft"] is None
+
+
+def test_first_upload_does_not_touch_an_existing_draft_state(documentary_ra_client, document):
+    resp = documentary_ra_client.post(
+        f"/api/v1/documents/{document.pk}/file/", {"file": _pdf_file()}, format="multipart",
+    )
+    assert resp.status_code == 200
+
+
+def test_supervisor_cannot_remove_a_file(supervisor_client, document_with_file):
+    resp = supervisor_client.delete(f"/api/v1/documents/{document_with_file.pk}/file/")
+    assert resp.status_code == 403
+    document_with_file.refresh_from_db()
+    assert document_with_file.source_file_name == "scan.pdf"  # untouched
