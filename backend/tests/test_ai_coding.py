@@ -73,10 +73,10 @@ def test_tool_schema_repeat_group_is_an_array_of_objects():
 
 
 def test_read_file_block_rejects_unsupported_extension(tmp_path):
-    bad = tmp_path / "notes.docx"
+    bad = tmp_path / "notes.mp3"
     bad.write_text("x")
     with pytest.raises(AIDraftError) as exc:
-        _read_file_block(str(bad), "application/msword")
+        _read_file_block(str(bad), "audio/mpeg")
     assert exc.value.code == "unsupported_file_type"
 
 
@@ -276,3 +276,104 @@ def test_output_budget_is_large_enough_for_a_full_answer(document, settings, tmp
         sent = mock_client_cls.return_value.messages.stream.call_args.kwargs
     assert MAX_OUTPUT_TOKENS >= 32000
     assert sent["max_tokens"] == MAX_OUTPUT_TOKENS
+
+
+# --- Reading every kind of document ------------------------------------------
+
+def _docx(path, paragraphs):
+    import zipfile
+
+    body = "".join(f"<w:p><w:r><w:t>{t}</w:t></w:r></w:p>" for t in paragraphs)
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/'
+        f'wordprocessingml/2006/main"><w:body>{body}</w:body></w:document>'
+    )
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("word/document.xml", xml)
+
+
+def test_word_document_is_sent_as_text_with_no_page_numbers(tmp_path):
+    f = tmp_path / "report.docx"
+    _docx(f, ["Section 4. Warehouse receipts", "Para 4.2 grain becomes a bankable asset."])
+    block, described = _read_file_block(str(f), "application/vnd.openxmlformats")
+    assert block["type"] == "text"
+    assert "Para 4.2 grain becomes a bankable asset." in block["text"]
+    assert "no page numbers" in described
+
+
+def test_excel_workbook_is_sent_as_text_with_sheet_names(tmp_path):
+    import openpyxl
+
+    f = tmp_path / "data.xlsx"
+    wb = openpyxl.Workbook()
+    wb.active.title = "Loans"
+    wb.active.append(["year", "value"])
+    wb.active.append([2024, 84])
+    wb.save(f)
+    block, _ = _read_file_block(str(f), "application/vnd.ms-excel")
+    assert "## Sheet: Loans" in block["text"]
+    assert "2024\t84" in block["text"]
+
+
+def test_plain_text_and_csv_are_read(tmp_path):
+    for name in ("notes.txt", "table.csv"):
+        f = tmp_path / name
+        f.write_text("a,b\n1,2", encoding="utf-8")
+        block, _ = _read_file_block(str(f), "text/plain")
+        assert "a,b" in block["text"]
+
+
+def test_broken_word_file_says_so_instead_of_crashing(tmp_path):
+    f = tmp_path / "broken.docx"
+    f.write_bytes(b"not a zip at all")
+    with pytest.raises(AIDraftError) as exc:
+        _read_file_block(str(f), "")
+    assert exc.value.code == "unreadable_document"
+
+
+def test_empty_document_is_refused(tmp_path):
+    f = tmp_path / "empty.docx"
+    _docx(f, [])
+    with pytest.raises(AIDraftError) as exc:
+        _read_file_block(str(f), "")
+    assert exc.value.code == "empty_document"
+
+
+def test_audio_and_old_word_files_get_a_clear_instruction(tmp_path):
+    for name, expect in (("call.mp3", "transcript"), ("old.doc", ".docx"), ("old.xls", ".xlsx")):
+        f = tmp_path / name
+        f.write_bytes(b"x")
+        with pytest.raises(AIDraftError) as exc:
+            _read_file_block(str(f), "")
+        assert exc.value.code == "unsupported_file_type"
+        assert expect in str(exc.value)
+
+
+def test_oversize_photo_is_shrunk_under_the_api_image_limit(tmp_path):
+    """The API rejects any image over 5 MB; phone photos routinely exceed it."""
+    import base64
+    import os
+
+    from PIL import Image
+
+    from apps.evidence.ai_coding import MAX_IMAGE_BYTES
+
+    f = tmp_path / "photo.png"
+    Image.frombytes("RGB", (2400, 2400), os.urandom(2400 * 2400 * 3)).save(f, format="PNG")  # incompressible noise
+    assert f.stat().st_size > MAX_IMAGE_BYTES
+    block, _ = _read_file_block(str(f), "image/png")
+    assert block["source"]["media_type"] == "image/jpeg"
+    assert len(base64.b64decode(block["source"]["data"])) <= MAX_IMAGE_BYTES
+
+
+def test_text_document_reaches_the_model_and_records_token_use(document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    f = tmp_path / "report.docx"
+    _docx(f, ["Para 1. Contract farming expands."])
+    fake = Mock(stop_reason="tool_use", content=[Mock(type="tool_use", input={})], usage=Mock(input_tokens=1234, output_tokens=5678))
+    with patch("anthropic.Anthropic") as mock_client_cls:
+        _stub_stream(mock_client_cls, fake)
+        draft = generate_draft(document, source_path=str(f), source_content_type="", user=None)
+        content = mock_client_cls.return_value.messages.stream.call_args.kwargs["messages"][0]["content"]
+    assert content[0]["type"] == "text" and "Contract farming expands" in content[0]["text"]
+    assert draft["_tokens_in"] == 1234 and draft["_tokens_out"] == 5678

@@ -249,7 +249,7 @@ export default function DocumentDetailPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.mp3,.m4a,.wav,.mp4"
+                accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.txt,.csv,.mp3,.m4a,.wav,.mp4"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) uploadFile.mutate(file);

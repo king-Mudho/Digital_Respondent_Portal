@@ -16,7 +16,7 @@ from .models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord
 # -- this is a research evidence store, not a general file dump.
 ALLOWED_UPLOAD_EXTENSIONS = {
     ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx",
-    ".mp3", ".m4a", ".wav", ".mp4",
+    ".mp3", ".m4a", ".wav", ".mp4", ".txt", ".csv",
 }
 
 

@@ -124,6 +124,105 @@ def _tool_schema() -> dict:
     }
 
 
+
+# --- Reading other file types -------------------------------------------------
+
+# The API rejects a whole request over ~32 MB, and base64 adds a third.
+MAX_REQUEST_BYTES = 30 * 1024 * 1024
+# The API rejects any single image over 5 MB.
+MAX_IMAGE_BYTES = int(4.5 * 1024 * 1024)
+MAX_TEXT_CHARS = 2_500_000  # ~600k tokens, inside the model's 1M-token window
+
+
+def _pdf_payload(raw: bytes) -> str:
+    data = base64.standard_b64encode(raw).decode("ascii")
+    if len(data) > MAX_REQUEST_BYTES:
+        raise AIDraftError(
+            "file_too_big_for_ai",
+            "That PDF is too large for the AI to read as it is. Enter a narrower page range, "
+            "or upload a smaller version of the file.",
+        )
+    return data
+
+
+def _prepare_image(abs_path: str, media_type: str) -> tuple[str, str]:
+    """Phone photos of documents are routinely over the API's 5 MB image limit:
+    shrink and re-encode as JPEG until they fit, keeping them legible."""
+    raw = Path(abs_path).read_bytes()
+    if len(raw) <= MAX_IMAGE_BYTES:
+        return base64.standard_b64encode(raw).decode("ascii"), media_type
+    from PIL import Image, UnidentifiedImageError
+
+    try:
+        image = Image.open(io.BytesIO(raw))
+        image.load()
+    except (UnidentifiedImageError, OSError) as exc:
+        raise AIDraftError("unreadable_image", "That image couldn't be opened.") from exc
+    image = image.convert("RGB")
+    image.thumbnail((3000, 3000))
+    for quality in (85, 75, 65, 50):
+        out = io.BytesIO()
+        image.save(out, format="JPEG", quality=quality)
+        if out.tell() <= MAX_IMAGE_BYTES:
+            return base64.standard_b64encode(out.getvalue()).decode("ascii"), "image/jpeg"
+    raise AIDraftError("file_too_big_for_ai", "That image is too large to read even after shrinking it.")
+
+
+def _docx_text(abs_path: str) -> str:
+    import zipfile
+    from xml.etree import ElementTree
+
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    try:
+        with zipfile.ZipFile(abs_path) as archive:
+            root = ElementTree.fromstring(archive.read("word/document.xml"))
+    except (zipfile.BadZipFile, KeyError, ElementTree.ParseError, OSError) as exc:
+        raise AIDraftError("unreadable_document", "That Word file couldn't be opened -- try saving it as a PDF.") from exc
+    lines = []
+    for paragraph in root.iter(f"{ns}p"):
+        text = "".join(t.text or "" for t in paragraph.iter(f"{ns}t"))
+        if text.strip():
+            lines.append(text)
+    return "\n".join(lines)
+
+
+def _xlsx_text(abs_path: str) -> str:
+    import openpyxl
+
+    try:
+        workbook = openpyxl.load_workbook(abs_path, read_only=True, data_only=True)
+    except Exception as exc:  # openpyxl raises a zoo of types for a bad file
+        raise AIDraftError("unreadable_document", "That Excel file couldn't be opened -- try saving it as a PDF.") from exc
+    parts = []
+    for sheet in workbook.worksheets:
+        parts.append(f"## Sheet: {sheet.title}")
+        for row in sheet.iter_rows(values_only=True):
+            cells = ["" if c is None else str(c) for c in row]
+            if any(cells):
+                parts.append("\t".join(cells))
+    workbook.close()
+    return "\n".join(parts)
+
+
+def _plain_text(abs_path: str) -> str:
+    return Path(abs_path).read_bytes().decode("utf-8", errors="replace")
+
+
+TEXT_EXTRACTORS = {".docx": _docx_text, ".xlsx": _xlsx_text, ".txt": _plain_text, ".csv": _plain_text}
+TEXT_EXTRACTOR_LABELS = {".docx": "Word document", ".xlsx": "Excel workbook", ".txt": "text file", ".csv": "CSV file"}
+
+
+def _unsupported_message(ext: str) -> str:
+    if ext in {".mp3", ".m4a", ".wav", ".mp4"}:
+        return (
+            "The AI can't listen to audio or video. Upload a transcript instead "
+            "(a PDF, Word or text file), and keep the recording as the source reference."
+        )
+    if ext in {".doc", ".xls"}:
+        return f"The AI can't read old-format '{ext}' files. Save it as a PDF or as a newer .docx/.xlsx and upload that."
+    return f"AI drafting doesn't support '{ext or 'this'}' files. It reads PDF, Word, Excel, text and image (JPG/PNG) files."
+
+
 def parse_page_range(text: str, total_pages: int) -> tuple[int, int]:
     """'12-60' or '12' -> (12, 60) / (12, 12), 1-based and inclusive."""
     match = re.fullmatch(r"\s*(\d+)\s*(?:-\s*(\d+))?\s*", text or "")
@@ -158,14 +257,25 @@ def _read_file_block(abs_path: str, content_type: str, page_range: str = "") -> 
     the description going into the prompt so the model cites original page
     numbers, not the numbers within a trimmed excerpt."""
     ext = Path(abs_path).suffix.lower()
-    media_type = NATIVE_MEDIA_TYPES.get(ext) or (content_type if content_type in NATIVE_MEDIA_TYPES.values() else None)
-    if not media_type:
-        raise AIDraftError(
-            "unsupported_file_type",
-            f"AI drafting doesn't support '{ext or 'this'}' files yet -- only PDF, JPG and PNG source files.",
+    if ext in TEXT_EXTRACTORS:
+        text = TEXT_EXTRACTORS[ext](abs_path)
+        if not text.strip():
+            raise AIDraftError("empty_document", "No readable text was found in that file.")
+        if len(text) > MAX_TEXT_CHARS:
+            raise AIDraftError(
+                "document_too_long",
+                "That document is too long for the AI to read in one go. Split it, or upload the part you want coded.",
+            )
+        return (
+            {"type": "text", "text": f"<document>\n{text}\n</document>"},
+            f"the full text of a {TEXT_EXTRACTOR_LABELS[ext]} (it has no page numbers, so cite headings, "
+            "paragraph or section numbers, or sheet names as locators)",
         )
+    media_type = NATIVE_MEDIA_TYPES.get(ext)
+    if not media_type:
+        raise AIDraftError("unsupported_file_type", _unsupported_message(ext))
     if media_type != "application/pdf":
-        data = base64.standard_b64encode(Path(abs_path).read_bytes()).decode("ascii")
+        data, media_type = _prepare_image(abs_path, media_type)
         return {"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}}, "an image"
 
     from pypdf import PdfReader, PdfWriter
@@ -178,7 +288,7 @@ def _read_file_block(abs_path: str, content_type: str, page_range: str = "") -> 
         raise AIDraftError("unreadable_pdf", "That PDF couldn't be opened -- it may be damaged or password-protected.") from exc
 
     if total <= MAX_PDF_PAGES and not page_range.strip():
-        data = base64.standard_b64encode(Path(abs_path).read_bytes()).decode("ascii")
+        data = _pdf_payload(Path(abs_path).read_bytes())
         block = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}}
         return block, f"the whole document ({total} pages)"
 
@@ -194,7 +304,7 @@ def _read_file_block(abs_path: str, content_type: str, page_range: str = "") -> 
         writer.add_page(reader.pages[index])
     buffer = io.BytesIO()
     writer.write(buffer)
-    data = base64.standard_b64encode(buffer.getvalue()).decode("ascii")
+    data = _pdf_payload(buffer.getvalue())
     block = {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}}
     return block, (
         f"pages {start}-{end} of a {total}-page document; page 1 of the attachment is page {start} of the original, "
@@ -269,6 +379,11 @@ def generate_draft(
     draft["_generated_at"] = timezone.now().isoformat()
     draft["_generated_by_model"] = settings.AI_DOCUMENT_CODING_MODEL
     draft["_generated_by_user_id"] = getattr(user, "id", None)
+    usage = getattr(response, "usage", None)
+    for attr, key in (("input_tokens", "_tokens_in"), ("output_tokens", "_tokens_out")):
+        value = getattr(usage, attr, None)
+        if isinstance(value, int):  # what this draft cost, for the PI's billing
+            draft[key] = value
     if page_range.strip():
         draft["_source_pages"] = page_range.strip()
     return draft
