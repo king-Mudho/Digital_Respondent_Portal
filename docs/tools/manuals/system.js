@@ -1,4 +1,17 @@
 const C = require("./common");
+
+// A shared procedure (tasks.js) now has several h2 sections: number them 7.16, 7.16a, 7.16b ...
+// The first takes the chapter's own title; the rest keep their own headings.
+function numberedSections(blocks, base, firstTitle) {
+  let n = 0;
+  return blocks.map((b) => {
+    if (b[0] !== "h2") return b;
+    const label = n === 0 ? `${base} ${firstTitle}` : `${base}${String.fromCharCode(96 + n)} ${b[1]}`;
+    n += 1;
+    return ["h2", label];
+  });
+}
+
 const { T } = require("./tasks");
 
 const SITE = C.SITE;
@@ -145,8 +158,8 @@ module.exports = {
 
     ["h2", "3.12 The KII and documentary strands"],
     ["bullets", [
-      "**KII records** move PROSPECT → INVITED → SCHEDULED → COMPLETED (or DECLINED / NO_SHOW). Participation consent and recording consent are captured separately; a recorded interview cannot be completed without recording consent. Transcript and coding progress are tracked on the record.",
-      "**Document records** need an authenticity assessment (Verified or Disputed) before they can be Included; an interpretive memo records reasoning. Coding happens in the KoboToolbox Document Analysis Tool.",
+      "**KII records** move PROSPECT → INVITED → SCHEDULED → COMPLETED (or DECLINED / NO_SHOW). Participation consent and recording consent are captured separately; a recorded interview cannot be completed without recording consent. Once participation consent is recorded, **Continue this interview** opens the KoboToolbox KII Guide with the KII ID filled in; the link is withheld until then and never carries the participant's name. Transcript and coding progress are tracked on the record.",
+      "**Document records** need an authenticity assessment (Verified or Disputed) before they can be Included; an interpretive memo records reasoning. The source file is attached to the record (and can be removed if the wrong one was uploaded). Coding happens in the KoboToolbox Document Analysis Tool: **Code this document** opens it with the DOC ID filled in, and **Auto-fill** has AI draft the whole form from the source file for a Documentary RA to review, edit and submit. The AI never submits on its own, and every draft is audited.",
     ]],
 
     ["h2", "3.13 Monitoring, reports and exports"],
@@ -261,8 +274,8 @@ module.exports = {
     ...T.qaReview.map((b) => (b[0] === "h2" ? ["h2", "7.13 QA review (PI, FC, QA RA)"] : b)),
     ...T.qaExceptions.map((b) => (b[0] === "h2" ? ["h2", "7.14 QA exceptions (PI, FC, QA RA)"] : b)),
     ...T.formPdfs("form").map((b) => (b[0] === "h2" ? ["h2", "7.15 Form PDFs and emailing (PI, FC, QA/KII/Doc RA)"] : b)),
-    ...T.kii.map((b, i) => (b[0] === "h2" ? ["h2", i === 0 ? "7.16 KII records (PI, FC, KII RA)" : "7.16a Working a KII through to coding"] : b)),
-    ...T.documents.map((b, i) => (b[0] === "h2" ? ["h2", i === 0 ? "7.17 Document records (PI, FC, Documentary RA)" : "7.17a Assessing and including a document"] : b)),
+    ...numberedSections(T.kii, "7.16", "KII records (PI, FC, KII RA)"),
+    ...numberedSections(T.documents, "7.17", "Document records (PI, FC, Documentary RA)"),
     ...T.cost.map((b) => (b[0] === "h2" ? ["h2", "7.18 Logging costs (PI, FC)"] : b)),
     ...T.exports("pi").map((b) => (b[0] === "h2" ? ["h2", "7.19 Downloading data (PI, FC, Analyst)"] : b)),
     ...T.audit.map((b) => (b[0] === "h2" ? ["h2", "7.20 Audit log (PI)"] : b)),

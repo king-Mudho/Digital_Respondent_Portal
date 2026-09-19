@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.0 · 15 September 2026";
+const REVISION = "Version 1.1 · 19 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -88,6 +88,7 @@ const INTERNAL_TROUBLE = [
   ["A button is greyed out", "A required step is missing (a note, an authenticity decision, a selection).", "Read the message beside the button; complete the missing step first."],
   ["\"KoboToolbox couldn't be reached\"", "KoboToolbox is slow or the connection token has changed.", "Try again in a few minutes. If it persists, tell the PI."],
   ["A page keeps loading", "A slow or dropped connection.", "Refresh the page. Your saved work is not lost; unsaved typing may be."],
+  ["A file upload seems stuck", "A large file on a slow connection takes time; the bar shows how much has been sent.", "Wait for **Saving…** and the file name. If it fails, try again or upload a smaller version."],
 ];
 
 const GLOSSARY = [
@@ -109,6 +110,10 @@ const GLOSSARY = [
   ["QA exception", "An automated flag raised by a QA rule, worked and closed by a person."],
   ["KII", "Key Informant Interview (target 60 completed)."],
   ["Documentary evidence", "Documents, digital platform and media sources analysed (target 50–75)."],
+  ["Source file", "The uploaded scan, PDF, photo or document a documentary record is coded from. Stored privately; it can be removed or replaced."],
+  ["Auto-fill", "A button on a document's page that has AI read the source file and draft the whole Document Analysis Tool for you to review. It never submits anything by itself."],
+  ["AI draft", "The AI's proposed answers to the Document Analysis Tool: editable, reviewed by a person, and only sent to KoboToolbox when that person selects Submit."],
+  ["Page range", "The pages of a long PDF that make up one evidence unit (up to 100), entered for Auto-fill."],
   ["Administration mode", "How the questionnaire was completed (codes 01–06)."],
   ["Follow-up", "An approved reminder due to be sent to an invited respondent (Day 2, Day 7)."],
   ["Withdrawal", "A participant's request to stop taking part, recorded once in the portal."],

@@ -47,7 +47,7 @@ const TRACKS = [
   ["Contact RA", "Finding the right person; recording respondents and numbers; sending invitations on WhatsApp, SMS and email; logging every attempt; Follow-ups; Appointments; assisted interviews; refusals and withdrawals", "Role Guide 3; Manual Module A"],
   ["QUAN/Kobo QA RA", "QA Dashboard; reading a completed form PDF; the QA rules; Accept / Re-query / Reject with good notes; working QA exceptions; Sync now", "Role Guide 4; Manual Module B"],
   ["KII RA", "KII records and statuses; participation and recording consent; conducting the interview; Executive Short Form (K1, K2, K3, K7, K9); transcript and coding progress; KII Guide in KoboToolbox", "Role Guide 5; Manual Module C"],
-  ["Documentary RA", "Recording a source precisely; judging authenticity; Include / Exclude; interpretive memos; the Document Analysis Tool (Exclude skips Sections C–L)", "Role Guide 6; Manual Module D"],
+  ["Documentary RA", "Recording a source precisely; judging authenticity; Include / Exclude; interpretive memos; the Document Analysis Tool (Exclude skips Sections C–L); attaching or removing a source file; Auto-fill and how to review an AI draft", "Role Guide 6; Manual Module D"],
 ];
 
 const COMPETENCIES = [
@@ -437,7 +437,10 @@ const manual = {
       "Add a practice document from a public web page your facilitator names.",
       "Try to Include it straight away. What happens?",
       "Assess authenticity, include or exclude it, and write a three-sentence memo.",
+      "Attach a source file, then remove it with **Remove file** and attach it again.",
+      "If the facilitator says Auto-fill is on for the practice site: generate a draft from the practice file, find two things in it you would change, and change them. **Stop before Submit** (see the warning below).",
     ]],
+    ["warn", "Never Submit a practice draft", "Submit to KoboToolbox writes to the live study form, exactly like the questionnaire. In training, review and edit the draft but do not select Submit. Each draft is also a paid request, so generate one only when the facilitator asks."],
 
     ["h1", "9. Daily checklists"],
     ["h2", "Start of the day"],

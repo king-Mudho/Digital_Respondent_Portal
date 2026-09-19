@@ -274,8 +274,15 @@ T.kii = [
     "Before the interview starts, select **Record participation consent**. If the interview will be recorded, also select **Record recording consent** — the two are always separate.",
     "When marking **COMPLETED**, tick **Recording made** only if a recording exists. The portal refuses a recorded completion without recording consent.",
     "Advance **Transcript** (NOT_STARTED → IN_PROGRESS → VERIFIED → ANONYMISED) and **Coding** (NOT_STARTED → IN_PROGRESS → COMPLETE) as the work progresses.",
-    "Complete the **KII Guide** form in KoboToolbox using the KII ID. The **Completed KII form (KoboToolbox)** panel then links to its PDF.",
+    "Complete the **KII Guide** form in KoboToolbox using the KII ID (see the next section). The **Completed KII form (KoboToolbox)** panel then links to its PDF.",
   ]],
+  ["h2", "Opening the KII Guide with the KII ID filled in"],
+  ["steps", [
+    { text: "Record **participation consent** first. Until you do, the **Coding** panel says “Record participation consent first” and the interview link is withheld.", img: "kii_coding_locked.jpg", caption: "Before consent: no interview link." },
+    { text: "Once consent is recorded, the panel offers **Continue this interview**. Select it: the KoboToolbox KII Guide opens in a new tab with the KII ID already entered, so it can never be mistyped and the completed form always matches this record.", img: "kii_coding_ready.jpg", caption: "After consent: Continue this interview." },
+    "Complete the interview in the form as usual.",
+  ]],
+  ["tip", "What the link carries", "Only the KII ID and your own username. It never carries the participant's name, role or organisation, so nothing identifying is left in a web address or your browser history."],
 ];
 
 T.documents = [
@@ -284,14 +291,62 @@ T.documents = [
     { text: "Select **Documents → New document**.", img: "doc_new.jpg", caption: "New Documentary Evidence Record." },
     "Enter **Title**, **Author / speaker**, **Source URL / reference**, **Document type** (OFFICIAL, SECONDARY or PLATFORM), **Geographic scope** and an **Evidence extract**, then select **Create document record**. The document ID (e.g. DOC-0025) is generated.",
   ]],
+  ["h2", "Attaching the source file, and removing a wrong one"],
+  ["steps", [
+    { text: "On the document's page, under **Source file**, select **Choose File** and pick the source: a PDF, a scan or photo (JPG or PNG), a Word (.docx) or Excel (.xlsx) file, or a text or CSV file. Audio and video can be attached as a reference. The limit is 20 MB. The file is stored privately on the server.", img: "doc_source_file.jpg", caption: "Source file: the file name, size and date, with Remove file beside it." },
+    "A bar shows how much of the file has been sent. A large file on a slow connection can take a minute or two: wait until it says **Saving…** and the file name appears.",
+    "Attached the wrong one? Select the red **Remove file** link beside the file name and confirm. The file is deleted from the server and the record says “No file uploaded yet”. Then choose the right file.",
+    "Choosing another file straight away also replaces the old one.",
+  ]],
+  ["tip", "What goes with a removed file", "An AI draft (see below) made from the removed or replaced file is discarded too, so a draft of the wrong document can never be reviewed and submitted for the right one. A draft that has already been submitted to KoboToolbox is kept as the record of what was filed. Removals are recorded in the audit log with the file name."],
   ["h2", "Assessing and including a document"],
   ["steps", [
     { text: "In **Documents**, select **Manage** on the record.", img: "doc_register.jpg", caption: "Documentary Evidence Corpus." },
     { text: "Assess authenticity: select **Mark verified** or **Mark disputed**.", img: "doc_detail.jpg", caption: "Document record: authenticity, QA status, memo and coding form." },
     "Set the QA status: **Include** or **Exclude**. A document cannot be included until authenticity has been assessed.",
     "Write the **Interpretive memo** (dispute reasons, interpretation notes) and select **Save memo**.",
-    "Code the document in the **Document, Digital Platform & Media Analysis Tool** in KoboToolbox using the DOC ID; its PDF then appears on the record.",
+    "Code the document (next two sections). The completed form's PDF then appears on the record, under **Completed coding form (KoboToolbox)**.",
   ]],
+  ["h2", "Coding a document: two ways"],
+  ["p", "The **Coding** panel offers two buttons for the Document, Digital Platform & Media Analysis Tool:"],
+  ["table", ["Button", "What it does", "Use it when"], [
+    ["Code this document", "Opens the KoboToolbox Document Analysis Tool with the DOC ID, title, author, date and source already filled in. You answer every other question yourself.", "You code by hand, or the source cannot be read by the AI."],
+    ["Auto-fill", "Has the AI read the uploaded source file and draft answers to the whole form. You review, edit and submit.", "A source file is uploaded and you want a fast first draft. The button only appears once the administrator has switched AI drafting on."],
+  ], [0.2, 0.5, 0.3]],
+  ["img", "doc_coding_buttons.jpg", "The Coding panel: Code this document, and Auto-fill."],
+  ["h2", "Auto-fill: the AI drafts, you review"],
+  ["steps", [
+    "Attach the source file (above). Select **Auto-fill** in the **Coding** panel; the review screen opens.",
+    { text: "If the file is a PDF of more than 100 pages, enter the **Pages to read**, for example `10-90`. The AI reads up to 100 pages at a time, so choose the pages that make up this evidence unit, such as one chapter. Its locators use the original page numbers. For shorter files, leave the box empty to read everything.", img: "doc_autofill_pages.jpg", caption: "A 240-page PDF asks for a page range." },
+    { text: "Select **Generate AI draft**. The AI reads in the background, usually one to five minutes. You can leave the page and come back; the draft will be there.", img: "doc_autofill_running.jpg", caption: "The AI is reading the document." },
+    { text: "Read the draft. It has every section of the KoboToolbox form, A to L. The DOC ID, author, title, date and source come from the record and cannot be changed here; everything else you can edit.", img: "doc_autofill_review.jpg", caption: "The review screen: the draft, ready to check and edit." },
+    { text: "Check the judgements, not just the facts: the strength ratings (Sections D and H), the hypothesis codes (Section K) and the locators. Open the source and confirm a few page or paragraph references.", img: "doc_autofill_section_d.jpg", caption: "Section D: ratings and locators, all editable." },
+    { text: "Check the numbers in Section J against the source. Add or remove metrics as needed.", img: "doc_autofill_section_j.jpg", caption: "Section J: quantitative metrics." },
+    "Select **Save changes** to keep your edits and finish later. When you are satisfied, select **Submit to KoboToolbox** and confirm. Your reviewed answers are sent as a completed record.",
+    "The record appears at once under **Completed coding form (KoboToolbox)** on the document page and in **Form PDFs**, found by its DOC ID. There is no separate sync to run for documents.",
+  ]],
+  ["warn", "The draft is a starting point, not a finding", [
+    "Sections D to K are this study's documentary analysis. The AI drafts them; you are responsible for them. Change any rating you disagree with. A draft where everything is rated as strongly supportive deserves a second look.",
+    "Nothing reaches KoboToolbox until you select **Submit**. Each draft and submission is recorded in the audit log, so the study can say exactly which records were AI-assisted.",
+    "Submit once. A second submission would create a duplicate record for the document, and the screen shows “Already submitted” to stop it.",
+  ]],
+  ["table", ["File type", "Can the AI read it?", "Locators"], [
+    ["PDF", "Yes, up to 100 pages at a time (choose a page range for longer files).", "Original page and paragraph numbers."],
+    ["JPG, PNG (scan or photo)", "Yes. Very large photos are shrunk automatically.", "Whatever the image shows."],
+    ["Word (.docx), Excel (.xlsx), text, CSV", "Yes, as text.", "No page numbers: headings, paragraph or section numbers, sheet names."],
+    ["Audio or video", "No. Upload a transcript (PDF, Word or text) and keep the recording as the source reference.", "-"],
+    ["Old .doc or .xls", "No. Save as a PDF or as .docx / .xlsx and upload that.", "-"],
+  ], [0.28, 0.44, 0.28]],
+  ["h3", "If Auto-fill shows a message"],
+  ["table", ["You see", "What it means", "What to do"], [
+    ["“Pages to read (required)”, or “This PDF has N pages…”", "The PDF is longer than 100 pages.", "Enter a page range of up to 100 pages."],
+    ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
+    ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes)."],
+    ["“The last attempt failed: …”", "The AI request did not complete.", "Select **Generate AI draft** again. If it keeps failing, tell the administrator the message."],
+    ["No **Auto-fill** button", "AI drafting has not been switched on, or there is no source file yet.", "Attach the file; otherwise ask the administrator."],
+    ["**Submit** is refused by KoboToolbox", "KoboToolbox did not accept the record.", "Tell the administrator; your draft is kept."],
+  ], [0.3, 0.35, 0.35]],
+  ["tip", "Cost", "Each draft is a paid request on the study's AI account. A short chapter costs little; a full 100 pages costs several times more. Choose the pages you need."],
 ];
 
 T.cost = [

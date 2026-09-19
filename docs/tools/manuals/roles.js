@@ -318,7 +318,7 @@ module.exports = [
       ["Weekly planning", "KII Register filtered mentally by status: PROSPECT and INVITED need contact; SCHEDULED need preparation."],
       ["Before each interview", "Check the record and any PROIT gap-engine questions; prepare the KII Guide."],
       ["At the interview", "Record participation consent, and recording consent if recording."],
-      ["After each interview", "Mark COMPLETED (tick Recording made only if recorded); complete the KII Guide in KoboToolbox; update transcript and coding as work progresses."],
+      ["After each interview", "Mark COMPLETED (tick Recording made only if recorded); complete the KII Guide in KoboToolbox (Continue this interview opens it with the KII ID filled in, once consent is recorded); update transcript and coding as work progresses."],
     ],
     tasks: [
       [["h2", "Reading the KII/Doc Dashboard"], ["img", "kii_dashboard.jpg", "KII / Document Dashboard."]],
@@ -345,11 +345,14 @@ module.exports = [
     can: [
       "See the KII/Doc Dashboard, the Documents register and document records.",
       "Create document records, assess authenticity, include or exclude, write memos.",
+      "Attach, replace or remove a document's source file.",
+      "Use Auto-fill (once switched on) to have AI draft the coding form, then review, edit and submit it.",
       "Download PDFs of completed document coding forms.",
     ],
     cannot: [
       "See or edit KII records, questionnaire QA, the Main-400 register, costs or exports.",
       "Include a document before its authenticity has been assessed.",
+      "Send an AI draft to KoboToolbox without reviewing it: nothing is submitted until you select Submit.",
     ],
     landing: "KII/Doc Dashboard",
     screens: [
@@ -361,7 +364,8 @@ module.exports = [
       ["When you find a source", "Create the record with a precise reference and an evidence extract."],
       ["Assessment", "Verify authenticity against the source; mark Verified or Disputed; write the memo."],
       ["Inclusion", "Include or Exclude with reasons in the memo."],
-      ["Coding", "Complete the Document Analysis Tool in KoboToolbox using the DOC ID."],
+      ["Source file", "Upload the source. Wrong one? Select Remove file and upload the right one."],
+      ["Coding", "Either Code this document (you answer the form, DOC ID filled in) or Auto-fill (AI drafts, you review every field, then Submit)."],
     ],
     tasks: [
       [["h2", "Reading the dashboard"], ["img", "kii_dashboard.jpg", "Documents by type and by QA status."]],
@@ -377,9 +381,12 @@ module.exports = [
     extraRules: ["Record the exact source reference so another researcher can find the same document.", "Do not store copyrighted documents outside the study's approved storage."],
     trouble: [
       ["**Include** is greyed out", "Authenticity not assessed.", "Mark verified or disputed first."],
-      ["No coding form PDF on the record", "The form was not submitted with this DOC ID.", "Check the DOC ID in the KoboToolbox form."],
+      ["No coding form PDF on the record", "The form was not submitted with this DOC ID.", "Use Code this document or Auto-fill so the DOC ID is filled in for you."],
+      ["No **Auto-fill** button", "No source file yet, or AI drafting is not switched on.", "Attach the file; otherwise ask the administrator."],
+      ["Auto-fill asks for **Pages to read**", "The PDF has more than 100 pages.", "Enter a range of up to 100 pages, such as one chapter."],
+      ["Uploaded the wrong file", "It happens.", "Select **Remove file** beside the file name, then upload the right one."],
     ],
-    quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Order", "Create → assess authenticity → include/exclude → memo → code"]],
+    quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Order", "Create → attach source → assess authenticity → include/exclude → memo → code (by hand or Auto-fill)"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],
   }),
 
   guide({
