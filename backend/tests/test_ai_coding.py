@@ -95,6 +95,13 @@ def test_read_file_block_image_is_an_image_block(tmp_path):
     assert block["type"] == "image"
 
 
+def _stub_stream(mock_client_cls, response):
+    """The client streams (the output is too long to request in one go), so the
+    fake has to be a context manager whose final message is the response."""
+    stream = mock_client_cls.return_value.messages.stream.return_value
+    stream.__enter__.return_value.get_final_message.return_value = response
+
+
 def _fake_anthropic_response(tool_input: dict):
     tool_use_block = Mock(type="tool_use", input=tool_input)
     return Mock(content=[tool_use_block])
@@ -124,7 +131,7 @@ def test_generate_draft_merges_deterministic_fields_over_ai_answer(document, set
         "section_j__metric_repeat": [],
     })
     with patch("anthropic.Anthropic") as mock_client_cls:
-        mock_client_cls.return_value.messages.create.return_value = fake_response
+        _stub_stream(mock_client_cls, fake_response)
         draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
 
     assert draft["section_a/DOC_ID"] == document.document_id  # deterministic value wins
@@ -141,7 +148,7 @@ def test_generate_draft_no_tool_use_raises(document, settings, tmp_path):
     _blank_pdf(pdf, 3)
     fake_response = Mock(content=[Mock(type="text", text="I don't want to use the tool.")])
     with patch("anthropic.Anthropic") as mock_client_cls:
-        mock_client_cls.return_value.messages.create.return_value = fake_response
+        _stub_stream(mock_client_cls, fake_response)
         with pytest.raises(AIDraftError) as exc:
             generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
     assert exc.value.code == "ai_no_answer"
@@ -152,7 +159,7 @@ def test_generate_draft_wraps_api_error(document, settings, tmp_path):
     pdf = tmp_path / "source.pdf"
     _blank_pdf(pdf, 3)
     with patch("anthropic.Anthropic") as mock_client_cls:
-        mock_client_cls.return_value.messages.create.side_effect = anthropic.APIError(
+        mock_client_cls.return_value.messages.stream.side_effect = anthropic.APIError(
             "boom", request=Mock(), body=None,
         )
         with pytest.raises(AIDraftError) as exc:
@@ -185,7 +192,7 @@ def test_generate_draft_maps_tool_keys_back_to_form_paths(document, settings, tm
     _blank_pdf(pdf, 3)
     fake_response = Mock(stop_reason="tool_use", content=[Mock(type="tool_use", input={"section_d__D1_STRENGTH": "moderate"})])
     with patch("anthropic.Anthropic") as mock_client_cls:
-        mock_client_cls.return_value.messages.create.return_value = fake_response
+        _stub_stream(mock_client_cls, fake_response)
         draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
     assert draft["section_d/D1_STRENGTH"] == "moderate"
     assert "section_d__D1_STRENGTH" not in draft
@@ -197,7 +204,7 @@ def test_generate_draft_refuses_a_cut_off_answer(document, settings, tmp_path):
     _blank_pdf(pdf, 3)
     fake_response = Mock(stop_reason="max_tokens", content=[Mock(type="tool_use", input={})])
     with patch("anthropic.Anthropic") as mock_client_cls:
-        mock_client_cls.return_value.messages.create.return_value = fake_response
+        _stub_stream(mock_client_cls, fake_response)
         with pytest.raises(AIDraftError) as exc:
             generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
     assert exc.value.code == "ai_answer_cut_off"  # never saved as a draft with fields missing
@@ -252,3 +259,20 @@ def test_short_pdf_is_sent_whole_without_a_range(tmp_path):
     _blank_pdf(pdf, 12)
     _, described = _read_file_block(str(pdf), "application/pdf")
     assert "12 pages" in described
+
+
+def test_output_budget_is_large_enough_for_a_full_answer(document, settings, tmp_path):
+    """16,000 output tokens cut the first real NDS2 draft off. The request must
+    ask for a budget in line with the model's limit, and stream it."""
+    from apps.evidence.ai_coding import MAX_OUTPUT_TOKENS
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "source.pdf"
+    _blank_pdf(pdf, 3)
+    fake_response = Mock(stop_reason="tool_use", content=[Mock(type="tool_use", input={})])
+    with patch("anthropic.Anthropic") as mock_client_cls:
+        _stub_stream(mock_client_cls, fake_response)
+        generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
+        sent = mock_client_cls.return_value.messages.stream.call_args.kwargs
+    assert MAX_OUTPUT_TOKENS >= 32000
+    assert sent["max_tokens"] == MAX_OUTPUT_TOKENS

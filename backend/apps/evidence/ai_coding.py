@@ -55,6 +55,10 @@ NATIVE_MEDIA_TYPES = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": 
 # at a time, not a whole strategy at once.
 MAX_PDF_PAGES = 100
 
+# Output budget for the ~110-field answer. The first real run (NDS2, 2026-09-19)
+# was cut off at 16,000 tokens; Opus 5 allows 128,000.
+MAX_OUTPUT_TOKENS = 64000
+
 # Claude's tool schema only allows [a-zA-Z0-9_.-] in a property name, so a
 # form path like "section_a/DOC_ID" is sent as "section_a__DOC_ID" and mapped
 # back afterwards. (The first real call, 2026-09-19, was rejected for the
@@ -230,20 +234,25 @@ def generate_draft(
         "the source gives them. Where the document doesn't support a field, say so plainly in the relevant "
         "text field rather than guessing, and prefer a lower evidence-strength rating over an unsupported high "
         "one -- this is a draft a human researcher will check, not a final judgment, so it should show real "
-        "variation in strength/support ratings rather than defaulting everything to the most favourable option.\n\n"
+        "variation in strength/support ratings rather than defaulting everything to the most favourable option. "
+        "Keep every free-text field focused: a few sentences with the key locator, not a full essay.\n\n"
         f"Fields to answer:\n{field_list}"
     )
 
-    # 10 minutes: reading a long document and writing ~110 fields is slow.
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=600.0)
+    # 15 minutes: reading a long document and writing ~110 fields is slow.
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=900.0)
     try:
-        response = client.messages.create(
+        # Streamed: the SDK refuses a non-streaming request with a large
+        # output budget, and a full answer runs to tens of thousands of tokens
+        # (16,000 cut the first real NDS2 draft off; the model allows 128,000).
+        with client.messages.stream(
             model=settings.AI_DOCUMENT_CODING_MODEL,
-            max_tokens=16000,
+            max_tokens=MAX_OUTPUT_TOKENS,
             tools=[tool],
             tool_choice={"type": "tool", "name": "submit_document_coding"},
             messages=[{"role": "user", "content": [file_block, {"type": "text", "text": prompt}]}],
-        )
+        ) as stream:
+            response = stream.get_final_message()
     except anthropic.APIError as exc:
         raise AIDraftError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
 
