@@ -42,3 +42,42 @@ test("a new document has no draft yet, and the review screen renders once one ex
   await expect(page.getByText("AI drafting hasn’t been set up yet")).toBeVisible();
   await expect(page.getByText("No draft yet.")).toBeVisible();
 });
+
+
+test("every method the screens use gets through the relay (a PUT was once refused as 'Method Not Allowed')", async ({ page, request }) => {
+  const backend = backendBaseURL();
+  const access = await getAdminAccessToken(request, backend);
+  const created = await request.post(`${backend}/api/v1/documents/`, {
+    headers: { Authorization: `Bearer ${access}` },
+    data: { title: "E2E Relay Methods", document_type: "PLATFORM" },
+  });
+  const doc = await created.json();
+
+  await loginAsAdmin(page);
+  // Same-origin, through the Next.js relay with the session cookie -- exactly what the buttons do.
+  const results = await page.evaluate(async (id) => {
+    const call = async (method: string, path: string, body?: unknown) => {
+      const r = await fetch(`/api/proxy${path}`, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return { status: r.status, code: (await r.json().catch(() => null))?.error?.code ?? null };
+    };
+    return {
+      get: await call("GET", `/documents/${id}/`),
+      post: await call("POST", `/documents/${id}/ai-draft/submit/`),
+      put: await call("PUT", `/documents/${id}/ai-draft/`, { answers: {} }),
+      patch: await call("PATCH", `/documents/${id}/`, { interpretive_memo: "x" }),
+      del: await call("DELETE", `/documents/${id}/file/`),
+    };
+  }, doc.id);
+
+  expect(results.get.status).toBe(200);
+  expect(results.patch.status).toBe(200);
+  // There is no draft yet, so the API refuses these on their merits -- a JSON error
+  // from Django, not a bare 405 from the relay.
+  expect(results.put).toEqual({ status: 400, code: "no_draft" });
+  expect(results.post).toEqual({ status: 400, code: "no_draft" });
+  expect(results.del).toEqual({ status: 404, code: "not_found" });
+});

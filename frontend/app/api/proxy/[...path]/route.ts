@@ -89,6 +89,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, (await params).path);
 }
+// PUT is needed by the AI draft's "Save changes" and "Submit" (a whole-draft replace).
+// Without it the relay answered 405 "Method Not Allowed" before the request ever
+// reached Django -- the backend tests call the API directly and could not see it.
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(request, (await params).path);
+}
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   return proxy(request, (await params).path);
 }
