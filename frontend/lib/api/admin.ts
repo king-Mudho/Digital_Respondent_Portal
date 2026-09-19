@@ -33,20 +33,53 @@ export async function adminFetch<T>(path: string, init: RequestInit = {}): Promi
  * proxy route now forwards whatever Content-Type it's given rather than
  * hardcoding application/json.
  */
-export async function adminUpload<T>(path: string, formData: FormData): Promise<T> {
-  const response = await fetch(`/api/proxy${path}`, { method: "POST", body: formData });
+export async function adminUpload<T>(
+  path: string,
+  formData: FormData,
+  onProgress?: (fraction: number) => void,
+): Promise<T> {
+  // fetch() can't report how much of a request body has been sent; a big scan
+  // over a slow connection looks frozen. XMLHttpRequest can, so use it when
+  // the caller wants progress.
+  const response = onProgress
+    ? await new Promise<{ ok: boolean; status: number; statusText: string; text: string }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/proxy${path}`);
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) onProgress(event.loaded / event.total);
+        };
+        xhr.onload = () =>
+          resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, statusText: xhr.statusText, text: xhr.responseText });
+        xhr.onerror = () => reject(new ApiError(0, "network_error", "The upload was interrupted. Check your connection and try again.", {}));
+        xhr.ontimeout = () => reject(new ApiError(0, "timeout", "The upload timed out. Try again on a faster connection.", {}));
+        xhr.send(formData);
+      })
+    : await fetch(`/api/proxy${path}`, { method: "POST", body: formData }).then(async (r) => ({
+        ok: r.ok,
+        status: r.status,
+        statusText: r.statusText,
+        text: await r.text(),
+      }));
 
+  let parsed: { error?: { code?: string; message?: string; field_errors?: Record<string, string[]> } } | null = null;
+  try {
+    parsed = JSON.parse(response.text);
+  } catch {
+    parsed = null;
+  }
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const error = body?.error;
+    const error = parsed?.error;
     throw new ApiError(
       response.status,
       error?.code ?? "unknown_error",
-      error?.message ?? response.statusText,
+      // nginx answers an over-size upload with a bare HTML 413 page, not JSON.
+      response.status === 413
+        ? "That file is too large to upload."
+        : (error?.message ?? response.statusText),
       error?.field_errors ?? {},
     );
   }
-  return response.json() as Promise<T>;
+  return parsed as T;
 }
 
 export async function login(username: string, password: string): Promise<void> {

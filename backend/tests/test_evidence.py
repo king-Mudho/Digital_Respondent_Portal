@@ -263,9 +263,9 @@ def test_ai_draft_generate_success_saves_draft_and_audits(documentary_ra_client,
         "_generated_by_model": "claude-opus-5",
         "_generated_at": "2026-09-17T12:00:00",
     }
-    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+    with patch("apps.evidence.tasks.generate_draft", return_value=fake_draft):
         resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
-    assert resp.status_code == 200
+    assert resp.status_code == 202  # accepted: the reading happens in the background
     assert resp.data["ai_draft"]["section_b/RELEVANCE"] == "high"
     assert resp.data["ai_draft_model"] == "claude-opus-5"
     assert resp.data["ai_draft_generated_at"] is not None
@@ -278,7 +278,7 @@ def test_ai_draft_generate_success_saves_draft_and_audits(documentary_ra_client,
 def test_ai_draft_put_saves_edits(documentary_ra_client, document_with_file, settings):
     settings.ANTHROPIC_API_KEY = "sk-ant-test"
     fake_draft = {"section_a/DOC_ID": document_with_file.document_id, "section_b/RELEVANCE": "low"}
-    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+    with patch("apps.evidence.tasks.generate_draft", return_value=fake_draft):
         documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
 
     resp = documentary_ra_client.put(
@@ -308,7 +308,7 @@ def test_ai_submit_requires_a_draft(documentary_ra_client, document):
 def test_ai_submit_success_records_submission_state(documentary_ra_client, document_with_file, settings):
     settings.ANTHROPIC_API_KEY = "sk-ant-test"
     fake_draft = {"section_a/DOC_ID": document_with_file.document_id}
-    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+    with patch("apps.evidence.tasks.generate_draft", return_value=fake_draft):
         documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
 
     with patch("apps.evidence.views.submit_to_kobo", return_value={"instance_uuid": "abc-123", "status_code": 201}):
@@ -321,7 +321,7 @@ def test_ai_submit_success_records_submission_state(documentary_ra_client, docum
 def test_ai_submit_failure_returns_error_and_does_not_mark_submitted(documentary_ra_client, document_with_file, settings):
     settings.ANTHROPIC_API_KEY = "sk-ant-test"
     fake_draft = {"section_a/DOC_ID": document_with_file.document_id}
-    with patch("apps.evidence.views.generate_draft", return_value=fake_draft):
+    with patch("apps.evidence.tasks.generate_draft", return_value=fake_draft):
         documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
 
     from apps.evidence.kobo_submit import KoboSubmitError
@@ -353,7 +353,7 @@ def test_supervisor_read_only_can_still_read_schema(supervisor_client):
 # --- Removing the uploaded file ----------------------------------------------
 
 def _draft(document_with_file, client):
-    with patch("apps.evidence.views.generate_draft", return_value={"section_a/DOC_ID": document_with_file.document_id}):
+    with patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": document_with_file.document_id}):
         client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
 
 
@@ -436,3 +436,91 @@ def test_supervisor_cannot_remove_a_file(supervisor_client, document_with_file):
     assert resp.status_code == 403
     document_with_file.refresh_from_db()
     assert document_with_file.source_file_name == "scan.pdf"  # untouched
+
+
+# --- Background generation ---------------------------------------------------
+
+def test_generate_failure_is_recorded_and_shown_not_left_running(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    from apps.evidence.ai_coding import AIDraftError
+
+    with patch("apps.evidence.tasks.generate_draft", side_effect=AIDraftError("ai_request_failed", "The AI request failed: boom", 502)):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.status_code == 202
+    assert resp.data["ai_draft_status"] == "failed"
+    assert resp.data["ai_draft_error"] == "The AI request failed: boom"
+    assert resp.data["ai_draft"] is None
+
+
+def test_generate_crash_never_leaves_the_document_stuck_on_running(documentary_ra_client, document_with_file, settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    with patch("apps.evidence.tasks.generate_draft", side_effect=RuntimeError("unexpected")):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.data["ai_draft_status"] == "failed"
+    assert "unexpected" not in resp.data["ai_draft_error"]  # no internals leaked to the screen
+
+
+def test_second_generate_while_one_is_running_is_refused(documentary_ra_client, document_with_file, settings):
+    from django.utils import timezone
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    DocumentRecord.objects.filter(pk=document_with_file.pk).update(ai_draft_status="running", ai_draft_started_at=timezone.now())
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.status_code == 409
+    assert resp.data["error"]["code"] == "already_running"
+
+
+def test_a_stuck_running_job_does_not_block_forever(documentary_ra_client, document_with_file, settings):
+    """If a worker died mid-job, 'running' must not lock the document."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    DocumentRecord.objects.filter(pk=document_with_file.pk).update(
+        ai_draft_status="running", ai_draft_started_at=timezone.now() - timedelta(minutes=30),
+    )
+    with patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": document_with_file.document_id}):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
+    assert resp.status_code == 202
+
+
+def test_long_pdf_is_refused_up_front_without_starting_a_job(documentary_ra_client, document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for _ in range(120):
+        writer.add_blank_page(width=100, height=100)
+    long_path = tmp_path / "long.pdf"
+    with open(long_path, "wb") as f:
+        writer.write(f)
+    with open(long_path, "rb") as f:
+        documentary_ra_client.post(
+            f"/api/v1/documents/{document.pk}/file/",
+            {"file": SimpleUploadedFile("long.pdf", f.read(), content_type="application/pdf")},
+            format="multipart",
+        )
+    detail = documentary_ra_client.get(f"/api/v1/documents/{document.pk}/")
+    assert detail.data["source_file_pages"] == 120
+
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/")
+    assert resp.status_code == 400
+    assert resp.data["error"]["code"] == "pdf_too_long"
+    document.refresh_from_db()
+    assert document.ai_draft_status == ""  # nothing was queued or charged
+
+    with patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": document.document_id}) as gen:
+        ok = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/", {"pages": "1-50"}, format="json")
+    assert ok.status_code == 202
+    assert gen.call_args.kwargs["page_range"] == "1-50"
+
+
+def test_replacing_the_file_clears_a_stale_failed_state(documentary_ra_client, document_with_file, settings):
+    DocumentRecord.objects.filter(pk=document_with_file.pk).update(ai_draft_status="failed", ai_draft_error="old file problem")
+    resp = documentary_ra_client.post(
+        f"/api/v1/documents/{document_with_file.pk}/file/", {"file": _pdf_file("new.pdf")}, format="multipart",
+    )
+    assert resp.data["ai_draft_status"] == ""
+    assert resp.data["ai_draft_error"] == ""

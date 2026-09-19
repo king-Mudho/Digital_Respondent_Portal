@@ -42,6 +42,9 @@ interface DocumentRecord {
   document_id: string;
   title: string;
   source_file_name: string;
+  source_file_pages: number | null;
+  ai_draft_status: "" | "running" | "failed";
+  ai_draft_error: string;
   ai_draft: Record<string, unknown> | null;
   ai_draft_generated_at: string | null;
   ai_draft_model: string;
@@ -67,6 +70,8 @@ const GROUP_LABELS: Record<string, string> = {
 };
 
 const REPEAT_GROUP_PATH = "section_j/metric_repeat";
+// The most pages the AI can read in one go (backend/apps/evidence/ai_coding.py MAX_PDF_PAGES).
+const MAX_PDF_PAGES = 100;
 // Long-form fields that read better as a textarea than a one-line input.
 const LONG_FIELD_HINTS = ["summary", "note", "memo", "evidence", "mechanism", "interpretation", "assessment", "finding", "reason", "theme", "bias"];
 
@@ -159,6 +164,7 @@ export default function DocumentAIDraftPage() {
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [pages, setPages] = useState("");
 
   const { data: schemaData } = useQuery({
     queryKey: ["document-ai-schema"],
@@ -169,6 +175,8 @@ export default function DocumentAIDraftPage() {
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", params.id],
     queryFn: () => adminFetch<DocumentRecord>(`/documents/${params.id}/`),
+    // The AI reads in the background (minutes): keep checking until it stops.
+    refetchInterval: (query) => (query.state.data?.ai_draft_status === "running" ? 3000 : false),
   });
 
   // Loads the server's draft into local editable state exactly once per
@@ -183,11 +191,15 @@ export default function DocumentAIDraftPage() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["document", params.id] });
 
   const generate = useMutation({
-    mutationFn: () => adminFetch<DocumentRecord>(`/documents/${params.id}/ai-draft/`, { method: "POST" }),
+    mutationFn: () =>
+      adminFetch<DocumentRecord>(`/documents/${params.id}/ai-draft/`, {
+        method: "POST",
+        body: JSON.stringify({ pages: pages.trim() }),
+      }),
     onSuccess: () => {
       setError(null);
       setDirty(false);
-      setNotice("Draft generated. Read it carefully before saving or submitting.");
+      setNotice(null);
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not generate a draft."),
@@ -234,6 +246,9 @@ export default function DocumentAIDraftPage() {
 
   const { schema, deterministic_fields: deterministicFields, ai_configured: aiConfigured } = schemaData;
   const alreadySubmitted = Boolean(doc.kobo_submitted_at);
+  const running = doc.ai_draft_status === "running";
+  const isPdf = doc.source_file_name.toLowerCase().endsWith(".pdf");
+  const tooLong = isPdf && (doc.source_file_pages ?? 0) > MAX_PDF_PAGES;
   const setField = (path: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [path]: value }));
     setDirty(true);
@@ -255,6 +270,18 @@ export default function DocumentAIDraftPage() {
       )}
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
       {notice && <p className="text-sm mb-4">{notice}</p>}
+      {doc.ai_draft_status === "failed" && doc.ai_draft_error && (
+        <p className="text-danger text-sm mb-4">The last attempt failed: {doc.ai_draft_error}</p>
+      )}
+      {running && (
+        <Card className="mb-4 space-y-1">
+          <p className="text-sm font-medium">The AI is reading the document…</p>
+          <p className="text-xs text-text-muted">
+            This usually takes one to five minutes. You can leave this page and come back; the draft will be here
+            when it&rsquo;s ready.
+          </p>
+        </Card>
+      )}
 
       {alreadySubmitted && (
         <Card className="mb-4 space-y-1">
@@ -270,17 +297,40 @@ export default function DocumentAIDraftPage() {
 
       <WriteOnly>
         <Card className="mb-4 space-y-3">
+          {isPdf && (
+            <div className="space-y-1">
+              <label className="text-sm text-text-muted" htmlFor="page-range">
+                Pages to read{tooLong ? " (required)" : " (optional)"}
+              </label>
+              <input
+                id="page-range"
+                type="text"
+                value={pages}
+                onChange={(e) => setPages(e.target.value)}
+                placeholder={tooLong ? "e.g. 1-100" : "all pages"}
+                disabled={running || generate.isPending}
+                className="w-40 rounded-md border border-border px-3 py-2 text-sm block"
+              />
+              {tooLong && (
+                <p className="text-xs text-text-muted">
+                  This PDF has {doc.source_file_pages} pages and the AI can read up to {MAX_PDF_PAGES} at a time. Enter
+                  the pages that make up this evidence unit, such as a chapter. Locators will use the original page
+                  numbers.
+                </p>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             <Button
               variant="outline"
-              disabled={!aiConfigured || generate.isPending}
+              disabled={!aiConfigured || generate.isPending || running}
               onClick={() => {
                 if (!doc.ai_draft || window.confirm("This replaces the current draft and any unsaved edits. Continue?")) {
                   generate.mutate();
                 }
               }}
             >
-              {generate.isPending ? "Reading the document…" : doc.ai_draft ? "Regenerate draft" : "Generate AI draft"}
+              {generate.isPending || running ? "Reading the document…" : doc.ai_draft ? "Regenerate draft" : "Generate AI draft"}
             </Button>
             {doc.ai_draft && (
               <Button variant="outline" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>

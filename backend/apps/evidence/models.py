@@ -91,6 +91,13 @@ class DocumentRecord(models.Model):
     ai_draft = models.JSONField(default=dict, blank=True)
     ai_draft_generated_at = models.DateTimeField(null=True, blank=True)
     ai_draft_model = models.CharField(max_length=64, blank=True)
+    # Generating a draft means an AI reading the whole document, which takes
+    # longer than nginx will hold a browser request open (60s), so it runs in
+    # the background (apps/evidence/tasks.py) and the screen polls this.
+    # "" = idle, "running", "failed" (ai_draft_error says why).
+    ai_draft_status = models.CharField(max_length=16, blank=True)
+    ai_draft_error = models.TextField(blank=True)
+    ai_draft_started_at = models.DateTimeField(null=True, blank=True)
     # Set only by a Documentary RA's explicit "Submit to KoboToolbox" click
     # on the reviewed draft (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md) --
     # never by ai_coding.py itself. kobo_submission_uuid is the instance's

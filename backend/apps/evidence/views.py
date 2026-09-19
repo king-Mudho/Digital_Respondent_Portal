@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -8,7 +10,14 @@ from rest_framework.views import APIView
 from api.permissions import CanManageDocuments
 from apps.audit.utils import log_action
 
-from .ai_coding import DETERMINISTIC_FIELDS, AIDraftError, ai_coding_is_configured, generate_draft
+from .ai_coding import (
+    DETERMINISTIC_FIELDS,
+    MAX_PDF_PAGES,
+    AIDraftError,
+    ai_coding_is_configured,
+    parse_page_range,
+    pdf_page_count,
+)
 from .document_tool_schema import SCHEMA
 from .kobo_submit import KoboSubmitError, kobo_submit_is_configured, submit_to_kobo
 from .models import AuthenticityAssessment, DocumentQAStatus, DocumentRecord
@@ -23,6 +32,11 @@ from .services import (
     save_source_file,
     set_qa_status,
 )
+from .tasks import RUNNING, generate_ai_draft
+
+
+def _error(code, message, status=400):
+    return Response({"error": {"code": code, "message": message, "field_errors": {}}}, status=status)
 
 
 class DocumentRecordListCreateView(generics.ListCreateAPIView):
@@ -147,27 +161,45 @@ class DocumentAIDraftView(APIView):
     permission_classes = [CanManageDocuments]
 
     def post(self, request, pk):
+        """Starts generating a draft in the background and returns at once
+        (202): the reading takes minutes, longer than nginx keeps a request
+        open. The screen polls ai_draft_status. Everything cheap is checked
+        here first so a mistake is refused immediately, not minutes later."""
         document = get_object_or_404(DocumentRecord, pk=pk)
+        if not ai_coding_is_configured():
+            return _error("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+        if (
+            document.ai_draft_status == RUNNING
+            and document.ai_draft_started_at
+            and timezone.now() - document.ai_draft_started_at < timedelta(minutes=12)
+        ):
+            return _error("already_running", "A draft is already being generated for this document.", 409)
         try:
-            source_path, _, source_content_type = open_source_file(document)
+            source_path, _, _ = open_source_file(document)
         except DocumentFileError as exc:
-            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+            return _error(exc.code, str(exc), exc.status)
 
+        page_range = str(request.data.get("pages") or "").strip()
+        pages = pdf_page_count(source_path) if source_path.lower().endswith(".pdf") else None
         try:
-            draft = generate_draft(
-                document, source_path=source_path, source_content_type=source_content_type, user=request.user,
-            )
+            if pages is not None and page_range:
+                parse_page_range(page_range, pages)
+            elif pages is not None and pages > MAX_PDF_PAGES:
+                raise AIDraftError(
+                    "pdf_too_long",
+                    f"This PDF has {pages} pages, and the AI can read at most {MAX_PDF_PAGES} at a time. "
+                    "Enter the pages that make up this evidence unit (for example 1-100).",
+                )
         except AIDraftError as exc:
-            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+            return _error(exc.code, str(exc), exc.status)
 
-        document.ai_draft = draft
-        document.ai_draft_generated_at = timezone.now()
-        document.ai_draft_model = draft.get("_generated_by_model", "")
-        document.save(update_fields=["ai_draft", "ai_draft_generated_at", "ai_draft_model"])
-        log_action("document.ai_draft_generated", document, {
-            "model": document.ai_draft_model, "user_id": request.user.id,
-        })
-        return Response(DocumentRecordSerializer(document).data)
+        document.ai_draft_status = RUNNING
+        document.ai_draft_error = ""
+        document.ai_draft_started_at = timezone.now()
+        document.save(update_fields=["ai_draft_status", "ai_draft_error", "ai_draft_started_at"])
+        generate_ai_draft.delay(document.pk, request.user.id, page_range)
+        document.refresh_from_db()
+        return Response(DocumentRecordSerializer(document).data, status=202)
 
     def put(self, request, pk):
         document = get_object_or_404(DocumentRecord, pk=pk)

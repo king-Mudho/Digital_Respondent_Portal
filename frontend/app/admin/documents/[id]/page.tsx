@@ -47,6 +47,7 @@ export default function DocumentDetailPage() {
   // back to the saved text, so a memo could never be cleared.
   const [memo, setMemo] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: doc, isLoading } = useQuery({
@@ -103,8 +104,10 @@ export default function DocumentDetailPage() {
     mutationFn: (file: File) => {
       const body = new FormData();
       body.append("file", file);
-      return adminUpload(`/documents/${params.id}/file/`, body);
+      setUploadProgress(0);
+      return adminUpload(`/documents/${params.id}/file/`, body, setUploadProgress);
     },
+    onSettled: () => setUploadProgress(null),
     onSuccess: () => {
       setUploadError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -254,7 +257,16 @@ export default function DocumentDetailPage() {
                 disabled={uploadFile.isPending}
                 className="text-sm"
               />
-              {uploadFile.isPending && <span className="text-sm text-text-muted">Uploading…</span>}
+              {uploadFile.isPending && (
+                <span className="flex items-center gap-2 text-sm text-text-muted">
+                  <span className="inline-block h-2 w-40 rounded bg-border overflow-hidden" role="progressbar" aria-label="Upload progress">
+                    <span className="block h-2 bg-header" style={{ width: `${Math.round((uploadProgress ?? 0) * 100)}%` }} />
+                  </span>
+                  {uploadProgress !== null && uploadProgress >= 1
+                    ? "Saving…"
+                    : `Uploading… ${Math.round((uploadProgress ?? 0) * 100)}%`}
+                </span>
+              )}
             </div>
             <p className="text-xs text-text-muted">
               A scan, photo, screenshot or recording of the source (PDF, image, Office file or audio/video,

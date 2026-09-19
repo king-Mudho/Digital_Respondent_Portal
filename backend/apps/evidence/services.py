@@ -164,10 +164,11 @@ def save_source_file(document: DocumentRecord, uploaded_file, *, user) -> Docume
     # document now -- leaving it would let it be reviewed and submitted as
     # if it matched the new file.
     draft_discarded = had_file and _discard_unsubmitted_draft(document)
+    _clear_draft_job_state(document)
     document.save(update_fields=[
         "source_file_ref", "source_file_name", "source_file_content_type",
         "source_file_size", "source_file_uploaded_at",
-        "ai_draft", "ai_draft_generated_at", "ai_draft_model",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error",
     ])
     log_action("document.file_uploaded", document, {
         "filename": original_name, "size": uploaded_file.size, "user_id": getattr(user, "id", None),
@@ -188,6 +189,12 @@ def _discard_unsubmitted_draft(document: DocumentRecord) -> bool:
     return True
 
 
+def _clear_draft_job_state(document: DocumentRecord) -> None:
+    """A failed/running note about the old file means nothing for the new one."""
+    document.ai_draft_status = ""
+    document.ai_draft_error = ""
+
+
 def remove_source_file(document: DocumentRecord, *, user) -> DocumentRecord:
     """Deletes the stored source file (e.g. the wrong document was
     uploaded) and clears its metadata. The register then shows 'No file
@@ -205,10 +212,11 @@ def remove_source_file(document: DocumentRecord, *, user) -> DocumentRecord:
     document.source_file_size = None
     document.source_file_uploaded_at = None
     draft_discarded = _discard_unsubmitted_draft(document)
+    _clear_draft_job_state(document)
     document.save(update_fields=[
         "source_file_ref", "source_file_name", "source_file_content_type",
         "source_file_size", "source_file_uploaded_at",
-        "ai_draft", "ai_draft_generated_at", "ai_draft_model",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error",
     ])
     log_action("document.file_removed", document, {
         "filename": removed_name, "user_id": getattr(user, "id", None), "ai_draft_discarded": draft_discarded,

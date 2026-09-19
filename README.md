@@ -77,7 +77,7 @@ All are itemised under [Notable fixes](#notable-fixes).
 
 **Current state:**
 
-- Backend: **445 tests** passing (`pytest`).
+- Backend: **458 tests** passing (`pytest`).
 - Playwright: **48 E2E tests** pass in CI. **3 are skipped** on purpose: WhatsApp, and the two
   Kobo download tests when no KoboToolbox is reachable.
 - `ruff check`, `tsc --noEmit` and `eslint` are all clean.
@@ -573,7 +573,7 @@ Never commit real values for any of the above — both `.env` files are gitignor
 ## Tests
 
 ```bash
-cd backend  && pytest              # 445 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
+cd backend  && pytest              # 458 tests: unit, API, privacy, roles, gates, Kobo, exports, query counts
 cd backend  && ruff check .        # linting
 cd frontend && npx tsc --noEmit    # type checking
 cd frontend && npm run lint        # eslint
@@ -753,6 +753,25 @@ document record itself, not the AI, either way.
    drives the AI prompt, the Claude tool-use JSON schema (so a model can't return a
    choice code that doesn't exist on the live form) and the submission XML builder, so
    the three can't quietly drift apart.
+
+**First real run, 19 Sep 2026 — three things a mocked test could not see:**
+
+5. **The AI request was rejected outright.** Claude's tool schema only allows letters, digits,
+   `_`, `.` and `-` in a field name, and the form paths contain `/` (`section_a/DOC_ID`).
+   Fields are now sent as `section_a__DOC_ID` and mapped back; the corrected schema was
+   checked against the real API before release, and `test_tool_schema_property_names_are_valid`
+   enforces the same rule.
+6. **The AI can read at most 100 pages of a PDF at a time**, and the real NDS2 file is 648.
+   A long PDF now asks for a page range (one chapter or evidence unit), sends only those
+   pages and tells the model to cite the original page numbers. A range that is missing,
+   out of bounds or over 100 pages is refused instantly, before any AI call.
+7. **Reading takes minutes; nginx closes a request at 60 seconds.** Generating now runs in
+   the Celery worker (`apps/evidence/tasks.py`) and the screen polls
+   `ai_draft_status` (running / failed with the reason). A crashed job is recorded as failed
+   rather than left "running", a stuck one stops blocking after 12 minutes, and an answer
+   cut off by the length limit is never saved as a draft with fields missing.
+   Uploads also show a live progress bar: the server saves a file in about a tenth of a
+   second, so a slow upload is the connection, and a silent "Uploading…" looked frozen.
 
 ### Sixth pass — the KII Guide's own prefilled link (17 Sep 2026)
 the wrong reason, that is called out — those were the most dangerous cases, because the
