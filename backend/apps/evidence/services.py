@@ -234,3 +234,13 @@ def open_source_file(document: DocumentRecord) -> tuple[str, str, str]:
     if not os.path.exists(abs_path):
         raise DocumentFileError("not_found", "The stored file is missing on the server.", 404)
     return abs_path, document.source_file_name, document.source_file_content_type
+
+
+def discard_new_document(document: DocumentRecord) -> None:
+    """Undoes a record made a moment ago from a file that turned out unusable:
+    the stored file (if any) and the record itself, leaving nothing behind."""
+    if document.source_file_ref:
+        path = os.path.join(settings.PRIVATE_DATA_ROOT, document.source_file_ref)
+        if os.path.exists(path):
+            os.remove(path)
+    document.delete()

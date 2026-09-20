@@ -7,6 +7,7 @@ from .views import (
     DocumentAuthenticityView,
     DocumentFileView,
     DocumentQAStatusView,
+    DocumentQuickCreateView,
     DocumentRecordDetailView,
     DocumentRecordListCreateView,
 )
@@ -15,6 +16,7 @@ app_name = "evidence"
 
 urlpatterns = [
     path("documents/", DocumentRecordListCreateView.as_view(), name="list"),
+    path("documents/quick-create/", DocumentQuickCreateView.as_view(), name="quick-create"),
     path("documents/ai-draft-schema/", DocumentAISchemaView.as_view(), name="ai-draft-schema"),
     path("documents/<int:pk>/", DocumentRecordDetailView.as_view(), name="detail"),
     path("documents/<int:pk>/authenticity/", DocumentAuthenticityView.as_view(), name="authenticity"),

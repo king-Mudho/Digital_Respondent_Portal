@@ -95,6 +95,15 @@ def ai_coding_is_configured() -> bool:
     return bool((settings.ANTHROPIC_API_KEY or "").strip())
 
 
+def with_current_record_details(document: DocumentRecord, draft: dict) -> dict:
+    """The draft with the record-derived fields (DOC ID, author, title, date, source) taken
+    from the record as it is NOW, so a correction made on the record after the draft was
+    written is what the review screen shows and what gets submitted. The capture date stays
+    as it was when the draft was made."""
+    fresh = {path: resolver(document) for path, resolver in DETERMINISTIC_FIELDS.items() if path != "section_a/access_capture_date"}
+    return {**draft, **fresh}
+
+
 def _tool_schema() -> dict:
     """Builds the Claude tool-use JSON schema from document_tool_schema.json
     -- one property per non-deterministic, non-repeat field (enums for
@@ -534,3 +543,77 @@ def generate_chunked_draft(
     draft = _finish(document, merged, user, totals, f"{start}-{end} (read in {len(ranges)} parts)")
     draft["_parts"] = len(ranges)
     return draft
+
+
+# --- Filling in the record's own details from the file --------------------------
+
+DETAILS_PAGES = 12  # the front matter of a PDF (title page, contents, first pages) says who/what/when
+
+_DETAILS_TOOL = {
+    "name": "record_document_details",
+    "description": "Records the register details of the source document, as the document itself states them.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "title": {"type": "string", "description": "The document's full title. If only part of a longer document is supplied "
+                                                       "(a page range), give the document's title, then the part: 'Title – Chapter 6: "
+                                                       "Agriculture (pp. 290-340)'."},
+            "author_or_speaker": {"type": "string", "description": "The issuing organisation, author or speaker. Empty if not stated."},
+            "publication_or_event_date": {"type": "string", "description": "Publication or event date as YYYY-MM-DD "
+                                                                          "(YYYY-MM-01 if only month and year, YYYY-01-01 if only the year). "
+                                                                          "Empty if not stated."},
+            "document_type": {"type": "string", "enum": ["OFFICIAL", "SECONDARY", "PLATFORM"],
+                              "description": "OFFICIAL: issued by a government, regulator, central bank or law, or an organisation "
+                                             "about itself (annual report, policy, statute). SECONDARY: analysis or reporting by a "
+                                             "third party (research, consultancy, donor or news report). PLATFORM: material published "
+                                             "on a digital platform or media channel (web page, app listing, social media, video)."},
+            "geographic_scope": {"type": "string", "description": "Where it applies, e.g. 'Zimbabwe (national)'. Empty if not stated."},
+            "value_chain": {"type": "string", "description": "The agricultural value chain or 'Cross-cutting'. Empty if unclear."},
+            "source_url_or_reference": {"type": "string", "description": "A web address or catalogue/reference number PRINTED in the "
+                                                                        "document. Empty if none -- never invent one."},
+        },
+        "required": ["title", "author_or_speaker", "publication_or_event_date", "document_type", "geographic_scope",
+                     "value_chain", "source_url_or_reference"],
+    },
+}
+
+
+def extract_document_details(source_path: str, source_content_type: str, *, page_range: str = "") -> dict:
+    """The register details (title, author, date, type, scope, source) as the
+    document itself states them, read from its front pages. Cheap: at most
+    DETAILS_PAGES pages of a PDF. Nothing is guessed -- an unstated detail comes
+    back empty for the person to fill in."""
+    if not ai_coding_is_configured():
+        raise AIDraftError("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+    span = ""
+    if source_path.lower().endswith(".pdf"):
+        total = pdf_page_count(source_path)
+        if total is not None:
+            first, last = parse_page_range(page_range, total, MAX_WHOLE_DOCUMENT_PAGES) if page_range.strip() else (1, total)
+            span = f"{first}-{min(last, first + DETAILS_PAGES - 1)}"
+    block, sent = _read_file_block(source_path, source_content_type, span)
+    part_note = (
+        f" Only pages {page_range.strip()} of the document are being coded, so name that part in the title."
+        if page_range.strip() else ""
+    )
+    prompt = (
+        "You are filling in the register entry for a source document in an academic study of agribusiness finance in Zimbabwe. "
+        f"You are given {sent}.{part_note} Call record_document_details with the details as the document itself states them "
+        "(title page, cover, headers, front matter). Leave a detail empty rather than guessing it."
+    )
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=300.0, max_retries=4)
+    try:
+        response = client.messages.create(
+            model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=2000, tools=[_DETAILS_TOOL],
+            tool_choice={"type": "tool", "name": "record_document_details"},
+            messages=[{"role": "user", "content": [block, {"type": "text", "text": prompt}]}],
+        )
+    except anthropic.APIError as exc:
+        raise AIDraftError("ai_request_failed", f"The AI request failed while reading the document's details: {exc}", 502) from exc
+    tool_use = next((b for b in response.content if b.type == "tool_use"), None)
+    if tool_use is None:
+        raise AIDraftError("ai_no_answer", "The AI didn't return the document's details.", 502)
+    details = {k: str(v).strip() for k, v in dict(tool_use.input).items() if v is not None}
+    if details.get("document_type") not in ("OFFICIAL", "SECONDARY", "PLATFORM"):
+        details.pop("document_type", None)
+    return details

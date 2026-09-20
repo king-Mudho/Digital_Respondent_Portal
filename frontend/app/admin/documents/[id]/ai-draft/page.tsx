@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { WriteOnly } from "@/components/admin/RoleGate";
@@ -298,7 +299,7 @@ export default function DocumentAIDraftPage() {
             The AI is reading the document…{doc.ai_draft_progress ? ` ${doc.ai_draft_progress}` : ""}
           </p>
           <p className="text-xs text-text-muted">
-            {doc.ai_draft_progress
+            {/^(Starting|Reading part|Read part|Combining)/.test(doc.ai_draft_progress)
               ? "A long document is read in parts and takes longer, often ten to thirty minutes. "
               : "This usually takes one to five minutes. "}
             You can leave this page and come back; the draft will be here
@@ -430,13 +431,23 @@ export default function DocumentAIDraftPage() {
               return (
                 <Card key={group} className="space-y-4">
                   <h3 className="font-medium">{GROUP_LABELS[group] ?? group}</h3>
+                  {group === "section_a" && (
+                    <p className="text-xs text-text-muted">
+                      The grey fields come from the record (the AI read them from the document&rsquo;s first pages when
+                      the record was made). To correct one,{" "}
+                      <Link href={`/admin/documents/${params.id}`} className="underline">edit the record details</Link>{" "}
+                     ; the change appears here and is used when you submit.
+                    </p>
+                  )}
                   {fields.map((field) => {
                     const isDeterministic = deterministicFields.includes(field.path);
                     return (
                       <div key={field.path} className="space-y-1">
                         <label className="text-sm text-text-muted">{field.label}</label>
                         {isDeterministic ? (
-                          <p className="text-sm rounded-md bg-surface px-3 py-2">{String(answers[field.path] ?? "") || "—"}</p>
+                          <p className="text-sm rounded-md bg-surface px-3 py-2">
+                            {String(answers[field.path] ?? "") || "—"}
+                          </p>
                         ) : (
                           <FieldControl
                             field={field}

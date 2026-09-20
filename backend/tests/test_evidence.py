@@ -5,7 +5,7 @@ recorded; a DISPUTED document is retained, never deleted.
 """
 
 import os
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -573,3 +573,158 @@ def test_a_pdf_over_the_whole_document_ceiling_is_refused_with_a_way_forward(doc
     assert resp.status_code == 400 and "ceiling" in resp.data["error"]["message"]
     document.refresh_from_db()
     assert document.ai_draft_status == ""
+
+
+# --- Quick add: upload a file and the AI fills in the record and drafts the form --
+
+def _quick(client, name="Rural_Finance-Strategy-2026.pdf", content=None, **data):
+    return client.post(
+        "/api/v1/documents/quick-create/",
+        {"file": SimpleUploadedFile(name, content or _pdf_file().read(), content_type="application/pdf"), **data},
+        format="multipart",
+    )
+
+
+FAKE_DETAILS = {
+    "title": "National Rural Finance Strategy 2026-2030", "author_or_speaker": "Ministry of Finance (Zimbabwe)",
+    "publication_or_event_date": "2026-03-12", "document_type": "OFFICIAL", "geographic_scope": "Zimbabwe (national)",
+    "value_chain": "Cross-cutting", "source_url_or_reference": "",
+}
+
+
+def test_quick_create_fills_the_record_from_the_file_and_drafts_the_form(documentary_ra_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    seen = {}
+
+    def fake_generate(document, **kwargs):
+        seen["title"] = document.title  # the draft is made for the record as now filled in
+        return {"section_a/DOC_ID": document.document_id, "_generated_by_model": "m", "_generated_at": "2026-09-20T10:00:00"}
+
+    with patch("apps.evidence.tasks.extract_document_details", return_value=dict(FAKE_DETAILS)), \
+         patch("apps.evidence.tasks.generate_draft", side_effect=fake_generate):
+        resp = _quick(documentary_ra_client)
+    assert resp.status_code == 202
+    document = DocumentRecord.objects.get(pk=resp.data["id"])
+    assert document.title == "National Rural Finance Strategy 2026-2030" and seen["title"] == document.title
+    assert (document.author_or_speaker, str(document.publication_or_event_date), document.geographic_scope) == (
+        "Ministry of Finance (Zimbabwe)", "2026-03-12", "Zimbabwe (national)")
+    assert document.source_file_name == "Rural_Finance-Strategy-2026.pdf" and document.ai_draft and document.ai_draft_status == ""
+    assert document.authenticity_assessment == "UNVERIFIED"  # the human still assesses authenticity
+
+    from apps.audit.models import AuditEvent
+
+    for action in ("document.created_from_file", "document.details_filled_by_ai", "document.ai_draft_generated"):
+        assert AuditEvent.objects.filter(action=action, object_id=str(document.pk)).exists(), action
+
+
+def test_quick_create_keeps_a_title_and_type_the_person_typed(documentary_ra_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    with patch("apps.evidence.tasks.extract_document_details", return_value=dict(FAKE_DETAILS)), \
+         patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": "x"}):
+        resp = _quick(documentary_ra_client, title="My own title", document_type="SECONDARY")
+    document = DocumentRecord.objects.get(pk=resp.data["id"])
+    assert (document.title, document.document_type) == ("My own title", "SECONDARY")
+    assert document.author_or_speaker == "Ministry of Finance (Zimbabwe)"  # blanks are still filled
+
+
+def test_a_failure_reading_the_details_does_not_stop_the_draft(documentary_ra_client, settings, tmp_path):
+    from apps.evidence.ai_coding import AIDraftError
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    with patch("apps.evidence.tasks.extract_document_details", side_effect=AIDraftError("ai_request_failed", "down", 502)), \
+         patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": "x"}):
+        resp = _quick(documentary_ra_client)
+    document = DocumentRecord.objects.get(pk=resp.data["id"])
+    assert document.title == "Rural Finance Strategy 2026" and document.ai_draft  # file name as the title; draft made
+
+
+def test_quick_create_leaves_nothing_behind_when_the_file_cannot_be_used(documentary_ra_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    before = DocumentRecord.objects.count()
+    bad = documentary_ra_client.post(
+        "/api/v1/documents/quick-create/", {"file": SimpleUploadedFile("run.exe", b"x")}, format="multipart",
+    )
+    assert bad.status_code == 400 and bad.data["error"]["code"] == "unsupported_file_type"
+
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for _ in range(150):
+        writer.add_blank_page(width=100, height=100)
+    path = tmp_path / "long.pdf"
+    with open(path, "wb") as f:
+        writer.write(f)
+    too_long = _quick(documentary_ra_client, name="long.pdf", content=path.read_bytes())
+    assert too_long.status_code == 400 and too_long.data["error"]["code"] == "pdf_too_long"
+    assert DocumentRecord.objects.count() == before  # no orphan records
+    assert not any(tmp_path.glob("documents/**/*.pdf"))  # and no orphan files
+
+
+def test_quick_create_needs_ai_and_write_access(documentary_ra_client, supervisor_client, settings, tmp_path):
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    settings.ANTHROPIC_API_KEY = ""
+    before = DocumentRecord.objects.count()
+    assert _quick(documentary_ra_client).status_code == 503
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    assert _quick(supervisor_client).status_code == 403
+    assert DocumentRecord.objects.count() == before
+
+
+def test_extract_document_details_reads_only_the_front_pages(settings, tmp_path):
+    import base64
+    import io
+
+    from pypdf import PdfReader, PdfWriter
+
+    from apps.evidence.ai_coding import DETAILS_PAGES, extract_document_details
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    writer = PdfWriter()
+    for _ in range(300):
+        writer.add_blank_page(width=100, height=100)
+    path = tmp_path / "book.pdf"
+    with open(path, "wb") as f:
+        writer.write(f)
+    tool_input = {**FAKE_DETAILS, "document_type": "NONSENSE"}
+    with patch("anthropic.Anthropic") as client_cls:
+        client_cls.return_value.messages.create.return_value = Mock(content=[Mock(type="tool_use", input=tool_input)])
+        details = extract_document_details(str(path), "application/pdf", page_range="250-290")
+        sent = client_cls.return_value.messages.create.call_args.kwargs["messages"][0]["content"]
+    assert len(PdfReader(io.BytesIO(base64.b64decode(sent[0]["source"]["data"]))).pages) == DETAILS_PAGES
+    assert "250-290" in sent[1]["text"]  # told it is a part, to name it in the title
+    assert "document_type" not in details  # an invalid type is dropped, never saved
+    assert details["title"] == FAKE_DETAILS["title"]
+
+
+def test_authenticity_and_qa_status_cannot_be_set_by_a_plain_patch(documentary_ra_client, document):
+    """The authenticity gate (a document can't be Included until authenticity is assessed) lives in the
+    dedicated endpoints; a PATCH of the same fields must not be a way round it."""
+    resp = documentary_ra_client.patch(
+        f"/api/v1/documents/{document.pk}/",
+        {"qa_status": "INCLUDED", "authenticity_assessment": "VERIFIED", "title": "Renamed"}, format="json",
+    )
+    assert resp.status_code == 200
+    document.refresh_from_db()
+    assert document.title == "Renamed"  # ordinary details are editable
+    assert (document.qa_status, document.authenticity_assessment) == ("PENDING", "UNVERIFIED")
+
+
+def test_a_correction_on_the_record_reaches_the_draft_and_the_submission(documentary_ra_client, document, settings):
+    """Record-derived fields (title, author...) come from the record as it is now, not as it was
+    when the AI drafted -- so fixing the record is enough; no regeneration."""
+    DocumentRecord.objects.filter(pk=document.pk).update(
+        ai_draft={"section_a/title_evidence_unit": "old title", "section_a/DOC_ID": document.document_id, "section_b/RELEVANCE": "high"},
+    )
+    documentary_ra_client.patch(f"/api/v1/documents/{document.pk}/", {"title": "Corrected title", "author_or_speaker": "Ministry X"}, format="json")
+    shown = documentary_ra_client.get(f"/api/v1/documents/{document.pk}/").data["ai_draft"]
+    assert shown["section_a/title_evidence_unit"] == "Corrected title" and shown["section_a/org_author"] == "Ministry X"
+    assert shown["section_b/RELEVANCE"] == "high"  # the AI's own answers are untouched
+
+    with patch("apps.evidence.views.submit_to_kobo", return_value={"instance_uuid": "u", "status_code": 201}) as submit, \
+         patch("apps.kobo.form_sync.sync_form"):
+        documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
+    assert submit.call_args.args[1]["section_a/title_evidence_unit"] == "Corrected title"

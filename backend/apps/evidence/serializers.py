@@ -3,7 +3,7 @@ import os
 from django.conf import settings
 from rest_framework import serializers
 
-from .ai_coding import ai_coding_is_configured, pdf_page_count
+from .ai_coding import ai_coding_is_configured, pdf_page_count, with_current_record_details
 from .kobo_submit import kobo_submit_is_configured
 from .models import DocumentRecord
 from .services import build_document_coding_url
@@ -38,10 +38,14 @@ class DocumentRecordSerializer(serializers.ModelSerializer):
             "kobo_submission_uuid", "kobo_submitted_at", "kobo_submitted_by", "kobo_submit_configured",
         ]
         read_only_fields = [
+            # authenticity, verification time and QA status change only through their own
+            # endpoints, which enforce the rule that authenticity is assessed before a
+            # document can be Included -- a plain PATCH must not be a way round it.
+            "authenticity_assessment", "verified_at", "qa_status",
             "id", "document_id", "coding_url", "source_file_name",
             "source_file_content_type", "source_file_size", "source_file_uploaded_at",
             "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_coding_configured",
-            "ai_draft_status", "ai_draft_error", "source_file_pages",
+            "ai_draft_status", "ai_draft_error", "ai_draft_progress", "source_file_pages",
             "kobo_submission_uuid", "kobo_submitted_at", "kobo_submitted_by", "kobo_submit_configured",
         ]
 
@@ -61,7 +65,7 @@ class DocumentRecordSerializer(serializers.ModelSerializer):
         # empty *object* is truthy in JavaScript, so the frontend's "has a
         # draft ever been generated?" check would otherwise see a brand
         # new, never-drafted document the same as one with real answers.
-        return obj.ai_draft or None
+        return with_current_record_details(obj, obj.ai_draft) if obj.ai_draft else None
 
     def get_source_file_pages(self, obj):
         if isinstance(self.parent, serializers.ListSerializer) or not obj.source_file_ref:

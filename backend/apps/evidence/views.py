@@ -1,5 +1,6 @@
 import logging
 from datetime import timedelta
+from pathlib import Path
 
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
@@ -19,6 +20,7 @@ from .ai_coding import (
     ai_coding_is_configured,
     parse_page_range,
     pdf_page_count,
+    with_current_record_details,
 )
 from .document_tool_schema import SCHEMA
 from .kobo_submit import KoboSubmitError, kobo_submit_is_configured, submit_to_kobo
@@ -27,6 +29,7 @@ from .serializers import DocumentRecordSerializer
 from .services import (
     DocumentFileError,
     DocumentWorkflowError,
+    discard_new_document,
     generate_document_id,
     open_source_file,
     record_authenticity_assessment,
@@ -154,6 +157,94 @@ class DocumentAISchemaView(APIView):
         })
 
 
+PARTS_PROGRESS = ("Starting", "Read part", "Reading part", "Combining")
+
+
+def _reads_in_parts(document: DocumentRecord) -> bool:
+    """A long, in-parts read legitimately runs much longer than a single one."""
+    return document.ai_draft_progress.startswith(PARTS_PROGRESS)
+
+
+def _already_running(document: DocumentRecord) -> bool:
+    return bool(
+        document.ai_draft_status == RUNNING
+        and document.ai_draft_started_at
+        and timezone.now() - document.ai_draft_started_at < timedelta(minutes=75 if _reads_in_parts(document) else 12)
+    )
+
+
+def _check_readable(source_path: str, page_range: str, whole_document: bool) -> int | None:
+    """Refuses, before any AI call, a read that cannot work; returns how many
+    pages the draft will read (None for files without pages)."""
+    pages = pdf_page_count(source_path) if source_path.lower().endswith(".pdf") else None
+    if pages is None:
+        return None
+    limit = MAX_WHOLE_DOCUMENT_PAGES if whole_document else MAX_PDF_PAGES
+    if page_range:
+        first, last = parse_page_range(page_range, pages, limit)
+        return last - first + 1
+    if pages > limit:
+        raise AIDraftError(
+            "pdf_too_long",
+            f"This PDF has {pages} pages, and the AI can read at most {MAX_PDF_PAGES} at a time. "
+            "Enter the pages that make up this evidence unit (for example 1-100)"
+            + (
+                ", or tick \u201cRead the whole document in parts\u201d."
+                if pages <= MAX_WHOLE_DOCUMENT_PAGES
+                else f". This one is also over the {MAX_WHOLE_DOCUMENT_PAGES}-page ceiling for a whole-document read."
+            ),
+        )
+    return pages
+
+
+class DocumentQuickCreateView(APIView):
+    """POST /api/v1/documents/quick-create/ (multipart: file, and optionally
+    pages, whole_document, title, document_type) -- the fast way in: upload the
+    document and the AI fills in the record's details, then drafts the coding
+    form, all in the background. The person reviews the draft and submits.
+    Nothing is retyped; nothing reaches KoboToolbox until they submit."""
+
+    permission_classes = [CanManageDocuments]
+
+    def post(self, request):
+        if not ai_coding_is_configured():
+            return _error("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+        uploaded = request.FILES.get("file")
+        if uploaded is None:
+            return _error("no_file", "Choose the document to upload.", 400)
+        page_range = str(request.data.get("pages") or "").strip()
+        whole_document = request.data.get("whole_document") in (True, "true", "1", 1)
+        title = str(request.data.get("title") or "").strip()
+        given_type = str(request.data.get("document_type") or "").strip().upper()
+        if given_type and given_type not in ("OFFICIAL", "SECONDARY", "PLATFORM"):
+            return _error("invalid_input", "Document type must be OFFICIAL, SECONDARY or PLATFORM.", 400)
+
+        stem = Path(uploaded.name).stem.replace("_", " ").replace("-", " ").strip()
+        document = DocumentRecord.objects.create(
+            document_id=generate_document_id(), title=(title or stem or "Untitled document")[:512],
+            document_type=given_type or "OFFICIAL",
+        )
+        try:
+            save_source_file(document, uploaded, user=request.user)
+            source_path, _, _ = open_source_file(document)
+            span = _check_readable(source_path, page_range, whole_document)
+        except (DocumentFileError, AIDraftError) as exc:
+            # Nothing is left behind: no half-made record for a file that can't be read.
+            discard_new_document(document)
+            return _error(exc.code, str(exc), exc.status)
+
+        document.ai_draft_status = RUNNING
+        document.ai_draft_started_at = timezone.now()
+        document.ai_draft_progress = "Starting" if whole_document and span and span > MAX_PDF_PAGES else "Step 1 of 2: reading the document\u2019s details"
+        document.save(update_fields=["ai_draft_status", "ai_draft_started_at", "ai_draft_progress"])
+        log_action("document.created_from_file", document, {"filename": uploaded.name, "user_id": request.user.id})
+        generate_ai_draft.delay(
+            document.pk, request.user.id, page_range, whole_document, True, bool(title), bool(given_type),
+        )
+        document.refresh_from_db()
+        return Response(DocumentRecordSerializer(document).data, status=202)
+
+
 class DocumentAIDraftView(APIView):
     """POST /api/v1/documents/{id}/ai-draft/ -- generate a fresh AI draft
     from the uploaded source file (replaces any existing draft).
@@ -172,12 +263,7 @@ class DocumentAIDraftView(APIView):
         document = get_object_or_404(DocumentRecord, pk=pk)
         if not ai_coding_is_configured():
             return _error("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
-        if (
-            document.ai_draft_status == RUNNING
-            and document.ai_draft_started_at
-            # A long, in-parts read legitimately runs much longer than a single one.
-            and timezone.now() - document.ai_draft_started_at < timedelta(minutes=75 if document.ai_draft_progress else 12)
-        ):
+        if _already_running(document):
             return _error("already_running", "A draft is already being generated for this document.", 409)
         try:
             source_path, _, _ = open_source_file(document)
@@ -186,25 +272,8 @@ class DocumentAIDraftView(APIView):
 
         page_range = str(request.data.get("pages") or "").strip()
         whole_document = request.data.get("whole_document") in (True, "true", "1", 1)
-        pages = pdf_page_count(source_path) if source_path.lower().endswith(".pdf") else None
-        span = pages  # how many pages this draft will read
         try:
-            if pages is not None:
-                limit = MAX_WHOLE_DOCUMENT_PAGES if whole_document else MAX_PDF_PAGES
-                if page_range:
-                    first, last = parse_page_range(page_range, pages, limit)
-                    span = last - first + 1
-                elif pages > limit:
-                    raise AIDraftError(
-                        "pdf_too_long",
-                        f"This PDF has {pages} pages, and the AI can read at most {MAX_PDF_PAGES} at a time. "
-                        "Enter the pages that make up this evidence unit (for example 1-100)"
-                        + (
-                            ", or tick “Read the whole document in parts”."
-                            if pages <= MAX_WHOLE_DOCUMENT_PAGES
-                            else f". This one is also over the {MAX_WHOLE_DOCUMENT_PAGES}-page ceiling for a whole-document read."
-                        ),
-                    )
+            span = _check_readable(source_path, page_range, whole_document)
         except AIDraftError as exc:
             return _error(exc.code, str(exc), exc.status)
 
@@ -249,7 +318,7 @@ class DocumentAISubmitView(APIView):
         if document.ai_draft_status == RUNNING:
             return _error("already_running", "A new draft is being generated. Wait for it to finish before submitting.", 409)
         try:
-            result = submit_to_kobo(document, document.ai_draft, user=request.user)
+            result = submit_to_kobo(document, with_current_record_details(document, document.ai_draft), user=request.user)
         except KoboSubmitError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
 

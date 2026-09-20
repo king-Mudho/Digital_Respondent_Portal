@@ -10,12 +10,18 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch, adminUpload } from "@/lib/api/admin";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
 interface DocumentRecord {
   id: number;
   document_id: string;
   title: string;
+  author_or_speaker: string;
+  publication_or_event_date: string | null;
+  source_url_or_reference: string;
+  geographic_scope: string;
+  value_chain: string;
   document_type: string;
   authenticity_assessment: string;
   qa_status: string;
@@ -49,6 +55,11 @@ export default function DocumentDetailPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const [autoFillAfter, setAutoFillAfter] = useState(true);
+  // null = not edited yet (show what the server has), so a detail can be cleared.
+  const [details, setDetails] = useState<Record<string, string> | null>(null);
+  const [detailsSaved, setDetailsSaved] = useState(false);
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", params.id],
@@ -100,18 +111,37 @@ export default function DocumentDetailPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the memo."),
   });
 
+  const saveDetails = useMutation({
+    mutationFn: () => adminFetch(`/documents/${params.id}/`, { method: "PATCH", body: JSON.stringify(details ?? {}) }),
+    onSuccess: () => {
+      setError(null);
+      setDetails(null);
+      setDetailsSaved(true);
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the details."),
+  });
+
   const uploadFile = useMutation({
-    mutationFn: (file: File) => {
+    mutationFn: async (file: File) => {
       const body = new FormData();
       body.append("file", file);
       setUploadProgress(0);
-      return adminUpload(`/documents/${params.id}/file/`, body, setUploadProgress);
+      await adminUpload(`/documents/${params.id}/file/`, body, setUploadProgress);
+      // Straight into Auto-fill when asked: the AI starts reading at once. If it can't start
+      // (a long PDF needs pages), the review screen opens anyway and says what to enter.
+      if (autoFillAfter && doc?.ai_coding_configured) {
+        await adminFetch(`/documents/${params.id}/ai-draft/`, { method: "POST", body: JSON.stringify({ pages: "" }) }).catch(() => null);
+        return true;
+      }
+      return false;
     },
     onSettled: () => setUploadProgress(null),
-    onSuccess: () => {
+    onSuccess: (startedAutoFill) => {
       setUploadError(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       invalidate();
+      if (startedAutoFill) router.push(`/admin/documents/${params.id}/ai-draft`);
     },
     onError: (err) => {
       setUploadError(err instanceof ApiError ? err.message : "Could not upload the file.");
@@ -272,7 +302,70 @@ export default function DocumentDetailPage() {
               A scan, photo, screenshot or recording of the source (PDF, image, Office file or audio/video,
               up to 20 MB). Uploaded the wrong one? Remove it above, or choose another file to replace it.
             </p>
+            {doc.ai_coding_configured && (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={autoFillAfter} onChange={(e) => setAutoFillAfter(e.target.checked)} />
+                Start Auto-fill as soon as the file is uploaded
+              </label>
+            )}
             {uploadError && <p className="text-danger text-sm">{uploadError}</p>}
+          </WriteOnly>
+        </Card>
+
+        <Card className="space-y-3 md:col-span-2">
+          <h3 className="font-medium">Record details</h3>
+          <p className="text-xs text-text-muted">
+            These go into the coding form as they are. If Auto-fill filled them in from the document, check them here.
+          </p>
+          <WriteOnly note={null}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(
+                [
+                  ["title", "Title"],
+                  ["author_or_speaker", "Author / speaker"],
+                  ["publication_or_event_date", "Publication or event date"],
+                  ["source_url_or_reference", "Source URL / reference"],
+                  ["geographic_scope", "Geographic scope"],
+                  ["value_chain", "Value chain"],
+                ] as const
+              ).map(([field, label]) => (
+                <div key={field}>
+                  <label className="block text-sm text-text-muted mb-1" htmlFor={`detail-${field}`}>{label}</label>
+                  <input
+                    id={`detail-${field}`}
+                    type={field === "publication_or_event_date" ? "date" : "text"}
+                    value={details?.[field] ?? (doc[field] as string | null) ?? ""}
+                    onChange={(e) => {
+                      setDetailsSaved(false);
+                      setDetails((d) => ({ ...(d ?? {}), [field]: e.target.value }));
+                    }}
+                    className="w-full rounded-md border border-border px-3 py-2 text-sm"
+                  />
+                </div>
+              ))}
+              <div>
+                <label className="block text-sm text-text-muted mb-1" htmlFor="detail-document_type">Document type</label>
+                <select
+                  id="detail-document_type"
+                  value={details?.document_type ?? doc.document_type}
+                  onChange={(e) => {
+                    setDetailsSaved(false);
+                    setDetails((d) => ({ ...(d ?? {}), document_type: e.target.value }));
+                  }}
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface"
+                >
+                  {["OFFICIAL", "SECONDARY", "PLATFORM"].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" disabled={!details || saveDetails.isPending} onClick={() => saveDetails.mutate()}>
+                {saveDetails.isPending ? "Saving…" : "Save details"}
+              </Button>
+              {detailsSaved && <span className="text-sm text-text-muted" role="status">Details saved.</span>}
+            </div>
           </WriteOnly>
         </Card>
 
