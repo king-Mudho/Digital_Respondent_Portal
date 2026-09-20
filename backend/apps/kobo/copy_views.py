@@ -3,6 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.pagination import PAGE_SIZE_OPTIONS
 from apps.audit.utils import log_action
 
 from . import submission_copies as copies
@@ -29,13 +30,14 @@ class KoboFormSubmissionsView(APIView):
     """GET /api/v1/kobo/forms/{key}/submissions/?page= -- newest first, from KoboToolbox."""
 
     permission_classes = [IsAuthenticated]
-    PAGE_SIZE = 20  # frontend Pagination assumes the REST_FRAMEWORK page size
+    PAGE_SIZE = 20  # the default; ?page_size= overrides it, as on every other list
 
     def get(self, request, key):
         try:
             copies.require_form(key, request.user)
             page = max(int(request.query_params.get("page", 1)), 1)
-            return Response(copies.list_submissions(key, start=(page - 1) * self.PAGE_SIZE, limit=self.PAGE_SIZE))
+            size = min(max(int(request.query_params.get("page_size", self.PAGE_SIZE)), 1), max(PAGE_SIZE_OPTIONS))
+            return Response(copies.list_submissions(key, start=(page - 1) * size, limit=size))
         except copies.CopyError as exc:
             return _error(exc)
         except ValueError:

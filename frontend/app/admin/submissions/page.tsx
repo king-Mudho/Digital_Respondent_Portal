@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole } from "@/components/admin/RoleGate";
-import { Pagination, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -69,7 +69,7 @@ async function downloadPdf(formKey: string, id: number) {
  */
 export default function SubmissionsPage() {
   const [formKey, setFormKey] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
   const [status, setStatus] = useState<Status>(null);
   const queryClient = useQueryClient();
 
@@ -83,8 +83,8 @@ export default function SubmissionsPage() {
   const form = forms?.forms.find((f) => f.key === formKey);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["kobo-submissions", formKey, page],
-    queryFn: () => adminFetch<Paginated<SubmissionRow>>(`/kobo/forms/${formKey}/submissions/?page=${page}`),
+    queryKey: ["kobo-submissions", formKey, page, pageSize],
+    queryFn: () => adminFetch<Paginated<SubmissionRow>>(`/kobo/forms/${formKey}/submissions/?page=${page}&page_size=${pageSize}`),
     enabled: Boolean(form?.configured),
     placeholderData: keepPreviousData,
     // A 4xx/5xx here is a definite answer (not connected, not your form), not a blip.
@@ -275,7 +275,7 @@ export default function SubmissionsPage() {
                 </li>
               ))}
             </ul>
-            <Pagination page={page} count={data.count} onPageChange={setPage} label="submissions" />
+            <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="submissions" />
           </>
         )}
       </Card>

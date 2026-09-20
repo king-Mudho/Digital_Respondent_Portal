@@ -5,7 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -22,13 +22,13 @@ interface DocumentRecord {
 /** docs/14_DOCUMENTARY_EVIDENCE_MODULE.md. */
 export default function DocumentsPage() {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["document-records", search, page],
+    queryKey: ["document-records", search, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<DocumentRecord>>(
-        `/documents/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+        `/documents/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
@@ -92,7 +92,7 @@ export default function DocumentsPage() {
             </tbody>
           </table>
           </div>
-          <Pagination page={page} count={data.count} onPageChange={setPage} label="documents" />
+          <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="documents" />
           </>
         )}
       </Card>

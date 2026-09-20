@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Pagination, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, type Paginated } from "@/components/admin/Pagination";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 
@@ -17,11 +17,11 @@ interface AuditEvent {
 }
 
 export default function AuditLogPage() {
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["audit-log", page],
-    queryFn: () => adminFetch<Paginated<AuditEvent>>(`/audit/?page=${page}`),
+    queryKey: ["audit-log", page, pageSize],
+    queryFn: () => adminFetch<Paginated<AuditEvent>>(`/audit/?page=${page}&page_size=${pageSize}`),
     placeholderData: keepPreviousData,
   });
 
@@ -59,7 +59,7 @@ export default function AuditLogPage() {
                 </tbody>
               </table>
             </div>
-            <Pagination page={page} count={data.count} onPageChange={setPage} label="events" />
+            <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="events" />
           </>
         )}
       </Card>

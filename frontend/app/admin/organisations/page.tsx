@@ -5,7 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfScreen, WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, SearchBox } from "@/components/admin/Pagination";
+import { Pagination, usePaging, SearchBox } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -58,13 +58,13 @@ export default function OrganisationsPage() {
   const [justCreated, setJustCreated] = useState<Organisation | null>(null);
   const [caseType, setCaseType] = useState("MAIN");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data: organisations, isLoading } = useQuery({
-    queryKey: ["organisations", search, page],
+    queryKey: ["organisations", search, page, pageSize],
     queryFn: () =>
       adminFetch<{ count?: number; results: Organisation[] } | Organisation[]>(
-        `/organisations/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+        `/organisations/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
@@ -271,7 +271,7 @@ export default function OrganisationsPage() {
                   {search ? `No organisations match "${search}".` : "No organisations registered yet."}
                 </p>
               )}
-              <Pagination page={page} count={orgCount} onPageChange={setPage} label="organisations" />
+              <Pagination page={page} count={orgCount} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="organisations" />
             </div>
           )}
         </Card>

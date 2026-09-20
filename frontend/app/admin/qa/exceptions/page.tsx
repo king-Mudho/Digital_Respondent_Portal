@@ -4,7 +4,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, type Paginated } from "@/components/admin/Pagination";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,14 +50,14 @@ export default function QAExceptionQueuePage() {
   const queryClient = useQueryClient();
   const [mine, setMine] = useState(false);
   const [includeResolved, setIncludeResolved] = useState(false);
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<number, string>>({});
 
-  const query = `?page=${page}${mine ? "&mine=1" : ""}${includeResolved ? "&include_resolved=1" : ""}`;
+  const query = `?page=${page}&page_size=${pageSize}${mine ? "&mine=1" : ""}${includeResolved ? "&include_resolved=1" : ""}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["qa-exceptions", mine, includeResolved, page],
+    queryKey: ["qa-exceptions", mine, includeResolved, page, pageSize],
     queryFn: () => adminFetch<Paginated<QAException>>(`/qa/exceptions/${query}`),
     placeholderData: keepPreviousData,
   });
@@ -240,7 +240,7 @@ export default function QAExceptionQueuePage() {
               </Card>
             );
           })}
-          <Pagination page={page} count={data.count} onPageChange={setPage} label="exceptions" />
+          <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="exceptions" />
         </div>
       )}
     </AdminShell>

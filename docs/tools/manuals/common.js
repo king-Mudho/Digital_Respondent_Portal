@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.5 · 20 September 2026";
+const REVISION = "Version 1.6 · 20 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -55,7 +55,7 @@ const signIn = (landing, role) => [
   ["bullets", [
     "The **top bar** shows your username and role, and the screens you can use. It is not a full menu with some items greyed out: anything absent is simply not part of your role.",
     "Most screens have a **← Back to …** link at the top that returns you to the screen you came from.",
-    "Registers show **20 rows per page**. Use **Previous** and **Next** at the foot of the list, and the **Search** box above it.",
+    "Registers show **20 rows per page** to begin with. At the foot of the list, **Show** lets you choose 10, 20, 50, 100 or 200 rows per page (the portal remembers your choice), and the page numbers, **Previous**, **Next** and the double arrows take you to any page. The **Search** box above the list narrows it.",
     "**Change password** (top right) lets you set a new password at any time. Choose a long password you do not use anywhere else.",
     "**Sign out** (top right) ends your session. Always sign out on a shared or public computer.",
     "If you are inactive for a while you may be asked to sign in again. This protects research data on unattended devices.",
@@ -84,7 +84,7 @@ const DATA_RULES = [
 const INTERNAL_TROUBLE = [
   ["\"This screen isn't part of your role\"", "The screen belongs to another role (often an old bookmark or shared link).", "Select **Go to my start screen**. If you need that screen, ask the PI about your role."],
   ["\"Too many sign-in attempts from this network\"", "Sign-in is rate-limited per network; an office shares one address.", "Wait a minute and try again. A wrong password says so explicitly."],
-  ["A register shows fewer rows than expected", "Registers show 20 rows per page; a Contact RA sees only assigned cases.", "Use **Next**, or search. Ask the Field Coordinator to assign the case."],
+  ["A register shows fewer rows than expected", "Registers show 20 rows per page to begin with; a Contact RA sees only assigned cases.", "Choose more rows under **Show** at the foot of the list, use the page numbers or **Next**, or search. Ask the Field Coordinator to assign the case."],
   ["A button is greyed out", "A required step is missing (a note, an authenticity decision, a selection).", "Read the message beside the button; complete the missing step first."],
   ["\"KoboToolbox couldn't be reached\"", "KoboToolbox is slow or the connection token has changed.", "Try again in a few minutes. If it persists, tell the PI."],
   ["Form PDFs says \"Not in sync with KoboToolbox yet\"", "The counts differ: a form was submitted or changed in KoboToolbox since the last sync (it runs every 15 minutes).", "Select **Sync now**. If it still differs, or says it couldn't reach KoboToolbox, try again in a few minutes and tell the PI if it persists."],

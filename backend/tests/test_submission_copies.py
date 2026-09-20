@@ -202,3 +202,15 @@ def test_a_record_page_finds_its_completed_forms(kobo):
         resp = _client(Role.KII_RA, "cp_lookup").get("/api/v1/kobo/forms/kii/lookup/?record=KII-0042")
     assert resp.status_code == 200 and resp.json()["results"][0]["id"] == 77
     assert '"part_a/KII_ID": "KII-0042"' in get.call_args.kwargs["query"]
+
+
+@pytest.mark.django_db
+def test_the_form_list_honours_the_chosen_page_size(kobo):
+    client = _client(Role.QUAN_QA_RA, "cp_size")
+    with patch("apps.kobo.submission_copies._kobo_get", return_value={"count": 0, "results": []}) as get:
+        client.get("/api/v1/kobo/forms/questionnaire/submissions/?page=3&page_size=50")
+        assert (get.call_args.kwargs["start"], get.call_args.kwargs["limit"]) == (100, 50)
+        client.get("/api/v1/kobo/forms/questionnaire/submissions/?page_size=99999")
+        assert get.call_args.kwargs["limit"] == 200
+        client.get("/api/v1/kobo/forms/questionnaire/submissions/")
+        assert get.call_args.kwargs["limit"] == 20

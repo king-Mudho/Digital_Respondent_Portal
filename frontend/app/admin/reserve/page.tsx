@@ -4,7 +4,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -34,13 +34,13 @@ const ACTIVATION_REASONS = [
 export default function ReserveActivationPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sample-cases", "RESERVE", "LOCKED", search, page],
+    queryKey: ["sample-cases", "RESERVE", "LOCKED", search, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<SampleCase>>(
-        `/sample-cases/?sample_type=RESERVE&status=LOCKED&page=${page}` +
+        `/sample-cases/?sample_type=RESERVE&status=LOCKED&page=${page}&page_size=${pageSize}` +
           (search ? `&search=${encodeURIComponent(search)}` : ""),
       ),
     placeholderData: keepPreviousData,
@@ -137,7 +137,7 @@ export default function ReserveActivationPage() {
               </WriteOnly>
             </Card>
           ))}
-          <Pagination page={page} count={data.count} onPageChange={setPage} label="locked reserve cases" />
+          <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="locked reserve cases" />
         </div>
       )}
     </AdminShell>

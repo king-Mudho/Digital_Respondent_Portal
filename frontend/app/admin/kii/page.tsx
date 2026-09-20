@@ -5,7 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -27,13 +27,13 @@ interface KIIRecord {
  */
 export default function KIIRegisterPage() {
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["kii-records", search, page],
+    queryKey: ["kii-records", search, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<KIIRecord>>(
-        `/kii/?page=${page}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+        `/kii/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
@@ -97,7 +97,7 @@ export default function KIIRegisterPage() {
             </tbody>
           </table>
           </div>
-          <Pagination page={page} count={data.count} onPageChange={setPage} label="KII records" />
+          <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="KII records" />
           </>
         )}
       </Card>

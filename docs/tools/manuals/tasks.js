@@ -253,7 +253,7 @@ T.qaExceptions = [
 T.formPdfs = (formName, shot = "qa_form_pdfs.jpg", caption = "Completed form PDFs.") => [
   ["h2", "Downloading or emailing completed forms (Form PDFs)"],
   ["steps", [
-    { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page.`, img: shot, caption },
+    { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page to begin with (choose more under **Show** at the foot of the list).`, img: shot, caption },
     "Select **Download PDF** to save a readable copy: sections, questions, the chosen answers as words (not codes) and repeated groups.",
     "Select **Email to me** to send the PDF to the email address on your account.",
     "For the questionnaire only, select **Email to respondent** to send the respondent a copy of their own answers at the email address recorded on the case (only while their consent stands). You are asked to confirm first. Every email is audited with the address masked.",

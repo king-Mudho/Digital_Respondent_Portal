@@ -807,3 +807,19 @@ def test_copy_needs_pages_or_title_a_source_file_and_leaves_nothing_behind_on_a_
     no_file = documentary_ra_client.post("/api/v1/documents/", {"title": "No file", "document_type": "OFFICIAL"}, format="json")
     assert documentary_ra_client.post(f"/api/v1/documents/{no_file.data['id']}/copy/", {"pages": "1-5"}, format="json").status_code == 404
     assert supervisor_client.post(url, {"pages": "1-5"}, format="json").status_code == 403
+
+
+# --- Registers: choose how many rows to show -----------------------------------------
+
+def test_lists_take_a_page_size_up_to_200_and_ignore_nonsense(documentary_ra_client):
+    for n in range(25):
+        DocumentRecord.objects.create(document_id=f"DOC-9{n:03d}", title=f"Paging {n}", document_type="OFFICIAL")
+    url = "/api/v1/documents/"
+    assert len(documentary_ra_client.get(url).data["results"]) == 20  # the default is unchanged
+    ten = documentary_ra_client.get(url, {"page_size": 10}).data
+    assert len(ten["results"]) == 10 and ten["count"] >= 25 and ten["next"] is not None
+    assert len(documentary_ra_client.get(url, {"page_size": 100}).data["results"]) >= 25
+    assert len(documentary_ra_client.get(url, {"page_size": 5000}).data["results"]) <= 200  # capped
+    assert len(documentary_ra_client.get(url, {"page_size": "abc"}).data["results"]) == 20  # nonsense falls back
+    second = documentary_ra_client.get(url, {"page_size": 10, "page": 2}).data["results"]
+    assert {r["id"] for r in second}.isdisjoint({r["id"] for r in ten["results"]})

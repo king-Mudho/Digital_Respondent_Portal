@@ -4,7 +4,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { WriteOnly } from "@/components/admin/RoleGate";
-import { Pagination, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -31,14 +31,14 @@ const STATUS_FILTERS = ["", "REQUESTED", "CONFIRMED", "COMPLETED", "MISSED", "CA
 export default function AppointmentsPage() {
   const queryClient = useQueryClient();
   const [status, setStatusFilter] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
   const [error, setError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["appointments", status, page],
+    queryKey: ["appointments", status, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<Appointment>>(
-        `/appointments/?page=${page}` + (status ? `&status=${status}` : ""),
+        `/appointments/?page=${page}&page_size=${pageSize}` + (status ? `&status=${status}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
@@ -145,7 +145,7 @@ export default function AppointmentsPage() {
                 </tbody>
               </table>
             </div>
-            <Pagination page={page} count={data.count} onPageChange={setPage} label="appointments" />
+            <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="appointments" />
           </>
         )}
       </Card>

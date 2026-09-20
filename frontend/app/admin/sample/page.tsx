@@ -5,7 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, IfScreen } from "@/components/admin/RoleGate";
-import { Pagination, SearchBox, type Paginated } from "@/components/admin/Pagination";
+import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -212,13 +212,13 @@ function BulkAssignmentPanel() {
 export default function SampleRegisterPage() {
   const [sampleType, setSampleType] = useState("MAIN");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["sample-cases", sampleType, search, page],
+    queryKey: ["sample-cases", sampleType, search, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<SampleCase>>(
-        `/sample-cases/?sample_type=${sampleType}&page=${page}` +
+        `/sample-cases/?sample_type=${sampleType}&page=${page}&page_size=${pageSize}` +
           (search ? `&search=${encodeURIComponent(search)}` : ""),
       ),
     // Without this the table blanks to "Loading…" on every keystroke and
@@ -311,7 +311,7 @@ export default function SampleRegisterPage() {
                 </p>
               )}
             </div>
-            <Pagination page={page} count={data.count} onPageChange={setPage} label="cases" />
+            <Pagination page={page} count={data.count} onPageChange={setPage} pageSize={pageSize} onPageSizeChange={setPageSize} label="cases" />
           </>
         )}
       </Card>
