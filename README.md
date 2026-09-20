@@ -787,6 +787,12 @@ document record itself, not the AI, either way.
    (`with_current_record_details`). On an existing record, the *Start Auto-fill as soon as
    the file is uploaded* tick box does the same. The authenticity decision and Include/Exclude
    stay human; authenticity and QA status can only change through their own endpoints.
+   **Copy for another chapter** (2026-09-20): on a record with a file, `POST /documents/{id}/copy/`
+   {title?, pages?} makes another record for a different part of the same source: same author,
+   date, source, type and scope, and its **own copy of the file** (removing one never affects
+   the other), with authenticity, QA status and draft left empty so every chapter is judged
+   on its own. With AI on it starts Auto-fill on those pages (the AI names the part when no
+   title is typed). A title or pages is required, and a bad range creates nothing.
    **Read the whole document in parts** (added 2026-09-20): for a longer text, tick the
    option on the review screen. The pages (all of them, or a range of up to 1,500) are cut
    into even parts of about 80 pages, three parts are coded at a time, and one more pass

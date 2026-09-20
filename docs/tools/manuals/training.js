@@ -436,6 +436,7 @@ const manual = {
     ["steps", [
       "Add a practice document the facilitator gives you. If Auto-fill is on for the practice site, use **Quick add**: **Documents → New document → Upload and auto-fill**, and watch the two steps (“reading the document’s details”, then “drafting the coding form”). Otherwise type the details by hand.",
       "Open **Record details** and find one detail the AI filled in that you would correct (a title, a date). Change it and select **Save details**.",
+      "Use **Copy for another chapter** to make a second record for a different page range of the same file. Check that the new record has its own file and that authenticity is unassessed.",
       "Try to Include it straight away. What happens?",
       "Assess authenticity, include or exclude it, and write a three-sentence memo.",
       "Attach a source file, then remove it with **Remove file** and attach it again.",

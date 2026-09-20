@@ -44,3 +44,37 @@ test("a record's details can be corrected on its page", async ({ page, request }
   await expect(page.getByLabel("Author / speaker")).toHaveValue("Ministry of Examples");
   await expect(page.getByLabel("Publication or event date")).toHaveValue("2026-03-12");
 });
+
+test("a record can be copied for another chapter, with its own file and no decisions carried over", async ({ page, request }) => {
+  const backend = backendBaseURL();
+  const access = await getAdminAccessToken(request, backend);
+  const auth = { Authorization: `Bearer ${access}` };
+  const created = await request.post(`${backend}/api/v1/documents/`, {
+    headers: auth,
+    data: { title: "E2E Whole Report", author_or_speaker: "Ministry of Examples", document_type: "OFFICIAL", geographic_scope: "National" },
+  });
+  const source = await created.json();
+  await request.post(`${backend}/api/v1/documents/${source.id}/authenticity/`, { headers: auth, data: { assessment: "VERIFIED" } });
+
+  await loginAsAdmin(page);
+  await page.goto(`/admin/documents/${source.id}`);
+  // Nothing to copy until the record has a file.
+  await expect(page.getByRole("heading", { name: "Copy for another chapter" })).toHaveCount(0);
+  await page.locator('input[type="file"]').setInputFiles({ name: "report.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 report") });
+  await expect(page.getByRole("link", { name: "report.pdf" })).toBeVisible();
+
+  const copyButton = page.getByRole("button", { name: /^Copy (record|and auto-fill)$/ });
+  await expect(page.getByRole("heading", { name: "Copy for another chapter" })).toBeVisible();
+  await expect(copyButton).toBeDisabled(); // needs a title or pages
+  await page.getByLabel("Chapter title (optional)").fill("E2E Whole Report - Chapter 2");
+  await page.getByLabel("Pages to read").fill("10-20");
+  await copyButton.click();
+
+  // CI has no AI key, so the copy is made and its record opens; the details came across, the decisions did not.
+  await expect(page).toHaveURL(/\/admin\/documents\/\d+$/);
+  await expect(page.getByRole("heading", { name: "E2E Whole Report - Chapter 2" })).toBeVisible();
+  await expect(page.getByLabel("Author / speaker")).toHaveValue("Ministry of Examples");
+  await expect(page.getByText("Authenticity: UNVERIFIED")).toBeVisible();
+  await expect(page.getByRole("link", { name: "report.pdf" })).toBeVisible();
+  expect(page.url()).not.toContain(`/documents/${source.id}`);
+});

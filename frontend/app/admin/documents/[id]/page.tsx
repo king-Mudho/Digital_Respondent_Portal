@@ -60,6 +60,7 @@ export default function DocumentDetailPage() {
   // null = not edited yet (show what the server has), so a detail can be cleared.
   const [details, setDetails] = useState<Record<string, string> | null>(null);
   const [detailsSaved, setDetailsSaved] = useState(false);
+  const [chapter, setChapter] = useState({ title: "", pages: "" });
 
   const { data: doc, isLoading } = useQuery({
     queryKey: ["document", params.id],
@@ -120,6 +121,21 @@ export default function DocumentDetailPage() {
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the details."),
+  });
+
+  const copyForChapter = useMutation({
+    mutationFn: () =>
+      adminFetch<{ id: number; ai_draft_status: string }>(`/documents/${params.id}/copy/`, {
+        method: "POST",
+        body: JSON.stringify({ title: chapter.title.trim(), pages: chapter.pages.trim() }),
+      }),
+    onSuccess: (copy) => {
+      setError(null);
+      setChapter({ title: "", pages: "" });
+      // With AI on, the copy is already being drafted: go to its review screen.
+      router.push(copy.ai_draft_status === "running" ? `/admin/documents/${copy.id}/ai-draft` : `/admin/documents/${copy.id}`);
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not copy the record."),
   });
 
   const uploadFile = useMutation({
@@ -311,6 +327,51 @@ export default function DocumentDetailPage() {
             {uploadError && <p className="text-danger text-sm">{uploadError}</p>}
           </WriteOnly>
         </Card>
+
+        {doc.source_file_name && (
+          <WriteOnly note={null}>
+            <Card className="space-y-3 md:col-span-2">
+              <h3 className="font-medium">Copy for another chapter</h3>
+              <p className="text-xs text-text-muted">
+                Code another part of this same document as its own record: same author, date and source, with its own
+                copy of the file. {doc.ai_coding_configured
+                  ? "The AI starts drafting that chapter straight away."
+                  : "Then code it as usual."}{" "}
+                Authenticity and inclusion are decided separately for each chapter.
+              </p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="block text-sm text-text-muted mb-1" htmlFor="copy-title">Chapter title (optional)</label>
+                  <input
+                    id="copy-title"
+                    value={chapter.title}
+                    onChange={(e) => setChapter((c) => ({ ...c, title: e.target.value }))}
+                    placeholder="e.g. Warehouse receipts chapter"
+                    className="w-72 max-w-full rounded-md border border-border px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-text-muted mb-1" htmlFor="copy-pages">Pages to read</label>
+                  <input
+                    id="copy-pages"
+                    value={chapter.pages}
+                    onChange={(e) => setChapter((c) => ({ ...c, pages: e.target.value }))}
+                    placeholder="e.g. 290-340"
+                    className="w-36 rounded-md border border-border px-3 py-2 text-sm"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={copyForChapter.isPending || (!chapter.title.trim() && !chapter.pages.trim())}
+                  onClick={() => copyForChapter.mutate()}
+                >
+                  {copyForChapter.isPending ? "Copying…" : doc.ai_coding_configured ? "Copy and auto-fill" : "Copy record"}
+                </Button>
+              </div>
+              <p className="text-xs text-text-muted">Leave the title empty and the AI names the chapter from its pages.</p>
+            </Card>
+          </WriteOnly>
+        )}
 
         <Card className="space-y-3 md:col-span-2">
           <h3 className="font-medium">Record details</h3>

@@ -322,7 +322,7 @@ module.exports = [
     ],
     tasks: [
       [["h2", "Reading the KII/Doc Dashboard"], ["img", "kii_dashboard.jpg", "KII / Document Dashboard."]],
-      T.kii, T.formPdfs("KII Guide", "kii_register.jpg").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first." : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
+      T.kii, T.formPdfs("KII Guide", "kii_form_pdfs.jpg", "Completed KII Guide forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
       [["h2", "Consent in interviews"], ["bullets", [
         "Read or summarise the information sheet and ask for agreement **before** the first question.",
         "Ask separately whether the interview may be recorded. If they say no, take notes only.",
@@ -345,6 +345,7 @@ module.exports = [
     can: [
       "See the KII/Doc Dashboard, the Documents register and document records.",
       "Create document records: upload the document and let the AI fill in the details and draft the form (Quick add), or type them in.",
+      "Copy a record for another chapter of the same document, with its own file.",
       "Correct a record's details, assess authenticity, include or exclude, write memos.",
       "Attach, replace or remove a document's source file.",
       "Use Auto-fill (once switched on) to have AI draft the coding form, then review, edit and submit it.",
@@ -367,13 +368,14 @@ module.exports = [
       ["Assessment", "Verify authenticity against the source; mark Verified or Disputed; write the memo."],
       ["Inclusion", "Include or Exclude with reasons in the memo."],
       ["Source file", "Upload the source. Wrong one? Select Remove file and upload the right one."],
-      ["Coding", "Review the AI's draft field by field (Auto-fill), Save, then Submit; or use Code this document to answer the form yourself. A long report: one record per chapter."],
+      ["Coding", "Review the AI's draft field by field (Auto-fill), Save, then Submit; or use Code this document to answer the form yourself."],
+      ["Another chapter", "On the record, Copy for another chapter: enter the pages, and a new record with its own file is drafted. Authenticity is assessed separately for each."],
       ["Afterwards", "Form PDFs shows the completed form; Sync now confirms the portal and KoboToolbox match."],
     ],
     tasks: [
       [["h2", "Reading the dashboard"], ["img", "kii_dashboard.jpg", "Documents by type and by QA status."]],
       T.documents,
-      T.formPdfs("document coding", "doc_register.jpg").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? "Select **Form PDFs**. You see the completed Document Analysis Tool forms from KoboToolbox, newest first." : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
+      T.formPdfs("document coding", "doc_form_pdfs.jpg", "Completed document coding forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed Document Analysis Tool forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
       [["h2", "Judging authenticity"], ["bullets", [
         "**Official**: from a government body, regulator or the organisation itself — check it on the issuer's own site or registry.",
         "**Secondary**: reports, studies, articles — check the publisher, author and date.",
@@ -390,7 +392,7 @@ module.exports = [
       ["Auto-fill asks for **Pages to read**", "The PDF has more than 100 pages.", "Enter a range of up to 100 pages, such as one chapter, or tick **Read the whole document in parts**."],
       ["Uploaded the wrong file", "It happens.", "Select **Remove file** beside the file name, then upload the right one."],
     ],
-    quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Fast path", "New document → upload file → AI fills the record and drafts the form → check details → assess authenticity → review draft → Submit → Sync now"], ["Long report", "One record per chapter, each with its own page range"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],
+    quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Fast path", "New document → upload file → AI fills the record and drafts the form → check details → assess authenticity → review draft → Submit → Sync now"], ["Long report", "One record per chapter: Copy for another chapter, then the chapter's pages"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],
   }),
 
   guide({

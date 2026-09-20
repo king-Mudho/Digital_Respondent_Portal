@@ -244,3 +244,36 @@ def discard_new_document(document: DocumentRecord) -> None:
         if os.path.exists(path):
             os.remove(path)
     document.delete()
+
+
+def copy_document_for_chapter(source: DocumentRecord, *, title: str, user) -> DocumentRecord:
+    """A new record for another part (chapter) of the same source document: the same
+    author, date, source reference, type, scope and value chain, and its OWN copy of
+    the file, so removing or replacing one never touches the other. Everything a
+    person decides stays undecided: authenticity is unassessed, the QA status pending,
+    and there is no draft. The title is the new part's; empty means "to be named"."""
+    if not source.source_file_ref:
+        raise DocumentFileError("not_found", "Upload the source file on this record first; the copy needs it.", 404)
+    path, filename, content_type = open_source_file(source)
+    copy = DocumentRecord.objects.create(
+        document_id=generate_document_id(),
+        organisation=source.organisation,
+        title=(title.strip() or source.title)[:512],
+        author_or_speaker=source.author_or_speaker,
+        publication_or_event_date=source.publication_or_event_date,
+        source_url_or_reference=source.source_url_or_reference,
+        document_type=source.document_type,
+        geographic_scope=source.geographic_scope,
+        value_chain=source.value_chain,
+        construct_tags=list(source.construct_tags),
+    )
+    try:
+        with open(path, "rb") as handle:
+            from django.core.files.uploadedfile import SimpleUploadedFile
+
+            save_source_file(copy, SimpleUploadedFile(filename, handle.read(), content_type=content_type), user=user)
+    except Exception:
+        discard_new_document(copy)
+        raise
+    log_action("document.copied_for_chapter", copy, {"copied_from": source.document_id, "user_id": getattr(user, "id", None)})
+    return copy

@@ -29,6 +29,7 @@ from .serializers import DocumentRecordSerializer
 from .services import (
     DocumentFileError,
     DocumentWorkflowError,
+    copy_document_for_chapter,
     discard_new_document,
     generate_document_id,
     open_source_file,
@@ -243,6 +244,42 @@ class DocumentQuickCreateView(APIView):
         )
         document.refresh_from_db()
         return Response(DocumentRecordSerializer(document).data, status=202)
+
+
+class DocumentCopyView(APIView):
+    """POST /api/v1/documents/{id}/copy/ {title?, pages?, whole_document?} -- another
+    record for a different chapter of the same source: same details and its own copy of
+    the file. When AI drafting is on it starts Auto-fill on the pages given, so one click
+    goes from "this chapter" to a draft to review. A title or pages is required (a copy
+    of the whole thing is pointless); with no title the AI names the part."""
+
+    permission_classes = [CanManageDocuments]
+
+    def post(self, request, pk):
+        source = get_object_or_404(DocumentRecord, pk=pk)
+        title = str(request.data.get("title") or "").strip()
+        page_range = str(request.data.get("pages") or "").strip()
+        whole_document = request.data.get("whole_document") in (True, "true", "1", 1)
+        if not title and not page_range:
+            return _error("invalid_input", "Enter the chapter's pages, or a title for this part.", 400)
+        auto = ai_coding_is_configured()
+        try:
+            source_path, _, _ = open_source_file(source)
+            span = _check_readable(source_path, page_range, whole_document) if auto else None
+            document = copy_document_for_chapter(source, title=title, user=request.user)
+        except (DocumentFileError, AIDraftError) as exc:
+            return _error(exc.code, str(exc), exc.status)
+
+        if auto:
+            document.ai_draft_status = RUNNING
+            document.ai_draft_started_at = timezone.now()
+            document.ai_draft_progress = (
+                "Starting" if whole_document and span and span > MAX_PDF_PAGES else "Step 1 of 2: reading the document\u2019s details"
+            )
+            document.save(update_fields=["ai_draft_status", "ai_draft_started_at", "ai_draft_progress"])
+            generate_ai_draft.delay(document.pk, request.user.id, page_range, whole_document, not title, bool(title), True)
+            document.refresh_from_db()
+        return Response(DocumentRecordSerializer(document).data, status=202 if auto else 201)
 
 
 class DocumentAIDraftView(APIView):

@@ -728,3 +728,82 @@ def test_a_correction_on_the_record_reaches_the_draft_and_the_submission(documen
          patch("apps.kobo.form_sync.sync_form"):
         documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
     assert submit.call_args.args[1]["section_a/title_evidence_unit"] == "Corrected title"
+
+
+# --- Copy a record for another chapter --------------------------------------------
+
+def _source_with_file(client, settings, tmp_path, pages=300):
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    created = client.post("/api/v1/documents/", {
+        "title": "National Rural Finance Strategy", "author_or_speaker": "Ministry of Finance", "document_type": "OFFICIAL",
+        "source_url_or_reference": "https://example.org/nrfs.pdf", "geographic_scope": "Zimbabwe (national)",
+        "publication_or_event_date": "2026-03-12",
+    }, format="json")
+    _upload_pdf_pages(client, DocumentRecord(pk=created.data["id"]), tmp_path, pages)
+    return DocumentRecord.objects.get(pk=created.data["id"])
+
+
+def test_copy_for_another_chapter_gets_the_details_its_own_file_and_no_decisions(documentary_ra_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = ""  # no AI: the copy is made, nothing is drafted
+    source = _source_with_file(documentary_ra_client, settings, tmp_path)
+    documentary_ra_client.post(f"/api/v1/documents/{source.pk}/authenticity/", {"assessment": "VERIFIED"}, format="json")
+
+    resp = documentary_ra_client.post(f"/api/v1/documents/{source.pk}/copy/", {"title": "NRFS - Warehouse receipts chapter"}, format="json")
+    assert resp.status_code == 201
+    copy = DocumentRecord.objects.get(pk=resp.data["id"])
+    assert copy.document_id != source.document_id and copy.title == "NRFS - Warehouse receipts chapter"
+    assert (copy.author_or_speaker, str(copy.publication_or_event_date), copy.geographic_scope, copy.source_url_or_reference) == (
+        "Ministry of Finance", "2026-03-12", "Zimbabwe (national)", "https://example.org/nrfs.pdf")
+    assert copy.authenticity_assessment == "UNVERIFIED" and copy.qa_status == "PENDING" and not copy.ai_draft  # each chapter is judged on its own
+    assert copy.source_file_name == "book.pdf" and copy.source_file_ref != source.source_file_ref
+
+    # Its own file: removing the original's leaves the copy's readable.
+    documentary_ra_client.delete(f"/api/v1/documents/{source.pk}/file/")
+    assert documentary_ra_client.get(f"/api/v1/documents/{copy.pk}/file/").status_code == 200
+
+    from apps.audit.models import AuditEvent
+
+    assert AuditEvent.objects.filter(action="document.copied_for_chapter", object_id=str(copy.pk)).exists()
+
+
+def test_copy_starts_auto_fill_on_the_chapters_pages_and_lets_the_ai_name_the_part(documentary_ra_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    source = _source_with_file(documentary_ra_client, settings, tmp_path)
+    seen = {}
+
+    def fake_generate(document, **kwargs):
+        seen.update(kwargs, title=document.title)
+        return {"section_a/DOC_ID": document.document_id}
+
+    named = {**FAKE_DETAILS, "title": "NRFS – Chapter 6: Warehouse receipts (pp. 120-170)", "author_or_speaker": "Someone Else"}
+    with patch("apps.evidence.tasks.extract_document_details", return_value=named), \
+         patch("apps.evidence.tasks.generate_draft", side_effect=fake_generate):
+        resp = documentary_ra_client.post(f"/api/v1/documents/{source.pk}/copy/", {"pages": "120-170"}, format="json")
+    assert resp.status_code == 202
+    copy = DocumentRecord.objects.get(pk=resp.data["id"])
+    assert copy.title == "NRFS – Chapter 6: Warehouse receipts (pp. 120-170)" and seen["page_range"] == "120-170"
+    assert copy.author_or_speaker == "Ministry of Finance"  # copied details are not overwritten by the AI's reading
+    assert copy.ai_draft  # a draft is waiting for review
+
+    with patch("apps.evidence.tasks.extract_document_details", return_value=named) as extract, \
+         patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": "x"}):
+        typed = documentary_ra_client.post(f"/api/v1/documents/{source.pk}/copy/", {"title": "My chapter", "pages": "10-60"}, format="json")
+    assert DocumentRecord.objects.get(pk=typed.data["id"]).title == "My chapter"  # a typed title is kept
+    extract.assert_not_called()  # and nothing needs naming
+
+
+def test_copy_needs_pages_or_title_a_source_file_and_leaves_nothing_behind_on_a_bad_range(documentary_ra_client, supervisor_client, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    source = _source_with_file(documentary_ra_client, settings, tmp_path)
+    url = f"/api/v1/documents/{source.pk}/copy/"
+    assert documentary_ra_client.post(url, {}, format="json").data["error"]["code"] == "invalid_input"
+    before = DocumentRecord.objects.count()
+    too_long = documentary_ra_client.post(url, {"title": "All of it"}, format="json")  # 300 pages, no range
+    assert too_long.status_code == 400 and too_long.data["error"]["code"] == "pdf_too_long"
+    outside = documentary_ra_client.post(url, {"pages": "290-400"}, format="json")
+    assert outside.status_code == 400 and outside.data["error"]["code"] == "invalid_page_range"
+    assert DocumentRecord.objects.count() == before
+
+    no_file = documentary_ra_client.post("/api/v1/documents/", {"title": "No file", "document_type": "OFFICIAL"}, format="json")
+    assert documentary_ra_client.post(f"/api/v1/documents/{no_file.data['id']}/copy/", {"pages": "1-5"}, format="json").status_code == 404
+    assert supervisor_client.post(url, {"pages": "1-5"}, format="json").status_code == 403

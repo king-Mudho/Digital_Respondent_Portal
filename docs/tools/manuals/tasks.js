@@ -250,10 +250,10 @@ T.qaExceptions = [
   ]],
 ];
 
-T.formPdfs = (formName, shot = "qa_form_pdfs.jpg") => [
+T.formPdfs = (formName, shot = "qa_form_pdfs.jpg", caption = "Completed form PDFs.") => [
   ["h2", "Downloading or emailing completed forms (Form PDFs)"],
   ["steps", [
-    { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page.`, img: shot, caption: "Completed form PDFs." },
+    { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page.`, img: shot, caption },
     "Select **Download PDF** to save a readable copy: sections, questions, the chosen answers as words (not codes) and repeated groups.",
     "Select **Email to me** to send the PDF to the email address on your account.",
     "For the questionnaire only, select **Email to respondent** to send the respondent a copy of their own answers at the email address recorded on the case (only while their consent stands). You are asked to confirm first. Every email is audited with the address masked.",
@@ -299,7 +299,15 @@ T.documents = [
     "You still make the human decisions: assess **authenticity** (Verified or Disputed) and **Include** or **Exclude** the document, as described below.",
     "Review every section of the draft, **Save changes**, then **Submit to KoboToolbox** (see “Auto-fill: the AI drafts, you review”). The portal keeps its own copy of the completed form; **Sync now** on **Form PDFs** confirms the portal and KoboToolbox match.",
   ]],
-  ["tip", "One document, one chapter", "For a long report, make one record per chapter you want coded: on each new record choose the same PDF and enter that chapter's pages. Put the chapter in the title (or leave the title empty: with a page range the AI names the part, for example “Title – Chapter 6: Agriculture (pp. 290-340)”)."],
+  ["h2", "Coding another chapter of the same document (Copy for another chapter)"],
+  ["p", "A long report holds several evidence units. Give each chapter you want coded its own record, so each gets its own ratings, its own DOC ID and its own row in the export. You do not upload the file again or retype the details:"],
+  ["steps", [
+    { text: "Open the record of the document and, under **Copy for another chapter**, enter the chapter's **Pages to read** (for example `290-340`) and, if you like, a **Chapter title**. Leave the title empty and the AI names the part from its pages, for example “Title – Chapter 6: Agriculture (pp. 290-340)”.", img: "doc_copy_chapter.jpg", caption: "Copy for another chapter: pages, and an optional title." },
+    "Select **Copy and auto-fill** (or **Copy record** if AI drafting is not switched on). A new record is created with the same author, date, source, type and scope, and **its own copy of the file**, so removing or replacing one file never affects the other.",
+    "With AI drafting on, the new record's review screen opens and the AI starts drafting that chapter. Review, save and submit it as usual.",
+    "Authenticity and Include or Exclude are **not** copied: assess each chapter on its own. Repeat for every chapter you want coded.",
+  ]],
+  ["tip", "Copy needs a file", "The **Copy for another chapter** panel appears once a record has its source file. A title or pages is required, and a long PDF needs a page range (or the whole-document option). If the pages are not valid nothing is created."],
   ["h2", "Adding a document by hand"],
   ["steps", [
     "Select **Documents → New document** and, below **Or enter the details yourself**, fill in **Title**, **Author / speaker**, **Source URL / reference**, **Document type** (OFFICIAL, SECONDARY or PLATFORM), **Geographic scope** and an **Evidence extract**, then select **Create document record**. The document ID (e.g. DOC-0025) is generated.",
@@ -359,7 +367,7 @@ T.documents = [
   ["h3", "Coding a very long document"],
   ["p", "The AI can take in 100 pages at a time. A report of several hundred or a thousand pages therefore needs one of two approaches:"],
   ["bullets", [
-    "**One record per chapter (recommended).** Create a document record for each part you want coded, for example “NDS2 – Agriculture chapter”. Upload the same PDF to each, enter that part's page range, and review and submit each one. Each part gets its own DOC ID, its own coding and its own row in the Excel export.",
+    "**One record per chapter (recommended).** Make a record for each part you want coded, for example “NDS2 – Agriculture chapter”: upload the PDF once, then use **Copy for another chapter** on that record for every further part, entering each part's page range (see “Coding another chapter of the same document” above). Review and submit each one. Each part gets its own DOC ID, its own coding and its own row in the Excel export.",
     "**Read the whole document in parts.** Tick **Read the whole document in parts**. Leave **Pages to read** empty for every page, or enter a longer range such as `1-600` (up to 1,500 pages). The AI codes each part of about 80 pages, then combines them into one draft for the record. The screen tells you how many parts it will take and asks you to confirm, then shows progress (“Read part 3 of 8”, then “Combining the parts into one draft”). Expect roughly ten to thirty minutes, and you can leave the page.",
   ]],
   ["warn", "A combined draft needs extra care", [
