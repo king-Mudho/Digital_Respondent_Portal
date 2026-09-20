@@ -383,7 +383,7 @@ module.exports = [
       ["**Include** is greyed out", "Authenticity not assessed.", "Mark verified or disputed first."],
       ["No coding form PDF on the record", "The form was not submitted with this DOC ID.", "Use Code this document or Auto-fill so the DOC ID is filled in for you."],
       ["No **Auto-fill** button", "No source file yet, or AI drafting is not switched on.", "Attach the file; otherwise ask the administrator."],
-      ["Auto-fill asks for **Pages to read**", "The PDF has more than 100 pages.", "Enter a range of up to 100 pages, such as one chapter."],
+      ["Auto-fill asks for **Pages to read**", "The PDF has more than 100 pages.", "Enter a range of up to 100 pages, such as one chapter, or tick **Read the whole document in parts**."],
       ["Uploaded the wrong file", "It happens.", "Select **Remove file** beside the file name, then upload the right one."],
     ],
     quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Order", "Create → attach source → assess authenticity → include/exclude → memo → code (by hand or Auto-fill)"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],

@@ -319,7 +319,7 @@ T.documents = [
   ["h2", "Auto-fill: the AI drafts, you review"],
   ["steps", [
     "Attach the source file (above). Select **Auto-fill** in the **Coding** panel; the review screen opens.",
-    { text: "If the file is a PDF of more than 100 pages, enter the **Pages to read**, for example `10-90`. The AI reads up to 100 pages at a time, so choose the pages that make up this evidence unit, such as one chapter. Its locators use the original page numbers. For shorter files, leave the box empty to read everything.", img: "doc_autofill_pages.jpg", caption: "A 240-page PDF asks for a page range." },
+    { text: "If the file is a PDF of more than 100 pages, enter the **Pages to read**, for example `10-90`. The AI reads up to 100 pages at a time, so either choose the pages that make up this evidence unit, such as one chapter, or tick **Read the whole document in parts** (see “Coding a very long document” below). Its locators use the original page numbers. For shorter files, leave the box empty to read everything.", img: "doc_autofill_pages.jpg", caption: "A 240-page PDF: enter a page range, or read the whole document in parts." },
     { text: "Select **Generate AI draft**. The AI reads in the background, usually one to five minutes. You can leave the page and come back; the draft will be there.", img: "doc_autofill_running.jpg", caption: "The AI is reading the document." },
     { text: "Read the draft. It has every section of the KoboToolbox form, A to L. The DOC ID, author, title, date and source come from the record and cannot be changed here; everything else you can edit.", img: "doc_autofill_review.jpg", caption: "The review screen: the draft, ready to check and edit." },
     { text: "Check the judgements, not just the facts: the strength ratings (Sections D and H), the hypothesis codes (Section K) and the locators. Open the source and confirm a few page or paragraph references.", img: "doc_autofill_section_d.jpg", caption: "Section D: ratings and locators, all editable." },
@@ -333,22 +333,35 @@ T.documents = [
     "Submit once. A second submission would create a duplicate record for the document, and the screen shows “Already submitted” to stop it.",
   ]],
   ["table", ["File type", "Can the AI read it?", "Locators"], [
-    ["PDF", "Yes, up to 100 pages at a time (choose a page range for longer files).", "Original page and paragraph numbers."],
+    ["PDF", "Yes, up to 100 pages at a time; longer files by page range, or read whole in parts (up to 1,500 pages).", "Original page and paragraph numbers."],
     ["JPG, PNG (scan or photo)", "Yes. Very large photos are shrunk automatically.", "Whatever the image shows."],
     ["Word (.docx), Excel (.xlsx), text, CSV", "Yes, as text.", "No page numbers: headings, paragraph or section numbers, sheet names."],
     ["Audio or video", "No. Upload a transcript (PDF, Word or text) and keep the recording as the source reference.", "-"],
     ["Old .doc or .xls", "No. Save as a PDF or as .docx / .xlsx and upload that.", "-"],
   ], [0.28, 0.44, 0.28]],
+  ["h3", "Coding a very long document"],
+  ["p", "The AI can take in 100 pages at a time. A report of several hundred or a thousand pages therefore needs one of two approaches:"],
+  ["bullets", [
+    "**One record per chapter (recommended).** Create a document record for each part you want coded, for example “NDS2 – Agriculture chapter”. Upload the same PDF to each, enter that part's page range, and review and submit each one. Each part gets its own DOC ID, its own coding and its own row in the Excel export.",
+    "**Read the whole document in parts.** Tick **Read the whole document in parts**. Leave **Pages to read** empty for every page, or enter a longer range such as `1-600` (up to 1,500 pages). The AI codes each part of about 80 pages, then combines them into one draft for the record. The screen tells you how many parts it will take and asks you to confirm, then shows progress (“Read part 3 of 8”, then “Combining the parts into one draft”). Expect roughly ten to thirty minutes, and you can leave the page.",
+  ]],
+  ["warn", "A combined draft needs extra care", [
+    "Because the ratings are judged across the parts rather than from every page at once, check the strength ratings (Sections D and H), the hypothesis codes (Section K) and the locators more carefully than for a single chapter. The draft states which pages it covers; confirm that this is the evidence unit you meant.",
+    "A whole-document read costs about the number of parts plus one times an ordinary draft. If any part fails, the whole draft fails and nothing is saved, so you never receive a coding that silently skipped pages.",
+    "Whether a whole-document coding is appropriate for a given source is a methodology decision for the PI; for a report that covers many topics, one record per chapter usually gives a sharper analysis.",
+  ]],
   ["h3", "If Auto-fill shows a message"],
   ["table", ["You see", "What it means", "What to do"], [
-    ["“Pages to read (required)”, or “This PDF has N pages…”", "The PDF is longer than 100 pages.", "Enter a page range of up to 100 pages."],
+    ["“Pages to read (required)”, or “This PDF has N pages…”", "The PDF is longer than 100 pages.", "Enter a page range of up to 100 pages, or tick **Read the whole document in parts**."],
+    ["“…over the 1500-page ceiling…”", "The PDF is longer than the most that can be read in one draft.", "Enter a page range, or make one record per chapter."],
+    ["“Read part 4 of 12” or “Combining the parts…”", "A long document is being read in parts. Nothing is wrong.", "Wait, or leave the page and come back."],
     ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
-    ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes)."],
+    ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes; up to half an hour for a document read in parts)."],
     ["“The last attempt failed: …”", "The AI request did not complete.", "Select **Generate AI draft** again. If it keeps failing, tell the administrator the message."],
     ["No **Auto-fill** button", "AI drafting has not been switched on, or there is no source file yet.", "Attach the file; otherwise ask the administrator."],
     ["**Submit** is refused by KoboToolbox", "KoboToolbox did not accept the record.", "Tell the administrator; your draft is kept."],
   ], [0.3, 0.35, 0.35]],
-  ["tip", "Cost", "Each draft is a paid request on the study's AI account. A short chapter costs little; a full 100 pages costs several times more. Choose the pages you need."],
+  ["tip", "Cost", "Each draft is a paid request on the study's AI account. A short chapter costs little; a full 100 pages costs several times more; a whole document read in parts costs about the number of parts plus one times an ordinary draft. Choose the pages you need."],
 ];
 
 T.cost = [
