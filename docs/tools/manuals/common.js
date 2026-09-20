@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.1 · 19 September 2026";
+const REVISION = "Version 1.2 · 20 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -87,6 +87,8 @@ const INTERNAL_TROUBLE = [
   ["A register shows fewer rows than expected", "Registers show 20 rows per page; a Contact RA sees only assigned cases.", "Use **Next**, or search. Ask the Field Coordinator to assign the case."],
   ["A button is greyed out", "A required step is missing (a note, an authenticity decision, a selection).", "Read the message beside the button; complete the missing step first."],
   ["\"KoboToolbox couldn't be reached\"", "KoboToolbox is slow or the connection token has changed.", "Try again in a few minutes. If it persists, tell the PI."],
+  ["Form PDFs says \"Not in sync with KoboToolbox yet\"", "The counts differ: a form was submitted or changed in KoboToolbox since the last sync (it runs every 15 minutes).", "Select **Sync now**. If it still differs, or says it couldn't reach KoboToolbox, try again in a few minutes and tell the PI if it persists."],
+  ["A document says \"Already submitted\" and its answers are locked", "Its coding was already sent to KoboToolbox; changing it here would not change that record.", "To redo the coding, delete that record in KoboToolbox, then select **Sync now** on Form PDFs. The document unlocks."],
   ["A page keeps loading", "A slow or dropped connection.", "Refresh the page. Your saved work is not lost; unsaved typing may be."],
   ["A file upload seems stuck", "A large file on a slow connection takes time; the bar shows how much has been sent.", "Wait for **Saving…** and the file name. If it fails, try again or upload a smaller version."],
 ];
@@ -106,6 +108,7 @@ const GLOSSARY = [
   ["PROIT", "Pre-Interview Respondent & Organisation Intelligence and Verification Tool: background facts found before contact, confirmed by the respondent."],
   ["KoboToolbox", "The external data-collection service that hosts the three study forms."],
   ["Submission", "One completed KoboToolbox form."],
+  ["Sync", "Bringing the portal's own copy of the three KoboToolbox forms level with KoboToolbox. Automatic every 15 minutes, or **Sync now**."],
   ["QA", "Quality assurance: automated checks plus a human decision on every questionnaire."],
   ["QA exception", "An automated flag raised by a QA rule, worked and closed by a person."],
   ["KII", "Key Informant Interview (target 60 completed)."],

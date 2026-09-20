@@ -254,11 +254,13 @@ T.formPdfs = (formName, shot = "qa_form_pdfs.jpg") => [
   ["h2", "Downloading or emailing completed forms (Form PDFs)"],
   ["steps", [
     { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page.`, img: shot, caption: "Completed form PDFs." },
+    "At the top, the sync panel shows whether the portal holds the same forms as KoboToolbox: for example “✓ In sync with KoboToolbox — KoboToolbox holds 12 · the portal holds 12”. Each row also says “✓ saved in portal” once the portal has an identical copy. If the panel says “Not in sync”, select **Sync now**; it takes a few seconds.",
     "Select **Download PDF** to save a readable copy: sections, questions, the chosen answers as words (not codes) and repeated groups.",
     "Select **Email to me** to send the PDF to the email address on your account.",
     "For the questionnaire only, select **Email to respondent** to send the respondent a copy of their own answers at the email address recorded on the case (only while their consent stands). You are asked to confirm first. Every email is audited with the address masked.",
   ]],
   ["p", "The same PDF is available from the record itself: the case page (questionnaire), the KII page (KII Guide) or the document page (coding form)."],
+  ["tip", "How the sync works", "The portal keeps its own copy of the questionnaire, KII Guide and Document Analysis Tool, and refreshes it every 15 minutes and whenever someone selects Sync now. A submission edited in KoboToolbox is updated here; one deleted in KoboToolbox is flagged as removed. You never need to sync before downloading a PDF: the PDF is always read from KoboToolbox at that moment."],
 ];
 
 T.kii = [
@@ -274,7 +276,7 @@ T.kii = [
     "Before the interview starts, select **Record participation consent**. If the interview will be recorded, also select **Record recording consent** — the two are always separate.",
     "When marking **COMPLETED**, tick **Recording made** only if a recording exists. The portal refuses a recorded completion without recording consent.",
     "Advance **Transcript** (NOT_STARTED → IN_PROGRESS → VERIFIED → ANONYMISED) and **Coding** (NOT_STARTED → IN_PROGRESS → COMPLETE) as the work progresses.",
-    "Complete the **KII Guide** form in KoboToolbox using the KII ID (see the next section). The **Completed KII form (KoboToolbox)** panel then links to its PDF.",
+    "Complete the **KII Guide** form in KoboToolbox using the KII ID (see the next section). The **Completed KII form (KoboToolbox)** panel then links to its PDF, and at the next sync (within 15 minutes, or at once with **Sync now** on **Form PDFs**) the portal sets **Coding** to COMPLETE for you.",
   ]],
   ["h2", "Opening the KII Guide with the KII ID filled in"],
   ["steps", [
@@ -323,7 +325,7 @@ T.documents = [
     { text: "Check the judgements, not just the facts: the strength ratings (Sections D and H), the hypothesis codes (Section K) and the locators. Open the source and confirm a few page or paragraph references.", img: "doc_autofill_section_d.jpg", caption: "Section D: ratings and locators, all editable." },
     { text: "Check the numbers in Section J against the source. Add or remove metrics as needed.", img: "doc_autofill_section_j.jpg", caption: "Section J: quantitative metrics." },
     "Select **Save changes** to keep your edits and finish later. When you are satisfied, select **Submit to KoboToolbox** and confirm. Your reviewed answers are sent as a completed record.",
-    "The record appears at once under **Completed coding form (KoboToolbox)** on the document page and in **Form PDFs**, found by its DOC ID. There is no separate sync to run for documents.",
+    "The record appears at once under **Completed coding form (KoboToolbox)** on the document page and in **Form PDFs**, found by its DOC ID. The portal's copy of the Document Analysis Tool is refreshed the moment you submit. If a coding you submitted is later deleted in KoboToolbox, the next sync (automatic, or **Sync now** on **Form PDFs**) unlocks the document so it can be coded again.",
   ]],
   ["warn", "The draft is a starting point, not a finding", [
     "Sections D to K are this study's documentary analysis. The AI drafts them; you are responsible for them. Change any rating you disagree with. A draft where everything is rated as strongly supportive deserves a second look.",
