@@ -254,11 +254,11 @@ T.formPdfs = (formName, shot = "qa_form_pdfs.jpg") => [
   ["h2", "Downloading or emailing completed forms (Form PDFs)"],
   ["steps", [
     { text: `Select **Form PDFs**. You see the completed ${formName} forms from KoboToolbox, newest first, 20 per page.`, img: shot, caption: "Completed form PDFs." },
-    "At the top, the sync panel shows whether the portal holds the same forms as KoboToolbox: for example “✓ In sync with KoboToolbox — KoboToolbox holds 12 · the portal holds 12”. Each row also says “✓ saved in portal” once the portal has an identical copy. If the panel says “Not in sync”, select **Sync now**; it takes a few seconds.",
     "Select **Download PDF** to save a readable copy: sections, questions, the chosen answers as words (not codes) and repeated groups.",
     "Select **Email to me** to send the PDF to the email address on your account.",
     "For the questionnaire only, select **Email to respondent** to send the respondent a copy of their own answers at the email address recorded on the case (only while their consent stands). You are asked to confirm first. Every email is audited with the address masked.",
   ]],
+  ["p", "At the top of the page, a sync panel shows whether the portal holds the same forms as KoboToolbox, for example “✓ In sync with KoboToolbox — KoboToolbox holds 12 · the portal holds 12”. Each row also says “✓ saved in portal” once the portal has an identical copy. If the panel says “Not in sync”, select **Sync now** (read-only roles see the panel but not the button); it takes a few seconds."],
   ["p", "The same PDF is available from the record itself: the case page (questionnaire), the KII page (KII Guide) or the document page (coding form)."],
   ["tip", "How the sync works", "The portal keeps its own copy of the questionnaire, KII Guide and Document Analysis Tool, and refreshes it every 15 minutes and whenever someone selects Sync now. A submission edited in KoboToolbox is updated here; one deleted in KoboToolbox is flagged as removed. You never need to sync before downloading a PDF: the PDF is always read from KoboToolbox at that moment."],
 ];
@@ -288,15 +288,32 @@ T.kii = [
 ];
 
 T.documents = [
-  ["h2", "Adding a document"],
+  ["h2", "The fastest way: upload the document (Quick add)"],
+  ["p", "You do not need to type the details of a document. Upload it and the AI reads it, fills in the record, drafts the whole KoboToolbox coding form, and waits for you to review. (This needs AI drafting to be switched on; otherwise use “Adding a document by hand” below.)"],
   ["steps", [
-    { text: "Select **Documents → New document**.", img: "doc_new.jpg", caption: "New Documentary Evidence Record." },
-    "Enter **Title**, **Author / speaker**, **Source URL / reference**, **Document type** (OFFICIAL, SECONDARY or PLATFORM), **Geographic scope** and an **Evidence extract**, then select **Create document record**. The document ID (e.g. DOC-0025) is generated.",
+    { text: "Select **Documents → New document**. At the top is the box **Fastest: upload the document**.", img: "doc_new.jpg", caption: "New document: upload the file and let the AI do the rest." },
+    "Choose the file: a PDF, a Word (.docx) or Excel (.xlsx) file, a text or CSV file, or a JPG or PNG scan or photo (up to 20 MB). Nothing else is required.",
+    "Optional (open **Optional: title, pages to read**): a **Title** if you want your own; **Pages to read** if you are coding one chapter of a long PDF, for example `290-340`; or tick **Read the whole document in parts** for a PDF over 100 pages (see “Coding a very long document” below).",
+    "Select **Upload and auto-fill**. The record is created straight away and the review screen opens, showing “Step 1 of 2: reading the document’s details”, then “Step 2 of 2: drafting the coding form”. You can leave the page; the draft will be there when you return.",
+    "The AI has filled in the title, author, date, document type, geographic scope, value chain and source it found in the document, and left blank anything the document does not state. Check them on the record page under **Record details** and correct anything wrong; a correction shows in the draft at once and is used when you submit.",
+    "You still make the human decisions: assess **authenticity** (Verified or Disputed) and **Include** or **Exclude** the document, as described below.",
+    "Review every section of the draft, **Save changes**, then **Submit to KoboToolbox** (see “Auto-fill: the AI drafts, you review”). The portal keeps its own copy of the completed form; **Sync now** on **Form PDFs** confirms the portal and KoboToolbox match.",
+  ]],
+  ["tip", "One document, one chapter", "For a long report, make one record per chapter you want coded: on each new record choose the same PDF and enter that chapter's pages. Put the chapter in the title (or leave the title empty: with a page range the AI names the part, for example “Title – Chapter 6: Agriculture (pp. 290-340)”)."],
+  ["h2", "Adding a document by hand"],
+  ["steps", [
+    "Select **Documents → New document** and, below **Or enter the details yourself**, fill in **Title**, **Author / speaker**, **Source URL / reference**, **Document type** (OFFICIAL, SECONDARY or PLATFORM), **Geographic scope** and an **Evidence extract**, then select **Create document record**. The document ID (e.g. DOC-0025) is generated.",
+    "Then attach the source file (below). If AI drafting is on, ticking **Start Auto-fill as soon as the file is uploaded** sends you straight to the draft.",
+  ]],
+  ["h2", "Correcting a record's details"],
+  ["steps", [
+    { text: "Open the record. Under **Record details** you can edit the title, author, publication or event date, source URL or reference, geographic scope, value chain and document type.", img: "doc_record_details.jpg", caption: "Record details: the details the AI filled in, ready to check." },
+    "Select **Save details**. The details appear in the coding form's Section A: on the review screen they show in grey, and the corrected values are the ones submitted to KoboToolbox.",
   ]],
   ["h2", "Attaching the source file, and removing a wrong one"],
   ["steps", [
     { text: "On the document's page, under **Source file**, select **Choose File** and pick the source: a PDF, a scan or photo (JPG or PNG), a Word (.docx) or Excel (.xlsx) file, or a text or CSV file. Audio and video can be attached as a reference. The limit is 20 MB. The file is stored privately on the server.", img: "doc_source_file.jpg", caption: "Source file: the file name, size and date, with Remove file beside it." },
-    "A bar shows how much of the file has been sent. A large file on a slow connection can take a minute or two: wait until it says **Saving…** and the file name appears.",
+    "A bar shows how much of the file has been sent. A large file on a slow connection can take a minute or two: wait until it says **Saving…** and the file name appears. If **Start Auto-fill as soon as the file is uploaded** is ticked (it is by default), the review screen then opens and the AI starts reading.",
     "Attached the wrong one? Select the red **Remove file** link beside the file name and confirm. The file is deleted from the server and the record says “No file uploaded yet”. Then choose the right file.",
     "Choosing another file straight away also replaces the old one.",
   ]],
@@ -354,6 +371,9 @@ T.documents = [
   ["table", ["You see", "What it means", "What to do"], [
     ["“Pages to read (required)”, or “This PDF has N pages…”", "The PDF is longer than 100 pages.", "Enter a page range of up to 100 pages, or tick **Read the whole document in parts**."],
     ["“…over the 1500-page ceiling…”", "The PDF is longer than the most that can be read in one draft.", "Enter a page range, or make one record per chapter."],
+    ["“Step 1 of 2…” or “Step 2 of 2…”", "A record made by Quick add is being filled in and drafted. Nothing is wrong.", "Wait, or leave the page and come back."],
+    ["A detail in Section A is wrong or blank", "The AI reads only what the document states, and can mistake a title or date.", "Correct it under **Record details** on the record page; the draft and the submission use the corrected value."],
+    ["Quick add says the file can't be used", "Unsupported type (for example audio), a damaged file, or a long PDF with no pages chosen.", "Read the message: convert the file, enter a page range, or tick **Read the whole document in parts**. No record is created when this happens."],
     ["“Read part 4 of 12” or “Combining the parts…”", "A long document is being read in parts. Nothing is wrong.", "Wait, or leave the page and come back."],
     ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
     ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes; up to half an hour for a document read in parts)."],

@@ -434,7 +434,8 @@ const manual = {
     ]],
     ["h2", "Exercise 5 — A document (Documentary RAs)"],
     ["steps", [
-      "Add a practice document from a public web page your facilitator names.",
+      "Add a practice document the facilitator gives you. If Auto-fill is on for the practice site, use **Quick add**: **Documents → New document → Upload and auto-fill**, and watch the two steps (“reading the document’s details”, then “drafting the coding form”). Otherwise type the details by hand.",
+      "Open **Record details** and find one detail the AI filled in that you would correct (a title, a date). Change it and select **Save details**.",
       "Try to Include it straight away. What happens?",
       "Assess authenticity, include or exclude it, and write a three-sentence memo.",
       "Attach a source file, then remove it with **Remove file** and attach it again.",
@@ -449,7 +450,7 @@ const manual = {
       "Contact RAs: Follow-ups (send and mark every due reminder), Appointments for today.",
       "QA RAs: QA Dashboard, oldest exceptions, then the queue.",
       "KII RAs: today's scheduled interviews and consent forms ready.",
-      "Documentary RAs: documents waiting for assessment.",
+      "Documentary RAs: documents waiting for assessment; drafts waiting for review.",
     ]],
     ["h2", "End of the day"],
     ["bullets", [

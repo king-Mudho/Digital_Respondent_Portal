@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.3 · 20 September 2026";
+const REVISION = "Version 1.4 · 20 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -117,6 +117,8 @@ const GLOSSARY = [
   ["Auto-fill", "A button on a document's page that has AI read the source file and draft the whole Document Analysis Tool for you to review. It never submits anything by itself."],
   ["AI draft", "The AI's proposed answers to the Document Analysis Tool: editable, reviewed by a person, and only sent to KoboToolbox when that person selects Submit."],
   ["Page range", "The pages of a long PDF that make up one evidence unit (up to 100), entered for Auto-fill."],
+  ["Quick add", "Documents → New document → upload a file: the AI fills in the record's details and drafts the coding form for you to review."],
+  ["Record details", "A document's title, author, date, type, scope, value chain and source. They feed Section A of the coding form and can be corrected on the record page."],
   ["Read in parts", "Auto-fill option for a PDF over 100 pages: the AI codes each part of about 80 pages, then combines them into one draft."],
   ["Administration mode", "How the questionnaire was completed (codes 01–06)."],
   ["Follow-up", "An approved reminder due to be sent to an invited respondent (Day 2, Day 7)."],

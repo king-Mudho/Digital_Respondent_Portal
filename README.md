@@ -776,6 +776,17 @@ document record itself, not the AI, either way.
    A long PDF now asks for a page range (one chapter or evidence unit), sends only those
    pages and tells the model to cite the original page numbers. A range that is missing,
    out of bounds or over 100 pages is refused instantly, before any AI call.
+   **Quick add** (2026-09-20): *Documents → New document → Upload and auto-fill* creates the
+   record from the file alone (`POST /documents/quick-create/`). In the background the worker
+   first reads the document's first pages and fills in the record's title, author, date,
+   type, scope, value chain and source (`extract_document_details`; only what the document
+   states, blanks stay blank, and a title/type the person typed is kept), then drafts the
+   coding form. A file that cannot be used (unsupported, or a long PDF with no pages chosen)
+   leaves no record and no file behind. Record details are editable on the record page and
+   the draft always shows and submits the record's *current* details
+   (`with_current_record_details`). On an existing record, the *Start Auto-fill as soon as
+   the file is uploaded* tick box does the same. The authenticity decision and Include/Exclude
+   stay human; authenticity and QA status can only change through their own endpoints.
    **Read the whole document in parts** (added 2026-09-20): for a longer text, tick the
    option on the review screen. The pages (all of them, or a range of up to 1,500) are cut
    into even parts of about 80 pages, three parts are coded at a time, and one more pass
