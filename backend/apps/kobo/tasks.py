@@ -10,6 +10,7 @@ import logging
 
 from celery import shared_task
 
+from .form_sync import sync_all
 from .models import ReconciliationTrigger
 from .services import KoboNotConfigured
 from .services import reconcile as reconcile_service
@@ -19,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 @shared_task
 def reconcile_kobo_submissions(triggered_by: str = ReconciliationTrigger.SCHEDULE):
+    log = None
     try:
         log = reconcile_service(triggered_by=triggered_by)
     except KoboNotConfigured:
@@ -26,5 +28,7 @@ def reconcile_kobo_submissions(triggered_by: str = ReconciliationTrigger.SCHEDUL
         # so it does not fill the journal 96 times a day, and no
         # ReconciliationLog row is written for a run that never happened.
         logger.debug("Kobo reconciliation skipped: not configured.")
-        return None
-    return log.pk
+    # The same pass keeps the portal's copy of all three forms level with
+    # KoboToolbox (form_sync.py); an unconnected form is simply skipped.
+    sync_all(triggered_by=triggered_by)
+    return log.pk if log is not None else None

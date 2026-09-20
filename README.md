@@ -257,6 +257,17 @@ only its own form:
     it is built, with `manifest.csv`.
 
   The frontend proxy streams the bytes through unchanged.
+- **All three forms are synced into the portal** (`apps/kobo/form_sync.py`). Every 15 minutes
+  (the same pass as questionnaire reconciliation), and on **Sync now** on the *Completed forms*
+  page (`/admin/submissions`), the portal pulls the Questionnaire, the KII Guide and the Document
+  Analysis Tool and keeps its own copy (`KoboFormSubmission`) with a content hash per submission.
+  An edited submission is recognised by its changed hash; one deleted in KoboToolbox is flagged
+  (`removed_at`), never silently kept. The page shows *KoboToolbox holds N · the portal holds N*
+  and whether they agree (`GET /kobo/sync/status/`), and each listed row says whether the
+  portal's copy is identical. What a sync also does: a completed KII Guide for a KII ID marks
+  that interview's coding COMPLETE; a document coding submitted from the portal and later
+  deleted in KoboToolbox unlocks the document, so it can be coded again. Submitting an AI draft
+  refreshes the Document form's copy straight away.
 - **Connecting or reconnecting Kobo:** `sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh`
   sets the token, asset UIDs, form URL and webhook without echoing secrets.
 - **Document analysis on the platform, not by hand.** A document's page
@@ -343,7 +354,7 @@ figures and lists on mixed screens but not the forms or buttons
 | A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, respondents and contact details, matched Reserve, PROIT pre-profile, invitations (sent with a ready-written message by WhatsApp, SMS or email, including email from the study address), workflow transitions, contact-attempt log, withdrawal, and the completed questionnaire PDF |
 | A05 | `/admin/appointments` | Appointment queue with status transition buttons |
 | — | `/admin/follow-ups` | Reminders due now from the approved reminder schedule, each with a one-tap WhatsApp link and "Mark as sent"; a Contact RA sees only its own cases |
-| — | `/admin/submissions` | Form PDFs: completed KoboToolbox forms for your role's form, download or email |
+| — | `/admin/submissions` | Completed forms: your role's KoboToolbox form, sync status and **Sync now**, download PDFs or email; PI also gets the Excel workbook and PDF ZIP |
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
 | — | `/admin/qa/exceptions` | QA exceptions raised by the rules: assign, work, then resolve or dismiss with a note |
 | A07 | `/admin/kii`, `/admin/kii/new`, `/admin/kii/[id]` | KII register, creation, and per-record status/consent/transcript/coding workflow; **Continue this interview** opens the KoboToolbox KII Guide prefilled with the record's KII-ID, offered only once participation consent is GIVEN |

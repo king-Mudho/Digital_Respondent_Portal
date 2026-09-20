@@ -134,3 +134,37 @@ def test_submit_to_kobo_unreachable_raises(document, settings, user):
         with pytest.raises(KoboSubmitError) as exc:
             submit_to_kobo(document, {}, user=user)
     assert exc.value.code == "kobo_unreachable"
+
+
+# --- the view: a coding is submitted once -------------------------------------
+
+def _api(user):
+    from rest_framework.test import APIClient
+
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
+
+
+def test_a_reviewed_draft_is_submitted_once_and_a_second_click_is_refused(document, user):
+    document.ai_draft = {"section_a/DOC_ID": document.document_id}
+    document.save()
+    ok = {"instance_uuid": "abc-123", "status_code": 201}
+    with patch("apps.evidence.views.submit_to_kobo", return_value=ok) as submit, \
+         patch("apps.kobo.form_sync.sync_form") as sync:
+        first = _api(user).post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
+        second = _api(user).post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
+    assert first.status_code == 200 and first.json()["kobo_submission_uuid"] == "abc-123"
+    assert second.status_code == 409 and second.json()["error"]["code"] == "already_submitted"
+    assert submit.call_count == 1  # the duplicate never reached KoboToolbox
+    sync.assert_called_once()  # the portal's copy of the form was refreshed straight away
+
+
+def test_a_failing_post_submission_sync_never_undoes_a_successful_submission(document, user):
+    document.ai_draft = {"section_a/DOC_ID": document.document_id}
+    document.save()
+    with patch("apps.evidence.views.submit_to_kobo", return_value={"instance_uuid": "u1", "status_code": 201}), \
+         patch("apps.kobo.form_sync.sync_form", side_effect=RuntimeError("boom")):
+        resp = _api(user).post(f"/api/v1/documents/{document.pk}/ai-draft/submit/")
+    document.refresh_from_db()
+    assert resp.status_code == 200 and document.kobo_submitted_at is not None

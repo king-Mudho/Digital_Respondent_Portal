@@ -8,6 +8,8 @@ from .copy_views import (
     KoboRecordLookupView,
     KoboSubmissionEmailView,
     KoboSubmissionPDFView,
+    KoboSyncStatusView,
+    KoboSyncView,
 )
 from .views import (
     KoboReconcileView,
@@ -24,6 +26,8 @@ urlpatterns = [
     path("kobo/reconcile/", KoboReconcileView.as_view(), name="reconcile"),
     path("kobo/reconciliation-status/", KoboReconciliationStatusView.as_view(), name="reconciliation-status"),
     path("kobo/forms/", KoboFormsView.as_view(), name="forms"),
+    path("kobo/sync/", KoboSyncView.as_view(), name="sync"),
+    path("kobo/sync/status/", KoboSyncStatusView.as_view(), name="sync-status"),
     path("kobo/forms/<str:key>/export/xlsx/", KoboFormDataExportView.as_view(), name="form-export-xlsx"),
     path("kobo/forms/<str:key>/export/pdfs/", KoboFormPDFZipView.as_view(), name="form-export-pdfs"),
     path("kobo/forms/<str:key>/lookup/", KoboRecordLookupView.as_view(), name="form-lookup"),

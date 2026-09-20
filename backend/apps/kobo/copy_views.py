@@ -137,3 +137,45 @@ class KoboRecordLookupView(APIView):
             return Response({"results": copies.find_submissions(key, record)})
         except copies.CopyError as exc:
             return _error(exc)
+
+
+class KoboSyncStatusView(APIView):
+    """GET /api/v1/kobo/sync/status/ -- for each form this role may open: how
+    many submissions KoboToolbox holds, how many the portal holds, and whether
+    they agree."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from .form_sync import form_status
+
+        forms = copies.forms_for(request.user)
+        if not forms:
+            return _error(copies.CopyError("permission_denied", "No KoboToolbox forms are part of your role.", 403))
+        return Response({"forms": [form_status(f["key"]) for f in forms]})
+
+
+class KoboSyncView(APIView):
+    """POST /api/v1/kobo/sync/ {form?} -- pull the named form (or every form
+    this role may open) from KoboToolbox now. Read-only roles cannot."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .form_sync import form_status, sync_all
+        from .models import ReconciliationTrigger
+
+        allowed = [f["key"] for f in copies.forms_for(request.user)]
+        if not allowed or copies.role_of(request.user) in copies.READ_ONLY_ROLES:
+            return _error(copies.CopyError("permission_denied", "Your role can't run a sync.", 403))
+        requested = (request.data.get("form") or "").strip()
+        if requested and requested not in allowed:
+            return _error(copies.CopyError("permission_denied", "This form isn't part of your role.", 403))
+        keys = [requested] if requested else allowed
+        logs = sync_all(triggered_by=ReconciliationTrigger.MANUAL, keys=keys)
+        failed = [log.error_message for log in logs if log.error_message]
+        if not logs:
+            return _error(copies.CopyError("kobo_not_configured", "This form isn't connected to KoboToolbox yet.", 503))
+        if failed and len(failed) == len(logs):
+            return _error(copies.CopyError("kobo_unreachable", f"KoboToolbox couldn't be reached: {failed[0]}", 502))
+        return Response({"forms": [form_status(key) for key in keys]})

@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from django.http import FileResponse
@@ -33,6 +34,8 @@ from .services import (
     set_qa_status,
 )
 from .tasks import RUNNING, generate_ai_draft
+
+logger = logging.getLogger(__name__)
 
 
 def _error(code, message, status=400):
@@ -226,6 +229,12 @@ class DocumentAISubmitView(APIView):
         document = get_object_or_404(DocumentRecord, pk=pk)
         if not document.ai_draft:
             return Response({"error": {"code": "no_draft", "message": "No draft to submit -- generate one first.", "field_errors": {}}}, status=400)
+        if document.kobo_submitted_at:
+            # A second submission would be a second, duplicate record in KoboToolbox.
+            # (If the first was deleted in Kobo, the next sync unlocks the document.)
+            return _error("already_submitted", "This document's coding was already submitted to KoboToolbox.", 409)
+        if document.ai_draft_status == RUNNING:
+            return _error("already_running", "A new draft is being generated. Wait for it to finish before submitting.", 409)
         try:
             result = submit_to_kobo(document, document.ai_draft, user=request.user)
         except KoboSubmitError as exc:
@@ -235,4 +244,13 @@ class DocumentAISubmitView(APIView):
         document.kobo_submitted_at = timezone.now()
         document.kobo_submitted_by = request.user
         document.save(update_fields=["kobo_submission_uuid", "kobo_submitted_at", "kobo_submitted_by"])
+        # Bring the portal's own copy of the Document form level with Kobo now,
+        # rather than at the next scheduled sync. Never blocks the submission.
+        try:
+            from apps.kobo.form_sync import sync_form
+            from apps.kobo.models import ReconciliationTrigger
+
+            sync_form("documents", ReconciliationTrigger.MANUAL)
+        except Exception:  # noqa: BLE001
+            logger.warning("Post-submission sync of the Document form failed", exc_info=True)
         return Response(DocumentRecordSerializer(document).data)

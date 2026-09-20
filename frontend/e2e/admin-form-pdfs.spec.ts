@@ -12,7 +12,7 @@ import { loginAsAdmin } from "./helpers";
 test("a completed questionnaire downloads as an intact PDF", async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto("/admin/submissions");
-  await expect(page.getByRole("heading", { name: "Completed form PDFs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Completed forms" })).toBeVisible();
 
   // Not connected, or connected to something that isn't a usable form (CI's
   // placeholder asset and token): the screen must explain it either way.

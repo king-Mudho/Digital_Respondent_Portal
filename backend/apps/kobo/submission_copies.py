@@ -142,12 +142,17 @@ def list_submissions(key: str, *, start: int = 0, limit: int = 25) -> dict:
         f"/api/v2/assets/{asset_uid(key)}/data/",
         start=start, limit=limit, sort=json.dumps({"_submission_time": -1}),
     )
+    from .form_sync import portal_copy_flags
+
+    rows = body.get("results", [])
+    in_portal = portal_copy_flags(key, rows)
     return {
         "count": body.get("count", 0),
         "results": [
             {"id": row.get("_id"), "record": record_label(key, row),
-             "submitted_at": row.get("_submission_time"), "submitted_by": row.get("_submitted_by") or ""}
-            for row in body.get("results", [])
+             "submitted_at": row.get("_submission_time"), "submitted_by": row.get("_submitted_by") or "",
+             "portal_copy": in_portal.get(row.get("_id"), False)}
+            for row in rows
         ],
     }
 

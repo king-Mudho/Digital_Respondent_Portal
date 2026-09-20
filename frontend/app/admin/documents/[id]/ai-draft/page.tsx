@@ -214,7 +214,7 @@ export default function DocumentAIDraftPage() {
     onSuccess: () => {
       setError(null);
       setDirty(false);
-      setNotice("Changes saved.");
+      setNotice(dirty ? "Changes saved." : "Saved. Nothing had changed since the last save.");
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save your changes."),
@@ -230,7 +230,7 @@ export default function DocumentAIDraftPage() {
     onSuccess: () => {
       setError(null);
       setDirty(false);
-      setNotice("Submitted to KoboToolbox. Sync now on the QA screen to bring the completed form into the portal.");
+      setNotice("Submitted to KoboToolbox, and a copy is now held in the portal.");
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not submit to KoboToolbox."),
@@ -290,7 +290,9 @@ export default function DocumentAIDraftPage() {
             {new Date(doc.kobo_submitted_at!).toLocaleString()} · instance {doc.kobo_submission_uuid}
           </p>
           <p className="text-xs text-text-muted">
-            Submitting again would create a second, duplicate record for this document in KoboToolbox.
+            The answers below are locked, because changing them here would not change the record in KoboToolbox, and
+            submitting again would create a duplicate. To redo the coding, delete that record in KoboToolbox, then
+            press Sync on the Completed forms page: this document unlocks.
           </p>
         </Card>
       )}
@@ -332,8 +334,8 @@ export default function DocumentAIDraftPage() {
             >
               {generate.isPending || running ? "Reading the document…" : doc.ai_draft ? "Regenerate draft" : "Generate AI draft"}
             </Button>
-            {doc.ai_draft && (
-              <Button variant="outline" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>
+            {doc.ai_draft && !alreadySubmitted && (
+              <Button variant="outline" disabled={save.isPending || running} onClick={() => save.mutate()}>
                 {save.isPending ? "Saving…" : "Save changes"}
               </Button>
             )}

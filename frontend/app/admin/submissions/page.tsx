@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { IfRole } from "@/components/admin/RoleGate";
 import { Pagination, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +23,24 @@ interface SubmissionRow {
   record: string;
   submitted_at: string | null;
   submitted_by: string;
+  portal_copy: boolean;
+}
+
+interface SyncRun {
+  finished_at: string | null;
+  error_message: string;
+}
+
+interface SyncStatus {
+  key: string;
+  configured: boolean;
+  kobo_count: number | null;
+  portal_count: number;
+  removed_count: number;
+  in_sync: boolean;
+  kobo_error: string;
+  last_sync: SyncRun | null;
+  last_success: SyncRun | null;
 }
 
 type Status = { id: number; tone: "ok" | "error"; text: string } | null;
@@ -52,6 +71,7 @@ export default function SubmissionsPage() {
   const [formKey, setFormKey] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<Status>(null);
+  const queryClient = useQueryClient();
 
   const { data: forms, error: formsError } = useQuery({
     queryKey: ["kobo-forms"],
@@ -69,6 +89,25 @@ export default function SubmissionsPage() {
     placeholderData: keepPreviousData,
     // A 4xx/5xx here is a definite answer (not connected, not your form), not a blip.
     retry: false,
+  });
+
+  const { data: syncData } = useQuery({
+    queryKey: ["kobo-sync-status"],
+    queryFn: () => adminFetch<{ forms: SyncStatus[] }>("/kobo/sync/status/"),
+    retry: false,
+  });
+  const sync = syncData?.forms.find((f) => f.key === formKey);
+  const canSync = Boolean(form?.can_email); // the same roles that can write can sync; Supervisor is read-only
+
+  const runSync = useMutation({
+    mutationFn: () =>
+      adminFetch<{ forms: SyncStatus[] }>("/kobo/sync/", { method: "POST", body: JSON.stringify({ form: formKey }) }),
+    onSuccess: (result) => {
+      queryClient.setQueryData(["kobo-sync-status"], (old: { forms: SyncStatus[] } | undefined) => ({
+        forms: (old?.forms ?? []).map((f) => result.forms.find((n) => n.key === f.key) ?? f),
+      }));
+      queryClient.invalidateQueries({ queryKey: ["kobo-submissions"] });
+    },
   });
 
   const download = useMutation({
@@ -90,7 +129,7 @@ export default function SubmissionsPage() {
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h2 className="font-semibold text-xl">Completed form PDFs</h2>
+        <h2 className="font-semibold text-xl">Completed forms</h2>
         {forms && forms.forms.length > 1 && (
           <label className="text-sm w-full sm:w-auto min-w-0">
             <span className="sr-only">Form</span>
@@ -120,6 +159,54 @@ export default function SubmissionsPage() {
       )}
       {formsError && <p className="text-danger text-sm">{(formsError as Error).message}</p>}
 
+      {form?.configured && (
+        <Card className="mb-4 space-y-2" >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium" role="status">
+                {!sync
+                  ? "Checking the sync…"
+                  : sync.kobo_error
+                    ? "Couldn’t reach KoboToolbox to compare."
+                    : sync.in_sync
+                      ? "✓ In sync with KoboToolbox"
+                      : "Not in sync with KoboToolbox yet"}
+              </p>
+              {sync && (
+                <p className="text-xs text-text-muted">
+                  KoboToolbox holds {sync.kobo_count ?? "?"} · the portal holds {sync.portal_count}
+                  {sync.removed_count > 0 && ` · ${sync.removed_count} deleted in KoboToolbox since`}
+                  {sync.last_success?.finished_at && ` · last synced ${new Date(sync.last_success.finished_at).toLocaleString()}`}
+                  {sync.last_sync?.error_message && ` · last attempt failed: ${sync.last_sync.error_message}`}
+                </p>
+              )}
+              {runSync.error && (
+                <p className="text-xs text-danger">
+                  {runSync.error instanceof ApiError ? runSync.error.message : "The sync failed."}
+                </p>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {canSync && (
+                <Button variant="outline" disabled={runSync.isPending} onClick={() => runSync.mutate()}>
+                  {runSync.isPending ? "Syncing…" : "Sync now"}
+                </Button>
+              )}
+              <IfRole roles={["PI_ADMIN"]}>
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+                <a href={`/api/proxy/kobo/forms/${formKey}/export/xlsx/`} className="inline-block rounded-md border border-border px-3 py-2 text-sm">
+                  Excel workbook
+                </a>
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+                <a href={`/api/proxy/kobo/forms/${formKey}/export/pdfs/`} className="inline-block rounded-md border border-border px-3 py-2 text-sm">
+                  All as PDFs (ZIP)
+                </a>
+              </IfRole>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         {!form ? (
           <p className="text-text-muted text-sm">Loading…</p>
@@ -137,7 +224,10 @@ export default function SubmissionsPage() {
               {data.results.map((row) => (
                 <li key={row.id} className="py-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-mono text-sm">{row.record}</p>
+                    <p className="font-mono text-sm">
+                      {row.record}
+                      {row.portal_copy && <span className="ml-2 font-sans text-xs text-text-muted">✓ saved in portal</span>}
+                    </p>
                     <p className="text-xs text-text-muted">
                       {row.submitted_at ? `Submitted ${new Date(`${row.submitted_at}Z`).toLocaleString()}` : ""}
                       {row.submitted_by ? ` · by ${row.submitted_by}` : " · web form"}
