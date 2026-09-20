@@ -55,6 +55,15 @@ NATIVE_MEDIA_TYPES = {".pdf": "application/pdf", ".jpg": "image/jpeg", ".jpeg": 
 # at a time, not a whole strategy at once.
 MAX_PDF_PAGES = 100
 
+# "Read the whole document": a longer text is read in parts, each part coded on
+# its own and then combined by one more pass (generate_chunked_draft). Parts are
+# smaller than the per-request maximum so each stays fast and reliable, and a
+# few are read at once. The ceiling bounds cost and time -- a 1,000-page report
+# is about a dozen parts.
+CHUNK_PAGES = 80
+MAX_WHOLE_DOCUMENT_PAGES = 1500
+CHUNK_WORKERS = 3
+
 # Output budget for the ~110-field answer. The first real run (NDS2, 2026-09-19)
 # was cut off at 16,000 tokens; Opus 5 allows 128,000.
 MAX_OUTPUT_TOKENS = 64000
@@ -223,7 +232,7 @@ def _unsupported_message(ext: str) -> str:
     return f"AI drafting doesn't support '{ext or 'this'}' files. It reads PDF, Word, Excel, text and image (JPG/PNG) files."
 
 
-def parse_page_range(text: str, total_pages: int) -> tuple[int, int]:
+def parse_page_range(text: str, total_pages: int, max_pages: int = MAX_PDF_PAGES) -> tuple[int, int]:
     """'12-60' or '12' -> (12, 60) / (12, 12), 1-based and inclusive."""
     match = re.fullmatch(r"\s*(\d+)\s*(?:-\s*(\d+))?\s*", text or "")
     if not match:
@@ -234,10 +243,11 @@ def parse_page_range(text: str, total_pages: int) -> tuple[int, int]:
         raise AIDraftError(
             "invalid_page_range", f"That page range is outside this PDF, which has {total_pages} pages.",
         )
-    if end - start + 1 > MAX_PDF_PAGES:
+    if end - start + 1 > max_pages:
         raise AIDraftError(
             "page_range_too_long",
-            f"The AI can read at most {MAX_PDF_PAGES} pages at a time; that range is {end - start + 1}.",
+            f"The AI can read at most {max_pages} pages in one draft; that range is {end - start + 1}."
+            + (" Tick \u201cRead the whole document in parts\u201d to read a longer range." if max_pages == MAX_PDF_PAGES else ""),
         )
     return start, end
 
@@ -312,45 +322,36 @@ def _read_file_block(abs_path: str, content_type: str, page_range: str = "") -> 
     )
 
 
-def generate_draft(
-    document: DocumentRecord, *, source_path: str, source_content_type: str, user, page_range: str = "",
-) -> dict:
-    """Calls Claude on the document's uploaded source file and returns a
-    draft answer dict keyed by field path (repeat answers under
-    "section_j/metric_repeat" as a list of dicts). Does not save anything
-    to KoboToolbox -- callers persist the draft on DocumentRecord.ai_draft
-    for the RA to review (tasks.py). Slow (an AI reading the whole
-    document), so it only ever runs in the background."""
-    if not ai_coding_is_configured():
-        raise AIDraftError("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+def chunk_ranges(start: int, end: int, size: int = CHUNK_PAGES) -> list[tuple[int, int]]:
+    """Consecutive, evenly sized (start, end) page ranges covering start..end.
+    Even sizes, not "full chunks then a stub": a 5-page tail read alone gets no
+    context and codes badly."""
+    total = end - start + 1
+    parts = -(-total // size)
+    base, extra = divmod(total, parts)
+    ranges, cursor = [], start
+    for index in range(parts):
+        length = base + (1 if index < extra else 0)
+        ranges.append((cursor, cursor + length - 1))
+        cursor += length
+    return ranges
 
-    file_block, sent = _read_file_block(source_path, source_content_type, page_range)
-    tool = _tool_schema()
 
-    field_list = "\n".join(
+def _field_list() -> str:
+    return "\n".join(
         f"- {_to_tool_key(f['path']) if not f['in_repeat'] else f['name']} ({f['type']}"
         + (f", choices: {[c['code'] for c in f['choices']]}" if f.get("choices") else "")
         + f"): {f['label']}"
         for f in SCHEMA["fields"]
         if f["path"] not in DETERMINISTIC_FIELDS
     )
-    prompt = (
-        "You are drafting a documentary evidence coding for an academic study "
-        "(ABF-FST: Agribusiness Bankability Framework for Food Systems Transformation, Zimbabwe). "
-        f"The source document is titled \"{document.title}\"" +
-        (f" by {document.author_or_speaker}" if document.author_or_speaker else "") + f". You are given {sent}.\n\n"
-        "Read the attached document and call submit_document_coding with your best draft answer for every "
-        "field below, grounded in what the document actually says. Use exact page/paragraph locators wherever "
-        "the source gives them. Where the document doesn't support a field, say so plainly in the relevant "
-        "text field rather than guessing, and prefer a lower evidence-strength rating over an unsupported high "
-        "one -- this is a draft a human researcher will check, not a final judgment, so it should show real "
-        "variation in strength/support ratings rather than defaulting everything to the most favourable option. "
-        "Keep every free-text field focused: a few sentences with the key locator, not a full essay.\n\n"
-        f"Fields to answer:\n{field_list}"
-    )
 
+
+def _call_model(content: list, *, what: str) -> tuple[dict, dict]:
+    """One streamed call that must answer through the coding tool. Returns
+    (answers keyed by form path, {"in": n, "out": n})."""
     # 15 minutes: reading a long document and writing ~110 fields is slow.
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=900.0)
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=900.0, max_retries=4)
     try:
         # Streamed: the SDK refuses a non-streaming request with a large
         # output budget, and a full answer runs to tens of thousands of tokens
@@ -358,32 +359,178 @@ def generate_draft(
         with client.messages.stream(
             model=settings.AI_DOCUMENT_CODING_MODEL,
             max_tokens=MAX_OUTPUT_TOKENS,
-            tools=[tool],
+            tools=[_tool_schema()],
             tool_choice={"type": "tool", "name": "submit_document_coding"},
-            messages=[{"role": "user", "content": [file_block, {"type": "text", "text": prompt}]}],
+            messages=[{"role": "user", "content": content}],
         ) as stream:
             response = stream.get_final_message()
     except anthropic.APIError as exc:
-        raise AIDraftError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+        raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {exc}", 502) from exc
 
     if response.stop_reason == "max_tokens":
         # A cut-off answer is missing fields; never save it as a draft.
-        raise AIDraftError("ai_answer_cut_off", "The AI's answer was cut off before it finished. Try a narrower page range.", 502)
+        raise AIDraftError(
+            "ai_answer_cut_off", f"The AI's answer was cut off while {what}. Try a narrower page range.", 502,
+        )
     tool_use = next((b for b in response.content if b.type == "tool_use"), None)
     if tool_use is None:
-        raise AIDraftError("ai_no_answer", "The AI didn't return a coding draft.", 502)
+        raise AIDraftError("ai_no_answer", f"The AI didn't return a coding draft while {what}.", 502)
+    usage = getattr(response, "usage", None)
+    tokens = {name: getattr(usage, attr, None) for name, attr in (("in", "input_tokens"), ("out", "output_tokens"))}
+    return {_from_tool_key(key): value for key, value in dict(tool_use.input).items()}, tokens
 
-    draft = {_from_tool_key(key): value for key, value in dict(tool_use.input).items()}
+
+def _base_prompt(document: DocumentRecord, sent: str, extra: str = "", attached: bool = True) -> str:
+    return (
+        "You are drafting a documentary evidence coding for an academic study "
+        "(ABF-FST: Agribusiness Bankability Framework for Food Systems Transformation, Zimbabwe). "
+        f"The source document is titled \"{document.title}\"" +
+        (f" by {document.author_or_speaker}" if document.author_or_speaker else "") + f". You are given {sent}.\n\n"
+        + extra +
+        ("Read the attached document and call" if attached else "Call") + " submit_document_coding with your best draft answer for every "
+        "field below, grounded in what the document actually says. Use exact page/paragraph locators wherever "
+        "the source gives them. Where the document doesn't support a field, say so plainly in the relevant "
+        "text field rather than guessing, and prefer a lower evidence-strength rating over an unsupported high "
+        "one -- this is a draft a human researcher will check, not a final judgment, so it should show real "
+        "variation in strength/support ratings rather than defaulting everything to the most favourable option. "
+        "Keep every free-text field focused: a few sentences with the key locator, not a full essay.\n\n"
+        f"Fields to answer:\n{_field_list()}"
+    )
+
+
+def _finish(document: DocumentRecord, answers: dict, user, tokens: dict, source_pages: str) -> dict:
+    draft = dict(answers)
     for path, resolver in DETERMINISTIC_FIELDS.items():
         draft[path] = resolver(document)
     draft["_generated_at"] = timezone.now().isoformat()
     draft["_generated_by_model"] = settings.AI_DOCUMENT_CODING_MODEL
     draft["_generated_by_user_id"] = getattr(user, "id", None)
-    usage = getattr(response, "usage", None)
-    for attr, key in (("input_tokens", "_tokens_in"), ("output_tokens", "_tokens_out")):
-        value = getattr(usage, attr, None)
-        if isinstance(value, int):  # what this draft cost, for the PI's billing
-            draft[key] = value
-    if page_range.strip():
-        draft["_source_pages"] = page_range.strip()
+    for key, name in (("in", "_tokens_in"), ("out", "_tokens_out")):
+        if isinstance(tokens.get(key), int):  # what this draft cost, for the PI's billing
+            draft[name] = tokens[key]
+    if source_pages:
+        draft["_source_pages"] = source_pages
+    return draft
+
+
+def generate_draft(
+    document: DocumentRecord, *, source_path: str, source_content_type: str, user, page_range: str = "",
+    whole_document: bool = False, progress=None,
+) -> dict:
+    """Calls Claude on the document's uploaded source file and returns a
+    draft answer dict keyed by field path (repeat answers under
+    "section_j/metric_repeat" as a list of dicts). Does not save anything
+    to KoboToolbox -- callers persist the draft on DocumentRecord.ai_draft
+    for the RA to review (tasks.py). Slow (an AI reading the whole
+    document), so it only ever runs in the background.
+
+    A PDF (or page range) longer than MAX_PDF_PAGES is refused unless
+    `whole_document` is set, in which case it is read in parts and combined
+    (generate_chunked_draft). `progress(text)` reports how far a long read is."""
+    if not ai_coding_is_configured():
+        raise AIDraftError("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+
+    if whole_document and source_path.lower().endswith(".pdf"):
+        total = pdf_page_count(source_path)
+        if total is not None:
+            start, end = parse_page_range(page_range, total, MAX_WHOLE_DOCUMENT_PAGES) if page_range.strip() else (1, total)
+            if end - start + 1 > MAX_WHOLE_DOCUMENT_PAGES:
+                raise AIDraftError(
+                    "document_too_long",
+                    f"This document has {total} pages; the AI can read at most {MAX_WHOLE_DOCUMENT_PAGES} in one draft. "
+                    "Enter a page range, or split it into evidence units.",
+                )
+            if end - start + 1 > MAX_PDF_PAGES:
+                return generate_chunked_draft(
+                    document, source_path=source_path, source_content_type=source_content_type, user=user,
+                    start=start, end=end, total=total, progress=progress,
+                )
+
+    file_block, sent = _read_file_block(source_path, source_content_type, page_range)
+    answers, tokens = _call_model(
+        [file_block, {"type": "text", "text": _base_prompt(document, sent)}], what="reading the document",
+    )
+    return _finish(document, answers, user, tokens, page_range.strip())
+
+
+MERGE_RULES = (
+    "Below are separate draft codings of consecutive parts of ONE long document, each made by reading only its own "
+    "pages. Produce a single coding of the document as a whole by calling submit_document_coding.\n"
+    "- Every answer must be supported by at least one of the part drafts; never add anything they do not contain.\n"
+    "- Evidence-type and other multiple-choice lists: include what the parts materially support; leave out what "
+    "only appears in passing.\n"
+    "- Single-choice ratings (relevance, authority, strength, support): judge the document as a whole. Something "
+    "strong in one part and absent from the rest does not make the whole document strong; weigh how prominent and "
+    "how repeated each point is, and keep real variation between fields instead of defaulting to the most "
+    "favourable option.\n"
+    "- Free-text fields: combine into a few sentences, keeping the locators exactly as the parts give them (they "
+    "already use the original page numbers), for example \"p. 12; pp. 340-342\".\n"
+    "- Section J metrics: return every distinct metric from all parts, once each (drop exact repeats), with its "
+    "locator. If there are more than 60, keep the 60 most relevant to agribusiness finance.\n"
+    "- Where the parts disagree, choose the position the document takes most clearly, and say in the relevant "
+    "text field that other parts differ."
+)
+
+
+def generate_chunked_draft(
+    document: DocumentRecord, *, source_path: str, source_content_type: str, user, start: int, end: int,
+    total: int, progress=None,
+) -> dict:
+    """Reads pages start..end in parts of about CHUNK_PAGES, drafts each part on
+    its own (a few at once), then combines the part drafts into one coding with
+    a final pass. Any part failing fails the whole draft -- a coding that
+    silently skips pages would misrepresent the document."""
+    import json
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    ranges = chunk_ranges(start, end)
+    notify = progress or (lambda text: None)
+    notify(f"Reading part 0 of {len(ranges)}")
+
+    def read_part(index: int, part: tuple[int, int]):
+        lo, hi = part
+        block, sent = _read_file_block(source_path, source_content_type, f"{lo}-{hi}")
+        extra = (
+            f"This is part {index + 1} of {len(ranges)} of a long document: pages {start}-{end} are being coded in "
+            "parts and combined afterwards. Code only what THESE pages support; leave the rest to the other parts.\n\n"
+        )
+        answers, tokens = _call_model(
+            [block, {"type": "text", "text": _base_prompt(document, sent, extra)}],
+            what=f"reading pages {lo}-{hi}",
+        )
+        return index, answers, tokens
+
+    parts: dict[int, dict] = {}
+    totals = {"in": 0, "out": 0}
+    with ThreadPoolExecutor(max_workers=CHUNK_WORKERS) as pool:
+        futures = [pool.submit(read_part, i, part) for i, part in enumerate(ranges)]
+        try:
+            for done in as_completed(futures):
+                index, answers, tokens = done.result()
+                parts[index] = answers
+                for key in totals:
+                    totals[key] += tokens.get(key) or 0
+                notify(f"Read part {len(parts)} of {len(ranges)}")
+        except BaseException:
+            for future in futures:
+                future.cancel()
+            raise
+
+    notify("Combining the parts into one draft")
+    part_drafts = [
+        {"pages": f"{ranges[i][0]}-{ranges[i][1]}",
+         "answers": {_to_tool_key(k): v for k, v in parts[i].items() if k not in DETERMINISTIC_FIELDS}}
+        for i in sorted(parts)
+    ]
+    sent = f"the part drafts of pages {start}-{end} ({total}-page document)"
+    merged, tokens = _call_model(
+        [{"type": "text", "text": _base_prompt(
+            document, sent, MERGE_RULES + "\n\nPART DRAFTS (JSON):\n" + json.dumps(part_drafts, ensure_ascii=False) + "\n\n", attached=False,
+        )}],
+        what="combining the parts",
+    )
+    for key in totals:
+        totals[key] += tokens.get(key) or 0
+    draft = _finish(document, merged, user, totals, f"{start}-{end} (read in {len(ranges)} parts)")
+    draft["_parts"] = len(ranges)
     return draft

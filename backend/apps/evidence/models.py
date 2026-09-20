@@ -97,6 +97,8 @@ class DocumentRecord(models.Model):
     # "" = idle, "running", "failed" (ai_draft_error says why).
     ai_draft_status = models.CharField(max_length=16, blank=True)
     ai_draft_error = models.TextField(blank=True)
+    # How far a long, in-parts read has got ("Read part 4 of 12"); empty otherwise.
+    ai_draft_progress = models.CharField(max_length=80, blank=True)
     ai_draft_started_at = models.DateTimeField(null=True, blank=True)
     # Set only by a Documentary RA's explicit "Submit to KoboToolbox" click
     # on the reviewed draft (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md) --

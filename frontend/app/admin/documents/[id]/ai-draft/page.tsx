@@ -45,6 +45,7 @@ interface DocumentRecord {
   source_file_pages: number | null;
   ai_draft_status: "" | "running" | "failed";
   ai_draft_error: string;
+  ai_draft_progress: string;
   ai_draft: Record<string, unknown> | null;
   ai_draft_generated_at: string | null;
   ai_draft_model: string;
@@ -72,6 +73,18 @@ const GROUP_LABELS: Record<string, string> = {
 const REPEAT_GROUP_PATH = "section_j/metric_repeat";
 // The most pages the AI can read in one go (backend/apps/evidence/ai_coding.py MAX_PDF_PAGES).
 const MAX_PDF_PAGES = 100;
+// Reading a longer text in parts (MAX_WHOLE_DOCUMENT_PAGES, CHUNK_PAGES): the ceiling and the part size.
+const MAX_WHOLE_DOCUMENT_PAGES = 1500;
+const CHUNK_PAGES = 80;
+
+/** Pages a range like "12-60" (or "12") covers; null when it isn't a range yet. */
+function rangeLength(text: string): number | null {
+  const m = /^\s*(\d+)\s*(?:-\s*(\d+))?\s*$/.exec(text);
+  if (!m) return null;
+  const start = Number(m[1]);
+  const end = Number(m[2] ?? m[1]);
+  return end >= start ? end - start + 1 : null;
+}
 // Long-form fields that read better as a textarea than a one-line input.
 const LONG_FIELD_HINTS = ["summary", "note", "memo", "evidence", "mechanism", "interpretation", "assessment", "finding", "reason", "theme", "bias"];
 
@@ -165,6 +178,7 @@ export default function DocumentAIDraftPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pages, setPages] = useState("");
+  const [wholeDoc, setWholeDoc] = useState(false);
 
   const { data: schemaData } = useQuery({
     queryKey: ["document-ai-schema"],
@@ -194,7 +208,7 @@ export default function DocumentAIDraftPage() {
     mutationFn: () =>
       adminFetch<DocumentRecord>(`/documents/${params.id}/ai-draft/`, {
         method: "POST",
-        body: JSON.stringify({ pages: pages.trim() }),
+        body: JSON.stringify({ pages: pages.trim(), whole_document: wholeDoc }),
       }),
     onSuccess: () => {
       setError(null);
@@ -249,6 +263,11 @@ export default function DocumentAIDraftPage() {
   const running = doc.ai_draft_status === "running";
   const isPdf = doc.source_file_name.toLowerCase().endsWith(".pdf");
   const tooLong = isPdf && (doc.source_file_pages ?? 0) > MAX_PDF_PAGES;
+  // How many pages this draft would read, and so in how many parts.
+  const span = pages.trim() ? rangeLength(pages) : (doc.source_file_pages ?? null);
+  const inParts = wholeDoc && span !== null && span > MAX_PDF_PAGES;
+  const partCount = span ? Math.ceil(span / CHUNK_PAGES) : 0;
+  const overCeiling = isPdf && (doc.source_file_pages ?? 0) > MAX_WHOLE_DOCUMENT_PAGES && !pages.trim();
   const setField = (path: string, value: unknown) => {
     setAnswers((prev) => ({ ...prev, [path]: value }));
     setDirty(true);
@@ -275,9 +294,14 @@ export default function DocumentAIDraftPage() {
       )}
       {running && (
         <Card className="mb-4 space-y-1">
-          <p className="text-sm font-medium">The AI is reading the document…</p>
+          <p className="text-sm font-medium">
+            The AI is reading the document…{doc.ai_draft_progress ? ` ${doc.ai_draft_progress}` : ""}
+          </p>
           <p className="text-xs text-text-muted">
-            This usually takes one to five minutes. You can leave this page and come back; the draft will be here
+            {doc.ai_draft_progress
+              ? "A long document is read in parts and takes longer, often ten to thirty minutes. "
+              : "This usually takes one to five minutes. "}
+            You can leave this page and come back; the draft will be here
             when it&rsquo;s ready.
           </p>
         </Card>
@@ -302,7 +326,7 @@ export default function DocumentAIDraftPage() {
           {isPdf && (
             <div className="space-y-1">
               <label className="text-sm text-text-muted" htmlFor="page-range">
-                Pages to read{tooLong ? " (required)" : " (optional)"}
+                Pages to read{tooLong && !wholeDoc ? " (required)" : " (optional)"}
               </label>
               <input
                 id="page-range"
@@ -316,8 +340,34 @@ export default function DocumentAIDraftPage() {
               {tooLong && (
                 <p className="text-xs text-text-muted">
                   This PDF has {doc.source_file_pages} pages and the AI can read up to {MAX_PDF_PAGES} at a time. Enter
-                  the pages that make up this evidence unit, such as a chapter. Locators will use the original page
-                  numbers.
+                  the pages that make up this evidence unit, such as a chapter, or read the whole document in parts.
+                  Locators will use the original page numbers.
+                </p>
+              )}
+              {tooLong && (
+                <label className="flex items-start gap-2 text-sm max-w-xl">
+                  <input
+                    type="checkbox"
+                    checked={wholeDoc}
+                    onChange={(e) => setWholeDoc(e.target.checked)}
+                    disabled={running || generate.isPending}
+                    className="mt-1"
+                  />
+                  <span>
+                    Read the whole document in parts
+                    <span className="block text-xs text-text-muted">
+                      The AI codes each part of about {CHUNK_PAGES} pages, then combines them into one draft. Leave
+                      the page box empty for all {doc.source_file_pages} pages, or enter a longer range.
+                      {overCeiling && ` This PDF is over the ${MAX_WHOLE_DOCUMENT_PAGES}-page limit, so enter a range.`}
+                    </span>
+                  </span>
+                </label>
+              )}
+              {inParts && (
+                <p className="text-xs text-text-muted max-w-xl" role="note">
+                  About {span} pages in {partCount} parts: roughly {Math.ceil(partCount / 3) * 3 + 3}{" "}
+                  minutes, and it uses about {partCount + 1} times the AI of an ordinary draft. Because the ratings are
+                  judged across parts, check them especially carefully.
                 </p>
               )}
             </div>
@@ -327,9 +377,14 @@ export default function DocumentAIDraftPage() {
               variant="outline"
               disabled={!aiConfigured || generate.isPending || running}
               onClick={() => {
-                if (!doc.ai_draft || window.confirm("This replaces the current draft and any unsaved edits. Continue?")) {
-                  generate.mutate();
+                if (doc.ai_draft && !window.confirm("This replaces the current draft and any unsaved edits. Continue?")) return;
+                if (
+                  inParts &&
+                  !window.confirm(`Read about ${span} pages in ${partCount} parts? This takes several minutes and costs about ${partCount + 1} times an ordinary draft.`)
+                ) {
+                  return;
                 }
+                generate.mutate();
               }}
             >
               {generate.isPending || running ? "Reading the document…" : doc.ai_draft ? "Regenerate draft" : "Generate AI draft"}

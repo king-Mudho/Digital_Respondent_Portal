@@ -34,7 +34,7 @@ class DocumentRecordSerializer(serializers.ModelSerializer):
             "coding_url", "source_file_name", "source_file_content_type",
             "source_file_size", "source_file_uploaded_at",
             "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_coding_configured",
-            "ai_draft_status", "ai_draft_error", "source_file_pages",
+            "ai_draft_status", "ai_draft_error", "ai_draft_progress", "source_file_pages",
             "kobo_submission_uuid", "kobo_submitted_at", "kobo_submitted_by", "kobo_submit_configured",
         ]
         read_only_fields = [

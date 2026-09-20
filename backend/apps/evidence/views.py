@@ -14,6 +14,7 @@ from apps.audit.utils import log_action
 from .ai_coding import (
     DETERMINISTIC_FIELDS,
     MAX_PDF_PAGES,
+    MAX_WHOLE_DOCUMENT_PAGES,
     AIDraftError,
     ai_coding_is_configured,
     parse_page_range,
@@ -174,7 +175,8 @@ class DocumentAIDraftView(APIView):
         if (
             document.ai_draft_status == RUNNING
             and document.ai_draft_started_at
-            and timezone.now() - document.ai_draft_started_at < timedelta(minutes=12)
+            # A long, in-parts read legitimately runs much longer than a single one.
+            and timezone.now() - document.ai_draft_started_at < timedelta(minutes=75 if document.ai_draft_progress else 12)
         ):
             return _error("already_running", "A draft is already being generated for this document.", 409)
         try:
@@ -183,24 +185,35 @@ class DocumentAIDraftView(APIView):
             return _error(exc.code, str(exc), exc.status)
 
         page_range = str(request.data.get("pages") or "").strip()
+        whole_document = request.data.get("whole_document") in (True, "true", "1", 1)
         pages = pdf_page_count(source_path) if source_path.lower().endswith(".pdf") else None
+        span = pages  # how many pages this draft will read
         try:
-            if pages is not None and page_range:
-                parse_page_range(page_range, pages)
-            elif pages is not None and pages > MAX_PDF_PAGES:
-                raise AIDraftError(
-                    "pdf_too_long",
-                    f"This PDF has {pages} pages, and the AI can read at most {MAX_PDF_PAGES} at a time. "
-                    "Enter the pages that make up this evidence unit (for example 1-100).",
-                )
+            if pages is not None:
+                limit = MAX_WHOLE_DOCUMENT_PAGES if whole_document else MAX_PDF_PAGES
+                if page_range:
+                    first, last = parse_page_range(page_range, pages, limit)
+                    span = last - first + 1
+                elif pages > limit:
+                    raise AIDraftError(
+                        "pdf_too_long",
+                        f"This PDF has {pages} pages, and the AI can read at most {MAX_PDF_PAGES} at a time. "
+                        "Enter the pages that make up this evidence unit (for example 1-100)"
+                        + (
+                            ", or tick “Read the whole document in parts”."
+                            if pages <= MAX_WHOLE_DOCUMENT_PAGES
+                            else f". This one is also over the {MAX_WHOLE_DOCUMENT_PAGES}-page ceiling for a whole-document read."
+                        ),
+                    )
         except AIDraftError as exc:
             return _error(exc.code, str(exc), exc.status)
 
         document.ai_draft_status = RUNNING
         document.ai_draft_error = ""
         document.ai_draft_started_at = timezone.now()
-        document.save(update_fields=["ai_draft_status", "ai_draft_error", "ai_draft_started_at"])
-        generate_ai_draft.delay(document.pk, request.user.id, page_range)
+        document.ai_draft_progress = "Starting" if whole_document and span and span > MAX_PDF_PAGES else ""
+        document.save(update_fields=["ai_draft_status", "ai_draft_error", "ai_draft_started_at", "ai_draft_progress"])
+        generate_ai_draft.delay(document.pk, request.user.id, page_range, whole_document)
         document.refresh_from_db()
         return Response(DocumentRecordSerializer(document).data, status=202)
 

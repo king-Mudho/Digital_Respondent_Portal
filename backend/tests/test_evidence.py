@@ -524,3 +524,52 @@ def test_replacing_the_file_clears_a_stale_failed_state(documentary_ra_client, d
     )
     assert resp.data["ai_draft_status"] == ""
     assert resp.data["ai_draft_error"] == ""
+
+
+def _upload_pdf_pages(client, document, tmp_path, pages):
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    for _ in range(pages):
+        writer.add_blank_page(width=100, height=100)
+    path = tmp_path / "book.pdf"
+    with open(path, "wb") as f:
+        writer.write(f)
+    with open(path, "rb") as f:
+        client.post(
+            f"/api/v1/documents/{document.pk}/file/",
+            {"file": SimpleUploadedFile("book.pdf", f.read(), content_type="application/pdf")}, format="multipart",
+        )
+
+
+def test_a_long_pdf_can_be_read_whole_in_parts(documentary_ra_client, document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    _upload_pdf_pages(documentary_ra_client, document, tmp_path, 300)
+    url = f"/api/v1/documents/{document.pk}/ai-draft/"
+
+    refused = documentary_ra_client.post(url)  # the message points to the whole-document option
+    assert refused.status_code == 400 and "whole document in parts" in refused.data["error"]["message"]
+    still_too_long = documentary_ra_client.post(url, {"pages": "1-200"}, format="json")
+    assert still_too_long.data["error"]["code"] == "page_range_too_long"
+
+    with patch("apps.evidence.tasks.generate_draft", return_value={"section_a/DOC_ID": document.document_id, "_parts": 4}) as gen:
+        ok = documentary_ra_client.post(url, {"whole_document": True}, format="json")
+        ranged = documentary_ra_client.post(url, {"whole_document": True, "pages": "1-200"}, format="json")
+    assert ok.status_code == 202 and ranged.status_code == 202
+    assert gen.call_args_list[0].kwargs["whole_document"] is True
+    assert gen.call_args_list[1].kwargs["page_range"] == "1-200"
+    document.refresh_from_db()
+    assert document.ai_draft_progress == ""  # cleared when the job finished
+
+
+def test_a_pdf_over_the_whole_document_ceiling_is_refused_with_a_way_forward(documentary_ra_client, document, settings, tmp_path):
+    from apps.evidence.ai_coding import MAX_WHOLE_DOCUMENT_PAGES
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    settings.PRIVATE_DATA_ROOT = tmp_path
+    _upload_pdf_pages(documentary_ra_client, document, tmp_path, MAX_WHOLE_DOCUMENT_PAGES + 10)
+    resp = documentary_ra_client.post(f"/api/v1/documents/{document.pk}/ai-draft/", {"whole_document": True}, format="json")
+    assert resp.status_code == 400 and "ceiling" in resp.data["error"]["message"]
+    document.refresh_from_db()
+    assert document.ai_draft_status == ""

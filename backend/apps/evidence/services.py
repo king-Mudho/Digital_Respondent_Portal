@@ -168,7 +168,7 @@ def save_source_file(document: DocumentRecord, uploaded_file, *, user) -> Docume
     document.save(update_fields=[
         "source_file_ref", "source_file_name", "source_file_content_type",
         "source_file_size", "source_file_uploaded_at",
-        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error", "ai_draft_progress",
     ])
     log_action("document.file_uploaded", document, {
         "filename": original_name, "size": uploaded_file.size, "user_id": getattr(user, "id", None),
@@ -193,6 +193,7 @@ def _clear_draft_job_state(document: DocumentRecord) -> None:
     """A failed/running note about the old file means nothing for the new one."""
     document.ai_draft_status = ""
     document.ai_draft_error = ""
+    document.ai_draft_progress = ""
 
 
 def remove_source_file(document: DocumentRecord, *, user) -> DocumentRecord:
@@ -216,7 +217,7 @@ def remove_source_file(document: DocumentRecord, *, user) -> DocumentRecord:
     document.save(update_fields=[
         "source_file_ref", "source_file_name", "source_file_content_type",
         "source_file_size", "source_file_uploaded_at",
-        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error",
+        "ai_draft", "ai_draft_generated_at", "ai_draft_model", "ai_draft_status", "ai_draft_error", "ai_draft_progress",
     ])
     log_action("document.file_removed", document, {
         "filename": removed_name, "user_id": getattr(user, "id", None), "ai_draft_discarded": draft_discarded,

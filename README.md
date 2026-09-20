@@ -776,6 +776,16 @@ document record itself, not the AI, either way.
    A long PDF now asks for a page range (one chapter or evidence unit), sends only those
    pages and tells the model to cite the original page numbers. A range that is missing,
    out of bounds or over 100 pages is refused instantly, before any AI call.
+   **Read the whole document in parts** (added 2026-09-20): for a longer text, tick the
+   option on the review screen. The pages (all of them, or a range of up to 1,500) are cut
+   into even parts of about 80 pages, three parts are coded at a time, and one more pass
+   combines the part drafts into a single coding (`generate_chunked_draft` in
+   `apps/evidence/ai_coding.py`). The combining pass may only use what the parts say, keeps
+   the original page locators, judges ratings across the whole document, and unions the
+   metrics. Any failing part fails the whole draft rather than skipping pages. The screen
+   shows progress ("Read part 4 of 12"), the draft records `_parts` and the total tokens,
+   and the review screen warns that ratings need extra care. The Celery worker is single, so
+   a long read delays the 15-minute Kobo sync until it ends.
 7. **Reading takes minutes; nginx closes a request at 60 seconds.** Generating now runs in
    the Celery worker (`apps/evidence/tasks.py`) and the screen polls
    `ai_draft_status` (running / failed with the reason). A crashed job is recorded as failed

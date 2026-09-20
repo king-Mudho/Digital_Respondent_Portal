@@ -377,3 +377,117 @@ def test_text_document_reaches_the_model_and_records_token_use(document, setting
         content = mock_client_cls.return_value.messages.stream.call_args.kwargs["messages"][0]["content"]
     assert content[0]["type"] == "text" and "Contract farming expands" in content[0]["text"]
     assert draft["_tokens_in"] == 1234 and draft["_tokens_out"] == 5678
+
+
+# --- Reading a very long document in parts -----------------------------------
+
+def test_chunk_ranges_cover_every_page_once_in_even_parts():
+    from apps.evidence.ai_coding import CHUNK_PAGES, chunk_ranges
+
+    ranges = chunk_ranges(1, 1000)
+    assert ranges[0][0] == 1 and ranges[-1][1] == 1000
+    assert all(b[0] == a[1] + 1 for a, b in zip(ranges, ranges[1:], strict=False))  # no gap, no overlap
+    sizes = [hi - lo + 1 for lo, hi in ranges]
+    assert max(sizes) <= CHUNK_PAGES and max(sizes) - min(sizes) <= 1
+    # 165 pages is three even parts, never 80 + 80 + a 5-page stub
+    assert [hi - lo + 1 for lo, hi in chunk_ranges(1, 165)] == [55, 55, 55]
+    assert chunk_ranges(200, 290) == [(200, 245), (246, 290)]
+
+
+def _fake_model(fail_on=None):
+    """Stands in for _call_model: part calls carry a PDF block, the final call is text only."""
+    calls = []
+
+    def fake(content, *, what):
+        calls.append((content, what))
+        if fail_on and fail_on in what:
+            raise AIDraftError("ai_request_failed", f"boom {what}", 502)
+        if content[0]["type"] == "document":
+            return {"section_b__x".replace("__", "/"): f"part answer for {what}", "section_j/metric_repeat": []}, {"in": 1000, "out": 100}
+        return {"section_b/x": "combined answer"}, {"in": 500, "out": 50}
+
+    return fake, calls
+
+
+def test_whole_document_is_read_in_parts_and_combined(document, settings, tmp_path):
+    import base64
+    import io
+
+    from pypdf import PdfReader
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "book.pdf"
+    _blank_pdf(pdf, 250)
+    fake, calls = _fake_model()
+    seen = []
+    with patch("apps.evidence.ai_coding._call_model", side_effect=fake):
+        draft = generate_draft(
+            document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+            whole_document=True, progress=seen.append,
+        )
+
+    part_calls, merge_call = calls[:-1], calls[-1]
+    assert len(part_calls) == 4  # 250 pages -> four parts of 62-63
+    for content, _ in part_calls:
+        assert content[0]["type"] == "document"
+        pages = len(PdfReader(io.BytesIO(base64.b64decode(content[0]["source"]["data"]))).pages)
+        assert pages <= 80
+        assert "part " in content[1]["text"] and "Code only what THESE pages support" in content[1]["text"]
+    assert [c[0]["type"] for c in [merge_call[0]]] == ["text"]  # the combining pass sends no PDF
+    assert "PART DRAFTS" in merge_call[0][0]["text"] and "part answer for reading pages 1-" in merge_call[0][0]["text"]
+    assert draft["section_b/x"] == "combined answer"
+    assert draft["section_a/DOC_ID"] == document.document_id  # still filled from the record, not the AI
+    assert draft["_parts"] == 4 and draft["_source_pages"] == "1-250 (read in 4 parts)"
+    assert (draft["_tokens_in"], draft["_tokens_out"]) == (4 * 1000 + 500, 4 * 100 + 50)
+    assert seen[0] == "Reading part 0 of 4" and seen[-2:] == ["Read part 4 of 4", "Combining the parts into one draft"]
+
+
+def test_a_page_range_can_be_read_in_parts_too(document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "book.pdf"
+    _blank_pdf(pdf, 400)
+    fake, calls = _fake_model()
+    with patch("apps.evidence.ai_coding._call_model", side_effect=fake):
+        draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+                               page_range="101-300", whole_document=True)
+    assert draft["_source_pages"] == "101-300 (read in 3 parts)"
+    assert "pages 101-" in calls[0][1] or any("pages 101-" in c[1] for c in calls)
+
+
+def test_a_document_within_one_read_is_not_split_even_when_asked(document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "short.pdf"
+    _blank_pdf(pdf, 60)
+    fake, calls = _fake_model()
+    with patch("apps.evidence.ai_coding._call_model", side_effect=fake):
+        draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+                               whole_document=True)
+    assert len(calls) == 1 and "_parts" not in draft
+
+
+def test_one_failed_part_fails_the_whole_draft_rather_than_skipping_pages(document, settings, tmp_path):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "book.pdf"
+    _blank_pdf(pdf, 250)
+    fake, _ = _fake_model(fail_on="pages 64-")
+    with patch("apps.evidence.ai_coding._call_model", side_effect=fake), pytest.raises(AIDraftError) as exc:
+        generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+                       whole_document=True)
+    assert exc.value.code == "ai_request_failed"
+
+
+def test_the_whole_document_ceiling(document, settings, tmp_path):
+    from apps.evidence.ai_coding import MAX_WHOLE_DOCUMENT_PAGES
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    pdf = tmp_path / "huge.pdf"
+    _blank_pdf(pdf, MAX_WHOLE_DOCUMENT_PAGES + 5)
+    with pytest.raises(AIDraftError) as exc:
+        generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+                       whole_document=True)
+    assert exc.value.code == "document_too_long"
+    # a range inside the ceiling is fine
+    fake, _ = _fake_model()
+    with patch("apps.evidence.ai_coding._call_model", side_effect=fake):
+        generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None,
+                       page_range="1-300", whole_document=True)

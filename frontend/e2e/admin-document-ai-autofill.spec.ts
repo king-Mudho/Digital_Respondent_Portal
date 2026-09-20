@@ -81,3 +81,47 @@ test("every method the screens use gets through the relay (a PUT was once refuse
   expect(results.post).toEqual({ status: 400, code: "no_draft" });
   expect(results.del).toEqual({ status: 404, code: "not_found" });
 });
+
+/** A valid PDF with `pages` blank pages, built by hand (no library needed). */
+function blankPdf(pages: number): Buffer {
+  const objects: string[] = ["<< /Type /Catalog /Pages 2 0 R >>"];
+  const kids = Array.from({ length: pages }, (_, i) => `${i + 3} 0 R`).join(" ");
+  objects.push(`<< /Type /Pages /Kids [${kids}] /Count ${pages} >>`);
+  for (let i = 0; i < pages; i++) objects.push("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] >>");
+  let body = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((o, i) => {
+    offsets.push(body.length);
+    body += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const xref = body.length;
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const off of offsets) body += `${String(off).padStart(10, "0")} 00000 n \n`;
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(body, "latin1");
+}
+
+test("a PDF too long for one read offers to read the whole document in parts", async ({ page, request }) => {
+  const backend = backendBaseURL();
+  const access = await getAdminAccessToken(request, backend);
+  const created = await request.post(`${backend}/api/v1/documents/`, {
+    headers: { Authorization: `Bearer ${access}` },
+    data: { title: "E2E Long PDF In Parts", document_type: "PLATFORM" },
+  });
+  const doc = await created.json();
+  await loginAsAdmin(page);
+  await page.goto(`/admin/documents/${doc.id}`);
+  await page.locator('input[type="file"]').setInputFiles({ name: "book.pdf", mimeType: "application/pdf", buffer: blankPdf(250) });
+  await expect(page.getByRole("link", { name: "book.pdf" })).toBeVisible();
+
+  await page.goto(`/admin/documents/${doc.id}/ai-draft`);
+  await expect(page.getByText("Pages to read (required)")).toBeVisible();
+  const wholeDocument = page.getByRole("checkbox", { name: /Read the whole document in parts/ });
+  await wholeDocument.check();
+  // Pages become optional, and the screen says what it will cost in parts and time.
+  await expect(page.getByText("Pages to read (optional)")).toBeVisible();
+  await expect(page.getByRole("note")).toContainText("250 pages in 4 parts");
+  // A range narrows it.
+  await page.getByLabel(/Pages to read/).fill("1-200");
+  await expect(page.getByRole("note")).toContainText("200 pages in 3 parts");
+});
