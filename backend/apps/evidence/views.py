@@ -274,7 +274,11 @@ class DocumentCopyView(APIView):
             document.ai_draft_status = RUNNING
             document.ai_draft_started_at = timezone.now()
             document.ai_draft_progress = (
-                "Starting" if whole_document and span and span > MAX_PDF_PAGES else "Step 1 of 2: reading the document\u2019s details"
+                "Starting"
+                if whole_document and span and span > MAX_PDF_PAGES
+                else "Drafting the coding form"  # a typed title: no details to read first
+                if title
+                else "Step 1 of 2: reading the document\u2019s details"
             )
             document.save(update_fields=["ai_draft_status", "ai_draft_started_at", "ai_draft_progress"])
             generate_ai_draft.delay(document.pk, request.user.id, page_range, whole_document, not title, bool(title), True)
