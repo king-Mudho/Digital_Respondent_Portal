@@ -14,7 +14,7 @@ const { Builder } = require("./manuals/lib");
 const OUT = path.resolve(__dirname, "../manuals");
 fs.mkdirSync(OUT, { recursive: true });
 
-const docs = [require("./manuals/system"), ...require("./manuals/roles"), require("./manuals/respondent"), ...require("./manuals/training")];
+const docs = [require("./manuals/system"), require("./manuals/reference").referenceDoc(), ...require("./manuals/roles"), require("./manuals/respondent"), ...require("./manuals/training")];
 
 // `node build_manuals.js RA_` rebuilds only the documents whose file name starts with RA_.
 const only = process.argv[2];

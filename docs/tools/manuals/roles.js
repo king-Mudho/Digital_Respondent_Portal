@@ -1,5 +1,11 @@
 const C = require("./common");
 const { T } = require("./tasks");
+const { roleAppendix } = require("./reference");
+
+const ROLE_OF_GUIDE = {
+  1: "PI_ADMIN", 2: "FIELD_COORDINATOR", 3: "CONTACT_RA", 4: "QUAN_QA_RA",
+  5: "KII_RA", 6: "DOCUMENTARY_RA", 7: "ANALYST", 8: "SUPERVISOR_READONLY",
+};
 
 const renum = (blocks, prefix) => {
   let n = 0;
@@ -31,7 +37,7 @@ function guide({ n, key, role, title, audience, purpose, can, cannot, landing, s
       ["bullets", can],
       ["h3", "You cannot"],
       ["bullets", cannot],
-      ["tip", "Where this fits", "The System Manual explains how the whole system works. This guide covers only what you do. Ask the Field Coordinator or PI when something is outside your role."],
+      ["tip", "Where this fits", "The System Manual explains how the whole system works. This guide covers only what you do, and its last section lists every screen and button you can use, with what each does and why. Ask the Field Coordinator or PI when something is outside your role."],
 
       ["h1", "2. Signing in and your screens"],
       ...C.signIn(landing, role),
@@ -59,6 +65,8 @@ function guide({ n, key, role, title, audience, purpose, can, cannot, landing, s
         ...quick,
         ["Help", "Field Coordinator; PI: Happyson Saina, 0773943709, abffst.research.cut@gmail.com"],
       ]],
+
+      ...roleAppendix(ROLE_OF_GUIDE[n], 8),
     ],
   };
 }

@@ -1057,6 +1057,7 @@ Every document has a table of contents:
 | File | For |
 |---|---|
 | `ABF-FST_Portal_System_Manual` | Everyone: how the system works end to end, every screen, KoboToolbox, data, security, administration and troubleshooting |
+| `ABF-FST_Screen_and_Button_Reference` | Everyone: every screen and every button, with what it does, when to use it, why it exists and what happens next. Generated from `docs/tools/manuals/reference_a.js` and `reference_b.js`; each Role Guide ends with the same material cut down to that role (`reference.js`). When a screen or button changes, change its row there |
 | `Role_Guide_1_PI_Admin` | Principal Investigator / System Admin |
 | `Role_Guide_2_Field_Coordinator` | Field / Digital Coordinator |
 | `Role_Guide_3_Contact_RA` | Contact Research Assistant |

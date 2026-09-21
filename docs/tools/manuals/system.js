@@ -30,6 +30,7 @@ module.exports = {
     ["p", "This manual explains the ABF-FST Digital Respondent Portal from end to end: what it is for, how its parts fit together, what every screen does, and how to carry out each task. It is the reference document for the whole team."],
     ["table", ["Document", "Read it if you are"], [
       ["**System Manual** (this document)", "Anyone who needs the complete picture, especially the PI and Field Coordinator."],
+      ["**Screen and Button Reference**", "Anyone who wants to know what every button does, why it exists and what happens next."],
       ["Role Guide 1 — PI / System Admin", "The Principal Investigator."],
       ["Role Guide 2 — Field / Digital Coordinator", "Running day-to-day fieldwork."],
       ["Role Guide 3 — Contact RA", "Contacting and inviting organisations."],

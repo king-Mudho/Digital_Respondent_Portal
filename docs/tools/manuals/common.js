@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.6 · 20 September 2026";
+const REVISION = "Version 1.7 · 21 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
