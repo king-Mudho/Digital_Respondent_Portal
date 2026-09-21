@@ -259,3 +259,72 @@ class EvidenceSource(models.Model):
 
     def __str__(self):
         return f"{self.source_record_id} -- {self.source_title}"
+
+
+class AIResearchStatus(models.TextChoices):
+    RUNNING = "RUNNING", "Running"
+    DONE = "DONE", "Done"
+    FAILED = "FAILED", "Failed"
+
+
+class AIResearchRun(models.Model):
+    """One AI desk-research pass over an organisation (and the respondent's
+    published professional role) for a pre-profile. The AI only ever PROPOSES:
+    nothing here reaches a PreProfileField until a researcher accepts it
+    (AIProposal). Recorded so the study can say exactly what was AI-assisted,
+    with which model, and what it searched."""
+
+    pre_profile = models.ForeignKey(PreProfile, on_delete=models.CASCADE, related_name="ai_runs")
+    status = models.CharField(max_length=8, choices=AIResearchStatus.choices, default=AIResearchStatus.RUNNING)
+    requested_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    model = models.CharField(max_length=64, blank=True)
+    searches_used = models.PositiveIntegerField(default=0)
+    tokens_in = models.PositiveIntegerField(default=0)
+    tokens_out = models.PositiveIntegerField(default=0)
+    summary = models.TextField(blank=True)  # the AI's own note on what it looked for and its limits
+    error = models.TextField(blank=True)
+    dropped = models.JSONField(default=list, blank=True)  # findings the server refused, and why
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"AIResearchRun({self.pre_profile_id} {self.status})"
+
+
+class AIProposalStatus(models.TextChoices):
+    PROPOSED = "PROPOSED", "Proposed"
+    NOT_FOUND = "NOT_FOUND", "Not found publicly"
+    ACCEPTED = "ACCEPTED", "Accepted"
+    EDITED = "EDITED", "Accepted with edits"
+    REJECTED = "REJECTED", "Rejected"
+
+
+class AIProposal(models.Model):
+    run = models.ForeignKey(AIResearchRun, on_delete=models.CASCADE, related_name="proposals")
+    pre_profile = models.ForeignKey(PreProfile, on_delete=models.CASCADE, related_name="ai_proposals")
+    field_id = models.CharField(max_length=64)
+    status = models.CharField(max_length=10, choices=AIProposalStatus.choices, default=AIProposalStatus.PROPOSED)
+    proposed_value = models.TextField(blank=True)
+    final_value = models.TextField(blank=True)
+    confidence = models.CharField(max_length=16, choices=Confidence.choices, blank=True)
+    sources = models.JSONField(default=list, blank=True)  # [{title, url, publisher, published, quote, authority}]
+    notes = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    profile_field = models.ForeignKey(
+        PreProfileField, null=True, blank=True, on_delete=models.SET_NULL, related_name="ai_proposals"
+    )  # set when accepted
+
+    class Meta:
+        ordering = ["id"]
+        constraints = [models.UniqueConstraint(fields=["run", "field_id"], name="unique_ai_proposal_per_run_field")]
+
+    def __str__(self):
+        return f"AIProposal({self.field_id} {self.status})"

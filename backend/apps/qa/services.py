@@ -234,6 +234,15 @@ def record_human_decision(
     if not note.strip():
         raise ValueError("A note is required to record a QA decision.")
 
+    if decision == QADecision.ACCEPT:
+        # A case with a locked pre-interview profile counts as complete only once every background fact on it
+        # has been verified with the respondent and reconciled (apps/proit/services.py).
+        from apps.proit.services import ReconciliationRequired, reconciliation_blocker
+
+        blocker = reconciliation_blocker(sample_case=submission.sample_case)
+        if blocker:
+            raise ReconciliationRequired(blocker)
+
     event = QAEvent.objects.create(
         submission=submission, reviewer=reviewer, decision=decision, note=note, rule_triggered=rule_code
     )

@@ -1,16 +1,32 @@
+from datetime import timedelta
+
 from django.conf import settings
+from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import CanRunInterviewVerification, IsFieldCoordinatorOrAdmin
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
+from apps.audit.utils import log_action
 from apps.invitations.services import TokenValidationError, validate_token
 
-from .models import PROIT_FIELD_CATALOG, EvidenceSource, PreProfile, PreProfileField
+from .ai_research import AIResearchError, ai_research_is_configured, case_context
+from .models import (
+    PROIT_FIELD_CATALOG,
+    AIProposal,
+    AIResearchRun,
+    AIResearchStatus,
+    EvidenceSource,
+    PreProfile,
+    PreProfileField,
+)
 from .serializers import (
+    AIProposalSerializer,
+    AIResearchRunSerializer,
     EvidenceSourceSerializer,
     PreProfileFieldSerializer,
     PreProfileSerializer,
@@ -19,13 +35,23 @@ from .serializers import (
 from .services import (
     PROBE_TEMPLATES,
     PreProfileError,
+    PreProfileLocked,
+    PreProfileNotLocked,
+    accept_proposal,
     add_evidence,
     add_field,
     compute_burden_metrics,
     field_is_displayable,
+    field_is_settled,
     lock_pre_profile,
+    reconcile_field,
+    reconciliation_state,
+    record_protocol_deviation,
     record_verification,
+    refresh_reconciliation,
+    reject_proposal,
 )
+from .tasks import research_pre_profile
 
 
 class FieldCatalogView(APIView):
@@ -228,3 +254,216 @@ class RespondentVerifyView(APIView):
         except PreProfileError as exc:
             return Response({"error": {"code": "verification_failed", "message": str(exc), "field_errors": {}}}, status=400)
         return Response({"id": field.id, "verification_status": field.verification_status})
+
+
+# --- AI desk research: the AI proposes, a researcher decides ------------------------------------------
+
+class AIResearchView(APIView):
+    """POST /api/v1/proit/pre-profiles/{id}/ai-research/ -- start an AI desk-research pass in the
+    background (202). GET -- the latest run and every proposal so far. PROIT is the Field Coordinator's
+    and PI's tool; Supervisor may read."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def get(self, request, pk):
+        profile = get_object_or_404(PreProfile, pk=pk)
+        run = profile.ai_runs.first()
+        proposals = AIProposal.objects.filter(pre_profile=profile).order_by("id")
+        return Response({
+            "configured": ai_research_is_configured(),
+            "run": AIResearchRunSerializer(run).data if run else None,
+            "proposals": AIProposalSerializer(proposals, many=True).data,
+        })
+
+    def post(self, request, pk):
+        profile = get_object_or_404(PreProfile, pk=pk)
+        if not ai_research_is_configured():
+            return _error("ai_not_configured", "AI research hasn't been set up (ANTHROPIC_API_KEY).", 503)
+        if profile.prepopulation_locked_at is not None:
+            return _error("locked", "This pre-profile is locked, so it cannot be researched again.", 409)
+        running = profile.ai_runs.filter(status=AIResearchStatus.RUNNING).first()
+        if running and timezone.now() - running.started_at < timedelta(minutes=15):
+            return _error("already_running", "AI research is already running for this profile.", 409)
+        try:
+            case_context(profile)  # refuse now, not minutes later, if there is no organisation to research
+        except AIResearchError as exc:
+            return _error(exc.code, str(exc), exc.status)
+        if running:  # a run that never finished (worker restarted): close it so it stops blocking
+            running.status, running.error, running.finished_at = AIResearchStatus.FAILED, "Interrupted.", timezone.now()
+            running.save(update_fields=["status", "error", "finished_at"])
+        run = AIResearchRun.objects.create(pre_profile=profile, requested_by=request.user, model=settings.AI_DOCUMENT_CODING_MODEL)
+        log_action("proit.ai_research_started", profile, {"run": run.pk, "user_id": request.user.id})
+        research_pre_profile.delay(run.pk)
+        run.refresh_from_db()
+        return Response(AIResearchRunSerializer(run).data, status=202)
+
+
+class AIProposalAcceptView(APIView):
+    """POST /api/v1/proit/ai-proposals/{id}/accept/ {value?} -- the researcher accepts a finding, optionally
+    correcting its wording first. Only now does it become a background field with its sources."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, pk):
+        proposal = get_object_or_404(AIProposal, pk=pk)
+        value = request.data.get("value")
+        try:
+            accept_proposal(proposal, user=request.user, value=value if isinstance(value, str) else None)
+        except PreProfileError as exc:
+            return _error("accept_failed", str(exc), 409 if isinstance(exc, PreProfileLocked) else 400)
+        proposal.refresh_from_db()
+        return Response(AIProposalSerializer(proposal).data)
+
+
+class AIProposalRejectView(APIView):
+    """POST /api/v1/proit/ai-proposals/{id}/reject/ {reason?}"""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, pk):
+        proposal = get_object_or_404(AIProposal, pk=pk)
+        try:
+            reject_proposal(proposal, user=request.user, reason=str(request.data.get("reason") or "").strip()[:300])
+        except PreProfileError as exc:
+            return _error("reject_failed", str(exc), 400)
+        return Response(AIProposalSerializer(proposal).data)
+
+
+# --- Verification before, reconciliation after -----------------------------------------------------
+
+def _error(code, message, status=400):
+    return Response({"error": {"code": code, "message": message, "field_errors": {}}}, status=status)
+
+
+def _scoped_profile_or_404(request, profile):
+    """A Contact RA only reaches the pre-profile of a case assigned to them (404, so its existence is not leaked)."""
+    role = getattr(request.user.role, "name", None)
+    if role == "CONTACT_RA":
+        if profile.sample_case_id is None or profile.sample_case.assigned_ra_id != request.user.id:
+            raise Http404
+    if role == "KII_RA" and profile.kii_record_id is None:
+        raise Http404
+    return profile
+
+
+class InterviewSheetView(APIView):
+    """GET /api/v1/proit/interview-sheet/?sample_case=<id>|?kii_record=<id> -- the locked pre-profile as the
+    interviewer uses it: each fact to CONFIRM (with its public source), each gap to ASK, and where the
+    respondent's answers stand. Only a locked profile is shown. A LOW-confidence value is withheld (it is a
+    question to ask, never a fact to state)."""
+
+    permission_classes = [CanRunInterviewVerification]
+
+    def get(self, request):
+        qs = PreProfile.objects.select_related("sample_case", "kii_record").prefetch_related("fields__sources")
+        if request.query_params.get("sample_case"):
+            qs = qs.filter(sample_case_id=request.query_params["sample_case"])
+        elif request.query_params.get("kii_record"):
+            qs = qs.filter(kii_record_id=request.query_params["kii_record"])
+        else:
+            return _error("invalid_input", "sample_case or kii_record is required.", 400)
+        profile = qs.first()
+        if profile is None:
+            return Response({"profile": None})
+        _scoped_profile_or_404(request, profile)
+        if profile.prepopulation_locked_at is None:
+            return Response({"profile": None, "locked": False})
+        refresh_reconciliation(profile)
+        fields = []
+        for f in profile.fields.all():
+            shown = f.preliminary_documentary_value if field_is_displayable(f) else ""
+            fields.append({
+                "id": f.id, "field_id": f.field_id, "label": f.label, "module": f.module,
+                "documentary_value": shown, "withheld_low_confidence": bool(f.preliminary_documentary_value) and not shown,
+                "confidence": f.confidence, "gap_classification": f.gap_classification,
+                "sources": [{"title": s.source_title, "publisher": s.publisher, "url": s.locator,
+                             "date": s.source_date.isoformat() if s.source_date else ""} for s in f.sources.all()],
+                "verification_status": f.verification_status, "respondent_value": f.respondent_value,
+                "verification_comment": f.verification_comment, "reconciled_value": f.reconciled_value,
+                "settled": field_is_settled(f),
+            })
+        return Response({
+            "locked": True,
+            "profile": {
+                "id": profile.id, "sample_id": profile.sample_case.sample_id if profile.sample_case_id else None,
+                "kii_id": profile.kii_record.kii_id if profile.kii_record_id else None,
+                "priority_probe_questions": profile.priority_probe_questions, "unresolved_gaps": profile.unresolved_gaps,
+                "contradictions": profile.contradictions, "fields": fields,
+                "reconciliation": reconciliation_state(profile), "deviation_note": profile.deviation_note,
+            },
+        })
+
+
+class FieldVerifyView(APIView):
+    """POST /api/v1/proit/fields/{id}/verify/ {status, respondent_value?, comment?} -- the interviewer records
+    what the respondent said about one fact: confirmed, corrected, qualified, not known, declined, not applicable.
+    Never touches the documentary value."""
+
+    permission_classes = [CanRunInterviewVerification]
+
+    def post(self, request, pk):
+        field = get_object_or_404(PreProfileField.objects.select_related("pre_profile"), pk=pk)
+        _scoped_profile_or_404(request, field.pre_profile)
+        try:
+            record_verification(
+                field, status=request.data.get("status", ""), respondent_value=str(request.data.get("respondent_value") or ""),
+                comment=str(request.data.get("comment") or ""),
+            )
+        except PreProfileError as exc:
+            return _error("verification_failed", str(exc), 409 if isinstance(exc, PreProfileNotLocked) else 400)
+        refresh_reconciliation(field.pre_profile)
+        log_action("proit.field_verified", field.pre_profile, {"field_id": field.field_id, "status": field.verification_status, "user_id": request.user.id})
+        return Response({"id": field.id, "verification_status": field.verification_status, "settled": field_is_settled(field)})
+
+
+class FieldReconcileView(APIView):
+    """POST /api/v1/proit/fields/{id}/reconcile/ {reconciled_value} -- the researcher's coded position after the
+    interview, where the respondent corrected, qualified, did not know or declined. Coordinator/PI only."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, pk):
+        field = get_object_or_404(PreProfileField.objects.select_related("pre_profile"), pk=pk)
+        if not field.verification_status:
+            return _error("not_verified", "Verify this fact with the respondent before reconciling it.", 409)
+        value = str(request.data.get("reconciled_value") or "").strip()
+        if not value:
+            return _error("invalid_input", "Enter the reconciled value.", 400)
+        reconcile_field(field, reconciled_value=value)
+        refresh_reconciliation(field.pre_profile)
+        log_action("proit.field_reconciled", field.pre_profile, {"field_id": field.field_id, "user_id": request.user.id})
+        return Response({"id": field.id, "reconciled_value": field.reconciled_value, "settled": field_is_settled(field)})
+
+
+class InterviewCompleteView(APIView):
+    """POST /api/v1/proit/pre-profiles/{id}/interview-complete/ -- the interviewer records that the interview
+    (and the verification during it) is finished, so reconciliation can begin."""
+
+    permission_classes = [CanRunInterviewVerification]
+
+    def post(self, request, pk):
+        profile = get_object_or_404(PreProfile.objects.select_related("sample_case", "kii_record"), pk=pk)
+        _scoped_profile_or_404(request, profile)
+        if profile.prepopulation_locked_at is None:
+            return _error("not_locked", "This pre-profile was never locked, so there is nothing to reconcile.", 409)
+        if profile.interview_completed_at is None:
+            profile.interview_completed_at = timezone.now()
+            profile.save(update_fields=["interview_completed_at"])
+            log_action("proit.interview_completed", profile, {"user_id": request.user.id})
+        refresh_reconciliation(profile)
+        return Response(reconciliation_state(profile))
+
+
+class ProtocolDeviationView(APIView):
+    """POST /api/v1/proit/pre-profiles/{id}/deviation/ {note} -- when reconciliation truly cannot be finished, the
+    coordinator releases the case by recording why; it stays flagged. Coordinator/PI only."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request, pk):
+        profile = get_object_or_404(PreProfile, pk=pk)
+        try:
+            record_protocol_deviation(profile, note=str(request.data.get("note") or ""), user=request.user)
+        except PreProfileError as exc:
+            return _error("deviation_failed", str(exc), 400)
+        return Response(reconciliation_state(profile))

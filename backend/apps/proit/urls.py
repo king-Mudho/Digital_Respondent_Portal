@@ -1,13 +1,21 @@
 from django.urls import path
 
 from .views import (
+    AIProposalAcceptView,
+    AIProposalRejectView,
+    AIResearchView,
     EvidenceSourceListCreateView,
     FieldCatalogView,
+    FieldReconcileView,
+    FieldVerifyView,
+    InterviewCompleteView,
+    InterviewSheetView,
     PreProfileDetailView,
     PreProfileFieldListCreateView,
     PreProfileListCreateView,
     PreProfileLockView,
     ProbeTemplateView,
+    ProtocolDeviationView,
     RespondentPreProfileView,
     RespondentVerifyView,
 )
@@ -20,6 +28,14 @@ urlpatterns = [
     path("pre-profiles/<int:pk>/lock/", PreProfileLockView.as_view(), name="pre-profile-lock"),
     path("pre-profiles/<int:pre_profile_id>/fields/", PreProfileFieldListCreateView.as_view(), name="pre-profile-fields"),
     path("fields/<int:field_id>/evidence/", EvidenceSourceListCreateView.as_view(), name="field-evidence"),
+    path("pre-profiles/<int:pk>/ai-research/", AIResearchView.as_view(), name="ai-research"),
+    path("ai-proposals/<int:pk>/accept/", AIProposalAcceptView.as_view(), name="ai-proposal-accept"),
+    path("ai-proposals/<int:pk>/reject/", AIProposalRejectView.as_view(), name="ai-proposal-reject"),
+    path("interview-sheet/", InterviewSheetView.as_view(), name="interview-sheet"),
+    path("fields/<int:pk>/verify/", FieldVerifyView.as_view(), name="field-verify"),
+    path("fields/<int:pk>/reconcile/", FieldReconcileView.as_view(), name="field-reconcile"),
+    path("pre-profiles/<int:pk>/interview-complete/", InterviewCompleteView.as_view(), name="interview-complete"),
+    path("pre-profiles/<int:pk>/deviation/", ProtocolDeviationView.as_view(), name="protocol-deviation"),
     path("respondent-profile/", RespondentPreProfileView.as_view(), name="respondent-profile"),
     path("respondent-verify/", RespondentVerifyView.as_view(), name="respondent-verify"),
 ]

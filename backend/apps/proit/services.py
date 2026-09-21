@@ -267,3 +267,175 @@ def render_probe_template(role: str, evidence: str = "") -> str:
         return template.format(evidence=evidence)
     except (KeyError, IndexError):
         return template
+
+
+# --- AI proposals: the AI proposes, a researcher decides -------------------------------------------
+
+def _parse_source_date(text: str):
+    from datetime import date
+
+    text = (text or "").strip()
+    try:
+        if len(text) == 4:
+            return date(int(text), 1, 1)
+        if len(text) == 10:
+            return date.fromisoformat(text)
+    except ValueError:
+        return None
+    return None
+
+
+@transaction.atomic
+def accept_proposal(proposal, *, user, value: str | None = None) -> PreProfileField:
+    """A researcher accepts (or edits and accepts) what the AI found. Only now does it become a
+    PreProfileField with its sources, exactly as if the researcher had typed it and added the
+    sources: it still needs the lock, and the respondent still confirms it."""
+    from apps.audit.utils import log_action
+
+    from .models import AIProposalStatus
+
+    profile = proposal.pre_profile
+    if profile.prepopulation_locked_at is not None:
+        raise PreProfileLocked("This pre-profile is locked, so no new facts can be added.")
+    if proposal.status in (AIProposalStatus.ACCEPTED, AIProposalStatus.EDITED):
+        raise PreProfileError("This finding was already accepted.")
+    if proposal.status == AIProposalStatus.NOT_FOUND or not proposal.proposed_value:
+        raise PreProfileError("Nothing was found for this field, so there is nothing to accept.")
+    final = (value if value is not None else proposal.proposed_value).strip()
+    if not final:
+        raise PreProfileError("The value cannot be empty.")
+    if not proposal.sources:
+        raise PreProfileError("Every accepted fact needs its source.")
+
+    field = profile.fields.filter(field_id=proposal.field_id).first()
+    if field is None:
+        field = add_field(profile, proposal.field_id, documentary_value=final)
+    else:
+        field.preliminary_documentary_value = final
+        field.save(update_fields=["preliminary_documentary_value"])
+
+    today = timezone.now().date()
+    confidence = proposal.confidence if proposal.confidence in Confidence.values else Confidence.MODERATE
+    for s in proposal.sources:
+        add_evidence(
+            field, source_title=s.get("title", "")[:512], source_confidence=confidence, created_by=user,
+            source_type="WEB", publisher=s.get("publisher", ""), source_date=_parse_source_date(s.get("published", "")),
+            access_date=today, locator=s.get("url", ""), source_authority=s.get("authority") or "",
+            researcher_notes=f"AI-found; researcher accepted. Quote: “{s.get('quote', '')}”. {proposal.notes}".strip()[:2000],
+        )
+    proposal.final_value = final
+    proposal.status = AIProposalStatus.EDITED if final != proposal.proposed_value else AIProposalStatus.ACCEPTED
+    proposal.reviewed_by, proposal.reviewed_at, proposal.profile_field = user, timezone.now(), field
+    proposal.save()
+    log_action("proit.ai_proposal_accepted", profile, {
+        "field_id": proposal.field_id, "edited": proposal.status == AIProposalStatus.EDITED, "user_id": getattr(user, "id", None),
+    })
+    return field
+
+
+def reject_proposal(proposal, *, user, reason: str = ""):
+    from apps.audit.utils import log_action
+
+    from .models import AIProposalStatus
+
+    if proposal.status in (AIProposalStatus.ACCEPTED, AIProposalStatus.EDITED):
+        raise PreProfileError("This finding was already accepted; remove the field instead.")
+    proposal.status = AIProposalStatus.REJECTED
+    proposal.notes = (proposal.notes + (f" Rejected: {reason}" if reason else "")).strip()
+    proposal.reviewed_by, proposal.reviewed_at = user, timezone.now()
+    proposal.save()
+    log_action("proit.ai_proposal_rejected", proposal.pre_profile, {"field_id": proposal.field_id, "user_id": getattr(user, "id", None)})
+    return proposal
+
+
+# --- Verification before and reconciliation after the interview ------------------------------------
+
+SETTLED_WITHOUT_RECONCILED_VALUE = {
+    VerificationStatusCode.YES_CORRECT, VerificationStatusCode.NOT_APPLICABLE,
+}
+
+
+class ReconciliationRequired(Exception):
+    """A case with a pre-interview profile cannot count as complete until every fact on it has been
+    verified with the respondent and reconciled by a researcher."""
+
+
+def field_is_settled(field: PreProfileField) -> bool:
+    """Verified with the respondent AND, where they corrected, qualified, did not know or declined,
+    a researcher has recorded the reconciled value. A plain confirmation or 'does not apply' needs no
+    further coding."""
+    if not field.verification_status:
+        return False
+    if field.verification_status in SETTLED_WITHOUT_RECONCILED_VALUE:
+        return True
+    return bool(field.reconciled_value.strip())
+
+
+def reconciliation_state(pre_profile: PreProfile) -> dict:
+    fields = list(pre_profile.fields.all())
+    unverified = [f.id for f in fields if not f.verification_status]
+    unsettled = [f.id for f in fields if f.verification_status and not field_is_settled(f)]
+    return {
+        "total": len(fields),
+        "verified": len(fields) - len(unverified),
+        "settled": len(fields) - len(unverified) - len(unsettled),
+        "pending_verification": unverified,
+        "pending_reconciliation": unsettled,
+        "complete": bool(fields) and not unverified and not unsettled,
+        "interview_completed_at": pre_profile.interview_completed_at,
+        "reconciliation_status": pre_profile.reconciliation_status,
+        "protocol_deviation": pre_profile.protocol_deviation,
+    }
+
+
+def refresh_reconciliation(pre_profile: PreProfile) -> PreProfile:
+    """Keeps reconciliation_status true to the fields. A recorded protocol deviation (UNRESOLVED, with its
+    note) is a person's deliberate decision and is left alone."""
+    from .models import ReconciliationStatus
+
+    if pre_profile.reconciliation_status == ReconciliationStatus.UNRESOLVED:
+        return pre_profile
+    complete = reconciliation_state(pre_profile)["complete"]
+    new = ReconciliationStatus.RECONCILED if complete else ReconciliationStatus.PENDING
+    if pre_profile.reconciliation_status != new:
+        pre_profile.reconciliation_status = new
+        pre_profile.save(update_fields=["reconciliation_status"])
+    return pre_profile
+
+
+def record_protocol_deviation(pre_profile: PreProfile, *, note: str, user) -> PreProfile:
+    """When reconciliation genuinely cannot be finished (the respondent cannot be reached again, a record was
+    lost), a coordinator can release the case by recording why. It stays flagged for the analysis."""
+    from apps.audit.utils import log_action
+
+    from .models import ReconciliationStatus
+
+    if not note.strip():
+        raise PreProfileError("A note is required to record a protocol deviation.")
+    pre_profile.reconciliation_status = ReconciliationStatus.UNRESOLVED
+    pre_profile.protocol_deviation = True
+    pre_profile.deviation_note = note.strip()
+    pre_profile.save(update_fields=["reconciliation_status", "protocol_deviation", "deviation_note"])
+    log_action("proit.protocol_deviation_recorded", pre_profile, {"user_id": getattr(user, "id", None)})
+    return pre_profile
+
+
+def reconciliation_blocker(*, sample_case=None, kii_record=None) -> str | None:
+    """None when the case may count as complete; otherwise the reason it may not. Only a case that HAS a
+    locked pre-interview profile with facts on it is held to this -- PROIT is optional per case."""
+    from .models import ReconciliationStatus
+
+    qs = PreProfile.objects.filter(prepopulation_locked_at__isnull=False)
+    qs = qs.filter(sample_case=sample_case) if sample_case is not None else qs.filter(kii_record=kii_record)
+    for profile in qs:
+        if not profile.fields.exists():
+            continue
+        refresh_reconciliation(profile)
+        if profile.reconciliation_status not in (ReconciliationStatus.RECONCILED, ReconciliationStatus.UNRESOLVED):
+            state = reconciliation_state(profile)
+            return (
+                "Reconcile the pre-interview profile first: "
+                f"{len(state['pending_verification'])} fact(s) not yet verified with the respondent, "
+                f"{len(state['pending_reconciliation'])} awaiting a reconciled value."
+            )
+    return None

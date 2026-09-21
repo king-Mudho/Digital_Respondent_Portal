@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import EvidenceSource, PreProfile, PreProfileField
+from .models import AIProposal, AIResearchRun, EvidenceSource, PreProfile, PreProfileField
 
 
 class EvidenceSourceSerializer(serializers.ModelSerializer):
@@ -56,6 +56,8 @@ class PreProfileSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "researcher_reviewed", "qa_reviewer", "prepopulation_locked_at",
             "background_questions_avoided", "burden_reduction_score",
+            # Set only by the interview and reconciliation actions (they enforce the rules a plain PATCH could skip).
+            "interview_completed_at", "reconciliation_status", "protocol_deviation", "deviation_note",
             "created_at", "updated_at",
         ]
 
@@ -70,3 +72,28 @@ class RespondentPreProfileFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = PreProfileField
         fields = ["id", "field_id", "label", "preliminary_documentary_value", "confidence"]
+
+
+class AIProposalSerializer(serializers.ModelSerializer):
+    label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AIProposal
+        fields = [
+            "id", "field_id", "label", "status", "proposed_value", "final_value", "confidence", "sources",
+            "notes", "reviewed_at",
+        ]
+
+    def get_label(self, obj):
+        from .models import PROIT_FIELD_CATALOG
+
+        return PROIT_FIELD_CATALOG.get(obj.field_id, (obj.field_id,))[0]
+
+
+class AIResearchRunSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AIResearchRun
+        fields = [
+            "id", "status", "started_at", "finished_at", "model", "searches_used", "tokens_in", "tokens_out",
+            "summary", "error", "dropped",
+        ]

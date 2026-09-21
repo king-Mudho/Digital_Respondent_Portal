@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
+import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -286,6 +287,10 @@ export default function KIIDetailPage() {
             Supervisor read-only). Other roles on this page used to get a 403 from it. */}
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
           <PreProfilePanel kiiRecordId={record.id} />
+        </IfRole>
+        {/* The KII RA verifies the locked profile with the participant; the profile itself is the coordinator's. */}
+        <IfRole roles={["KII_RA"]}>
+          <InterviewSheet kiiRecordId={record.id} />
         </IfRole>
       </div>
       <div className="mt-4">

@@ -143,6 +143,20 @@ class CanManageDocuments(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanRunInterviewVerification(BasePermission):
+    """Verifying a locked pre-interview profile WITH the respondent, during or straight after the interview:
+    the coordinator and PI, the KII RA (their interviews) and the Contact RA (their assigned cases -- the view
+    scopes that). Supervisor may read."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA", "CONTACT_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
 class CanViewKIIDocumentDashboard(BasePermission):
     """The KII/document aggregate dashboard. docs/18 grants this to KII RA
     and Documentary RA ("KII/document dashboard only") on top of the roles

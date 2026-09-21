@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
 import { adminFetch } from "@/lib/api/admin";
+import { AIResearchPanel } from "@/components/admin/AIResearchPanel";
+import { InterviewSheet } from "@/components/admin/InterviewSheet";
+import { WriteOnly } from "@/components/admin/RoleGate";
 
 interface EvidenceSource {
   id: number;
@@ -463,6 +466,14 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
           </div>
         ))}
       </div>
+
+      {!locked && (
+        <WriteOnly note={null}>
+          <AIResearchPanel profileId={profile.id} onChanged={invalidate} />
+        </WriteOnly>
+      )}
+
+      {locked && <InterviewSheet sampleCaseId={sampleCaseId} kiiRecordId={kiiRecordId} />}
 
       {!locked && (
         <div className="border-t border-border pt-3 space-y-2">

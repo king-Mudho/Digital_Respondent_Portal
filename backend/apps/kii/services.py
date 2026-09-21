@@ -85,6 +85,13 @@ def advance_coding_status(record: KIIRecord, new_status: str) -> KIIRecord:
     order = [CodingStatus.NOT_STARTED, CodingStatus.IN_PROGRESS, CodingStatus.COMPLETE]
     if order.index(new_status) < order.index(record.coding_status):
         raise InvalidKIITransition("Coding status cannot move backwards.")
+    if new_status == CodingStatus.COMPLETE and record.coding_status != CodingStatus.COMPLETE:
+        # Coding is complete only once the pre-interview profile (if the interview had one) is reconciled.
+        from apps.proit.services import reconciliation_blocker
+
+        blocker = reconciliation_blocker(kii_record=record)
+        if blocker:
+            raise InvalidKIITransition(blocker)
     record.coding_status = new_status
     record.save(update_fields=["coding_status"])
     return record

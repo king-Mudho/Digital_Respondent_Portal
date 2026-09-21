@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from api.permissions import IsQAOrAdmin
 from apps.accounts.models import User
 from apps.kobo.models import QAStatus, QUANSubmission
+from apps.proit.services import ReconciliationRequired
 
 from .models import QADecision, QAEvent
 from .serializers import QAExceptionSerializer, QAQueueSubmissionSerializer
@@ -121,6 +122,8 @@ class QASubmissionDecisionView(APIView):
             event = record_human_decision(
                 submission=submission, reviewer=request.user, decision=decision, note=note
             )
+        except ReconciliationRequired as exc:
+            return _error("reconciliation_required", str(exc), 409)
         except ValueError as exc:
             return Response({"error": {"code": "note_required", "message": str(exc), "field_errors": {}}}, status=400)
 

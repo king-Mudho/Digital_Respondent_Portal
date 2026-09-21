@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { RespondentsPanel } from "@/components/admin/RespondentsPanel";
@@ -562,6 +563,10 @@ export default function SampleCaseDetailPage() {
             Supervisor read-only). Other roles on this page used to get a 403 from it. */}
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
           <PreProfilePanel sampleCaseId={sampleCase.id} />
+        </IfRole>
+        {/* A Contact RA running an assisted interview verifies the locked profile with the respondent. */}
+        <IfRole roles={["CONTACT_RA"]}>
+          <InterviewSheet sampleCaseId={sampleCase.id} />
         </IfRole>
 
         <RespondentsPanel sampleId={sampleCase.sample_id} />
