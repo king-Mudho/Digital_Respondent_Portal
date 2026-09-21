@@ -60,7 +60,9 @@ const GAP_CHOICES = [
   { value: "NO_CORRECT_VALUE_PROVIDED", label: "They told us", needsValue: true },
   ...STATUS_CHOICES.filter((s) => ["DO_NOT_KNOW", "PREFER_NOT_TO_SAY", "NOT_APPLICABLE"].includes(s.value)),
 ];
-const LABEL = (v: string) => STATUS_CHOICES.find((s) => s.value === v)?.label ?? v;
+const LABEL = (v: string, gap = false) => (gap ? GAP_CHOICES : STATUS_CHOICES).find((s) => s.value === v)?.label ?? v;
+
+const NO_RECONCILE = ["YES_CORRECT", "NOT_APPLICABLE"]; // settled without a reconciled value (backend SETTLED_WITHOUT_RECONCILED_VALUE)
 
 function actionFor(f: SheetField) {
   if (!f.documentary_value) return "Ask";
@@ -253,12 +255,12 @@ export function InterviewSheet({ sampleCaseId, kiiRecordId }: { sampleCaseId?: n
               </WriteOnly>
               {f.verification_status && (
                 <p className="text-xs text-text-muted">
-                  Recorded: {LABEL(f.verification_status)}
+                  Recorded: {LABEL(f.verification_status, !f.documentary_value)}
                   {f.respondent_value ? ` — “${f.respondent_value}”` : ""}
                 </p>
               )}
 
-              {canReconcile && f.verification_status && (
+              {canReconcile && f.verification_status && (needsReconcile || !!f.reconciled_value || !NO_RECONCILE.includes(f.verification_status)) && (
                 <div className="flex flex-wrap items-end gap-2 border-t border-border pt-2">
                   <div className="flex-1 min-w-[14rem]">
                     <label className="block text-xs text-text-muted" htmlFor={`rc-${f.id}`}>

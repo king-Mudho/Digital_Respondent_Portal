@@ -50,6 +50,7 @@ SEARCH_TOOL_TYPE = "web_search_20260209"
 FALLBACK_SEARCH_TOOL_TYPE = "web_search_20250305"
 MAX_SEARCHES = 10
 MAX_TURNS = 6
+MAX_REMINDERS = 2  # times the model is sent back to complete an incomplete answer
 MAX_OUTPUT_TOKENS = 32000
 
 # Modules the AI may fill in. CASE_CONTROL (who/what was selected) is given; and the
@@ -75,12 +76,19 @@ BLOCKED_DOMAINS = [
     "telegram.org", "t.me", "wa.me", "whatsapp.com", "pinterest.com", "reddit.com",
 ]
 PERSONAL_URL = re.compile(r"linkedin\.com/(in|pub)/|/profile/|facebook\.|instagram\.|tiktok\.|twitter\.|x\.com/", re.I)
+# Private facts about a person. Deliberately about individuals: an organisation that is called "Christian Care" or
+# is church-linked is an organisational fact, not a private one.
 SENSITIVE = re.compile(
-    r"\b(hiv|aids|cancer|illness|disabilit\w*|pregnan\w*|religio\w*|church|muslim|christian|ethnic\w*|tribe|tribal|"
+    r"\b(hiv|aids|cancer|illness|disabilit\w*|pregnan\w*|ethnic\w*|tribe|tribal|"
     r"political party|zanu|mdc|sexual orientation|gay|lesbian|home address|residential address|"
-    r"personal (phone|mobile|email|cell)|id number|passport|date of birth|born on)\b", re.I,
+    r"personal (phone|mobile|email|cell)|id number|passport|date of birth|born on|"
+    r"(devout|practising|practicing) (christian|muslim|catholic|hindu|jew\w*)|"
+    r"(is|are|was) an? (christian|muslim|catholic|hindu|jew\w*)|member of the \w+ (church|mosque|congregation))\b", re.I,
 )
-CONTACT_DETAIL = re.compile(r"(\+?\d[\d\s().-]{8,}\d)|([\w.+-]+@[\w-]+\.[\w.-]+)")
+# A phone number or an email address. Phone-shaped, so a run of years or a large figure is not mistaken for one.
+CONTACT_DETAIL = re.compile(
+    r"(\+\d[\d\s-]{8,}\d)|(\b0\d{8,10}\b)|(\b0\d{2,3}[\s-]\d{3}[\s-]\d{3,4}\b)|([\w.+-]+@[\w-]+\.[\w.-]+)"
+)
 
 
 class AIResearchError(Exception):
@@ -236,6 +244,18 @@ def _search_count(response) -> int:
     return value if isinstance(value, int) else 0
 
 
+def _as_list(value) -> list:
+    """The findings should be a list; a model sometimes sends the same list as a JSON string."""
+    if isinstance(value, str):
+        import json
+
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return []
+    return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
 def _norm(url: str) -> str:
     parts = urlsplit(url.strip())
     return f"{parts.netloc.lower().removeprefix('www.')}{parts.path.rstrip('/')}".lower()
@@ -250,8 +270,9 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     seen_urls: set[str] = set()
     usage = {"in": 0, "out": 0, "searches": 0}
     search_type = SEARCH_TOOL_TYPE
+    reminders = 0
 
-    for _turn in range(MAX_TURNS):
+    for _turn in range(MAX_TURNS + MAX_REMINDERS):
         tools = [
             {"type": search_type, "name": "web_search", "max_uses": MAX_SEARCHES, "blocked_domains": BLOCKED_DOMAINS},
             findings_tool,
@@ -278,7 +299,21 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
 
         tool_use = next((b for b in response.content if b.type == "tool_use" and b.name == "record_findings"), None)
         if tool_use is not None:
-            return dict(tool_use.input), seen_urls, usage
+            answer = dict(tool_use.input)
+            answer["findings"] = _as_list(answer.get("findings"))
+            if len(answer["findings"]) >= max(1, len(fields) // 2) or reminders >= MAX_REMINDERS:
+                return answer, seen_urls, usage
+            # Incomplete (seen once on a live run: a well-documented company came back with no findings at all).
+            # Tell the model, using the tool result, and let it finish the job rather than accept an empty answer.
+            reminders += 1
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": [{
+                "type": "tool_result", "tool_use_id": tool_use.id, "is_error": True,
+                "content": f"Incomplete: you returned {len(answer['findings'])} findings but there are {len(fields)} fields. Call record_findings "
+                           "again with an entry for EVERY field: the fact and its source where you found one, and not_found only where you "
+                           "searched and found nothing public.",
+            }]})
+            continue
         if response.stop_reason == "max_tokens":
             raise AIResearchError("ai_answer_cut_off", "The AI's answer was cut off before it finished.", 502)
         messages.append({"role": "assistant", "content": response.content})
@@ -299,7 +334,7 @@ def clean_findings(raw: dict, seen_urls: set[str], fields: dict) -> tuple[list[d
     is removed, and a fact without a verifiable source becomes 'not found publicly'."""
     allowed = {_norm(u) for u in seen_urls}
     proposals, dropped, done = [], [], set()
-    for item in raw.get("findings") or []:
+    for item in _as_list(raw.get("findings")):
         fid = item.get("field_id")
         if fid not in fields or fid in done:
             continue

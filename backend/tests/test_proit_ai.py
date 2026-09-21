@@ -120,7 +120,7 @@ def _search_block(*urls):
 
 def test_the_search_conversation_continues_through_a_pause_and_collects_the_urls_it_returned(main_case, settings):
     settings.ANTHROPIC_API_KEY = "sk-ant-test"
-    findings = Mock(type="tool_use", input={"summary": "Found it.", "findings": [_found()]})
+    findings = Mock(type="tool_use", input={"summary": "Found it.", "findings": [_found(fid) for fid in list(FIELDS)[:20]]})
     findings.name = "record_findings"
     first = _response([_search_block(URL, "https://other.example/x")], "pause_turn", searches=3)
     second = _response([findings], "tool_use", searches=2)
@@ -425,3 +425,56 @@ def test_a_kii_ra_can_run_the_interview_sheet_for_a_kii_profile(db):
     done = ra.post(f"/api/v1/proit/pre-profiles/{profile.pk}/interview-complete/")
     assert done.status_code == 200 and done.json()["interview_completed_at"] is not None
     assert PreProfile.objects.get(pk=profile.pk).interview_completed_at is not None
+
+
+# --- Robustness found by the first live run ------------------------------------------------------------
+
+def _findings_call(findings, tool_id="tu_1"):
+    block = Mock(type="tool_use", input={"summary": "s", "findings": findings}, id=tool_id)
+    block.name = "record_findings"
+    return _response([block], "tool_use")
+
+
+def test_an_empty_answer_is_sent_back_to_be_completed_instead_of_accepted(settings):
+    """A live run on a well-documented listed company once came back with no findings at all and the
+    researcher accepted it as 'nothing found publicly'. An incomplete answer is now sent back, twice at most."""
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    complete = [_found(fid) for fid in list(FIELDS)[:20]]
+    first = _findings_call([])
+    second = _findings_call(complete, "tu_2")
+    with patch("anthropic.Anthropic") as client_cls:
+        stream = client_cls.return_value.messages.stream
+        stream.return_value.__enter__.return_value.get_final_message.side_effect = [first, second]
+        raw, _seen, _usage = call_model({"organisation": {"name": "X"}, "person": {}}, FIELDS)
+        sent = stream.call_args.kwargs["messages"]
+    assert len(raw["findings"]) == 20 and stream.call_count == 2
+    reminder = sent[-1]["content"][0]
+    assert reminder["type"] == "tool_result" and reminder["is_error"] is True and reminder["tool_use_id"] == "tu_1"
+    assert "Incomplete" in reminder["content"]
+
+
+def test_a_model_that_keeps_returning_nothing_is_stopped_after_two_reminders(settings):
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    with patch("anthropic.Anthropic") as client_cls:
+        stream = client_cls.return_value.messages.stream
+        stream.return_value.__enter__.return_value.get_final_message.side_effect = [_findings_call([], f"t{i}") for i in range(5)]
+        raw, _s, _u = call_model({"organisation": {"name": "X"}, "person": {}}, FIELDS)
+    assert raw["findings"] == [] and stream.call_count == 3  # the answer, then two reminders, then it gives up: all fields "not found"
+
+
+def test_findings_sent_as_a_json_string_are_still_read():
+    import json
+
+    raw = {"findings": json.dumps([_found()])}
+    proposals, _ = clean_findings(raw, {URL}, FIELDS)
+    assert next(p for p in proposals if p["field_id"] == "legal_name")["status"] == "found"
+
+
+@pytest.mark.parametrize("value", [
+    "Christian Care is a church-linked development partner in the sector.",
+    "Listed on the ZSE; share prices 1970 1980 1990 in the archive.", "Revenue was USD 1 200 000 000 in 2024.",
+    "Joined in December 1996; Group CEO from 1 July 2021; head office at Sable House, Borrowdale.",
+])
+def test_ordinary_organisational_facts_are_not_mistaken_for_private_ones(value):
+    proposals, dropped = clean_findings({"findings": [_found(field_id="key_products", value=value)]}, {URL}, FIELDS)
+    assert next(p for p in proposals if p["field_id"] == "key_products")["status"] == "found" and not dropped
