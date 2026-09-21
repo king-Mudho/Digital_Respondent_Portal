@@ -33,6 +33,8 @@ KOBO_FORM_URL="https://ee.kobotoolbox.org/x/fSOJejrV"
 # KII Guide r3 (2026-09-21): a NEW project, replacing an49gwkpkGfYjS6B4NDNqh (End time check repaired).
 KOBO_KII_ASSET_UID="ar47NkjJiuWP4j6sTgmMpH"
 KOBO_DOCUMENTS_ASSET_UID="a3vpgw6T4FbZGjQqmUgBND"
+# PROIT Interview Profile (2026-09-21): the portal sends each reconciled pre-interview profile here.
+KOBO_PROIT_ASSET_UID="aWZH7brfEnaYvoDs5rJvh2"
 # The Document Analysis Tool's public web-form link (PI, 2026-09-17) -- powers
 # the document page's "Code this document" prefilled link (apps/evidence).
 KOBO_DOCUMENTS_FORM_URL="https://ee.kobotoolbox.org/x/nM616hqU"
@@ -84,6 +86,7 @@ set_kv "$ENV_FILE" KOBO_FORM_URL "$KOBO_FORM_URL"
 set_kv "$ENV_FILE" KOBO_WEBHOOK_SHARED_SECRET "$secret"
 set_kv "$ENV_FILE" KOBO_KII_ASSET_UID "$KOBO_KII_ASSET_UID"
 set_kv "$ENV_FILE" KOBO_DOCUMENTS_ASSET_UID "$KOBO_DOCUMENTS_ASSET_UID"
+set_kv "$ENV_FILE" KOBO_PROIT_ASSET_UID "$KOBO_PROIT_ASSET_UID"
 set_kv "$ENV_FILE" KOBO_DOCUMENTS_FORM_URL "$KOBO_DOCUMENTS_FORM_URL"
 set_kv "$ENV_FILE" KOBO_KII_FORM_URL "$KOBO_KII_FORM_URL"
 chown "$APP_USER:$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"

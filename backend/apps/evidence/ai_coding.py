@@ -91,6 +91,20 @@ class AIDraftError(Exception):
         super().__init__(message)
 
 
+def ai_error_text(exc) -> str:
+    """What to tell a person when the AI provider refuses a request. An empty credit balance and a bad key are
+    the administrator's to fix, so say that plainly instead of showing the provider's raw error."""
+    text = str(exc)
+    low = text.lower()
+    if "credit balance" in low:
+        return "The AI account has run out of credit. Ask the administrator to add credit in the Anthropic console, then try again."
+    if "authentication" in low or "invalid x-api-key" in low or "invalid api key" in low:
+        return "The AI key was not accepted. Ask the administrator to check ANTHROPIC_API_KEY."
+    if "rate limit" in low or "overloaded" in low:
+        return "The AI service is busy right now. Wait a few minutes and try again."
+    return text
+
+
 def ai_coding_is_configured() -> bool:
     return bool((settings.ANTHROPIC_API_KEY or "").strip())
 
@@ -374,7 +388,7 @@ def _call_model(content: list, *, what: str) -> tuple[dict, dict]:
         ) as stream:
             response = stream.get_final_message()
     except anthropic.APIError as exc:
-        raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {exc}", 502) from exc
+        raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {ai_error_text(exc)}", 502) from exc
 
     if response.stop_reason == "max_tokens":
         # A cut-off answer is missing fields; never save it as a draft.
@@ -609,7 +623,7 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
             messages=[{"role": "user", "content": [block, {"type": "text", "text": prompt}]}],
         )
     except anthropic.APIError as exc:
-        raise AIDraftError("ai_request_failed", f"The AI request failed while reading the document's details: {exc}", 502) from exc
+        raise AIDraftError("ai_request_failed", f"The AI request failed while reading the document's details: {ai_error_text(exc)}", 502) from exc
     tool_use = next((b for b in response.content if b.type == "tool_use"), None)
     if tool_use is None:
         raise AIDraftError("ai_no_answer", "The AI didn't return the document's details.", 502)

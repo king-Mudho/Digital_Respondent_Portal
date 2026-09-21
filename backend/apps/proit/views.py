@@ -390,6 +390,7 @@ class InterviewSheetView(APIView):
                 "priority_probe_questions": profile.priority_probe_questions, "unresolved_gaps": profile.unresolved_gaps,
                 "contradictions": profile.contradictions, "fields": fields,
                 "reconciliation": reconciliation_state(profile), "deviation_note": profile.deviation_note,
+                "kobo_submitted_at": profile.kobo_submitted_at,
             },
         })
 

@@ -106,6 +106,17 @@ PROIT-specific review document is held in this repository.
   indicator, priority probes). Shows a clear "not yet locked" banner before lock, since
   `gap_classification` isn't computed until then.
 
+## Saved to KoboToolbox
+
+When a profile reaches RECONCILED (or a coordinator records a protocol deviation) the portal sends it to the
+**ABF-FST PROIT Interview Profile** KoboToolbox form (`KOBO_PROIT_ASSET_UID`), once, in the background
+(`apps/proit/kobo_submit.py`, Celery task `push_profile_to_kobo`, retried five times). One record per case:
+the header (record ID, QUAN or KII, reconciliation status, counts, gaps, contradictions) and one repeat row per fact
+(public value, confidence, gap class, sources, the respondent's status and value, the interviewer comment and the
+reconciled value). The form definition is `apps/proit/kobo_form.py`; `deploy/kobo/build_proit_form.py` builds the
+XLSForm from it. `manage.py push_proit_to_kobo` re-sends anything that failed. Nothing is sent while
+`KOBO_PROIT_ASSET_UID` is blank.
+
 ## What's intentionally not built yet
 
 - Burden-reduction metrics (Section 11) are computed and stored

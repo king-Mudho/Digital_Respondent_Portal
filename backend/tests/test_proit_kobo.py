@@ -112,3 +112,11 @@ def test_reaching_reconciled_queues_the_send_and_a_deviation_does_too(main_case,
     with patch("apps.proit.tasks.push_profile_to_kobo.delay") as delay, django_capture_on_commit_callbacks(execute=True):
         record_protocol_deviation(profile, note="Respondent unreachable", user=None)
     delay.assert_called_once_with(profile.pk)
+
+
+def test_an_empty_ai_credit_balance_is_reported_in_plain_words():
+    from apps.evidence.ai_coding import ai_error_text
+
+    raw = "Error code: 400 - {'message': 'Your credit balance is too low to access the Anthropic API.'}"
+    assert "run out of credit" in ai_error_text(Exception(raw)) and "Error code" not in ai_error_text(Exception(raw))
+    assert ai_error_text(Exception("something else")) == "something else"

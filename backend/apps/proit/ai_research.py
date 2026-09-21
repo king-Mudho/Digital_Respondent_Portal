@@ -31,6 +31,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from apps.audit.utils import log_action
+from apps.evidence.ai_coding import ai_error_text
 
 from .models import (
     PROIT_FIELD_CATALOG,
@@ -287,9 +288,9 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
             if search_type == SEARCH_TOOL_TYPE and "web_search" in str(exc):
                 search_type = FALLBACK_SEARCH_TOOL_TYPE  # the account/model lacks the newer variant
                 continue
-            raise AIResearchError("ai_request_failed", f"The AI request was refused: {exc}", 502) from exc
+            raise AIResearchError("ai_request_failed", f"The AI request was refused: {ai_error_text(exc)}", 502) from exc
         except anthropic.APIError as exc:
-            raise AIResearchError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+            raise AIResearchError("ai_request_failed", f"The AI request failed: {ai_error_text(exc)}", 502) from exc
 
         seen_urls |= _result_urls(response.content)
         u = getattr(response, "usage", None)

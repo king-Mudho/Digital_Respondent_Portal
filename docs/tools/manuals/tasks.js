@@ -245,7 +245,7 @@ T.proitInterview = [
   ["h3", "After the interview: reconcile (coordinator and PI)"],
   ["steps", [
     { text: "Rows where the respondent corrected or qualified a fact show **Differs from the public source**. Under **Reconciled value (required)**, type the value you code for analysis, then select **Save reconciled value**. A plain confirmation or “does not apply” needs no reconciled value.", img: "proit_reconcile.jpg", caption: "Reconciling a corrected fact: the three values stay separate." },
-    "The status at the top of the sheet counts up: “Verified 6 of 8 · settled 5 of 8”, then **Reconciled** when every fact is settled.",
+    "The status at the top of the sheet counts up: “Verified 6 of 8 · settled 5 of 8”, then **Reconciled** when every fact is settled. At that moment the portal also sends the whole profile (what was known, what the respondent said, the reconciled value, and the sources) to KoboToolbox, in the **ABF-FST PROIT Interview Profile** form, and the status shows **Saved to KoboToolbox**.",
     "If reconciliation truly cannot be finished (for example the respondent cannot be reached again), select **Record a protocol deviation** and give the reason. The case is released but stays flagged.",
   ]],
   ["warn", "A case is not complete until its profile is reconciled", [

@@ -44,6 +44,7 @@ interface Sheet {
     fields: SheetField[];
     reconciliation: Reconciliation;
     deviation_note: string;
+    kobo_submitted_at?: string | null;
   };
 }
 
@@ -150,6 +151,7 @@ export function InterviewSheet({ sampleCaseId, kiiRecordId }: { sampleCaseId?: n
             : rec.reconciliation_status === "UNRESOLVED"
               ? "Released with a recorded deviation"
               : `Verified ${rec.verified} of ${rec.total} · settled ${rec.settled} of ${rec.total}`}
+          {profile.kobo_submitted_at && " · Saved to KoboToolbox"}
         </span>
       </div>
       <p className="text-xs text-text-muted">
