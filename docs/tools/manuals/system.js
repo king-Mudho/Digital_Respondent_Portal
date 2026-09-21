@@ -122,7 +122,8 @@ module.exports = {
     ["h2", "3.6 Eligibility and consent (the gates)"],
     ["p", "Before the questionnaire can open, the portal requires both a **passed eligibility check** (the person holds a senior, knowledgeable role) and **given participation consent** recorded against the Participant Information Sheet version shown. These checks are enforced on the server, so they cannot be bypassed by skipping a screen. Booking a researcher call also requires consent. Someone who is not eligible is thanked and no answers are recorded."],
 
-    ["h2", "3.7 PROIT — pre-interview profiling"],
+    ["h2", "3.7 PROIT — pre-interview profiling, with AI research"],
+    ["p", "For the questionnaire and the KIIs alike, an AI searches public sources for the organisation and the respondent's published professional role and proposes background facts, each with a source and a quote. A researcher accepts, edits or rejects every one, and a second person locks the profile. During and after the interview, the **Interview sheet** records whether the respondent confirmed, corrected or could not confirm each fact, and a coordinator reconciles the corrected ones. The case does not count as complete (QA accept; KII coding complete) until the profile is reconciled or a deviation is recorded. Only public, professional and organisational facts are ever recorded: the server removes anything private and any source the search did not actually return."],
     ["p", "Researchers may record publicly available background facts about an organisation before contact, each with a source, date, confidence and authority tier, and a second researcher locks the profile. The respondent then confirms or corrects those facts instead of answering from zero, and can skip the step. The documentary value, the respondent's answer and the reconciled value are kept separately. PROIT never pre-fills, skips or infers any frozen scale item."],
 
     ["h2", "3.8 KoboToolbox integration"],
@@ -230,7 +231,7 @@ module.exports = {
       ["Case summary", "Organisation, Sample ID, Master ID, stratum, type and status."],
       ["Assigned Contact RA", "Who owns the case (PI/FC can change it)."],
       ["Matched Reserve case", "The Reserve that would replace it."],
-      ["Pre-Interview Profile (PROIT)", "Background facts with sources; lock for use with the respondent."],
+      ["Pre-Interview Profile (PROIT)", "Background facts with sources, researched by AI from public sources for you to accept or reject; lock for use with the respondent. Once locked, the Interview sheet."],
       ["Respondents and contact details", "People at the organisation, their role, eligibility and contact details."],
       ["Invitations", "Issue links and send them with a ready-written message by WhatsApp, SMS or email (from the study address or your own mail app); reissue and revoke; invitation history."],
       ["Completed questionnaire", "The KoboToolbox submission(s) for this case, with Download PDF."],
@@ -284,8 +285,9 @@ module.exports = {
     ...T.workflow.map((b) => (b[0] === "h2" ? ["h2", "7.21 Manual status changes (PI, FC, Contact RA)"] : b)),
     ...T.withdrawal.map((b) => (b[0] === "h2" ? ["h2", "7.22 Recording a withdrawal (PI, FC)"] : b)),
     ...T.notEligible.map((b) => (b[0] === "h2" ? ["h2", "7.23 When the person is not eligible"] : b)),
-    ...T.proit.map((b) => (b[0] === "h2" ? ["h2", "7.24 PROIT pre-interview profile (PI, FC)"] : b)),
+    ...T.proit.map((b) => (b[0] === "h2" ? ["h2", "7.24 PROIT pre-interview profile with AI research (PI, FC)"] : b)),
     ...T.reassign.map((b) => (b[0] === "h2" ? ["h2", "7.25 Reassigning cases in bulk (PI, FC)"] : b)),
+    ...T.proitInterview.map((b) => (b[0] === "h2" ? ["h2", "7.26 Verifying a profile with the respondent and reconciling it (FC, PI, KII RA, Contact RA)"] : b)),
 
     ["h1", "8. The respondent's experience"],
     ["p", "What respondents see on their phone. The separate **Respondent Guide** can be shared with respondents as it is."],

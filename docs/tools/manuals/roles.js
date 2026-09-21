@@ -121,7 +121,7 @@ module.exports = [
         "To remove access, untick **Active** and save. Do not delete users; their audit history must remain.",
       ]]],
       T.dashboards, T.reports,
-      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.withdrawal, T.reserve, T.qaReview, T.qaExceptions,
+      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"),
       [["h2", "KoboToolbox: rotating credentials and changing forms"], ["steps", [
         "Change the KoboToolbox password, then create a new API token (**Account settings → Security**).",
@@ -185,7 +185,7 @@ module.exports = [
       ["End of day", "Reports (last 7 days): submissions, response rate, coverage; note strata falling behind."],
       ["Weekly", "Cases stuck at S05–S07 beyond Day 7; Reserve activations; cost entries; brief the PI."],
     ],
-    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.respondents, T.invite, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
+    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.respondents, T.invite, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.proitInterview, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
     extraRules: ["Record a withdrawal the same day you hear of it.", "Activate a Reserve only with an authorised reason and written evidence."],
     trouble: [
       ["\"Move all\" shows 0", "No Main cases are at that step.", "Choose the next step in the list."],
@@ -228,7 +228,7 @@ module.exports = [
         "Type a Sample ID, Master ID or organisation name in **Search**, or page through with **Next**.",
         "Select **View** to open the case page.",
       ]]],
-      T.respondents, T.invite, T.logContact, T.followUps, T.appointments, T.phoneAssisted, T.notEligible,
+      T.respondents, T.invite, T.logContact, T.followUps, T.appointments, T.phoneAssisted, T.proitInterview, T.notEligible,
       [["h2", "When someone refuses or asks to withdraw"], ["steps", [
         "Thank them politely and do not try to persuade them.",
         "Log the contact attempt with outcome **REFUSED** and their words in the note.",
@@ -298,6 +298,7 @@ module.exports = [
     extraRules: ["Decide on evidence, not on who the organisation is.", "Never download PDFs to personal devices or share them outside the team."],
     trouble: [
       ["Accept / Re-query / Reject are greyed out", "No note written yet.", "Type the note first."],
+      ["Accept is refused: “Reconcile the pre-interview profile first…”", "The case has a locked pre-interview profile with facts not yet verified with the respondent or not reconciled.", "Ask the Field Coordinator to finish verification and reconciliation on the case's Interview sheet. Re-query and Reject are never blocked."],
       ["A submission I expected is not in the queue", "It has not been pulled yet, or it was set aside (not launched from the portal).", "Select **Sync now**; if still missing, tell the Field Coordinator."],
     ],
     quick: [["Duration limits", "5 to 90 minutes"], ["Duplicate window", "24 hours"], ["Required fields", "65 from the live questionnaire"]],
@@ -324,13 +325,13 @@ module.exports = [
     ],
     routine: [
       ["Weekly planning", "KII Register filtered mentally by status: PROSPECT and INVITED need contact; SCHEDULED need preparation."],
-      ["Before each interview", "Check the record and any PROIT gap-engine questions; prepare the KII Guide."],
+      ["Before each interview", "Open the KII record's Interview sheet (once the coordinator has locked the profile): the public facts to confirm and the gaps to ask. Prepare the KII Guide."],
       ["At the interview", "Record participation consent, and recording consent if recording."],
       ["After each interview", "Mark COMPLETED (tick Recording made only if recorded); complete the KII Guide in KoboToolbox (Continue this interview opens it with the KII ID filled in, once consent is recorded); update transcript and coding as work progresses."],
     ],
     tasks: [
       [["h2", "Reading the KII/Doc Dashboard"], ["img", "kii_dashboard.jpg", "KII / Document Dashboard."]],
-      T.kii, T.formPdfs("KII Guide", "kii_form_pdfs.jpg", "Completed KII Guide forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
+      T.kii, T.proitInterview, T.formPdfs("KII Guide", "kii_form_pdfs.jpg", "Completed KII Guide forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
       [["h2", "Consent in interviews"], ["bullets", [
         "Read or summarise the information sheet and ask for agreement **before** the first question.",
         "Ask separately whether the interview may be recorded. If they say no, take notes only.",

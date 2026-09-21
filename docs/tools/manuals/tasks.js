@@ -208,14 +208,49 @@ T.reserve = [
 ];
 
 T.proit = [
-  ["h2", "Building a pre-interview profile (PROIT)"],
-  ["p", "PROIT lets the respondent confirm facts already on public record instead of answering them from scratch. It never pre-fills, skips or infers any scale item (ABI, NFM, Digital Readiness, FST) — only descriptive background."],
+  ["h2", "Building a pre-interview profile (PROIT), with AI research"],
+  ["p", "PROIT lets the respondent confirm facts already on public record instead of answering them from scratch, and lets the interviewer ask only what is **not** public. It never pre-fills, skips or infers any scale item (ABI, NFM, Digital Readiness, FST): only descriptive background. This applies to the questionnaire and to the KIIs alike."],
+  ["h3", "Step 1: let the AI search public sources"],
   ["steps", [
     "On the case page (or KII page), in **Pre-Interview Profile (PROIT)**, select **Start background research**.",
+    { text: "In the **AI research from public sources** box, select **Research with AI**. The AI searches the public web for the organisation, and for the respondent's published professional role, and works in the background for a few minutes. You can leave the page and come back.", img: "proit_ai_research.jpg", caption: "AI research: proposals to review, each with its sources." },
+    "Under **To review**, read each proposal. It gives the fact, a confidence level, and every source it used with the publisher, the date, the authority tier and a short quote copied from the page. Select the source title to open the page and check it yourself.",
+    "Decide on each one. **Accept** puts it into the profile with its sources. Edit the wording first if it needs correcting, then **Accept**. **Reject** discards it. Nothing enters the profile until you accept it. Take special care where the note says the organisation may be a different one with a similar name.",
+    "Read **Not found publicly: ask the respondent**. These are the facts the AI could not find in any public source. They become the questions the interviewer asks in full.",
+  ]],
+  ["warn", "The AI proposes, you decide", [
+    "The AI only suggests. Every fact still needs a source, a person to accept it and a second person to lock the profile, exactly as if you had typed it in.",
+    "Only sources the search actually returned can be cited. A fact with no verifiable source is turned into “not found publicly”, and anything that looks private is removed automatically. The AI never records health, religion, ethnicity, politics, family, home addresses, personal phone numbers or emails, private finances, or anything from personal social-media pages.",
+    "What is sent to the AI provider's search: the organisation's name, province, district and type, and the respondent's name and role. Never a phone number, email, gatekeeper or any other contact detail.",
+  ]],
+  ["h3", "Step 2: add or correct facts by hand"],
+  ["steps", [
     { text: "Under **Add a background field**, choose a field in **Select a field…**, type **What was found (documentary value)**, and select **Add field**.", img: "adm_case_proit_draft.jpg", caption: "A draft profile: each fact needs at least one source." },
     "For each field, type the **Source title** (e.g. companies registry entry), choose the confidence (HIGH, MODERATE, LOW) and the authority tier — Tier 1 statutory register or audited report, Tier 2 official website or association record, Tier 3 reputable media or professional profile, Tier 4 corroborated public platform content — then select **Add source**.",
     "Use **Researcher review screen** to check the whole profile, including gaps and contradictions.",
-    "A second researcher reviews it and selects **Lock pre-profile**. Only a locked profile is shown to the respondent, who confirms, corrects, or says they don't know, prefer not to say, or it is not applicable. The documentary value, the respondent's answer and the reconciled value are kept separately.",
+    "A second researcher reviews it and selects **Lock pre-profile**. Only a locked profile is used with the respondent, who confirms, corrects, or says they don't know, prefer not to say, or it is not applicable. The public value, the respondent's answer and the reconciled value are kept separately.",
+  ]],
+];
+
+T.proitInterview = [
+  ["h2", "Verifying a profile with the respondent, and reconciling it afterwards"],
+  ["p", "Once a profile is locked, the interview has two duties: confirm what is public, and ask what is not. The **Interview sheet** is where you do both, and where the results are reconciled afterwards. It appears on the locked profile on the case page (coordinator and PI), on the case page of an assisted interview (Contact RA) and on the KII record (KII RA). Nothing here changes the public value."],
+  ["steps", [
+    { text: "Open the case (or the KII record) and find **Interview sheet: confirm what is public, ask what is not**. Each row is one fact and is marked **Confirm**, **Confirm, then probe** or **Ask**.", img: "proit_interview_sheet.jpg", caption: "The interview sheet: confirm what is public, ask what is not." },
+    "For a **Confirm** row, read the public fact to the respondent, with its source shown under it, and ask whether it is right. Never state a fact on an **Ask** row: it is a question, not something established. A weak source's value is deliberately hidden.",
+    "In **What the respondent said**, choose the answer: confirmed, corrected, partly correct or out of date, does not know, prefers not to say, or does not apply. For a correction, type **Their answer**. Add a comment if useful, then select **Save answer**.",
+    "For an **Ask** row, choose **They told us** and type what they said, or record that they do not know or would rather not say.",
+    "When the interview is over, select **Interview finished**.",
+  ]],
+  ["h3", "After the interview: reconcile (coordinator and PI)"],
+  ["steps", [
+    { text: "Rows where the respondent corrected or qualified a fact show **Differs from the public source**. Under **Reconciled value (required)**, type the value you code for analysis, then select **Save reconciled value**. A plain confirmation or “does not apply” needs no reconciled value.", img: "proit_reconcile.jpg", caption: "Reconciling a corrected fact: the three values stay separate." },
+    "The status at the top of the sheet counts up: “Verified 6 of 8 · settled 5 of 8”, then **Reconciled** when every fact is settled.",
+    "If reconciliation truly cannot be finished (for example the respondent cannot be reached again), select **Record a protocol deviation** and give the reason. The case is released but stays flagged.",
+  ]],
+  ["warn", "A case is not complete until its profile is reconciled", [
+    "QA cannot **Accept** a questionnaire, and a KII's coding cannot become COMPLETE, while a locked profile still has facts not verified with the respondent or not reconciled. The message says how many are outstanding. Re-query and Reject are never blocked.",
+    "This applies only to a case that has a locked profile with facts on it. A case with no profile is not held up.",
   ]],
 ];
 
@@ -382,6 +417,7 @@ T.documents = [
     ["“Step 1 of 2…” or “Step 2 of 2…”", "A record made by Quick add is being filled in and drafted. Nothing is wrong.", "Wait, or leave the page and come back."],
     ["A detail in Section A is wrong or blank", "The AI reads only what the document states, and can mistake a title or date.", "Correct it under **Record details** on the record page; the draft and the submission use the corrected value."],
     ["Quick add says the file can't be used", "Unsupported type (for example audio), a damaged file, or a long PDF with no pages chosen.", "Read the message: convert the file, enter a page range, or tick **Read the whole document in parts**. No record is created when this happens."],
+    ["“Reconcile the pre-interview profile first…” when accepting a questionnaire, or a KII's coding will not complete", "The case has a locked pre-interview profile with facts not yet verified with the respondent or not reconciled.", "Open the case (or KII record) → Interview sheet; verify every fact, and ask the coordinator to reconcile the corrected ones."],
     ["“Read part 4 of 12” or “Combining the parts…”", "A long document is being read in parts. Nothing is wrong.", "Wait, or leave the page and come back."],
     ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
     ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes; up to half an hour for a document read in parts)."],
