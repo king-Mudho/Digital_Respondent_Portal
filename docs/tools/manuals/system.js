@@ -312,7 +312,7 @@ module.exports = {
     ["h2", "9.1 The connected forms"],
     ["table", ["Form", "Public web link", "Portal setting"], [
       ["Main Study Questionnaire", "https://ee.kobotoolbox.org/x/fSOJejrV", "KOBO_ASSET_UID, KOBO_FORM_URL"],
-      ["Main Study KII Guide", "https://ee.kobotoolbox.org/x/fJ2W7YTV", "KOBO_KII_ASSET_UID"],
+      ["Main Study KII Guide", "https://ee.kobotoolbox.org/x/hwMQ5dG3", "KOBO_KII_ASSET_UID"],
       ["Document, Digital Platform & Media Analysis Tool", "https://ee.kobotoolbox.org/x/nM616hqU", "KOBO_DOCUMENTS_ASSET_UID"],
     ], [0.38, 0.37, 0.25]],
     ["warn", "Respondents must start from the portal", "Do not send the questionnaire's public KoboToolbox link to respondents. Submissions made directly on that link carry no portal signature and are set aside. Always send the personal invitation link."],

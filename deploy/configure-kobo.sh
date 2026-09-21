@@ -30,14 +30,15 @@ KOBO_API_BASE_URL="https://kf.kobotoolbox.org"
 KOBO_ASSET_UID="aefzZwVQV927tqtTgsP9oz"
 KOBO_FORM_URL="https://ee.kobotoolbox.org/x/fSOJejrV"
 # The other two main-study forms, read on demand for PDF copies (not reconciled).
-KOBO_KII_ASSET_UID="an49gwkpkGfYjS6B4NDNqh"
+# KII Guide r3 (2026-09-21): a NEW project, replacing an49gwkpkGfYjS6B4NDNqh (End time check repaired).
+KOBO_KII_ASSET_UID="ar47NkjJiuWP4j6sTgmMpH"
 KOBO_DOCUMENTS_ASSET_UID="a3vpgw6T4FbZGjQqmUgBND"
 # The Document Analysis Tool's public web-form link (PI, 2026-09-17) -- powers
 # the document page's "Code this document" prefilled link (apps/evidence).
 KOBO_DOCUMENTS_FORM_URL="https://ee.kobotoolbox.org/x/nM616hqU"
 # The Main Study KII Guide's public web-form link (PI, 2026-09-17) -- powers
 # the KII page's "Continue this interview" prefilled link (apps/kii).
-KOBO_KII_FORM_URL="https://ee.kobotoolbox.org/x/fJ2W7YTV"
+KOBO_KII_FORM_URL="https://ee.kobotoolbox.org/x/hwMQ5dG3"
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"

@@ -191,3 +191,16 @@ on re-run).
   covered.
 - **QA required fields** come from the deployed form:
   `manage.py qa_required_fields_from_kobo --apply` (65 fields; applied on production).
+
+### KII Guide r3 (2026-09-21)
+
+The KII Guide's End time check compared two time answers with `>`, which does not work for
+time questions in KoboToolbox: a correct end time (start 08:30 PM, end 09:15 PM) was refused
+("End time must be after start time"), blocking the interviewer. r3 compares them with
+`decimal-time(.) > decimal-time(${start_time})` and prefills Duration from the two times
+(settings version `20260921_r3`). It was deployed as a **new project**, so the portal now uses
+asset `ar47NkjJiuWP4j6sTgmMpH` and web form `https://ee.kobotoolbox.org/x/hwMQ5dG3`
+(`KOBO_KII_ASSET_UID`, `KOBO_KII_FORM_URL`; also in `deploy/configure-kobo.sh`). The earlier
+project `an49gwkpkGfYjS6B4NDNqh` / `fJ2W7YTV` is no longer on the account and held no
+submissions. Share the new project with the KII RAs in KoboToolbox: a new project starts
+private to its owner.
