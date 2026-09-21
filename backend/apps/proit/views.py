@@ -291,7 +291,7 @@ class AIResearchView(APIView):
         if running:  # a run that never finished (worker restarted): close it so it stops blocking
             running.status, running.error, running.finished_at = AIResearchStatus.FAILED, "Interrupted.", timezone.now()
             running.save(update_fields=["status", "error", "finished_at"])
-        run = AIResearchRun.objects.create(pre_profile=profile, requested_by=request.user, model=settings.AI_DOCUMENT_CODING_MODEL)
+        run = AIResearchRun.objects.create(pre_profile=profile, requested_by=request.user, model=settings.AI_PROIT_RESEARCH_MODEL)
         log_action("proit.ai_research_started", profile, {"run": run.pk, "user_id": request.user.id})
         research_pre_profile.delay(run.pk)
         run.refresh_from_db()

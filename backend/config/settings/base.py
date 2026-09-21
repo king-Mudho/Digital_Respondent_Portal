@@ -266,6 +266,9 @@ DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=20)
 # (docs/14_DOCUMENTARY_EVIDENCE_MODULE.md). Blank key = feature not offered.
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 AI_DOCUMENT_CODING_MODEL = env("AI_DOCUMENT_CODING_MODEL", default="claude-opus-5")
+# PROIT desk research is search-and-read work whose every fact a researcher accepts or rejects, so it runs on the
+# cheaper model. Override with AI_PROIT_RESEARCH_MODEL (e.g. claude-opus-5) if quality needs it.
+AI_PROIT_RESEARCH_MODEL = env("AI_PROIT_RESEARCH_MODEL", default="claude-sonnet-5")
 
 # --- KoboToolbox submission (apps/evidence/kobo_submit.py) ------------------
 # The OpenRosa endpoint every ODK-compatible client (KoboCollect, Enketo)

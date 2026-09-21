@@ -129,8 +129,11 @@ def test_the_search_conversation_continues_through_a_pause_and_collects_the_urls
         stream.return_value.__enter__.return_value.get_final_message.side_effect = [first, second]
         raw, seen, usage = call_model({"organisation": {"name": "Test Organisation"}, "person": {}}, FIELDS)
         tools = stream.call_args.kwargs["tools"]
+        sent = stream.call_args.kwargs
+    assert sent["model"] == "claude-sonnet-5"  # PROIT research runs on the cheaper model
+    assert sent["system"][0]["cache_control"] == {"type": "ephemeral"}  # the prompt is cached across the search turns
     assert raw["summary"] == "Found it." and seen == {URL, "https://other.example/x"}
-    assert usage == {"in": 2000, "out": 400, "searches": 5}
+    assert usage == {"in": 2000, "out": 400, "searches": 5, "cache_read": 0, "cache_write": 0}
     assert tools[0]["name"] == "web_search" and "facebook.com" in tools[0]["blocked_domains"]  # social pages are excluded up front
     assert stream.call_count == 2
 

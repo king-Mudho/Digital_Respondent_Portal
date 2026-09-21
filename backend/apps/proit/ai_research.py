@@ -262,6 +262,29 @@ def _norm(url: str) -> str:
     return f"{parts.netloc.lower().removeprefix('www.')}{parts.path.rstrip('/')}".lower()
 
 
+CACHE = {"type": "ephemeral"}
+
+
+def _count(usage, name: str) -> int:
+    value = getattr(usage, name, 0)
+    return value if isinstance(value, int) else 0
+
+
+def _with_cache_breakpoint(messages: list) -> list:
+    """A copy of the conversation with a cache breakpoint on its last block. Each turn re-sends everything found
+    so far, so caching that prefix makes the repeat reads cost a fraction. Only plain (dict / text) last messages
+    are marked; a last message made of the SDK's own block objects is sent as it is."""
+    last = messages[-1]
+    content = last["content"]
+    if isinstance(content, str):
+        marked = [{"type": "text", "text": content, "cache_control": CACHE}]
+    elif isinstance(content, list) and content and isinstance(content[-1], dict):
+        marked = [*content[:-1], {**content[-1], "cache_control": CACHE}]
+    else:
+        return messages
+    return [*messages[:-1], {**last, "content": marked}]
+
+
 def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     """Runs the search conversation until the model calls record_findings.
     Returns (tool input, urls the search returned, usage numbers)."""
@@ -269,7 +292,7 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     findings_tool = _findings_tool(fields)
     messages: list = [{"role": "user", "content": build_prompt(context, fields)}]
     seen_urls: set[str] = set()
-    usage = {"in": 0, "out": 0, "searches": 0}
+    usage = {"in": 0, "out": 0, "searches": 0, "cache_read": 0, "cache_write": 0}
     search_type = SEARCH_TOOL_TYPE
     reminders = 0
 
@@ -280,8 +303,9 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
         ]
         try:
             with client.messages.stream(
-                model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=MAX_OUTPUT_TOKENS, system=SYSTEM_PROMPT,
-                tools=tools, messages=messages,
+                model=settings.AI_PROIT_RESEARCH_MODEL, max_tokens=MAX_OUTPUT_TOKENS,
+                system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": CACHE}],
+                tools=tools, messages=_with_cache_breakpoint(messages),
             ) as stream:
                 response = stream.get_final_message()
         except anthropic.BadRequestError as exc:
@@ -296,6 +320,8 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
         u = getattr(response, "usage", None)
         usage["in"] += getattr(u, "input_tokens", 0) or 0
         usage["out"] += getattr(u, "output_tokens", 0) or 0
+        usage["cache_read"] += _count(u, "cache_read_input_tokens")
+        usage["cache_write"] += _count(u, "cache_creation_input_tokens")
         usage["searches"] += _search_count(response)
 
         tool_use = next((b for b in response.content if b.type == "tool_use" and b.name == "record_findings"), None)
