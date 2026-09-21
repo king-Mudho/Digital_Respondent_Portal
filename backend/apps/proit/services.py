@@ -400,7 +400,21 @@ def refresh_reconciliation(pre_profile: PreProfile) -> PreProfile:
     if pre_profile.reconciliation_status != new:
         pre_profile.reconciliation_status = new
         pre_profile.save(update_fields=["reconciliation_status"])
+        if new == ReconciliationStatus.RECONCILED:
+            queue_kobo_push(pre_profile)
     return pre_profile
+
+
+def queue_kobo_push(pre_profile: PreProfile) -> None:
+    """Once a profile is finished, send it to KoboToolbox in the background (no-op until the form is configured)."""
+    from django.conf import settings
+    from django.db import transaction
+
+    if not settings.KOBO_PROIT_ASSET_UID or pre_profile.kobo_submitted_at:
+        return
+    from .tasks import push_profile_to_kobo
+
+    transaction.on_commit(lambda: push_profile_to_kobo.delay(pre_profile.pk))
 
 
 def record_protocol_deviation(pre_profile: PreProfile, *, note: str, user) -> PreProfile:
@@ -417,6 +431,7 @@ def record_protocol_deviation(pre_profile: PreProfile, *, note: str, user) -> Pr
     pre_profile.deviation_note = note.strip()
     pre_profile.save(update_fields=["reconciliation_status", "protocol_deviation", "deviation_note"])
     log_action("proit.protocol_deviation_recorded", pre_profile, {"user_id": getattr(user, "id", None)})
+    queue_kobo_push(pre_profile)
     return pre_profile
 
 

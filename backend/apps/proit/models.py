@@ -175,6 +175,9 @@ class PreProfile(models.Model):
     )
     protocol_deviation = models.BooleanField(default=False)
     deviation_note = models.TextField(blank=True)
+    # Set when the finished profile has been sent to KoboToolbox (kobo_submit.py).
+    kobo_submission_uuid = models.CharField(max_length=64, blank=True)
+    kobo_submitted_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

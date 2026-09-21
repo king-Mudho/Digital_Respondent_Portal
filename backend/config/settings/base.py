@@ -231,6 +231,10 @@ KOBO_WEBHOOK_SHARED_SECRET = env("KOBO_WEBHOOK_SHARED_SECRET", default="")
 # The other two main-study forms (read on demand for PDF copies; not reconciled).
 KOBO_KII_ASSET_UID = env("KOBO_KII_ASSET_UID", default="")
 KOBO_DOCUMENTS_ASSET_UID = env("KOBO_DOCUMENTS_ASSET_UID", default="")
+# The PROIT Interview Profile form (deploy/kobo/): the pre-interview facts, the respondent's verification and
+# the reconciled values, sent by the portal when a profile is reconciled. Inactive while blank.
+KOBO_PROIT_ASSET_UID = env("KOBO_PROIT_ASSET_UID", default="")
+KOBO_PROIT_FORM_VERSION = env("KOBO_PROIT_FORM_VERSION", default="")
 # The Document, Digital Platform & Media Analysis Tool's public web link
 # (same kind of value as KOBO_FORM_URL, a different form). Used to build a
 # prefilled coding link from a DocumentRecord (apps/evidence/services.py) so
