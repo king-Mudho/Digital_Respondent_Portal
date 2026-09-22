@@ -15,7 +15,7 @@ from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
 
-CONTACT_LINE = "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com"
+CONTACT_LINE = "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com"
 STUDY_TITLE = ("Developing and Validating the Agribusiness Bankability Framework for Food Systems "
                "Transformation through Novel Financing Models in Zimbabwe")
 
@@ -100,7 +100,7 @@ def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_n
         "Kind regards,\n"
         "ABF-FST research team\n"
         "Chinhoyi University of Technology\n"
-        "Happyson Saina | 0773943709 | abffst.research.cut@gmail.com"
+        "Happyson Saina | 0773943709 | abffst.research@gmail.com"
     )
     return {"whatsapp": whatsapp, "sms": sms, "email_subject": email_subject, "email_body": email_body}
 

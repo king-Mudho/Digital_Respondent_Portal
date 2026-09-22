@@ -57,7 +57,7 @@ module.exports = {
       ["Qualitative strand", "60 completed Key Informant Interviews (90 KII records loaded: Core-60 plus Reserve-30)."],
       ["Documentary strand", "50–75 coded documents, digital platform and media sources (100 records loaded)."],
       ["Data lock", "30 November 2026."],
-      ["Approvals", "Ethics and POTRAZ covered by the PI's CUT research clearance; Participant Information Sheet v1.3, QA thresholds, invitation and reminder wording, and PROIT approved by the PI on 15 September 2026."],
+      ["Approvals", "Ethics and POTRAZ covered by the PI's CUT research clearance; Participant Information Sheet (v1.3), QA thresholds, invitation and reminder wording, and PROIT approved by the PI on 15 September 2026. The PIS is now v1.4 (2026-09-22, study contact email only)."],
     ]],
     ["h2", "2.2 What the portal is — and is not"],
     ["bullets", [
@@ -72,7 +72,7 @@ module.exports = {
       ["**Research Operations Centre**", `The internal system at ${SITE}/admin: registers, case pages, invitations, follow-ups, QA, KII, documents, costs, dashboards, reports and exports.`, "Research team (8 roles)"],
       ["**KoboToolbox**", "Hosts the three forms: Main Study Questionnaire, Main Study KII Guide, and Document, Digital Platform & Media Analysis Tool. Stores the answers.", "Respondents and RAs (forms); PI (form design)"],
       ["**Background jobs**", "Pull submissions from KoboToolbox (every 15 minutes by day, hourly overnight), compute reminders due, and check nonresponse.", "Automatic"],
-      ["**Email**", "Sends completed-form PDFs from abffst.research.cut@gmail.com.", "Automatic, on request"],
+      ["**Email**", "Sends completed-form PDFs from abffst.research@gmail.com.", "Automatic, on request"],
       ["**Backups**", "Database and private files every 4 hours on the server, copied encrypted to Google Drive once enabled.", "Automatic"],
     ], [0.22, 0.56, 0.22]],
 
@@ -86,7 +86,7 @@ module.exports = {
       ["4. Profiled (optional)", "Public background facts are recorded with sources and locked (PROIT).", "Researcher + reviewer", "S03"],
       ["5. Invited", "A personal link is issued and sent by WhatsApp, SMS or email.", "Contact RA", "S05 (auto)"],
       ["6. Opened", "The respondent opens the link, confirms the organisation and their role.", "Respondent", "S06 (auto)"],
-      ["7. Consent", "The respondent reads the Participant Information Sheet v1.3 and agrees.", "Respondent", "—"],
+      ["7. Consent", "The respondent reads the Participant Information Sheet v1.4 and agrees.", "Respondent", "—"],
       ["8. Questionnaire", "The respondent opens the KoboToolbox questionnaire (or books a researcher-assisted session).", "Respondent / RA", "S07 (auto)"],
       ["9. Submitted", "KoboToolbox notifies the portal; the submission is matched to the case and checked by the QA rules.", "Automatic", "S08 (auto)"],
       ["10. Reminders", "If no submission, approved reminders fall due on Day 2 and Day 7.", "Contact RA", "S05–S07"],
@@ -115,7 +115,7 @@ module.exports = {
       "Each invitation is a random personal link plus an 8-character manual code, valid for **14 days**.",
       "Only a scrambled fingerprint is stored, so the link is shown once to the person issuing it and never again.",
       "Issuing a new invitation for a case immediately stops every earlier link for that case that has not yet been submitted. **Revoke** stops a link without replacing it.",
-      "The invitation screen writes the invitation for WhatsApp, SMS and email, each with the link, expiry, manual code and study contact details. **Send via WhatsApp** and **Send by SMS** open the respondent's own chat or messages app, **Email from study address** emails it from abffst.research.cut@gmail.com, and **Copy message** covers any other channel.",
+      "The invitation screen writes the invitation for WhatsApp, SMS and email, each with the link, expiry, manual code and study contact details. **Send via WhatsApp** and **Send by SMS** open the respondent's own chat or messages app, **Email from study address** emails it from abffst.research@gmail.com, and **Copy message** covers any other channel.",
       "A locked Reserve can never be invited.",
     ]],
 
@@ -373,7 +373,7 @@ module.exports = {
 
     ["h1", "11. Data protection and ethics in practice"],
     ["bullets", C.DATA_RULES],
-    ["h2", "11.1 What respondents are told (PIS v1.3, summary)"],
+    ["h2", "11.1 What respondents are told (PIS v1.4, summary)"],
     ["bullets", [
       "The study, the researcher, the supervisors and the CUT ethics clearance.",
       "The questionnaire takes around 15–25 minutes, online or with a researcher by phone or WhatsApp.",
@@ -381,7 +381,7 @@ module.exports = {
       "Participation is voluntary; they may decline or stop at any time without consequence.",
       "No score, rating or financing decision is produced; individual answers are never shared with lenders.",
       "Names and contact details are kept separately from answers, used only to manage participation, and results are reported only in combined, anonymised form.",
-      "Contact: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.",
+      "Contact: Happyson Saina, 0773943709, abffst.research@gmail.com.",
     ]],
 
     ["h1", "12. Troubleshooting"],
@@ -406,7 +406,7 @@ module.exports = {
       ["Respondent links", `${SITE}/i/<personal code>`],
       ["Account administration (PI)", `${SITE}/django-admin/`],
       ["KoboToolbox", "https://kf.kobotoolbox.org"],
-      ["Study email", "abffst.research.cut@gmail.com"],
+      ["Study email", "abffst.research@gmail.com"],
       ["PI phone", "0773943709"],
       ["Invitation validity", "14 days"],
       ["Reminders", "Day 2 and Day 7"],

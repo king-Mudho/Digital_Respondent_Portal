@@ -111,7 +111,7 @@ Flags a second submission from the *same organisation* within this window.
 
 # Part B — Participant Information Sheet
 
-Current version **v1.3**, live at `/i/<token>/information` and shown before consent. v1.3 (2026-09-14) changes only the study contact email, to abffst.research.cut@gmail.com.
+Current version **v1.4**, live at `/i/<token>/information` and shown before consent. v1.3 (2026-09-14) changed the study contact email to abffst.research.cut@gmail.com; v1.4 (2026-09-22, PI-directed in the build session) changes it again, to abffst.research@gmail.com -- the old address is retired. No other wording changed either time.
 Source: `frontend/lib/constants/participantInformation.ts`. The version string is recorded
 against every `ConsentRecord`, so consent is always traceable to the exact wording the
 respondent saw. **Bump the version whenever the text changes.**
@@ -134,7 +134,7 @@ respondent saw. **Bump the version whenever the text changes.**
 >
 > Your name and contact details are kept separately from your answers and are only used to manage your participation in this study (for example, to send a reminder or arrange a call). Only the research team can see this information. Results will only ever be reported in combined, anonymised form.
 >
-> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email abffst.research.cut@gmail.com. The same details are also included in your invitation message.
+> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email abffst.research@gmail.com. The same details are also included in your invitation message.
 
 ## B2. Gaps a reviewer will likely want addressed
 
@@ -191,6 +191,7 @@ null), and bump `PARTICIPANT_INFORMATION_SHEET_VERSION` if the wording changed.
 | Part A — invitation wording, amendment | Happyson Saina | Principal Researcher | Approved: add the closing line "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com" so the invitation carries the contact details the PIS refers to | 2026-09-16 | Written instruction in the build session |
 | Part A — QA thresholds | | Supervisor | | | |
 | Part B — PIS wording (v1.3) | Happyson Saina | Principal Researcher | Approved; stated to be covered by his CUT student research clearance (ethics and POTRAZ) | 2026-09-15 | Written statement in the build session |
+| Part B — PIS wording (v1.4) | Happyson Saina | Principal Researcher | Approved: study contact email changed to abffst.research@gmail.com, replacing abffst.research.cut@gmail.com; no other wording changed | 2026-09-22 | Written instruction in the build session |
 | Part B — PIS wording | | Supervisor | | | |
 | Part B — PIS wording | | CUT Research Ethics | Covered by the study's existing clearance, per the PI | | |
 

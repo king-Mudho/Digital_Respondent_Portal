@@ -9,7 +9,7 @@ const SITE = C.SITE;
 const SCHEDULE_DAY1 = [
   ["08:30", "Welcome, introductions, programme and ground rules", "PI", "All"],
   ["09:00", "Module 1 — The ABF-FST study: purpose, design, targets and timeline", "PI", "All"],
-  ["10:00", "Module 2 — Research ethics: voluntary participation, informed consent, PIS v1.3", "PI", "All"],
+  ["10:00", "Module 2 — Research ethics: voluntary participation, informed consent, PIS v1.4", "PI", "All"],
   ["11:00", "Break", "", ""],
   ["11:15", "Module 3 — Data protection and confidentiality (Cyber and Data Protection Act, POTRAZ)", "PI / FC", "All"],
   ["12:15", "Module 4 — Professional conduct, study WhatsApp number, device security", "FC", "All"],
@@ -167,7 +167,7 @@ const programme = {
     ["h2", "Module 2 — Research ethics and consent (60 min)"],
     ["bullets", [
       "**Objective:** trainees can obtain informed consent correctly in person, by phone and on WhatsApp.",
-      "**Content:** Participant Information Sheet v1.3, point by point; voluntary participation; right to stop and withdraw; separate KII recording consent; what counts as consent in the portal.",
+      "**Content:** Participant Information Sheet v1.4, point by point; voluntary participation; right to stop and withdraw; separate KII recording consent; what counts as consent in the portal.",
       "**Method:** read the PIS together; demonstrate a consent conversation; trainees practise in threes (respondent, RA, observer with checklist).",
       "**Check:** observer checklist complete for every trainee.",
     ]],
@@ -259,7 +259,7 @@ const manual = {
     ["h2", "Who to contact"],
     ["kv", [
       ["Day-to-day questions", "Your Field Coordinator"],
-      ["Ethics, consent, data protection, anything serious", "Happyson Saina (PI) — 0773943709 — abffst.research.cut@gmail.com"],
+      ["Ethics, consent, data protection, anything serious", "Happyson Saina (PI) — 0773943709 — abffst.research@gmail.com"],
       ["Account or password problems", "The PI"],
     ]],
 
@@ -282,13 +282,13 @@ const manual = {
     ["h2", "3.1 Principles you must apply"],
     ["table", ["Principle", "What it means for you"], [
       ["Voluntary participation", "People may say no, stop at any time, or skip questions. Never pressure, never offer benefits, never imply consequences."],
-      ["Informed consent", "Before any question, the person must understand the study (Participant Information Sheet v1.3) and agree. On the portal they select I agree to take part; for assisted interviews you read the information and they agree before you start."],
+      ["Informed consent", "Before any question, the person must understand the study (Participant Information Sheet v1.4) and agree. On the portal they select I agree to take part; for assisted interviews you read the information and they agree before you start."],
       ["Separate recording consent", "For KIIs, recording needs its own yes. Participation consent never implies recording consent."],
       ["Confidentiality", "Names and contact details are kept separately from answers and used only to manage participation. Results are reported only in combined, anonymised form."],
       ["Right to withdraw", "Anyone may withdraw at any time. Stop contact and tell the Field Coordinator the same day. Answers already submitted are kept for the audit trail but never analysed."],
       ["No harm, no deception", "Be honest about who we are and what the study does. Never say answers affect finance."],
     ], [0.26, 0.74]],
-    ["h2", "3.2 What respondents are told (PIS v1.3, summary)"],
+    ["h2", "3.2 What respondents are told (PIS v1.4, summary)"],
     ["bullets", [
       "Who is doing the study and the CUT ethics clearance.",
       "The questionnaire takes around 15–25 minutes, online or with a researcher by phone or WhatsApp.",
@@ -296,7 +296,7 @@ const manual = {
       "Participation is voluntary; they may decline or stop at any time.",
       "No score, rating or financing decision; answers never shared with lenders.",
       "Contact details kept separately, used only for participation; results combined and anonymised.",
-      "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.",
+      "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com.",
     ]],
     ["h2", "3.3 Data protection rules"],
     ["p", "The study follows Zimbabwe's Cyber and Data Protection Act and the study's data protection protocol."],

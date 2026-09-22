@@ -34,7 +34,7 @@ ask() {  # ask VAR "Prompt" "default"
     printf -v "$1" '%s' "${reply:-$3}"
 }
 # Any of these can be preset in the environment, so only the password is typed:
-#   sudo PRESET_USER=abffst.research.cut@gmail.com bash configure-email.sh
+#   sudo PRESET_USER=abffst.research@gmail.com bash configure-email.sh
 ask EMAIL_HOST "SMTP server" "${PRESET_HOST:-smtp.gmail.com}"
 ask EMAIL_PORT "SMTP port" "${PRESET_PORT:-587}"
 ask EMAIL_HOST_USER "SMTP username (usually the full address)" "${PRESET_USER:-}"

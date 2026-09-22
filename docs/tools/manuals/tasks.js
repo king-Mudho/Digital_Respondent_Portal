@@ -87,7 +87,7 @@ T.invite = [
     { text: "Send it on the channel that suits the respondent:", sub: [
       "**Send via WhatsApp** opens that respondent's chat (their WhatsApp number, or phone number if none) with the message ready. Check you are on the study WhatsApp number, then press Send.",
       "**Send by SMS** opens the phone's messages app addressed to the respondent, with the shorter SMS message. Use it on a phone.",
-      "**Email from study address** sends the email from abffst.research.cut@gmail.com to the respondent's email on file; replies go to the study inbox. The email is recorded in the audit log.",
+      "**Email from study address** sends the email from abffst.research@gmail.com to the respondent's email on file; replies go to the study inbox. The email is recorded in the audit log.",
       "**Open in email app** opens the same email in your own mail program, if you need to add something first.",
       "**Copy message** copies the message shown, for any other channel.",
     ] },

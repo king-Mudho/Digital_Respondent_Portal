@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.9 · 22 September 2026";
+const REVISION = "Version 1.10 · 22 September 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -104,7 +104,7 @@ const GLOSSARY = [
   ["Invitation", "A personal link (valid 14 days) plus an 8-character manual code, issued per case."],
   ["Eligibility", "The respondent's confirmation that they hold a senior, knowledgeable role."],
   ["Consent", "The respondent's recorded agreement to take part (participation consent). KII recording consent is separate."],
-  ["PIS", "Participant Information Sheet, currently version 1.3."],
+  ["PIS", "Participant Information Sheet, currently version 1.4."],
   ["AI research", "In PROIT, an AI searches public sources for an organisation and the respondent's published professional role and proposes background facts with sources. A researcher accepts or rejects each; nothing enters the profile automatically."],
   ["Interview sheet", "The locked pre-interview profile as the interviewer uses it: public facts to confirm, gaps to ask, and where the respondent's answers stand."],
   ["Reconciliation", "After the interview, the researcher's coded value for each fact the respondent corrected or qualified. A case is not complete until its profile is reconciled."],

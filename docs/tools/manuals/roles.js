@@ -63,7 +63,7 @@ function guide({ n, key, role, title, audience, purpose, can, cannot, landing, s
         ["Sign in", `${C.SITE}/admin/login`],
         ["You start on", landing],
         ...quick,
-        ["Help", "Field Coordinator; PI: Happyson Saina, 0773943709, abffst.research.cut@gmail.com"],
+        ["Help", "Field Coordinator; PI: Happyson Saina, 0773943709, abffst.research@gmail.com"],
       ]],
 
       ...roleAppendix(ROLE_OF_GUIDE[n], 8),
@@ -240,7 +240,7 @@ module.exports = [
         "Why them: their organisation was selected to take part in a doctoral study on agribusiness financing readiness.",
         "What it involves: a questionnaire of about 15–25 minutes, online or with a researcher by phone or WhatsApp.",
         "It is voluntary and confidential; no score, rating or financing decision is produced, and answers are never shared with lenders.",
-        "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.",
+        "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com.",
       ]]],
     ],
     extraRules: ["Contact only the cases assigned to you.", "Never send one organisation's link to another, and never post links in groups.", "Mark a reminder as sent only after you have sent it."],

@@ -169,7 +169,7 @@ class Builder {
       ["Supervisors", "Dr L. Chikazhe and Dr J. Kanyepe"],
       ["For", this.audience],
       ["System address", "https://research.agribizframework.com"],
-      ["Contact", "0773943709 · abffst.research.cut@gmail.com"],
+      ["Contact", "0773943709 · abffst.research@gmail.com"],
       ["Version", this.revision],
     ];
     const widths = [2300, CONTENT_W - 2300];

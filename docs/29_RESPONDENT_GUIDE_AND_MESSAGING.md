@@ -43,7 +43,7 @@ Coordinator to issue a fresh one from the case's detail page.
 The "Send Invitation" panel hands you the raw link and an 8-character manual code — it
 does not compose a message. Use one of these, filling in the bracketed fields.
 `[researcher name / phone / email]` and `[RA phone number]` default to the PI's own
-contact details (Happyson Saina, 0773943709, abffst.research.cut@gmail.com —
+contact details (Happyson Saina, 0773943709, abffst.research@gmail.com —
 `docs/00_PROJECT_MASTER.md`) unless the sending RA has their own line to give instead.
 
 ### WhatsApp / SMS
@@ -51,13 +51,13 @@ contact details (Happyson Saina, 0773943709, abffst.research.cut@gmail.com —
 Since 2026-09-16 the portal writes the invitation for every channel when it is issued
 (`backend/apps/invitations/messages.py`, the single source). Each version carries the
 personal link, its expiry, the manual code and the study contact line approved by the PI:
-*Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com.*
+*Questions: Happyson Saina, 0773943709, abffst.research@gmail.com.*
 
 | Channel | Button | What it does |
 |---|---|---|
 | WhatsApp | **Send via WhatsApp** | Opens the respondent's own chat |
 | SMS | **Send by SMS** | Opens the phone's messages app, addressed to the respondent |
-| Email | **Email from study address** | Sent by the portal from abffst.research.cut@gmail.com and audited |
+| Email | **Email from study address** | Sent by the portal from abffst.research@gmail.com and audited |
 | Email | **Open in email app** | Opens the same email in the RA's own mail program |
 | Any other | **Copy message** | Copies the message shown |
 
@@ -75,7 +75,7 @@ in Zimbabwe. Please tap this secure, personal link to learn more and take part:
 This link is unique to you and expires on [EXPIRY DATE]. Your participation is
 voluntary and confidential -- no score or financing decision is generated from this
 study. Questions? Contact Happyson Saina, 0773943709,
-abffst.research.cut@gmail.com.
+abffst.research@gmail.com.
 ```
 
 ### Email

@@ -20,7 +20,7 @@ module.exports = {
       ["Supervisors", "Dr L. Chikazhe and Dr J. Kanyepe"],
       ["Ethics", "Research Ethics Clearance Letter, Chinhoyi University of Technology (Annex 19, Form GRSD 17 SEBS/06/2025)"],
       ["Time needed", "About 15–25 minutes"],
-      ["Questions", "Happyson Saina · 0773943709 · abffst.research.cut@gmail.com"],
+      ["Questions", "Happyson Saina · 0773943709 · abffst.research@gmail.com"],
     ]],
     ["h2", "What you should know first"],
     ["bullets", [
@@ -118,7 +118,7 @@ module.exports = {
       ["Will my answers affect our access to finance?", "No. The study produces no score, rating or decision, and individual answers are never shared with lenders."],
       ["Can someone help me complete it?", "Yes. Choose **Have a researcher call me** or **Complete it via WhatsApp**, or call 0773943709."],
       ["I chose a time but need to change it.", "Contact the research team using the details in your invitation."],
-      ["Who can I speak to about the study?", "Happyson Saina, 0773943709, abffst.research.cut@gmail.com."],
+      ["Who can I speak to about the study?", "Happyson Saina, 0773943709, abffst.research@gmail.com."],
     ], [0.36, 0.64]],
     phone("resp_10_invalid_link.jpg", "What an invalid or expired link looks like."),
 
@@ -126,7 +126,7 @@ module.exports = {
     ["kv", [
       ["Researcher", "Happyson Saina"],
       ["Phone / WhatsApp", "0773943709"],
-      ["Email", "abffst.research.cut@gmail.com"],
+      ["Email", "abffst.research@gmail.com"],
       ["Institution", "Chinhoyi University of Technology"],
       ["Portal", C.SITE],
     ]],

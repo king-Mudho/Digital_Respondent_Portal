@@ -563,7 +563,7 @@ celery -A config beat --loglevel=info
 | `PRIVATE_DATA_ROOT` | Where full Kobo payloads and uploaded document source files are stored; must not be under anything nginx serves |
 | `DOCUMENT_MAX_UPLOAD_MB` | Size limit for an uploaded document source file (default 20) |
 | `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
-| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research.cut@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `WHATSAPP_API_BASE_URL`, `WHATSAPP_API_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp Business Platform (optional; until set, reminders go out by hand from Follow-ups) |
 | `CELERY_BROKER_URL` | Redis URL |
@@ -665,7 +665,7 @@ secret, so nothing sensitive needs pasting into chat or a ticket:
 | Script | Sets up |
 |---|---|
 | `deploy/configure-kobo.sh` | KoboToolbox token, the three asset UIDs, form URL, webhook and its secret |
-| `deploy/configure-email.sh` | Gmail SMTP for abffst.research.cut@gmail.com (needs a Google App Password) |
+| `deploy/configure-email.sh` | Gmail SMTP for abffst.research@gmail.com (needs a Google App Password) |
 | `deploy/configure-ai-coding.sh` | AI-assisted document coding (needs an Anthropic API key with billing set up — a paid, per-request cost to the PI's own account) |
 | `deploy/configure-offsite-backup.sh` | Encrypted offsite backups to Google Drive (rclone crypt, `drive.file` scope); prints the encryption key once, to store in a password manager |
 

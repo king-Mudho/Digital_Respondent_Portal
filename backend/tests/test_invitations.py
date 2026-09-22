@@ -258,7 +258,7 @@ def test_every_channel_gets_a_ready_message_with_the_link_code_and_contact_line(
     msgs = data["messages"]
     for key in ("whatsapp", "sms", "email_body"):
         assert data["link"] in msgs[key] and data["raw_manual_code"] in msgs[key], key
-    assert "Questions: Happyson Saina, 0773943709, abffst.research.cut@gmail.com" in msgs["whatsapp"]
+    assert "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com" in msgs["whatsapp"]
     assert msgs["email_body"].startswith("Dear Jane Doe,") and main_case.organisation.name in msgs["email_body"]
     assert "0773943709" in msgs["sms"]
 
@@ -275,7 +275,7 @@ def test_an_invitation_is_emailed_from_the_study_address_only_with_its_own_link(
     from apps.contacts.models import Respondent
 
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-    settings.DEFAULT_FROM_EMAIL = "ABF-FST Research <abffst.research.cut@gmail.com>"
+    settings.DEFAULT_FROM_EMAIL = "ABF-FST Research <abffst.research@gmail.com>"
     data = _issue(admin_client, main_case).data
     url = f"/api/v1/invitations/{data['token_id']}/send-email/"
     body = {"link": data["link"], "manual_code": data["raw_manual_code"]}
