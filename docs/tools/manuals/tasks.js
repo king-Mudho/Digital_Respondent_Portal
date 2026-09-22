@@ -218,6 +218,7 @@ T.proit = [
     "Decide on each one. **Accept** puts it into the profile with its sources. Edit the wording first if it needs correcting, then **Accept**. **Reject** discards it. Nothing enters the profile until you accept it. Take special care where the note says the organisation may be a different one with a similar name.",
     "Read **Not found publicly: ask the respondent**. These are the facts the AI could not find in any public source. They become the questions the interviewer asks in full.",
   ]],
+  ["tip", "Cost", "PROIT research is a paid request on the study's AI account, run on a lower-cost model than document drafting (about USD 1-3 per organisation researched). Research the organisations that need it rather than re-running it on the same one."],
   ["warn", "The AI proposes, you decide", [
     "The AI only suggests. Every fact still needs a source, a person to accept it and a second person to lock the profile, exactly as if you had typed it in.",
     "Only sources the search actually returned can be cited. A fact with no verifiable source is turned into “not found publicly”, and anything that looks private is removed automatically. The AI never records health, religion, ethnicity, politics, family, home addresses, personal phone numbers or emails, private finances, or anything from personal social-media pages.",
@@ -422,6 +423,7 @@ T.documents = [
     ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
     ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes; up to half an hour for a document read in parts)."],
     ["“The last attempt failed: …”", "The AI request did not complete.", "Select **Generate AI draft** again. If it keeps failing, tell the administrator the message."],
+    ["“The AI account has run out of credit…”", "The study's AI account has no funds left.", "Tell the administrator to add credit in the Anthropic console; nothing else to do on this screen."],
     ["No **Auto-fill** button", "AI drafting has not been switched on, or there is no source file yet.", "Attach the file; otherwise ask the administrator."],
     ["**Submit** is refused by KoboToolbox", "KoboToolbox did not accept the record.", "Tell the administrator; your draft is kept."],
   ], [0.3, 0.35, 0.35]],

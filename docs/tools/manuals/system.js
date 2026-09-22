@@ -357,11 +357,13 @@ module.exports = {
       ["Roll back the last deploy", "`sudo bash /srv/agribiz-drp/deploy/rollback.sh`"],
       ["Check go-live readiness without changing data", "`cd /srv/agribiz-drp/backend && sudo -u agribiz-drp venv/bin/python manage.py golive_preflight`"],
       ["Connect or reconnect KoboToolbox", "`sudo bash /srv/agribiz-drp/deploy/configure-kobo.sh`"],
+      ["Turn on AI-assisted document drafting and PROIT research", "`sudo bash /srv/agribiz-drp/deploy/configure-ai-coding.sh`"],
       ["Set up outgoing email (Gmail App Password)", "`sudo bash /srv/agribiz-drp/deploy/configure-email.sh`"],
       ["Enable encrypted Google Drive backups", "`sudo bash /srv/agribiz-drp/deploy/configure-offsite-backup.sh`"],
       ["Check services", "`systemctl status drp-backend drp-frontend drp-celery-worker drp-celery-beat nginx`"],
     ], [0.38, 0.62]],
     ["tip", "Secrets never go in chat or email", "Passwords, API tokens, App Passwords and backup encryption keys are typed only into the configuration scripts on the server. Store the backup encryption key in a password manager: without it the offsite backups cannot be restored."],
+    ["tip", "The AI account is a paid Anthropic account, watch its balance", "Document drafting and PROIT research are both paid requests against the same Anthropic account (console.anthropic.com), billed by tokens used. PROIT research runs on a lower-cost model than document drafting. If a screen reports “the AI account has run out of credit”, add credit (or set up auto-reload) on that account's Billing page; no portal setting needs to change. Check Usage/Cost there periodically, and consider a monthly spend limit."],
     ["h2", "10.3 Backups"],
     ["bullets", [
       "The database and private KoboToolbox files are backed up on the server every 4 hours.",
