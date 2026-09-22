@@ -45,3 +45,20 @@ def test_audit_event_attributes_the_authenticated_caller_not_system(auth_client,
     event = AuditEvent.objects.get(action="reserve.activated")
     assert event.user_id == admin_user.id
     assert event.user_id is not None
+
+
+def test_the_audit_log_api_returns_a_readable_label_and_detail_alongside_the_raw_action(auth_client):
+    from apps.audit.utils import log_action
+    from apps.evidence.models import DocumentRecord
+    from apps.evidence.services import generate_document_id
+
+    doc = DocumentRecord.objects.create(document_id=generate_document_id(), title="x", document_type="OTHER")
+    log_action("sampling.status_reset_after_test_cleanup", doc, {"from": "S07", "to": "S03"})
+
+    response = auth_client.get("/api/v1/audit/?action=sampling.status_reset_after_test_cleanup")
+    assert response.status_code == 200
+    row = response.json()["results"][0]
+    assert row["action"] == "sampling.status_reset_after_test_cleanup"
+    assert row["label"] == "Case status reset (test cleanup)"
+    assert row["detail"] == "S07 → S03"
+    assert row["metadata"] == {"from": "S07", "to": "S03"}

@@ -11,6 +11,8 @@ interface AuditEvent {
   id: number;
   user_display: string | null;
   action: string;
+  label: string;
+  detail: string;
   object_type: string;
   object_id: string;
   created_at: string;
@@ -48,8 +50,11 @@ export default function AuditLogPage() {
                 <tbody>
                   {data.results.map((e) => (
                     <tr key={e.id} className="border-t border-border">
-                      <td className="py-2 pr-4 text-xs">{new Date(e.created_at).toLocaleString()}</td>
-                      <td className="py-2 pr-4 font-mono text-xs">{e.action}</td>
+                      <td className="py-2 pr-4 text-xs whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
+                      <td className="py-2 pr-4 text-xs">
+                        <span title={e.action}>{e.label}</span>
+                        {e.detail && <span className="block text-text-muted">{e.detail}</span>}
+                      </td>
                       <td className="py-2 pr-4 text-xs">
                         {e.object_type}:{e.object_id}
                       </td>
