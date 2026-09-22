@@ -93,7 +93,7 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   const href = decodeURIComponent((await wa.getAttribute("href")) ?? "");
   expect(href).toMatch(/^https:\/\/wa\.me\/\?text=Hello\. You are invited/);
   expect(href).toMatch(/\/i\/[A-Za-z0-9_-]{20,}/);
-  expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research\.cut@gmail\.com$/);
+  expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research@gmail\.com$/);
   await expect(page.getByText("No WhatsApp number on file")).toBeVisible();
 
   // With contact details on file, every channel is addressed and written for them.
