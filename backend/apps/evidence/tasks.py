@@ -60,7 +60,7 @@ def _fill_details(document, source_path, content_type, page_range, keep_title, k
         changed.append("document_type")
     if changed:
         document.save(update_fields=[*changed])
-        log_action("document.details_filled_by_ai", document, {"fields": changed, "user_id": user_id})
+        log_action("document.details_filled_by_ai", document, {"fields": changed, "user_id": user_id}, user=user_id)
 
 
 @shared_task
@@ -101,4 +101,4 @@ def generate_ai_draft(
     ])
     log_action("document.ai_draft_generated", document, {
         "model": document.ai_draft_model, "user_id": user_id, "pages": page_range or "all", "parts": draft.get("_parts", 1),
-    })
+    }, user=user)

@@ -183,7 +183,7 @@ def build_workbook(key: str, *, user) -> tuple[bytes, str]:
     buffer = io.BytesIO()
     wb.save(buffer)
     log_action("kobo.data_exported", _Ref(key), {"form": key, "format": "xlsx", "submissions": len(payloads),
-                                                 "user_id": user.id})
+                                                 "user_id": user.id}, user=user)
     return buffer.getvalue(), f"{slugify(key)}-data-{exported:%Y%m%d-%H%M}.xlsx"
 
 
@@ -238,6 +238,6 @@ def stream_pdf_zip(key: str, *, user):
             archive.writestr("manifest.csv", manifest.getvalue())
         yield sink.drain()
         log_action("kobo.data_exported", _Ref(key), {"form": key, "format": "pdf_zip", "submissions": len(payloads),
-                                                     "user_id": user.id})
+                                                     "user_id": user.id}, user=user)
 
     return generate(), f"{slugify(key)}-completed-forms-{stamp}.zip"

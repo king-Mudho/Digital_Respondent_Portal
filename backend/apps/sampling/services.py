@@ -139,7 +139,7 @@ def bulk_transition_workflow_status(*, from_status: str, sample_ids=None, user=N
         moved.append(case.sample_id)
     log_action("sampling.bulk_workflow_transition", _BulkStub(f"{from_status}->{to_status}"), {
         "from": from_status, "to": to_status, "count": len(moved), "user_id": getattr(user, "id", None),
-    })
+    }, user=user)
     return moved
 
 
@@ -465,5 +465,5 @@ def bulk_assign_cases(*, to_user, from_user=None, from_unassigned=False, provinc
         "to": getattr(to_user, "username", None),
         "from": "unassigned" if from_unassigned else getattr(from_user, "username", "any"),
         "province": province or "all", "moved": len(ids), "sample_ids": ids, "user_id": getattr(user, "id", None),
-    })
+    }, user=user)
     return ids

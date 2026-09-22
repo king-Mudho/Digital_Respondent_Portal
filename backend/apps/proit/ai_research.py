@@ -442,7 +442,7 @@ def run_research(run_id: int) -> None:
     log_action("proit.ai_research_completed", profile, {
         "run": run.pk, "proposed": found, "not_found": len(proposals) - found, "dropped": len(dropped),
         "searches": usage["searches"], "user_id": run.requested_by_id,
-    })
+    }, user=run.requested_by_id)
 
 
 def _fail(run: AIResearchRun, message: str) -> None:

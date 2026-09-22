@@ -132,6 +132,7 @@ def issue_invitation(
         "invitation.issued",
         token,
         {"sample_id": sample_case.sample_id, "channel": channel, "issued_by_id": getattr(issued_by, "id", None)},
+        user=issued_by,
     )
     _advance_to_invitation_sent(sample_case)
     return raw_token, raw_manual_code, token
