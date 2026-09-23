@@ -131,6 +131,23 @@ work — resolve them with the PI before or during the phase noted, not silently
   eligibility-gate check the same day, which left no trace) over real HTTP calls against
   production whenever the gate can be exercised at the service layer.*
 
+- **Audit trail edited on 2026-09-22 (needs the PI's acknowledgement).** `AGENTS.md`
+  ground rule 1 says not to edit audit events to tidy away one's own actions. On the PI's
+  explicit request in chat, 45 `AuditEvent` rows had their `user` field filled in and a
+  note added to `metadata`: 7 rows written by the cleanup itself (first recorded with no
+  user because they were run through the database shell) and 38 older rows whose own
+  metadata already named the acting user (`user_id`, `issued_by_id` or `by_user_id`).
+  Every original value (`action`, `object_type`, `object_id`, `from`/`to`, reasons,
+  timestamps) is untouched; the only additions are the `user` field and a `reattributed`
+  or `backfilled` key stating what was done and when. Nothing was deleted from the log.
+  This is still an edit to the trail and goes further than the rule allows, so it is
+  recorded here rather than left implicit. To list every affected row, filter
+  `metadata` for those two keys. Three `invitation.issued` rows could not be attributed
+  (no issuer recorded, or issuer account no longer exists) and were left blank.
+- **`AGENTS.md` ground rule 1 is out of date.** It says "No invitation has been issued
+  yet". Invitations were issued from 2026-09-16 onward, so the sentence should be
+  corrected by the PI, who owns that file.
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
@@ -725,6 +742,80 @@ was deleted on the PI's instruction on 2026-09-13 — no import provenance, no d
 records, and it was inflating the Main count to 401. Its organisation was kept, since it
 legitimately backs the Reserve case. An `AuditEvent` records the deletion and its reason.
 Production is back to 400 Main / 400 Reserve, all 400 paired.
+
+## Test-data cleanup, PROIT to KoboToolbox, AI cost and audit changes (2026-09-21 / 22)
+
+**What was built and deployed** (each change tested, deployed and checked on production;
+backend 565 tests, frontend 8, Playwright 60 tests of which 3 skipped by design):
+
+- [x] PROIT profiles are sent to a fourth KoboToolbox form, "ABF-FST PROIT Interview
+      Profile" (asset `aWZH7brfEnaYvoDs5rJvh2`), once, when a profile is reconciled or a
+      protocol deviation is recorded (`apps/proit/kobo_submit.py`, retried by a Celery
+      task; `manage.py push_proit_to_kobo` re-sends). The form definition lives in
+      `apps/proit/kobo_form.py`; `deploy/kobo/build_proit_form.py` builds the XLSForm from
+      it. Verified live for a questionnaire case and a KII: every documentary, respondent
+      and reconciled value matched what KoboToolbox held; the test records were removed
+      from KoboToolbox afterwards and the database changes rolled back.
+- [x] PROIT desk research runs on Sonnet 5 with prompt caching (`AI_PROIT_RESEARCH_MODEL`);
+      document coding stays on Opus 5. A live search on Opus 5 returned 23 proposals for a
+      real organisation. Sonnet 5 has **not** yet been compared with it on a live run, and
+      the Anthropic credit balance ran out during verification, so the live AI steps were
+      not re-run afterwards.
+- [x] An empty AI credit balance is reported in plain words instead of the provider's raw
+      error.
+- [x] `log_action(..., user=)` accepts the acting user directly. Background tasks, exports,
+      bulk moves and invitations recorded their user only in metadata because the
+      request-bound thread-local is empty outside a request, so `AuditEvent.user` was blank
+      for real actions. Fixed for those seven call sites.
+- [x] The Audit Log screen shows a plain-English label and a one-line detail; the raw code
+      is a hover tooltip. A test fails if a new action code is added without a label.
+- [x] `manage.py check_test_data_smells` and a daily 06:00 (Harare) email to the PI admins
+      flag likely test data. Read-only.
+- [x] Study contact email changed from `abffst.research.cut@gmail.com` to
+      `abffst.research@gmail.com`; Participant Information Sheet bumped to v1.4 with a
+      sign-off row in `docs/31`. **Still open:** the Gmail App Password for the new address
+      has not been installed, so outgoing mail still sends from the old account until
+      `deploy/configure-email.sh` is run by the PI.
+
+**Test-data cleanup on production (2026-09-22).** The PI confirmed each step in chat. A
+backup (`drp-20260922-080238.sql.gz`) was taken first. Before deleting anything the
+registers were checked: 800 organisations and sample cases, 90 KII records, 100 document
+records and 137 respondents are the imported real data and **none of them was deleted**.
+What was removed was operational data created by trying the system out:
+
+- 7 pre-interview profiles (on SID-2026-000001, -000002, -000003, -000016, -000062,
+  KII-0001, KII-0090) with 88 dependent rows (32 evidence sources, 29 AI proposals, 19
+  fields, 1 research run). Their one KoboToolbox record was already gone from the form
+  when deletion was attempted.
+- The uploaded files and AI drafts on DOC-0001 and DOC-0007 (removed through the existing
+  audited service); DOC-0001's coding decision reset to Pending / Unverified.
+- 3 invitations (SID-2026-000001, -000062, -000399), all 11 consent records, the
+  reconciled test questionnaire submission on SID-2026-000062 with its QA decision, 4
+  cached KoboToolbox copies (one named `TEST-DELETE-ME-0002`), and 3 respondent contact
+  rows on SID-2026-000399 (removed at the PI's explicit request).
+- SID-2026-000001, -000062 and -000399 reset to S03, the baseline of the other Main cases;
+  KII-0001 reset to Prospect / Not started.
+- SID-2026-000399 was first treated as a live respondent because it showed a started
+  survey and consent; the PI then confirmed it was test data and it was reset.
+- KII-0068 and KII-0083 were not duplicates. Both carried the PI's name from the import
+  instead of the "(contact not yet identified)" placeholder; corrected to
+  "GigaFood One (contact not yet identified)" and "Proagromark Investments (contact not
+  yet identified)". Nothing was deleted.
+
+The dashboard read 0/400, 0/60 and 0/50-75 afterwards; the PI confirmed on screen. The
+cleanup entries are in the audit log (see the Open question above about how they were
+attributed).
+
+**Left as found, waiting for the PI:** an empty pre-interview profile on SID-2026-000002
+(created 2026-09-22 09:56), a respondent contact on SID-2026-000001 whose email matches a
+staff account, and SID-2026-000003, where a Field Coordinator issued an invitation at
+09:59 and revoked it at 10:31. All three were flagged by the smell check and none was
+changed.
+
+**Verification note.** Live verification used rolled-back transactions for database
+changes. The KoboToolbox writes (three test records and six throwaway projects created
+while building the PROIT form) were removed through the API, but they cannot be rolled
+back, so they are listed here.
 
 ## Phase 11 — Go-live
 
