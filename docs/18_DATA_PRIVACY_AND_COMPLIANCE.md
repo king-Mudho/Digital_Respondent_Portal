@@ -83,6 +83,13 @@ own "No" for that cell) via a permission class shared with the dashboards. See
 `api/permissions.py` for the corrected `CanViewSampleCases`, `CanManageContact` and
 `CanExportDeidentified` classes.
 
+**Analysis packs (2026-09).** The SmartPLS 4 and ATLAS.ti packs (`kobo/analysis-packs/...`) are PI only and
+audited (`export.analysis_pack`), like the full KoboToolbox data workbook, because raw answers can identify
+organisations and, in the KII Guide, people. They leave out ids, organisation, job title, contact and consent
+fields and free-text identifiers, exclude anyone who withdrew consent, and include only questionnaire submissions
+that passed QA unless the PI asks for the rest. The interview documents contain the interviewer's notes as entered,
+so they can still contain a name a respondent mentioned; the PI checks them before sharing outside the research team.
+
 **Update (Sep 2026, case-assignment gap closed)**: Contact RA's "assigned cases" grant is
 now literal, not "all cases" — `SampleCase.assigned_ra` (nullable FK to `accounts.User`,
 Field Coordinator/Admin-writable) records which Contact RA a case belongs to, and every

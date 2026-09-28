@@ -169,7 +169,7 @@ module.exports = {
     ["bullets", [
       "**Dashboards** give live counts: Executive, Sampling, Contact, QA, KII/Documents, Cost.",
       "**Reports** give analytics with charts and table views over 7, 30, 90 days or all time.",
-      "**Exports**: a de-identified analysis CSV, a full operational CSV (PI only), and for each KoboToolbox form a complete Excel workbook and a ZIP of PDFs (PI only).",
+      "**Exports**: a de-identified analysis CSV, a full operational CSV (PI only), for each KoboToolbox form a complete Excel workbook and a ZIP of PDFs (PI only), and analysis packs that open directly in SmartPLS 4 (questionnaire) and ATLAS.ti (interviews and documents) (PI only).",
     ]],
 
     ["h2", "3.14 Security and privacy controls"],

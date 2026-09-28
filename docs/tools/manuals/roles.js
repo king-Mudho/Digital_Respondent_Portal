@@ -80,7 +80,7 @@ module.exports = [
       "Open all 19 screens, including the Audit Log and every export.",
       "Create, change and deactivate staff accounts and roles.",
       "Do everything the Field Coordinator can: register organisations, assign Contact RAs, verify cases in bulk, invite, activate Reserves, record withdrawals, take QA decisions, manage KII and document records, log costs.",
-      "Download the full operational export, and each KoboToolbox form as an Excel workbook and a PDF ZIP.",
+      "Download the full operational export, each KoboToolbox form as an Excel workbook and a PDF ZIP, and the SmartPLS 4 and ATLAS.ti analysis packs.",
       "Manage the KoboToolbox forms and the connection to them.",
     ],
     cannot: [
@@ -146,7 +146,7 @@ module.exports = [
       ["Email buttons missing or failing", "Outgoing email not configured, or the Gmail App Password revoked.", "Run `configure-email.sh` on the server."],
       ["Workbook shows NOT_IN_PORTAL in portal_qa_status", "A submission that was not matched to a case (e.g. a test or a direct public-link submission).", "Check it in KoboToolbox; exclude or delete test submissions."],
     ],
-    quick: [["Account admin", `${C.SITE}/django-admin/`], ["KoboToolbox", "https://kf.kobotoolbox.org"], ["Your exports", "Export → KoboToolbox data (Excel workbook, PDF ZIP)"]],
+    quick: [["Account admin", `${C.SITE}/django-admin/`], ["KoboToolbox", "https://kf.kobotoolbox.org"], ["Your exports", "Export → Analysis packs (SmartPLS 4, ATLAS.ti) and KoboToolbox data (Excel workbook, PDF ZIP)"]],
   }),
 
   guide({

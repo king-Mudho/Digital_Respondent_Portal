@@ -240,6 +240,19 @@ only its own form:
   them can be downloaded as a readable PDF (sections, choice labels, repeats), or emailed
   to yourself or to the respondent. Every email is audited with the address masked.
 - **On record pages:** the same PDFs appear on the matching case, KII and document pages.
+- **Analysis packs** (`/admin/export` → *Analysis packs*, PI only, audited;
+  `kobo/analysis-packs/{smartpls|atlas-kii|atlas-documents}/`, `apps/kobo/analysis_packs.py`). ZIPs that open
+  directly in the analysis software, built from the deployed forms and live KoboToolbox data:
+  - **SmartPLS 4**: `data.csv`/`data.xlsx` with one row per respondent who passed QA (`?include=all` adds the
+    rest), numeric only, `-99` for missing, yes/no as 1/0, other single choice numbered in form order with
+    'not applicable / not sure / prefer not' as missing, multiple choice as 0/1 columns; `data_dictionary.csv`;
+    `README.txt`; and `PRIVATE_do_not_share/respondent_key.csv` linking row numbers to Sample IDs. No ids, free
+    text or contact data in the data files; withdrawn participants left out.
+  - **ATLAS.ti interviews**: one Word document per consenting, non-withdrawn interview (each question a
+    heading, the answer beneath) plus `kii_attributes.xlsx`. Organisation, title, interviewer code, consent and
+    contact fields are left out. Transcripts are not held by the portal and are added by the analyst.
+  - **ATLAS.ti documents**: the uploaded source files named `DOC-ID_short-title` plus
+    `documents_attributes.xlsx`.
 - **PI data exports** (`/admin/export` → *KoboToolbox data*, PI only, audited). Two
   downloads per form:
   - **Excel workbook** (`kobo/forms/<key>/export/xlsx/`):
@@ -362,7 +375,7 @@ figures and lists on mixed screens but not the forms or buttons
 | A09 | `/admin/reserve` | Reserve activation (five authorised reasons, mandatory evidence note) |
 | A10 | `/admin/cost` | Fieldwork cost dashboard and entry form |
 | A11 | `/admin/audit` | Full audit log — every sensitive action, correctly attributed to the admin who performed it |
-| A12 | `/admin/export` | De-identified analysis export, full operational export (CSV), and (PI only) each KoboToolbox form's full data workbook and PDF ZIP |
+| A12 | `/admin/export` | De-identified analysis export, full operational export (CSV), and (PI only) the SmartPLS 4 / ATLAS.ti analysis packs and each KoboToolbox form's full data workbook and PDF ZIP |
 | — | `/admin/proit/[id]` | Researcher pre-profile review and lock (see [PROIT](#proit--pre-interview-profiling)) |
 | — | `/admin/account` | Change your own password (available to every role) |
 

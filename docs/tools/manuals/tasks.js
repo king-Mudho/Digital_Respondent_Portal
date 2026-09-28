@@ -448,9 +448,20 @@ T.exports = (who) => {
       ["**Full operational export (CSV)**", "Every questionnaire, including withdrawn ones (consent_withdrawn), plus organisation name, respondent name, phone, email and gatekeeper details. Internal operations only.", "PI only"],
       ["**KoboToolbox data: Excel workbook**", "Every submission's answers for one form: data_codes (codes for SPSS/Stata/R), data_labels, a sheet per repeat group, the questions dictionary, the choices lists, and for the questionnaire the matched case, QA status, withdrawal flag and workflow status.", "PI only"],
       ["**KoboToolbox data: All completed forms (PDF ZIP)**", "Every completed form as a PDF, with manifest.csv listing file, record, KoboToolbox id and submission time.", "PI only"],
+      ["**Analysis packs: SmartPLS 4 and ATLAS.ti**", "Three ZIP downloads that open directly in your analysis software. SmartPLS pack: the questionnaire as one numeric row per respondent who passed QA, with a data dictionary and a missing-value code of -99. ATLAS.ti interviews pack: one Word document per key informant interview plus an attribute sheet. ATLAS.ti documents pack: the uploaded source files named by document ID plus an attribute sheet. Each has a README that says how to import it. No names, organisation, job title or contact details; anyone who withdrew consent is left out.", "PI only"],
     ], [0.27, 0.53, 0.2]],
   ];
   if (who === "pi") blocks.push(
+    ["h3", "Getting the data into SmartPLS 4 and ATLAS.ti"],
+    ["steps", [
+      "Select **Export**. Under **Analysis packs: ready for SmartPLS 4 and ATLAS.ti**, select **Download SmartPLS pack**. Only respondents who passed QA are included; **Include those not yet through QA** adds the rest.",
+      "Unzip it. In SmartPLS 4 create a project, choose **Import data file**, select `data.csv`, and enter `-99` as the missing-value marker. Every variable is numeric; `data_dictionary.csv` says what each one is and how it is coded. `respondent_no` is only a row number.",
+      "Keep the `PRIVATE_do_not_share` folder out of anything you send on: its key links respondent numbers back to Sample IDs.",
+      "Select **Download interviews pack**. In ATLAS.ti add every file in `interviews/` as documents, then import `kii_attributes.xlsx` as document groups (its first column matches the document name). Add your own interview transcripts under the same interview ID.",
+      "Select **Download documents pack**. Add the files in `documents/` to ATLAS.ti, then import `documents_attributes.xlsx` the same way.",
+    ]],
+    ["tip", "How answers are coded for SmartPLS", "Questions stored as numbers in the form (the 1-5 scales) keep those numbers. Yes/no become 1/0. Other single-choice questions are numbered in the order the form lists them, with the numbering written in the dictionary. Not applicable, not sure and prefer not to say are missing. Multiple-choice questions become one 0/1 column per choice. Free text, dates and ids are not in the SmartPLS file."],
+    ["warn", "Keep the AI features of ATLAS.ti off", "ATLAS.ti can send text to an outside AI service. Interview text must not be sent unless your ethics position has been updated to allow it. The interviews pack leaves out organisation, job title and contact details, but check the answers for any name before sharing them outside the research team."],
     ["h3", "Getting all the data for cleaning and analysis"],
     ["steps", [
       "Select **Export**.",
