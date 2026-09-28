@@ -148,11 +148,12 @@ work — resolve them with the PI before or during the phase noted, not silently
   yet". Invitations were issued from 2026-09-16 onward, so the sentence should be
   corrected by the PI, who owns that file.
 
-- **`kudzai` admin account (user 120) needs a decision (2026-09-28).** An account with
+- **`kudzai` admin account (user 120). RESOLVED (2026-09-28): the PI decided to keep it, at the
+  PI / System Admin role, and nothing was changed.** An account with
   the PI / System Admin role, email `kudzaimano0@gmail.com`, exists and added two contacts
   on 2026-09-24 (both since removed as test entries). That role can do everything the PI's
-  own account can, including managing users. Assumption made: none — it was left exactly
-  as found. The PI should confirm it is meant to exist and at that role.
+  own account can, including managing users. It was left exactly as found while the question
+  was open; the PI's decision to keep it, at that role, is recorded here.
 
 ---
 
