@@ -148,6 +148,12 @@ work — resolve them with the PI before or during the phase noted, not silently
   yet". Invitations were issued from 2026-09-16 onward, so the sentence should be
   corrected by the PI, who owns that file.
 
+- **`kudzai` admin account (user 120) needs a decision (2026-09-28).** An account with
+  the PI / System Admin role, email `kudzaimano0@gmail.com`, exists and added two contacts
+  on 2026-09-24 (both since removed as test entries). That role can do everything the PI's
+  own account can, including managing users. Assumption made: none — it was left exactly
+  as found. The PI should confirm it is meant to exist and at that role.
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
@@ -816,6 +822,49 @@ changed.
 changes. The KoboToolbox writes (three test records and six throwaway projects created
 while building the PROIT form) were removed through the API, but they cannot be rolled
 back, so they are listed here.
+
+## Test-data cleanup, second round (2026-09-28)
+
+The PI asked for the information entered on 2026-09-24 to be reset. Every step was
+scoped from a read-only look first, guarded in code, and confirmed in chat. A backup
+(`drp-20260928-070603.sql.gz`) was taken first. The production registers were checked
+before each deletion: all 800 organisations, 800 sample cases, 90 KII records, 100 document
+records and the imported respondents were left alone.
+
+**What the audit log shows.** The 24 Sep entries (contacts added, invitations issued and
+revoked, consents, QA decisions) are attributed to the PI's own account, `happyson`, not
+to the Field Coordinator's, so either that login was shared or the PI made them. Nothing
+here depends on which.
+
+**Removed:**
+
+- [x] Six cases returned to S03: SID-2026-000006 (was S05), -000027 (S10), -000028 (S10),
+      -000029 (S06), -000017 (S06) and -000003 (S05, invitation revoked on 22 Sep). Their
+      assignment to the Contact RA was kept.
+- [x] 10 invitations, 3 consent records, 9 contacts (all created 24 Sep) and 2 questionnaire
+      submissions that had passed QA (with their QA decisions and 2 cached copies) from
+      those cases. The two submissions were also **deleted from KoboToolbox** through the
+      API after each was checked against its Sample ID; the questionnaire form there now
+      holds 0. That deletion cannot be rolled back.
+- [x] SID-2026-000803 and its organisation, "Ministry of Agriculture Mechanism Water
+      Resources Development": a hand-made MAIN case created 2026-09-24 12:02 with no import
+      provenance, no Reserve pairing and nothing attached, which made Main 401. Deleted on
+      the PI's instruction, the same kind of case as SID-2026-000801 on 2026-09-13. Main is
+      back to 400 and Reserve to 400.
+- [x] Two contacts on SID-2026-000001 (17 Sep) in a staff member's own name, one with his
+      own phone and email; and empty test pre-interview profiles #19 (SID-2026-000002) and
+      #20 (SID-2026-000135, whose only AI research run had failed on the empty credit).
+
+The dashboard reads 0/400, 0/60 and 0/50-75, all Main cases are at S03, and the go-live
+preflight passes 15/15.
+
+**Audit trail.** Nothing was edited this time. Each step wrote a new `AuditEvent` under the
+PI's account with the reason and the words "run by the assistant" (possible now that
+`log_action` accepts the acting user), so nothing needs re-attributing afterwards.
+
+*A guard did its job:* the run that removed the SID-2026-000001 contacts first stopped on
+its own assertion, because the contact turned out to date from 17 Sep and not 22 Sep as
+assumed. Nothing had been changed; the guard was corrected and the run repeated.
 
 ## Phase 11 — Go-live
 
