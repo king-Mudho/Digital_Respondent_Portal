@@ -56,6 +56,57 @@ export default function ExportPage() {
         </IfRole>
       </div>
 
+      {/* The data as the two analysis tools open it: no cleaning or re-typing between the portal and the software. */}
+      <IfRole roles={["PI_ADMIN"]}>
+        <Card className="space-y-3 mt-4" aria-label="Analysis packs">
+          <div>
+            <h3 className="font-medium">Analysis packs: ready for SmartPLS 4 and ATLAS.ti</h3>
+            <p className="text-sm text-text-muted">
+              Each download is a ZIP with the data, a README that says how to import it, and a data dictionary or
+              attribute sheet. Anyone who withdrew consent is left out. PI only; every download is audited.
+            </p>
+          </div>
+          <div className="divide-y divide-border">
+            <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="text-sm max-w-xl">
+                <strong>SmartPLS 4: questionnaire.</strong> One row per respondent who passed QA, numeric only, short
+                variable names, {"-99"} for missing, no names, ids or free text.
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+                {" "}<a href="/api/proxy/kobo/analysis-packs/smartpls/?include=all" className="underline">Include those not yet through QA</a>
+              </span>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+              <a href="/api/proxy/kobo/analysis-packs/smartpls/" className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium">
+                Download SmartPLS pack
+              </a>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="text-sm max-w-xl">
+                <strong>ATLAS.ti: interviews.</strong> One Word document per key informant interview (each question as a
+                heading, the answer beneath) plus an attribute sheet. No organisation, job title or contact detail.
+              </span>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+              <a href="/api/proxy/kobo/analysis-packs/atlas-kii/" className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium">
+                Download interviews pack
+              </a>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="text-sm max-w-xl">
+                <strong>ATLAS.ti: documents.</strong> The uploaded source files, named by document ID, plus an attribute
+                sheet (type, date, author, value chain, authenticity, QA status).
+              </span>
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+              <a href="/api/proxy/kobo/analysis-packs/atlas-documents/" className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium">
+                Download documents pack
+              </a>
+            </div>
+          </div>
+          <p className="text-xs text-text-muted">
+            Interview recordings and transcripts are not held by the portal: add your transcripts to ATLAS.ti under the
+            same interview id. Keep ATLAS.ti&apos;s AI features off for these documents.
+          </p>
+        </Card>
+      </IfRole>
+
       {/* The answers themselves, for cleaning and analysis. The two exports
           above hold portal metadata only. */}
       <IfRole roles={["PI_ADMIN"]}>

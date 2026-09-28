@@ -181,3 +181,29 @@ class KoboSyncView(APIView):
         if failed and len(failed) == len(logs):
             return _error(copies.CopyError("kobo_unreachable", f"KoboToolbox couldn't be reached: {failed[0]}", 502))
         return Response({"forms": [form_status(key) for key in keys]})
+
+
+class KoboAnalysisPackView(APIView):
+    """GET /api/v1/kobo/analysis-packs/{smartpls|atlas-kii|atlas-documents}/ -- the data ready to open in SmartPLS 4
+    or ATLAS.ti (apps/kobo/analysis_packs.py). PI only, audited. ?include=all adds questionnaire submissions that
+    have not passed QA yet (SmartPLS pack only)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pack):
+        from django.http import FileResponse
+
+        from .analysis_packs import PACKS, audit_export
+
+        try:
+            _pi_only(request)
+            if pack not in PACKS:
+                raise copies.CopyError("not_found", "Unknown analysis pack.", 404)
+            kwargs = {"include_unreviewed": request.query_params.get("include") == "all"} if pack == "smartpls" else {}
+            handle, filename, summary = PACKS[pack](user=request.user, **kwargs)
+        except copies.CopyError as exc:
+            return _error(exc)
+        audit_export(request.user, summary)
+        response = FileResponse(handle, content_type="application/zip", as_attachment=True, filename=filename)
+        response["Cache-Control"] = "no-store"
+        return response

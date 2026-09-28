@@ -3,6 +3,7 @@ from django.urls import path
 from .copy_views import (
     KoboFormDataExportView,
     KoboFormPDFZipView,
+    KoboAnalysisPackView,
     KoboFormSubmissionsView,
     KoboFormsView,
     KoboRecordLookupView,
@@ -30,6 +31,7 @@ urlpatterns = [
     path("kobo/sync/status/", KoboSyncStatusView.as_view(), name="sync-status"),
     path("kobo/forms/<str:key>/export/xlsx/", KoboFormDataExportView.as_view(), name="form-export-xlsx"),
     path("kobo/forms/<str:key>/export/pdfs/", KoboFormPDFZipView.as_view(), name="form-export-pdfs"),
+    path("kobo/analysis-packs/<str:pack>/", KoboAnalysisPackView.as_view(), name="analysis-pack"),
     path("kobo/forms/<str:key>/lookup/", KoboRecordLookupView.as_view(), name="form-lookup"),
     path("kobo/forms/<str:key>/submissions/", KoboFormSubmissionsView.as_view(), name="form-submissions"),
     path("kobo/forms/<str:key>/submissions/<int:submission_id>/pdf/", KoboSubmissionPDFView.as_view(), name="submission-pdf"),
