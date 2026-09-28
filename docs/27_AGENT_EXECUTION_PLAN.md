@@ -867,6 +867,31 @@ PI's account with the reason and the words "run by the assistant" (possible now 
 its own assertion, because the contact turned out to date from 17 Sep and not 22 Sep as
 assumed. Nothing had been changed; the guard was corrected and the run repeated.
 
+## Participant Information Sheet v1.5 and AI use (2026-09-28)
+
+The PI reported that the supervisors, the ethics office, the data-protection position and the AI
+provider's terms had all been checked and confirm the use of AI described in the ethics pack, and
+told the assistant to proceed.
+
+- [x] Participant Information Sheet bumped to **v1.5** (`frontend/lib/constants/participantInformation.ts`):
+      one paragraph added after the public-information paragraph saying an AI tool from a company
+      outside Zimbabwe helps with that search, that it is given the organisation's details and the
+      respondent's name and job title but never a phone number, email address, questionnaire answer or
+      interview content, and that a researcher checks everything it finds. No other wording changed.
+      Every consent recorded from now on carries `v1.5`; none had been recorded under v1.4.
+- [x] `docs/31` updated (current version, the quoted text, and a v1.5 sign-off row, with the v1.3 and
+      v1.4 records left as they were). The manuals (v1.12), including the Respondent Guide, and the
+      README carry the new version and a line about the AI tool.
+
+**What this record does not prove.** The confirmations are recorded on the PI's statement in chat. The
+portal holds no copy of them, so the PI should keep the supervisors', ethics office's and data-protection
+confirmations, and the provider terms that were read, on file with the study's ethics papers. The
+methodology chapter and thesis declaration still need the PI's own wording (drafts are in the ethics pack).
+
+**Not changed.** The respondent-facing "Before we continue" verification screen still says the team
+reviewed publicly available information and does not mention the AI tool; the information sheet, shown
+before consent, is where the disclosure is made.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.

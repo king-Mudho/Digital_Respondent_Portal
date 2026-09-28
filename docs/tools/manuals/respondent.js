@@ -64,7 +64,7 @@ module.exports = {
     ]],
     phone("resp_04_consent.jpg", "Your consent."),
     ["h2", "Step 6 — Check what we already know (only if shown)"],
-    ["p", "To save you time, the research team may have looked up information about your organisation that is already public, such as registry records or published reports. If so, a screen called **Before we continue** shows each item. For each one you can choose **Yes, correct**, **Partly correct**, **No — correct it** (and type the right answer), **Don't know**, **Prefer not to say** or **Not applicable**. You can also skip this step. Your own answers always take precedence."],
+    ["p", "To save you time, the research team may have looked up information about your organisation that is already public, such as registry records or published reports. An AI tool from a company outside Zimbabwe helps with that search: it is given your organisation's details and your name and job title, never your phone number, email address or anything you tell us in the questionnaire or an interview, and a member of the research team checks everything it finds. If so, a screen called **Before we continue** shows each item. For each one you can choose **Yes, correct**, **Partly correct**, **No — correct it** (and type the right answer), **Don't know**, **Prefer not to say** or **Not applicable**. You can also skip this step. Your own answers always take precedence."],
     ["h2", "Step 7 — Choose how you would like to take part"],
     ["table", ["Option", "What happens next"], [
       ["**Complete it myself now**", "You fill in the questionnaire online at your own pace (about 15–25 minutes)."],

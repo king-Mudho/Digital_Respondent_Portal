@@ -57,7 +57,7 @@ module.exports = {
       ["Qualitative strand", "60 completed Key Informant Interviews (90 KII records loaded: Core-60 plus Reserve-30)."],
       ["Documentary strand", "50–75 coded documents, digital platform and media sources (100 records loaded)."],
       ["Data lock", "30 November 2026."],
-      ["Approvals", "Ethics and POTRAZ covered by the PI's CUT research clearance; Participant Information Sheet (v1.3), QA thresholds, invitation and reminder wording, and PROIT approved by the PI on 15 September 2026. The PIS is now v1.4 (2026-09-22, study contact email only)."],
+      ["Approvals", "Ethics and POTRAZ covered by the PI's CUT research clearance; Participant Information Sheet (v1.3), QA thresholds, invitation and reminder wording, and PROIT approved by the PI on 15 September 2026. The PIS is now v1.5: v1.4 changed the study email (22 Sep) and v1.5 added the paragraph telling respondents an AI tool is used to help with the public-information search (28 Sep)."],
     ]],
     ["h2", "2.2 What the portal is — and is not"],
     ["bullets", [
@@ -86,7 +86,7 @@ module.exports = {
       ["4. Profiled (optional)", "Public background facts are recorded with sources and locked (PROIT).", "Researcher + reviewer", "S03"],
       ["5. Invited", "A personal link is issued and sent by WhatsApp, SMS or email.", "Contact RA", "S05 (auto)"],
       ["6. Opened", "The respondent opens the link, confirms the organisation and their role.", "Respondent", "S06 (auto)"],
-      ["7. Consent", "The respondent reads the Participant Information Sheet v1.4 and agrees.", "Respondent", "—"],
+      ["7. Consent", "The respondent reads the Participant Information Sheet v1.5 and agrees.", "Respondent", "—"],
       ["8. Questionnaire", "The respondent opens the KoboToolbox questionnaire (or books a researcher-assisted session).", "Respondent / RA", "S07 (auto)"],
       ["9. Submitted", "KoboToolbox notifies the portal; the submission is matched to the case and checked by the QA rules.", "Automatic", "S08 (auto)"],
       ["10. Reminders", "If no submission, approved reminders fall due on Day 2 and Day 7.", "Contact RA", "S05–S07"],
@@ -373,11 +373,12 @@ module.exports = {
 
     ["h1", "11. Data protection and ethics in practice"],
     ["bullets", C.DATA_RULES],
-    ["h2", "11.1 What respondents are told (PIS v1.4, summary)"],
+    ["h2", "11.1 What respondents are told (PIS v1.5, summary)"],
     ["bullets", [
       "The study, the researcher, the supervisors and the CUT ethics clearance.",
       "The questionnaire takes around 15–25 minutes, online or with a researcher by phone or WhatsApp.",
       "Public information may be looked up beforehand and shown for confirmation; they may skip that step.",
+      "An AI tool from a company outside Zimbabwe helps with that search. It is given the organisation's details and the respondent's name and job title, never a phone number, email address or any answer, and a researcher checks everything it finds.",
       "Participation is voluntary; they may decline or stop at any time without consequence.",
       "No score, rating or financing decision is produced; individual answers are never shared with lenders.",
       "Names and contact details are kept separately from answers, used only to manage participation, and results are reported only in combined, anonymised form.",

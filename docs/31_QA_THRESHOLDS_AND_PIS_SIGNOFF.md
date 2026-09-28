@@ -111,7 +111,7 @@ Flags a second submission from the *same organisation* within this window.
 
 # Part B — Participant Information Sheet
 
-Current version **v1.4**, live at `/i/<token>/information` and shown before consent. v1.3 (2026-09-14) changed the study contact email to abffst.research.cut@gmail.com; v1.4 (2026-09-22, PI-directed in the build session) changes it again, to abffst.research@gmail.com -- the old address is retired. No other wording changed either time.
+Current version **v1.5**, live at `/i/<token>/information` and shown before consent. v1.3 (2026-09-14) changed the study contact email to abffst.research.cut@gmail.com; v1.4 (2026-09-22, PI-directed in the build session) changes it again, to abffst.research@gmail.com -- the old address is retired. No other wording changed either time. v1.5 (2026-09-28, PI-directed in the build session) adds one paragraph: an AI tool from a company outside Zimbabwe is used to help with the public-information search, what it is and is not given, and that a researcher checks everything it finds. The PI states that the supervisors, the ethics office, the data-protection position and the provider's terms all confirm it; the portal holds no copy of those confirmations, so keep them on file.
 Source: `frontend/lib/constants/participantInformation.ts`. The version string is recorded
 against every `ConsentRecord`, so consent is always traceable to the exact wording the
 respondent saw. **Bump the version whenever the text changes.**
@@ -129,6 +129,8 @@ respondent saw. **Bump the version whenever the text changes.**
 > Your organisation has been selected to take part. If you agree, you will be asked to complete a questionnaire about your organisation (around 15-25 minutes), either yourself online, or with help from a researcher by phone or WhatsApp if you prefer.
 >
 > Before contacting you, we may look up information about your organisation that is already publicly available — for example from official registers, published reports, or reputable news sources — so that we do not ask you for facts that are already on record. Where we have done this, you will be shown what we found and asked to confirm or correct it. You can also tell us you do not know, that you would rather not say, or skip this step altogether. It is there to save you time, not to test you. What you tell us is always recorded separately from what we found, and your own answers take precedence over it.
+>
+> To help with this search we use an AI tool provided by a company outside Zimbabwe. It is given the name and details of your organisation and your name and job title, so that it can find what is published about your organisation and your professional role. It is never given your telephone number, email address, or anything you tell us in the questionnaire or an interview. A member of the research team checks everything it finds against its source before we use it, and we never record private information.
 >
 > Taking part is voluntary. You can decline, or stop at any time, without any consequence. Your answers are used for research purposes only — no score, rating, or financing decision is generated or shown to you, and your individual answers will never be shared with any lender or financial institution.
 >
@@ -192,6 +194,7 @@ null), and bump `PARTICIPANT_INFORMATION_SHEET_VERSION` if the wording changed.
 | Part A — QA thresholds | | Supervisor | | | |
 | Part B — PIS wording (v1.3) | Happyson Saina | Principal Researcher | Approved; stated to be covered by his CUT student research clearance (ethics and POTRAZ) | 2026-09-15 | Written statement in the build session |
 | Part B — PIS wording (v1.4) | Happyson Saina | Principal Researcher | Approved: study contact email changed to abffst.research@gmail.com, replacing abffst.research.cut@gmail.com; no other wording changed | 2026-09-22 | Written instruction in the build session |
+| Part B — PIS wording (v1.5) | Happyson Saina | Principal Researcher | Approved: adds the AI-tool and overseas-processing paragraph; the PI states the supervisors, ethics office, data-protection position and provider terms all confirm | 2026-09-28 | Written instruction in the build session |
 | Part B — PIS wording | | Supervisor | | | |
 | Part B — PIS wording | | CUT Research Ethics | Covered by the study's existing clearance, per the PI | | |
 

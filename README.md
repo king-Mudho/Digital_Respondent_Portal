@@ -31,7 +31,7 @@ PI's decision.
   Analysis Tool. Scheduled sync and the webhook both run against the live forms.
   Required-field QA uses 65 fields read from the live questionnaire.
 - **Approvals recorded by the PI (15 Sep 2026):** the ethics and POTRAZ position (covered
-  by his CUT student research clearance), PROIT, Participant Information Sheet v1.3, the
+  by his CUT student research clearance), PROIT, Participant Information Sheet v1.3 (now v1.5), the
   QA thresholds, and the invitation and reminder wording. Each is audited
   (`qa.thresholds_approved`, `messaging.wording_approved`) and recorded in `docs/28`,
   `30`, `31` and `33`.
@@ -1054,7 +1054,7 @@ for how the two projects share infrastructure without sharing a codebase.
   source-authority hierarchy, the three-value architecture, and the record of the PI's
   risk-acceptance decision to enable it for respondents.
 - `docs/31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` — the approved QA thresholds and
-  Participant Information Sheet v1.3.
+  Participant Information Sheet (now v1.5).
 - `docs/33_GO_LIVE_READINESS.md` — what was verified on production, what was fixed,
   and what is left before the first live invitation.
 - `backend/api/navigation.py` — not documentation as such, but the single source of truth

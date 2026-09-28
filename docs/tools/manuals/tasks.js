@@ -107,7 +107,7 @@ T.phoneAssisted = [
   ["p", "When the respondent prefers help, the researcher completes the questionnaire with them. The respondent must still hear the participant information and agree before any question is asked."],
   ["steps", [
     "Agree a time. If the respondent booked through the portal, it is in **Appointments**.",
-    "At the start of the call, confirm the organisation and the person's role, read or summarise the Participant Information Sheet (v1.3) and ask for consent. Stop if they decline.",
+    "At the start of the call, confirm the organisation and the person's role, read or summarise the Participant Information Sheet (v1.5) and ask for consent. Stop if they decline.",
     "Open the respondent's personal invitation link on your device and go through the portal screens with them (organisation, role, information, consent), choosing the answers they give you.",
     "Open the questionnaire from the portal so the case identifiers travel with the form, and complete it with the respondent. Never start the KoboToolbox form from a bookmark: a submission without the portal's link is set aside and not matched.",
     "After submitting, log the contact attempt with outcome **COMPLETED**, and mark the appointment **COMPLETED**.",

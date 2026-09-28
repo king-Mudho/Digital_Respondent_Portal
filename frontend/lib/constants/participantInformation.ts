@@ -1,5 +1,5 @@
 /**
- * Participant Information Sheet text, version v1.4.
+ * Participant Information Sheet text, version v1.5.
  *
  * History:
  *   v1.0  Placeholder draft pending PI/ethics-office confirmation
@@ -19,6 +19,13 @@
  *   v1.4  Study contact email changed again, to abffst.research@gmail.com
  *         (2026-09-22, PI-directed in the build session -- the old address
  *         is retired). No other wording changed.
+ *   v1.5  Added a paragraph saying an AI tool from a company outside
+ *         Zimbabwe is used to help with the public-information search, what
+ *         it is and is not given, and that a researcher checks everything
+ *         it finds (2026-09-28, PI-directed in the build session; the PI
+ *         states that the supervisors, the ethics office, the data-protection
+ *         position and the provider's terms all confirm it). No other wording
+ *         changed.
  *
  * IMPORTANT: this version bump closes that gap in the *text*. It does not
  * make the wording approved -- the PIS as a whole is still awaiting
@@ -26,7 +33,7 @@
  * the text changes; it is recorded against every ConsentRecord, so consent
  * stays traceable to the exact wording the respondent saw.
  */
-export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.4";
+export const PARTICIPANT_INFORMATION_SHEET_VERSION = "v1.5";
 
 export const PARTICIPANT_INFORMATION_SHEET = `
 This study is being carried out by Happyson Saina, a doctoral researcher at
@@ -50,6 +57,14 @@ you do not know, that you would rather not say, or skip this step
 altogether. It is there to save you time, not to test you. What you tell us
 is always recorded separately from what we found, and your own answers take
 precedence over it.
+
+To help with this search we use an AI tool provided by a company outside
+Zimbabwe. It is given the name and details of your organisation and your name
+and job title, so that it can find what is published about your organisation
+and your professional role. It is never given your telephone number, email
+address, or anything you tell us in the questionnaire or an interview. A member
+of the research team checks everything it finds against its source before we
+use it, and we never record private information.
 
 Taking part is voluntary. You can decline, or stop at any time, without any
 consequence. Your answers are used for research purposes only — no score,
