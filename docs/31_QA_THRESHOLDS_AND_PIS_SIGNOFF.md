@@ -179,6 +179,61 @@ re-issue as v1.3. Rationale: ____________________
 
 ---
 
+# Part B-KII — Participant Information Sheet for the KII self-service invitation
+
+Current version **KII-v1.0**, live at `/ki/<token>/information`, shown before consent on
+the KII self-service invitation path only (`docs/27_AGENT_EXECUTION_PLAN.md` "KII
+self-service invitation link"). Source: `frontend/lib/constants/kiiParticipantInformation.ts`.
+
+**Why a separate document from Part B above, not a shared version line:** the two sheets
+describe different things a participant is agreeing to — a questionnaire about their
+organisation, versus a Key Informant Interview about their own knowledge and experience.
+Recording both under one `PARTICIPANT_INFORMATION_SHEET_VERSION` would make
+`ConsentRecord.information_sheet_version` ambiguous about which actual text a given
+participant read. The two are versioned, and signed off, independently.
+
+Drafted 2026-10-01, PI-directed in the build session, after the self-service screen was
+found to be showing the Main-400 sheet verbatim — accurate in substance (same study,
+supervisors, ethics clearance, PROIT/AI-research disclosure, voluntariness, no
+score/rating/financing decision, how contact details are kept, the contact line), but its
+"you will be asked to complete a questionnaire about your organisation" wording described
+the wrong thing. Only that one paragraph was rewritten; everything else carries over from
+the Main-400 sheet's current (v1.5) wording unchanged. The new paragraph uses the real
+duration figures on the live KoboToolbox KII Guide ("Standard duration: 30-45 minutes.
+Executive short form: 12-15 minutes."), confirmed by opening the actual form, not invented.
+Does not mention recording: the self-service path is unsupervised by design, so nothing is
+ever recorded in that session — an interviewer-administered KII still goes through a
+separate verbal information/consent process (`ConsentMethod.VERBAL_RA_RECORDED`), not this
+screen.
+
+## B-KII.1 The text as it currently stands
+
+> This study is being carried out by Happyson Saina, a doctoral researcher at Chinhoyi University of Technology, supervised by Dr L. Chikazhe and Dr J. Kanyepe. It looks at how agribusinesses in Zimbabwe can become better prepared for financing and investment. This study has received ethics clearance from Chinhoyi University of Technology (Research Ethics Clearance Letter, Annex 19, Form GRSD 17 SEBS/06/2025).
+>
+> You have been invited to take part in a Key Informant Interview because of your knowledge and experience relevant to agribusiness financing and food systems transformation in Zimbabwe. If you agree, you can complete the interview yourself, in your own time, using your personal link, or arrange for a researcher to go through it with you instead, by phone, WhatsApp or video call. It usually takes 30-45 minutes; a shorter 12-15 minute version is available where appropriate.
+>
+> Before contacting you, we may look up information about your organisation that is already publicly available — for example from official registers, published reports, or reputable news sources — so that we do not ask you for facts that are already on record. Where we have done this, you will be shown what we found and asked to confirm or correct it. You can also tell us you do not know, that you would rather not say, or skip this step altogether. It is there to save you time, not to test you. What you tell us is always recorded separately from what we found, and your own answers take precedence over it.
+>
+> To help with this search we use an AI tool provided by a company outside Zimbabwe. It is given the name and details of your organisation and your name and job title, so that it can find what is published about your organisation and your professional role. It is never given your telephone number, email address, or anything you tell us in the interview. A member of the research team checks everything it finds against its source before we use it, and we never record private information.
+>
+> Taking part is voluntary. You can decline, or stop at any time, without any consequence. Your answers are used for research purposes only — no score, rating, or financing decision is generated or shown to you, and your individual answers will never be shared with any lender or financial institution.
+>
+> Your name and contact details are kept separately from your answers and are only used to manage your participation in this study (for example, to send a reminder or arrange a call). Only the research team can see this information. Results will only ever be reported in combined, anonymised form.
+>
+> If you have any questions, you can contact the research team: Happyson Saina, phone 0773943709, email abffst.research@gmail.com. The same details are also included in your invitation message.
+
+## B-KII.2 Gaps
+
+The seven gaps listed in B2 above (retention/destruction statement, withdrawal-after-
+submission route, independent complaints route, "only the research team" scope,
+data-storage location, language) apply identically here — this sheet inherits them from
+the Main-400 wording it was built from, not a new set to review separately.
+
+**Decision:** approve KII-v1.0 as-is / approve with amendments / revise and re-issue.
+Rationale: ____________________
+
+---
+
 # Sign-off
 
 No value or wording above should be treated as approved until this block is completed.
@@ -197,6 +252,9 @@ null), and bump `PARTICIPANT_INFORMATION_SHEET_VERSION` if the wording changed.
 | Part B — PIS wording (v1.5) | Happyson Saina | Principal Researcher | Approved: adds the AI-tool and overseas-processing paragraph; the PI states the supervisors, ethics office, data-protection position and provider terms all confirm | 2026-09-28 | Written instruction in the build session |
 | Part B — PIS wording | | Supervisor | | | |
 | Part B — PIS wording | | CUT Research Ethics | Covered by the study's existing clearance, per the PI | | |
+| Part B-KII — PIS wording (KII-v1.0) | Happyson Saina | Principal Researcher | Approved: new, separate information sheet for the KII self-service invitation path, rewriting only the "what taking part involves" paragraph for an interview rather than a questionnaire; every other paragraph carries over from the Main-400 sheet's v1.5 wording unchanged | 2026-10-01 | Written instruction in the build session |
+| Part B-KII — PIS wording | | Supervisor | | | |
+| Part B-KII — PIS wording | | CUT Research Ethics | Covered by the study's existing clearance, per the PI | | |
 
 Until Part B is signed, the PIS remains a draft that respondents are nonetheless being
 shown. Until Part A is signed, the QA thresholds remain engineering defaults. Both are

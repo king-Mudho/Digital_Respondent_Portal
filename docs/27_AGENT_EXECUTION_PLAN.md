@@ -165,18 +165,18 @@ work — resolve them with the PI before or during the phase noted, not silently
   that way until either a second letter covering Dr Kanyepe is found (publish both
   together) or the PI confirms this single letter is sufficient as-is.
 
-- **The KII self-service information screen reuses the Main-400 Participant Information
-  Sheet verbatim, and its wording describes "the questionnaire" — flagged, not resolved
-  (2026-10-01).** The new self-service KII invitation flow (`/ki/[token]/information`)
-  shows the same `PARTICIPANT_INFORMATION_SHEET` text and version as the Main-400
-  respondent flow, per the approved plan for that feature. Verified live: the text says
-  "you will be asked to complete a questionnaire about your organisation (around 15-25
-  minutes)" — accurate for a Main-400 respondent, not quite accurate for someone about to
-  do a Key Informant Interview. The substance (ethics clearance, voluntary participation,
-  no score/rating/financing decision, contact details) still applies to both. Left
-  unchanged rather than drafting KII-specific wording unilaterally — a PIS wording change
-  needs the PI's sign-off (AGENTS.md § Open questions convention), not an engineering
-  judgement call.
+- **The KII self-service information screen reused the Main-400 Participant Information
+  Sheet verbatim, and its wording described "the questionnaire" — RESOLVED (2026-10-01).**
+  Flagged when the KII self-service feature shipped, left unchanged at the time rather
+  than drafting replacement wording unilaterally (a PIS wording change needs the PI's
+  sign-off, not an engineering judgement call). The PI then directed drafting KII-specific
+  wording and deploying it. A new, separate `KII_PARTICIPANT_INFORMATION_SHEET` (version
+  `KII-v1.0`, own file `frontend/lib/constants/kiiParticipantInformation.ts`, own sign-off
+  row in `docs/31` Part B-KII) now serves `/ki/[token]/information` — only the "what taking
+  part involves" paragraph was rewritten, describing a Key Informant Interview with the
+  real duration figures from the live KoboToolbox KII Guide rather than a questionnaire;
+  every other paragraph carries over from the Main-400 sheet unchanged. See "Drafting the
+  KII-specific Participant Information Sheet" below for the full record.
 
 - **KII RA accounts need their own KoboToolbox collaborator login for the KII Guide
   project — raised with the PI before this session, never actually written down here
@@ -1152,6 +1152,45 @@ values via the rendered page, not just that the page returned 200.
   written down anywhere in this file despite being raised earlier in conversation with
   the PI, so recorded properly now rather than left as something only this agent
   remembered.
+
+## Drafting the KII-specific Participant Information Sheet (2026-10-01)
+
+The PI directed drafting KII-specific wording for the self-service information screen
+(not reusing the Main-400 sheet) and deploying it.
+
+- [x] New `KII_PARTICIPANT_INFORMATION_SHEET` / `KII_PARTICIPANT_INFORMATION_SHEET_VERSION`
+      (`"KII-v1.0"`) in a new file, `frontend/lib/constants/kiiParticipantInformation.ts` —
+      a separate document and version line from `PARTICIPANT_INFORMATION_SHEET_VERSION`,
+      not a shared constant bumped in place: the two sheets describe different things a
+      participant agrees to, and `ConsentRecord.information_sheet_version` must point
+      unambiguously at the exact text a given participant actually read. Conflating them
+      would make that traceability wrong for whichever flow didn't just change.
+- [x] Only the "what taking part involves" paragraph was rewritten — from "you will be
+      asked to complete a questionnaire about your organisation" to a description of a
+      Key Informant Interview, using the real duration figures on the live KoboToolbox KII
+      Guide ("Standard duration: 30-45 minutes. Executive short form: 12-15 minutes.",
+      read directly off the live form, not invented) and reframing who is being asked and
+      why (knowledge/experience, not organisational selection). Every other paragraph
+      (study/supervisors/ethics clearance, the PROIT/AI-research disclosure, voluntariness,
+      no score/rating/financing decision, how contact details are kept, the contact line)
+      carries over from the Main-400 sheet's current v1.5 wording unchanged. Deliberately
+      does not mention recording: the self-service path is unsupervised by design, so
+      nothing is ever recorded in that session.
+- [x] `/ki/[token]/information/page.tsx` and `/ki/[token]/consent/page.tsx` updated to use
+      the new constants instead of the Main-400 ones.
+- [x] `docs/31_QA_THRESHOLDS_AND_PIS_SIGNOFF.md` gets a new, independent Part B-KII (text,
+      rationale, gaps inherited from Part B, decision line) and its own sign-off row,
+      rather than folding into Part B's existing v1.x history.
+- [x] Verified live against the local dev stack before deploying: issued a fresh KII
+      self-service invitation, opened it as the informant would, confirmed the new text
+      renders on the information screen, gave consent, and confirmed directly against the
+      database that the resulting `ConsentRecord.information_sheet_version` is `KII-v1.0`
+      — not the Main-400 version string, proving the two are genuinely independent end to
+      end, not just in the source file. Frontend `tsc`/`eslint`/`npm run build` all clean.
+- [x] Deployed to production (2026-10-01): same `git archive | gzip` → scp → `deploy.sh`
+      path as every other feature this session. Frontend-only change, no migration.
+- [x] `docs/31` Part B-KII sign-off row recorded per the PI's instruction in this build
+      session, same pattern already used for every other PIS version in this file.
 
 ## Phase 11 — Go-live
 

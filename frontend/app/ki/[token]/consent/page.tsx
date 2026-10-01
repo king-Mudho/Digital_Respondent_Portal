@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { submitKIIConsent } from "@/lib/api/kiiRespondent";
 import { respondentErrorMessage } from "@/lib/api/respondentErrors";
-import { PARTICIPANT_INFORMATION_SHEET_VERSION } from "@/lib/constants/participantInformation";
+import { KII_PARTICIPANT_INFORMATION_SHEET_VERSION } from "@/lib/constants/kiiParticipantInformation";
 
 export default function KIIConsentPage() {
   const params = useParams<{ token: string }>();
@@ -24,7 +24,7 @@ export default function KIIConsentPage() {
       await submitKIIConsent({
         token: params.token,
         decision,
-        informationSheetVersion: PARTICIPANT_INFORMATION_SHEET_VERSION,
+        informationSheetVersion: KII_PARTICIPANT_INFORMATION_SHEET_VERSION,
       });
       if (decision === "GIVEN") {
         router.push(`/ki/${params.token}/kobo-redirect`);

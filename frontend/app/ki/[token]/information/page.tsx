@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { StudyHeader } from "@/components/respondent/StudyHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PARTICIPANT_INFORMATION_SHEET } from "@/lib/constants/participantInformation";
+import { KII_PARTICIPANT_INFORMATION_SHEET } from "@/lib/constants/kiiParticipantInformation";
 
 export default function KIIParticipantInformationPage() {
   const params = useParams<{ token: string }>();
@@ -17,7 +17,7 @@ export default function KIIParticipantInformationPage() {
         <Card className="max-w-xl w-full space-y-6">
           <h2 className="font-semibold text-lg">Participant Information</h2>
           <div className="text-text-muted text-sm whitespace-pre-line leading-relaxed">
-            {PARTICIPANT_INFORMATION_SHEET}
+            {KII_PARTICIPANT_INFORMATION_SHEET}
           </div>
           <Button className="w-full" onClick={() => router.push(`/ki/${params.token}/consent`)}>
             Continue to consent
