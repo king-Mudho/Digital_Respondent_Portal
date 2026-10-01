@@ -164,6 +164,19 @@ work — resolve them with the PI before or during the phase noted, not silently
   uploaded into the production Research Clearance screen yet; upload both supervision
   letters together once found, rather than publishing the Chikazhe-only one first.
 
+- **The KII self-service information screen reuses the Main-400 Participant Information
+  Sheet verbatim, and its wording describes "the questionnaire" — flagged, not resolved
+  (2026-10-01).** The new self-service KII invitation flow (`/ki/[token]/information`)
+  shows the same `PARTICIPANT_INFORMATION_SHEET` text and version as the Main-400
+  respondent flow, per the approved plan for that feature. Verified live: the text says
+  "you will be asked to complete a questionnaire about your organisation (around 15-25
+  minutes)" — accurate for a Main-400 respondent, not quite accurate for someone about to
+  do a Key Informant Interview. The substance (ethics clearance, voluntary participation,
+  no score/rating/financing decision, contact details) still applies to both. Left
+  unchanged rather than drafting KII-specific wording unilaterally — a PIS wording change
+  needs the PI's sign-off (AGENTS.md § Open questions convention), not an engineering
+  judgement call.
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
@@ -1009,6 +1022,58 @@ backend endpoint could technically take a PATCH but the screen only ever used it
       field edited here already existed). Backup taken, frontend rebuilt, all four services
       restarted, all three health checks passed. Verified live: the new
       `organisations/{id}/` route exists and refuses unauthenticated access (401, not 404).
+
+## KII self-service invitation link (2026-10-01)
+
+The PI asked for a KII informant to be able to open a personal link themselves (WhatsApp/
+email/SMS) and complete the interview alone, the same way a Main-400 respondent already
+can — for someone who would rather fill it in in their own time than do a live call.
+Before building, confirmed three protocol/consent decisions with the PI (AskUserQuestion,
+per AGENTS.md § Open questions convention — these are research decisions, not engineering
+ones): (1) no recording consent on this path, since nobody records an unsupervised
+session; (2) a minimal information-then-consent flow, no organisation-confirmation step
+(an informant was already identified by name by an RA, unlike an anonymous Main-400
+organisation); (3) `INVITED → COMPLETED` as a valid direct status transition, since a
+self-administered interview has no call to schedule.
+
+- [x] `KIIRecord` gains `phone`/`whatsapp_number`/`email` (mirrors `contacts.Respondent`'s
+      own contact fields). New `KIIInvitationToken` model + `apps/kii/services.py` token
+      lifecycle (issue/validate/revoke, salted-hash-only storage, supersession on reissue)
+      — a dedicated model, not an extension of `invitations.InvitationToken`: that model's
+      status set (`ELIGIBILITY_PASSED`, `SURVEY_STARTED`, `QA_PASSED`, ...) is QUAN-shaped
+      and consumed by QUAN-only code (reconciliation, dashboards, exports); reusing it
+      risked the live Main-400 flow for no benefit, since KII's lifecycle is genuinely
+      simpler (no eligibility concept, no SampleCase workflow to advance).
+- [x] New public, token-gated endpoints under `kii-invitations/` and `kii-consent/`
+      mirroring the Main-400 equivalents. `consent.services.record_consent()`/
+      `has_given_consent()` already supported a `KIIRecord` from an earlier phase, and
+      `kii.services.build_kii_coding_url()` already gated on participation consent and
+      omitted participant-identifying data — both reused unchanged.
+- [x] New respondent route `/ki/[token]/{information,consent,kobo-redirect}` — a separate
+      namespace from `/i/[token]/...`, not a branch inside it, for the same
+      don't-risk-the-live-flow reasoning as the backend. No "done" page, same as Main-400:
+      opening the KoboToolbox form navigates away from the portal entirely.
+- [x] KII record page gains an "Invite" panel (issue/reissue/revoke, ready-made WhatsApp/
+      SMS/email messages) and the new contact fields on the existing "Record details" form.
+      `InvitationSendPanel` (the Main-400 message-sending UI) now takes an optional
+      `sendEmailPath` so one component serves both screens rather than a near-duplicate.
+- [x] 20 new backend tests (`test_kii_invitations.py`) plus one rewritten test that had
+      asserted the now-superseded "can't skip SCHEDULED" rule. The consent gate on the
+      KoboToolbox redirect endpoint was mutation-tested (broken, confirmed the test went
+      red, restored). Full suite (630 tests) and frontend typecheck/lint/build re-run
+      clean. One Playwright e2e spec drives the whole path — an RA issuing the link from
+      the KII record page, an informant opening it in a separate browser context (no admin
+      session), through to a KoboToolbox redirect URL containing only the KII-ID — plus a
+      second spec proving the redirect refuses before consent (403 `consent_required`).
+      Both verified live in a browser against the local dev stack before deploying.
+- [x] Deployed to production (2026-10-01): same `git archive | gzip` → scp → `deploy.sh`
+      path as the previous two features. `kii.0003_kiirecord_email_kiirecord_phone_and_more`
+      applied cleanly, all three health checks passed. Verified live: `kii-invitations/`
+      validate refuses a missing token (400), issue refuses unauthenticated access (401),
+      and the new `/ki/<token>` route renders.
+- See the Open Questions section above for the one unresolved item this surfaced: the
+  self-service information screen currently reuses the Main-400 PIS text verbatim, which
+  describes "the questionnaire" rather than a KII interview.
 
 ## Phase 11 — Go-live
 
