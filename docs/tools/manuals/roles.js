@@ -122,7 +122,7 @@ module.exports = [
         "To remove access, untick **Active** and save. Do not delete users; their audit history must remain.",
       ]]],
       T.dashboards, T.reports,
-      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.clearance, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
+      T.reassign, T.pairAssign, T.bulkVerify, T.registerOrg, T.respondents, T.invite, T.exports("pi"), T.audit, T.clearance, T.kii, T.documents, T.cost, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"),
       [["h2", "KoboToolbox: rotating credentials and changing forms"], ["steps", [
         "Change the KoboToolbox password, then create a new API token (**Account settings → Security**).",

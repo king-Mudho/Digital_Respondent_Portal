@@ -1260,6 +1260,38 @@ manual — same shape of gap as the KII self-service one just closed above.
       KII side ("7.16a Correcting a KII record's details") was confirmed unaffected by the
       bug (it already used `numberedSections()`) and unaffected by the fix.
 
+## Role Guide 1 (PI/Admin): missing organisation, KII, document and cost procedures (2026-10-01)
+
+Asked to check the role guides too. Checked all 8 role-guide PDFs for the same features
+(Research Clearance, organisation/KII correction, KII self-service invitation) and found
+seven of them consistent with their own "You can" / "You cannot" lists. Role Guide 1
+(PI/System Admin) was not: its "You can" list states "Do everything the Field Coordinator
+can: register organisations, assign Contact RAs, verify cases in bulk, invite, activate
+Reserves, record withdrawals, take QA decisions, manage KII and document records, log
+costs" — but `roles.js`'s task list for guide 1 never included `T.registerOrg`,
+`T.respondents`, `T.invite`, `T.kii`, `T.documents` or `T.cost`. The PI guide had no
+step-by-step procedure anywhere for registering or correcting an organisation, creating or
+correcting a KII record, sending a KII self-service link, adding or coding a document, or
+logging a cost — a claim-without-a-control gap of the same shape AGENTS.md calls out for
+code, just in a manual instead. This predates this session (the gap existed for `T.invite`
+and `T.cost` before any of today's work), surfaced now by checking the guide against its
+own stated capabilities rather than only against today's new features.
+
+- [x] Added `T.registerOrg, T.respondents, T.invite` (after `T.bulkVerify`) and `T.kii,
+      T.documents, T.cost` (after `T.clearance`) to Role Guide 1's task list in
+      `roles.js`, mirroring Role Guide 2's existing use of the same blocks. No new content
+      written — these are the same shared `tasks.js` procedures already used by the Field
+      Coordinator and KII RA guides, so the newly-added organisation/KII correction
+      sections from the previous entry above appear in the PI guide too, automatically.
+- [x] `common.js` `REVISION` bumped to **v1.16**. Rebuilt and finalised (Role Guide 1
+      52→71 pages; all others unchanged). Verified by extracting text from the rebuilt
+      PDF: the guide's `4.x` task numbering now runs 4.1–4.36 with no gaps or repeats,
+      and "Registering a new organisation and its sample case" (4.7), "Correcting an
+      already-registered organisation" (4.8), "Creating a KII record" (4.14), "Correcting
+      a KII record's details" (4.15), "Sending the informant their own link
+      (self-service)" (4.18) and "Logging fieldwork costs" (4.27) each appear exactly
+      once.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.
