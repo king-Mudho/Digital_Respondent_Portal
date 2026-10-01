@@ -950,11 +950,65 @@ specced in `docs/00`-`28`.
       endpoint refuses a request with no token (400), and `/admin/clearance` renders.
 - [ ] Upload the four PI-supplied documents into the production screen and decide, with
       the PI, which should be marked `is_public` — blocked on the supervisor-name question
-      above for the supervision-confirmation letter specifically.
-- [ ] Mention the Research Clearance screen in `README.md`,
-      `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals (`docs/tools/
-      build_guide.py`), per this file's "Keeping the documentation honest" section — not
-      yet done.
+      above for the supervision-confirmation letter specifically; a second letter covering
+      Dr Kanyepe is being located (2026-10-01) and both should be uploaded together.
+- [x] `README.md`, `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals
+      (`docs/tools/manuals/*.js`, rebuilt to v1.13 via `build_manuals.js` and
+      `finalise_manuals.ps1`, verified by extracting text from the built PDFs) now describe
+      the Research Clearance screen, per this file's "Keeping the documentation honest"
+      section.
+
+## Correcting an already-saved Organisation, KII record (2026-10-01)
+
+The PI asked for an edit option "almost everywhere" a record is saved — Organisation,
+Main-400, KII Register, Documents were named specifically, with "correct the actual name
+of the organisation" as the concrete example. Checked each before building anything:
+Documents already had a working edit form (`DocumentRecordDetailView` + the record-details
+panel on its page); Organisation had no edit path at all, anywhere; a Main-400 case's own
+backend endpoint could technically take a PATCH but the screen only ever used it for
+`assigned_ra`/`matched_case`; a KII record's endpoint was the same shape.
+
+- [x] `OrganisationDetailView` (`GET`/`PATCH /api/v1/organisations/{id}/`): name, district,
+      entity_type, value_chain correctable from `/admin/organisations` (inline Edit per
+      row). province/actor_family/size_class are deliberately read-only through this
+      endpoint — `resolve_stratum_for_organisation()` only resolves a case's
+      `StratumDefinition` from these three fields once, at case-creation time, never again,
+      so editing them afterwards would silently detach an organisation from the stratum its
+      existing Main/Reserve pairing depends on (ground rule 4). The province code is also
+      baked into the immutable `master_id`.
+- [x] KII record "Record details" panel (`/admin/kii/{id}`): participant name, role,
+      stakeholder category, preferred mode, interview date, duration, field notes —
+      PATCHing the existing `KIIRecordDetailView`.
+- [x] Main-400 case: no new edit surface added. Once Organisation correction existed there
+      was nothing else on a case worth exposing — its other fields are either workflow
+      state (already has validated, audited controls) or links that must not casually
+      change (see the bug below). Correcting a case's organisation now means correcting the
+      Organisation record itself.
+- [x] **Two real gaps found while deciding what was safe to expose, neither previously
+      exploited, both fixed and regression-tested** (mutation-tested: reverted each fix
+      locally, confirmed the new test goes red, restored it):
+      - `SampleCaseDetailView`'s PATCH had no handling at all for `organisation`/`stratum`/
+        `sample_type`, unlike `matched_case` just above it in the same method — a bare
+        request could have silently reassigned a Sample ID to a different organisation or
+        flipped a case between MAIN and RESERVE, with no validation and no audit trail.
+        These three can't be made `read_only_fields` on the serializer itself (it's also
+        used by case creation, which needs them writable) — dropped from
+        `validated_data` in `perform_update()` on PATCH only, the same pattern already used
+        for `matched_case`.
+      - `KIIRecordSerializer` left `status`/`transcript_status`/`coding_status` writable on
+        the plain detail endpoint — a bare PATCH could have set `status=COMPLETED` directly
+        and skipped `mark_completed()`'s recording-consent requirement entirely (ground rule
+        6). Now read-only there; `KIIStatusTransitionView`/`KIITranscriptStatusView`/
+        `KIICodingStatusView` remain the only validated, audited way to change them.
+- [x] 6 new backend tests (`test_organisation_registration.py`,
+      `test_sample_case_api_integrity.py`, `test_kii.py`). Full suite (609 tests) and
+      frontend typecheck/lint/build re-run clean; both screens verified live in a browser
+      against the local dev stack before deploying.
+- [x] Deployed to production (2026-10-01): same `git archive | gzip` → scp → `deploy.sh`
+      path as the clearance screen. No migration was pending (no new model fields — every
+      field edited here already existed). Backup taken, frontend rebuilt, all four services
+      restarted, all three health checks passed. Verified live: the new
+      `organisations/{id}/` route exists and refuses unauthenticated access (401, not 404).
 
 ## Phase 11 — Go-live
 
