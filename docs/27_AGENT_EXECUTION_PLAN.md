@@ -979,6 +979,19 @@ specced in `docs/00`-`28`.
       `RespondentClearanceDocumentSerializer` that exactly these three are returned, with
       no case/respondent data. The supervision-confirmation letter (id 5) stays
       `is_public=False`, per the open question above.
+- [x] **Found and removed an orphaned row (id 1), 2026-10-01.** While re-checking the
+      register at the PI's request (asked to "sign in and confirm it looks right" — this
+      agent cannot sign in to production; checked the same data the admin screen renders
+      instead), a fifth, file-less duplicate "Research Ethics Clearance Letter" turned up,
+      `is_public=False` from creation to discovery. Its own audit event
+      (`clearance.document_created`, id 713, 15:19:16 UTC) timestamped 25 seconds before
+      the real id 2's row — exactly the gap from the very first upload-script run, which
+      created the record, then crashed on a file-permission error (the `/tmp` staging
+      directory wasn't yet world-readable) before `save_file()` ever ran. Confirmed
+      `is_public=False` and no `file_ref` before deleting (AGENTS.md's guard-before-delete
+      convention); the row itself is gone, its audit event is not — the rule this project
+      holds to is leaving the trail alone, not erasing the record of a mistake. No
+      respondent could ever have seen this row.
 - [x] `README.md`, `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals
       (`docs/tools/manuals/*.js`, rebuilt to v1.13 via `build_manuals.js` and
       `finalise_manuals.ps1`, verified by extracting text from the built PDFs) now describe
