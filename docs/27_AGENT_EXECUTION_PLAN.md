@@ -155,14 +155,14 @@ work — resolve them with the PI before or during the phase noted, not silently
   own account can, including managing users. It was left exactly as found while the question
   was open; the PI's decision to keep it, at that role, is recorded here.
 
-- **Supervisor named on the "Confirmation of PhD Supervision" letter — flagged, not
-  resolved (2026-10-01).** Of the four clearance/approval documents the PI attached for the
-  new Research Clearance screen (see below), the supervision confirmation letter names
-  only Dr L. Chikazhe. Dr J. Kanyepe appears as co-supervisor elsewhere in this system (the
-  Participant Information Sheet and prior ethics-pack text). The four documents have not
-  been uploaded into the production Research Clearance screen yet, pending the PI
-  confirming whether a second letter exists or the PIS text needs correcting instead —
-  this should be settled before that letter is uploaded and marked `is_public`.
+- **Supervisor named on the "Confirmation of PhD Supervision" letter — in progress
+  (2026-10-01).** Of the four clearance/approval documents the PI attached for the new
+  Research Clearance screen (see below), the supervision confirmation letter names only
+  Dr L. Chikazhe. Dr J. Kanyepe appears as co-supervisor elsewhere in this system (the
+  Participant Information Sheet and prior ethics-pack text). The PI confirmed a second
+  letter covering Dr Kanyepe exists and is locating it. The four documents have not been
+  uploaded into the production Research Clearance screen yet; upload both supervision
+  letters together once found, rather than publishing the Chikazhe-only one first.
 
 ---
 
