@@ -77,7 +77,7 @@ module.exports = [
     audience: "The Principal Investigator (full access)",
     purpose: "As PI you own the study and the system. You see every screen, approve how fieldwork runs, create accounts, decide replacements and withdrawals, review the audit trail, and are the only person who can download the full operational data and the complete KoboToolbox data for cleaning and analysis.",
     can: [
-      "Open all 19 screens, including the Audit Log and every export.",
+      "Open all 20 screens, including the Audit Log, Research Clearance and every export.",
       "Create, change and deactivate staff accounts and roles.",
       "Do everything the Field Coordinator can: register organisations, assign Contact RAs, verify cases in bulk, invite, activate Reserves, record withdrawals, take QA decisions, manage KII and document records, log costs.",
       "Download the full operational export, each KoboToolbox form as an Excel workbook and a PDF ZIP, and the SmartPLS 4 and ATLAS.ti analysis packs.",
@@ -101,6 +101,7 @@ module.exports = [
       ["Cost", "Fieldwork spend."],
       ["Audit Log", "Who did what, when."],
       ["Export", "All data downloads."],
+      ["Research Clearance", "Publish the study's official approval letters for respondents to check."],
     ],
     routine: [
       ["Daily", "Executive Dashboard and Reports (last 7 days); QA Exceptions older than two days; Follow-ups backlog."],
@@ -121,7 +122,7 @@ module.exports = [
         "To remove access, untick **Active** and save. Do not delete users; their audit history must remain.",
       ]]],
       T.dashboards, T.reports,
-      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
+      T.reassign, T.pairAssign, T.bulkVerify, T.exports("pi"), T.audit, T.clearance, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"),
       [["h2", "KoboToolbox: rotating credentials and changing forms"], ["steps", [
         "Change the KoboToolbox password, then create a new API token (**Account settings → Security**).",
@@ -146,7 +147,7 @@ module.exports = [
       ["Email buttons missing or failing", "Outgoing email not configured, or the Gmail App Password revoked.", "Run `configure-email.sh` on the server."],
       ["Workbook shows NOT_IN_PORTAL in portal_qa_status", "A submission that was not matched to a case (e.g. a test or a direct public-link submission).", "Check it in KoboToolbox; exclude or delete test submissions."],
     ],
-    quick: [["Account admin", `${C.SITE}/django-admin/`], ["KoboToolbox", "https://kf.kobotoolbox.org"], ["Your exports", "Export → Analysis packs (SmartPLS 4, ATLAS.ti) and KoboToolbox data (Excel workbook, PDF ZIP)"]],
+    quick: [["Account admin", `${C.SITE}/django-admin/`], ["KoboToolbox", "https://kf.kobotoolbox.org"], ["Your exports", "Export → Analysis packs (SmartPLS 4, ATLAS.ti) and KoboToolbox data (Excel workbook, PDF ZIP)"], ["Research Clearance", "Research Clearance → Add a document, upload its file, then Shown to respondents"]],
   }),
 
   guide({
@@ -154,7 +155,7 @@ module.exports = [
     audience: "Field and digital coordinators running day-to-day fieldwork",
     purpose: "You run fieldwork day to day: keep the sample moving through verification, make sure every case has a Contact RA and contact details, keep follow-ups and appointments on schedule, make replacement and withdrawal decisions with the PI, and oversee QA, KII and documentary work.",
     can: [
-      "Open 18 screens — everything except the Audit Log.",
+      "Open 18 screens — everything except the Audit Log and Research Clearance.",
       "Register organisations, pair Reserves, assign Contact RAs and verify cases in bulk.",
       "Record respondents, invite, log contacts, send follow-ups, manage appointments.",
       "Record withdrawals and activate Reserves.",
@@ -162,7 +163,7 @@ module.exports = [
       "Download the de-identified analysis export.",
     ],
     cannot: [
-      "Open the Audit Log.",
+      "Open the Audit Log or Research Clearance.",
       "Download the full operational export or the KoboToolbox data workbooks (PI only).",
       "Create staff accounts (ask the PI).",
     ],
@@ -455,7 +456,7 @@ module.exports = [
     ],
     cannot: [
       "Change, send, assign, decide or log anything — forms and buttons are replaced by \"Your role has read-only access\" notes.",
-      "Open the Audit Log or Export.",
+      "Open the Audit Log, Export or Research Clearance.",
     ],
     landing: "Executive Dashboard",
     screens: [

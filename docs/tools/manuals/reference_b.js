@@ -160,6 +160,19 @@ const screens = [
     ],
   },
   {
+    id: "clearance", group: "Study administration", title: "Research Clearance", path: "/admin/clearance",
+    roles: [R.PI],
+    purpose: "The study's official approval letters (ethics clearance, institutional approval, supervision confirmation), published for a respondent to check the study is genuine before taking part.",
+    rows: [
+      ["Add a document: Title, Issuing body, Type, Reference number, Date, Description → Add document", "Creates a document record. It has no file yet and is not shown to anyone.", "The record (who issued it, when, what kind) is entered before the file, so the title is right before anything is uploaded.", "The document appears in the list with “No file uploaded yet”.", w],
+      ["Upload file / Replace file", "Attaches or replaces the letter itself (PDF, JPG or PNG, up to 20MB).", "A respondent needs the actual letter to open, not just its description.", "The file name appears; an already-public document's new file is live immediately.", w],
+      ["Shown to respondents", "Switches whether this document appears on the Participant Information step of every invitation link.", "A document is private by default; nothing reaches a respondent until this is explicitly turned on, and it needs a file first.", "On: the document appears to every respondent from then on. Off: it stops appearing immediately.", w],
+      ["Active", "Switches whether the document is current, independently of whether it is shown.", "Lets a superseded letter stay on record without being deleted.", "No visible change to respondents beyond Shown to respondents.", w],
+      ["View", "Opens the uploaded file.", "Checking what was actually uploaded.", "The file opens in a new tab."],
+      ["Delete", "Removes a document that has never been shown to a respondent.", "Once a document could have been seen by a respondent, there must always be a record of what was shown; disabled, and refused by the server, once it has been public even briefly.", "The record is removed. If it was ever public, the server refuses with a message instead.", w],
+    ],
+  },
+  {
     id: "export", group: "Study administration", title: "Export", path: "/admin/export",
     roles: [R.PI, R.FC, R.AN],
     purpose: "Downloads of data for analysis and for the data lock. Every download is audited, and the disclaimer at the foot applies to everything exported.",

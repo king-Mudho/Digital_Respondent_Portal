@@ -184,6 +184,9 @@ module.exports = {
       ["Backups", "Every 4 hours on the server; encrypted offsite copy to Google Drive once enabled."],
     ], [0.28, 0.72]],
 
+    ["h2", "3.15 Verifying the study is genuine"],
+    ["p", "On the Participant Information step, a respondent sees a short **How to verify this is a genuine study** section with links to open the PI's official approval letters, if any are published. It is hidden entirely — not shown empty — until the PI publishes at least one document, and a published document can be unpublished but never silently deleted once a respondent could have seen it (see 6.14)."],
+
     ["h1", "4. Getting started"],
     ...C.signIn("your role's start screen", "for example Contact RA"),
     ...C.changePassword,
@@ -207,6 +210,7 @@ module.exports = {
       ["Log costs", "✓", "✓", "—", "—", "—", "—", "view", "view"],
       ["Analysis export", "✓", "✓", "—", "—", "—", "—", "✓", "—"],
       ["Operational export, KoboToolbox data, Audit Log", "✓", "—", "—", "—", "—", "—", "—", "—"],
+      ["Publish Research Clearance documents", "✓", "—", "—", "—", "—", "—", "—", "—"],
     ], [0.24, 0.07, 0.07, 0.1, 0.11, 0.1, 0.1, 0.1, 0.11]],
 
     ["h1", "6. Screen reference"],
@@ -256,7 +260,9 @@ module.exports = {
     ["p", "See procedure 7.16."],
     ["h2", "6.13 Documents and document record"],
     ["p", "See procedure 7.17."],
-    ["h2", "6.14 Reserve Activation, Cost, Audit Log, Export, Change password"],
+    ["h2", "6.14 Research Clearance"],
+    ["p", "PI only. Publishes the study's official approval letters for respondents to check. See procedure 7.27."],
+    ["h2", "6.15 Reserve Activation, Cost, Audit Log, Export, Change password"],
     ["p", "See procedures 7.12, 7.18, 7.20, 7.19 and chapter 4."],
 
     ["h1", "7. Procedures, step by step"],
@@ -288,13 +294,14 @@ module.exports = {
     ...T.proit.map((b) => (b[0] === "h2" ? ["h2", "7.24 PROIT pre-interview profile with AI research (PI, FC)"] : b)),
     ...T.reassign.map((b) => (b[0] === "h2" ? ["h2", "7.25 Reassigning cases in bulk (PI, FC)"] : b)),
     ...T.proitInterview.map((b) => (b[0] === "h2" ? ["h2", "7.26 Verifying a profile with the respondent and reconciling it (FC, PI, KII RA, Contact RA)"] : b)),
+    ...T.clearance.map((b) => (b[0] === "h2" ? ["h2", "7.27 Publishing a Research Clearance document (PI)"] : b)),
 
     ["h1", "8. The respondent's experience"],
     ["p", "What respondents see on their phone. The separate **Respondent Guide** can be shared with respondents as it is."],
     ["table", ["Screen", "What the respondent does"], [
       ["Confirm organisation", "Confirms \"is this <organisation>?\" with **Yes, that's correct**, or contacts the team if not."],
       ["A little about you", "Enters their name and role; **None of these describe me** ends politely without any questions."],
-      ["Participant Information", "Reads the information sheet (v1.3), then **Continue to consent** or **Go back**."],
+      ["Participant Information", "Reads the information sheet (v1.3), then **Continue to consent** or **Go back**. If the PI has published any, a **How to verify this is a genuine study** section lists the official approval letters with a link to open each one."],
       ["Your consent", "**I agree to take part** or **I do not wish to take part**; can re-read the information."],
       ["Before we continue (PROIT)", "Only if a locked profile exists: confirms, corrects or skips background facts."],
       ["How would you like to take part?", "**Complete it myself now**, **Have a researcher call me**, **Complete it via WhatsApp**, or **Ask someone to contact me another way**."],

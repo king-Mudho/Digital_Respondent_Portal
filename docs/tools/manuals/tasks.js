@@ -475,6 +475,20 @@ T.exports = (who) => {
   return blocks;
 };
 
+T.clearance = [
+  ["h2", "Publishing a Research Clearance document"],
+  ["p", "The official letters that show this study is real and approved — ethics clearance, institutional or government approval, confirmation of supervision, an introduction letter — so a respondent can check for themselves before answering anything. A document is private until you publish it: nothing appears to a respondent until it has a file attached **and** Shown to respondents is switched on."],
+  ["steps", [
+    "Select **Research Clearance**.",
+    "Under **Add a document**, enter the **Title**, **Issuing body**, **Type**, the **Reference number** as printed on the letter (if any), the **Date on the letter**, and an optional plain-language **Description**, then select **Add document**.",
+    "Select **Upload file** on the new row and choose the letter (PDF, JPG or PNG, up to 20MB).",
+    "Tick **Shown to respondents** when you are ready for respondents to see it. It appears immediately on the Participant Information step of every invitation link.",
+    "**Active** can be switched off to retire a document without deleting it — for example a superseded letter you still want on record.",
+  ]],
+  ["tip", "Nothing is shown by accident", "A document needs a file and Shown to respondents **both** before any respondent sees it. Adding a document or uploading a file does not publish it on its own."],
+  ["warn", "A published document cannot be deleted", "Once a document has been shown to a respondent — even briefly — Delete is refused, by the server as well as the screen, so there is always a record of what respondents were shown. Switch Shown to respondents and Active off instead."],
+];
+
 T.audit = [
   ["h2", "Checking the audit log"],
   ["steps", [

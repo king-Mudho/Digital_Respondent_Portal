@@ -54,7 +54,7 @@ module.exports = {
     phone("resp_02_eligibility.jpg", "A little about you."),
     ["tip", "Not the right person?", "If none of the roles describes you, choose **None of these describe me**. You will be thanked and no questions will be asked. It would help us greatly if you could tell the researcher who contacted you who the right senior person is."],
     ["h2", "Step 4 — Read the participant information"],
-    ["p", "Read the information about the study: who is doing it, what taking part involves, how your information is protected, and your rights. When you are ready, tap **Continue to consent**. Tap **Go back** if you need to."],
+    ["p", "Read the information about the study: who is doing it, what taking part involves, how your information is protected, and your rights. If the research team has published them, a section called **How to verify this is a genuine study** lets you open their official approval letters. When you are ready, tap **Continue to consent**. Tap **Go back** if you need to."],
     phone("resp_03_information_top.jpg", "Participant Information."),
     ["h2", "Step 5 — Give your decision"],
     ["bullets", [

@@ -1,17 +1,17 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.12 · 28 September 2026";
+const REVISION = "Version 1.13 · 1 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
-  ["PI / System Admin", "All 19 screens, including the Audit Log and every export", "Executive Dashboard"],
-  ["Field / Digital Coordinator", "18 screens — everything except the Audit Log. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
+  ["PI / System Admin", "All 20 screens, including the Audit Log, Research Clearance and every export", "Executive Dashboard"],
+  ["Field / Digital Coordinator", "18 screens — everything except the Audit Log and Research Clearance. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
   ["Contact RA", "Main-400 Register, Appointments, Follow-ups — only the cases assigned to you", "Main-400 Register"],
   ["QUAN/Kobo QA RA", "QA Dashboard, Form PDFs (questionnaire), QA Queue, QA Exceptions", "QA Dashboard"],
   ["KII RA", "KII/Doc Dashboard, Form PDFs (KII Guide), KII Register", "KII/Doc Dashboard"],
   ["Documentary RA", "KII/Doc Dashboard, Form PDFs (Document Analysis Tool), Documents", "KII/Doc Dashboard"],
   ["Data Analyst", "Executive, Sampling, Reports, Contact and KII/Doc dashboards, Cost, Export (de-identified only). Read-only", "Executive Dashboard"],
-  ["Supervisor (read-only)", "17 screens — everything except the Audit Log and Export. Read-only", "Executive Dashboard"],
+  ["Supervisor (read-only)", "17 screens — everything except the Audit Log, Export and Research Clearance. Read-only", "Executive Dashboard"],
 ];
 
 const STATUS_TABLE = [
@@ -128,6 +128,7 @@ const GLOSSARY = [
   ["Administration mode", "How the questionnaire was completed (codes 01–06)."],
   ["Follow-up", "An approved reminder due to be sent to an invited respondent (Day 2, Day 7)."],
   ["Withdrawal", "A participant's request to stop taking part, recorded once in the portal."],
+  ["Research Clearance", "The PI's published official approval letters (ethics clearance, institutional approval, supervision confirmation) that a respondent can open from the Participant Information screen to check the study is genuine. Hidden until the PI publishes it."],
   ["Audit log", "The permanent record of every sensitive action and who took it."],
   ["Data lock", "30 November 2026 — the date fieldwork data is frozen for analysis."],
 ];
