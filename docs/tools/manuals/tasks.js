@@ -321,6 +321,16 @@ T.kii = [
     "Complete the interview in the form as usual.",
   ]],
   ["tip", "What the link carries", "Only the KII ID and your own username. It never carries the participant's name, role or organisation, so nothing identifying is left in a web address or your browser history."],
+  ["h2", "Sending the informant their own link (self-service)"],
+  ["p", "Some informants would rather complete the interview alone, in their own time, than do a live call. The **Invite** panel on the record sends them a personal link they can open unsupervised -- the same idea as a Main-400 invitation, but for a KII."],
+  ["steps", [
+    { text: "Under **Record details**, enter the informant's **Phone**, **WhatsApp number** or **Email** and select **Save details**. At least one is needed to send a link.", img: "kii_detail.jpg", caption: "Record details: phone, WhatsApp number and email." },
+    "Under **Invite (self-service link)**, choose a **Channel** and select **Send link**. The personal link, its manual code and ready-made WhatsApp/SMS/email messages appear -- the same panel used for Main-400 invitations.",
+    "Send it on the channel you chose: **Send via WhatsApp**, **Send by SMS**, **Email from study address** (if email is set up) or **Open in email app**, or **Copy message** for anything else.",
+  ]],
+  ["p", "The informant opens the link, reads a short Key Informant Interview information sheet, agrees to take part, and is taken straight to the KII Guide with the KII ID already filled in -- no account, no app, nothing identifying in the link. Once they consent, **Record participation consent** on this page updates to **GIVEN** on its own, and **Continue this interview** above becomes available too, exactly as if an RA had recorded it."],
+  ["tip", "Sending a new link replaces the old one", "Issuing another link for the same informant (for example after 14 days, or if they ask for a resend) immediately retires the previous one -- only one link is ever live per KII record, the same rule as Main-400 invitations."],
+  ["warn", "Still a self-administered interview, not a recorded one", "Nobody is present on a self-service session, so there is nothing to record and no recording consent is asked for on this path. If the informant would rather be interviewed live and recorded, arrange that by phone, WhatsApp or video call instead, and record both consents the usual way (above)."],
 ];
 
 T.documents = [

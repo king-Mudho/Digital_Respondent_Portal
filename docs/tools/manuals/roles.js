@@ -312,6 +312,7 @@ module.exports = [
     can: [
       "See the KII/Doc Dashboard, the KII Register and KII records.",
       "Create KII records; change status; record participation and recording consent; update transcript and coding progress.",
+      "Send an informant their own self-service interview link (phone, WhatsApp or email on the record, then Invite), for someone who would rather complete it alone than do a live call.",
       "Download PDFs of completed KII Guide forms.",
     ],
     cannot: [

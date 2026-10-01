@@ -1192,6 +1192,35 @@ The PI directed drafting KII-specific wording for the self-service information s
 - [x] `docs/31` Part B-KII sign-off row recorded per the PI's instruction in this build
       session, same pattern already used for every other PIS version in this file.
 
+## Manuals: covering the KII self-service flow (2026-10-01)
+
+Checked the manuals for the KII self-service feature shipped earlier today and found
+zero mentions anywhere — built and deployed without this pass at the time. The
+Respondent Guide's own audience line ("organisations invited to take part") had
+implicitly excluded KII informants entirely; a real informant opening a `/ki/...` link
+had no guide describing what they'd see, and no KII RA Role Guide instructions existed
+for the new "Invite" panel.
+
+- [x] **Respondent Guide**: new chapter 7, "If you were invited to a Key Informant
+      Interview" (old chapter 7 "Contact the research team" renumbered to 8) — the link
+      pattern (`/ki/` not `/i/`), the shorter 4-step flow, and a tip covering the
+      interviewer-assisted alternative. Points back to chapter 6's existing Q&A for
+      what's shared (expired links, interruptions) rather than duplicating it.
+- [x] **Role Guide 5 (KII RA)**: a new `can` bullet, and a new procedure section in
+      `tasks.js` `T.kii` ("Sending the informant their own link (self-service)") covering
+      entering contact details and using the Invite panel — flows automatically into both
+      the System Manual's shared KII procedure section and this role guide, since both
+      already draw on the same `T.kii` source.
+- [x] **System Manual** §3.12: one sentence added describing the self-service option
+      alongside the existing KII status-flow description, including that
+      `INVITED → COMPLETED` is now a valid direct transition.
+- [x] `common.js` `REVISION` bumped to **v1.14**. Rebuilt via `build_manuals.js` and
+      finalised via `finalise_manuals.ps1` (System Manual 71→72 pages, Respondent Guide
+      15→16, Role Guide 5 21→22) with no build failures. Verified by extracting text from
+      the built PDFs, not by assuming the build succeeded: confirmed the new Respondent
+      Guide chapter, the new Role Guide 5 procedure, and the System Manual sentence all
+      actually landed.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.

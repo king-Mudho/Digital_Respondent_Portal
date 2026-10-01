@@ -122,7 +122,33 @@ module.exports = {
     ], [0.36, 0.64]],
     phone("resp_10_invalid_link.jpg", "What an invalid or expired link looks like."),
 
-    ["h1", "7. Contact the research team"],
+    ["h1", "7. If you were invited to a Key Informant Interview"],
+    ["p", "Some people are invited differently: instead of an organisation being asked to complete the Main Study Questionnaire, you may be invited **by name** to a Key Informant Interview (KII) because of your own knowledge and experience. If this is you, your link looks different and the steps are shorter -- the sections above do not apply."],
+    ["kv", [
+      ["Your link", "Starts with **research.agribizframework.com/ki/** -- note **/ki/**, not /i/."],
+      ["Time needed", "Usually 30–45 minutes. A shorter 12–15 minute version is used for some interviews."],
+      ["Questions", "Happyson Saina · 0773943709 · abffst.research@gmail.com"],
+    ]],
+    ["h2", "Step 1 — Open your link"],
+    ["p", "Tap the link you were sent. The study portal opens in your browser -- no app to install and no account to create."],
+    ["h2", "Step 2 — Read the participant information"],
+    ["p", "Read about the study, why you have been invited, what taking part involves, and your rights. When you are ready, tap **Continue to consent**."],
+    ["h2", "Step 3 — Give your decision"],
+    ["bullets", [
+      "Tap **I agree to take part** if you are happy to continue.",
+      "Tap **I do not wish to take part** if you would rather not. That is completely fine.",
+      "Tap **Re-read the participant information** to look at it again first.",
+    ]],
+    ["h2", "Step 4 — Start the interview"],
+    ["steps", [
+      "Tap **Start the interview**.",
+      "The interview opens on KoboToolbox, the same secure data-collection service used for the Main Study Questionnaire. Answer each question at your own pace, then tap **Next**.",
+      "Continue to the end and tap **Submit**.",
+    ]],
+    ["tip", "Would rather talk it through with someone?", "This link is for completing the interview yourself, in your own time -- nobody else is on the call and nothing is recorded. If you would rather a researcher went through it with you instead, by phone, WhatsApp or video call, contact the research team using the details in your invitation and they will arrange it."],
+    ["p", "Most of chapter 6's questions and answers apply here too (an expired or invalid link, being interrupted partway through, who to contact). The one difference: there is no step asking you to confirm an organisation or your role -- you were identified and invited by name, so that step does not appear."],
+
+    ["h1", "8. Contact the research team"],
     ["kv", [
       ["Researcher", "Happyson Saina"],
       ["Phone / WhatsApp", "0773943709"],
