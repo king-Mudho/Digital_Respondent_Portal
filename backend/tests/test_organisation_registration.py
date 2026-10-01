@@ -112,3 +112,54 @@ def test_contact_ra_can_list_but_not_create_organisations(db):
 
     assert client.get("/api/v1/organisations/").status_code == 200
     assert client.post("/api/v1/organisations/", ORG_PAYLOAD, format="json").status_code == 403
+
+
+# --- Correcting an already-saved organisation (2026-10-01) -------------------
+# There was previously no way to fix a mistyped organisation name at all --
+# OrganisationSerializer existed but OrganisationListCreateView only supported
+# GET/POST, never a detail/update route.
+
+def test_pi_can_correct_an_organisations_name(admin_client, organisation):
+    resp = admin_client.patch(
+        f"/api/v1/organisations/{organisation.id}/",
+        {"name": "Corrected Name (Pvt) Ltd", "district": "Chitungwiza"},
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    organisation.refresh_from_db()
+    assert organisation.name == "Corrected Name (Pvt) Ltd"
+    assert organisation.district == "Chitungwiza"
+
+
+def test_editing_an_organisation_cannot_change_its_stratifying_fields(admin_client, organisation):
+    """province/actor_family/size_class drive resolve_stratum_for_organisation()
+    at case-creation time only (apps/sampling/services.py) -- a stratum is never
+    re-resolved afterwards. Letting these change here would silently detach an
+    organisation from the StratumDefinition its existing SampleCase was paired
+    and Reserve-matched against, which AGENTS.md ground rule 4 treats as a
+    database-enforced invariant, not a UI convenience. The province code is also
+    baked into the immutable master_id."""
+    original_master_id = organisation.master_id
+    resp = admin_client.patch(
+        f"/api/v1/organisations/{organisation.id}/",
+        {"province": "BULAWAYO", "actor_family": "FINANCE_INSURANCE", "size_class": "LARGE_CORPORATE"},
+        format="json",
+    )
+    assert resp.status_code == 200  # PATCH still succeeds -- it just ignores these fields
+    organisation.refresh_from_db()
+    assert organisation.province == "HARARE"
+    assert organisation.actor_family == "PRODUCER_PRIMARY"
+    assert organisation.size_class == "SME"
+    assert organisation.master_id == original_master_id
+
+
+def test_organisation_detail_requires_field_coordinator_or_admin(organisation):
+    role, _ = Role.objects.get_or_create(name=Role.CONTACT_RA)
+    user = User.objects.create_user(username="contact_ra_edit_org", password="testpass123", role=role)
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    resp = client.patch(f"/api/v1/organisations/{organisation.id}/", {"name": "Should not land"}, format="json")
+    assert resp.status_code == 403
+    organisation.refresh_from_db()
+    assert organisation.name != "Should not land"

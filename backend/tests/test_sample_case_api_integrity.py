@@ -13,7 +13,8 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, User
 from apps.audit.models import AuditEvent
-from apps.sampling.models import WorkflowStatus
+from apps.sampling.models import ActorFamily, Province, SizeClass, StratumDefinition, WorkflowStatus
+from apps.sampling.services import create_organisation
 
 
 @pytest.fixture
@@ -71,6 +72,36 @@ def test_transition_endpoint_rejects_invalid_transition_and_audits_it(admin_clie
     main_case.refresh_from_db()
     assert main_case.workflow_status == WorkflowStatus.S00_SELECTED_MAIN  # unchanged
     assert AuditEvent.objects.filter(action="sampling.invalid_workflow_transition").exists()
+
+
+def test_patch_no_longer_reassigns_organisation_or_sample_type(admin_client, main_case):
+    """Found 2026-10-01 while adding the case-edit screen, never exploited: unlike
+    matched_case (which SampleCaseDetailView.perform_update() already specially
+    handles), organisation/stratum/sample_type had no protection at all -- a bare
+    PATCH could silently reassign a Sample ID to a genuinely different
+    organisation and stratum, or flip a case between MAIN and RESERVE, with no
+    validation and no audit trail."""
+    other_org = create_organisation(
+        province=Province.BULAWAYO, name="A Different Organisation", entity_type="Cooperative",
+        district="Bulawayo", actor_family=ActorFamily.FINANCE_INSURANCE, value_chain="Finance",
+        size_class=SizeClass.LARGE_CORPORATE,
+    )
+    other_stratum = StratumDefinition.objects.create(
+        code="BU-FINANCE-LARGE", province=Province.BULAWAYO, actor_family=ActorFamily.FINANCE_INSURANCE,
+        size_class=SizeClass.LARGE_CORPORATE, target_count=5,
+    )
+    original_organisation_id = main_case.organisation_id
+    original_stratum_id = main_case.stratum_id
+    resp = admin_client.patch(
+        f"/api/v1/sample-cases/{main_case.sample_id}/",
+        {"organisation": other_org.id, "stratum": other_stratum.id, "sample_type": "RESERVE"},
+        format="json",
+    )
+    assert resp.status_code == 200  # PATCH still succeeds -- it just ignores these fields
+    main_case.refresh_from_db()
+    assert main_case.organisation_id == original_organisation_id
+    assert main_case.stratum_id == original_stratum_id
+    assert main_case.sample_type == "MAIN"
 
 
 def test_transition_endpoint_requires_field_coordinator_or_admin(main_case):

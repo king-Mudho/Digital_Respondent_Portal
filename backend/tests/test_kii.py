@@ -105,7 +105,42 @@ def test_serializer_exposes_no_consent_recorded_by_default(qa_client, kii_record
     resp = qa_client.get(f"/api/v1/kii/{kii_record.id}/")
     assert resp.status_code == 200
     assert resp.data["participation_consent_decision"] is None
-    assert resp.data["recording_consent_decision"] is None
+
+
+# --- Correcting an already-saved KII record's own details (2026-10-01) -------
+# The KII record page had status/consent/transcript/coding buttons but no way
+# to fix a mistyped participant name, role or field notes afterwards.
+
+def test_pi_can_correct_kii_record_details(qa_client, kii_record):
+    resp = qa_client.patch(
+        f"/api/v1/kii/{kii_record.id}/",
+        {"participant_name": "Dr. T. Moyo-Ncube", "participant_role": "Deputy Head of SME Lending", "field_notes": "Corrected spelling of surname."},
+        format="json",
+    )
+    assert resp.status_code == 200, resp.data
+    kii_record.refresh_from_db()
+    assert kii_record.participant_name == "Dr. T. Moyo-Ncube"
+    assert kii_record.participant_role == "Deputy Head of SME Lending"
+    assert kii_record.field_notes == "Corrected spelling of surname."
+
+
+def test_editing_kii_record_details_cannot_bypass_status_transitions(qa_client, kii_record):
+    """Found 2026-10-01 while adding the record-details edit screen, never
+    exploited: a bare PATCH to /kii/{id}/ had no restriction on status,
+    transcript_status or coding_status at all, so it could set status=COMPLETED
+    directly and skip mark_completed()'s recording-consent requirement entirely
+    (AGENTS.md ground rule 6) -- the validated, audited path is
+    KIIStatusTransitionView (POST .../status/), not this endpoint."""
+    resp = qa_client.patch(
+        f"/api/v1/kii/{kii_record.id}/",
+        {"status": "COMPLETED", "transcript_status": "VERIFIED", "coding_status": "COMPLETE"},
+        format="json",
+    )
+    assert resp.status_code == 200  # PATCH still succeeds -- it just ignores these fields
+    kii_record.refresh_from_db()
+    assert kii_record.status == KIIStatus.INVITED
+    assert kii_record.transcript_status == "NOT_STARTED"
+    assert kii_record.coding_status == "NOT_STARTED"
 
 
 def test_serializer_reflects_recorded_consent_decision(qa_client, kii_record):

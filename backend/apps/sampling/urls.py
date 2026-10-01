@@ -4,6 +4,7 @@ from .views import (
     AvailableReservesView,
     BulkAssignmentView,
     BulkWorkflowTransitionView,
+    OrganisationDetailView,
     OrganisationListCreateView,
     RecordWithdrawalView,
     ReserveActivateView,
@@ -16,6 +17,7 @@ app_name = "sampling"
 
 urlpatterns = [
     path("organisations/", OrganisationListCreateView.as_view(), name="organisations"),
+    path("organisations/<int:pk>/", OrganisationDetailView.as_view(), name="organisation-detail"),
     path("sample-cases/", SampleCaseListCreateView.as_view(), name="list"),
     path("sample-cases/bulk-transition/", BulkWorkflowTransitionView.as_view(), name="bulk-transition"),
     path("sample-cases/bulk-assign/", BulkAssignmentView.as_view(), name="bulk-assign"),

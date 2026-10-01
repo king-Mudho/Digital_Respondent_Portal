@@ -51,6 +51,8 @@ const EMPTY_ORG_FORM = {
   size_class: SIZE_CLASSES[0],
 };
 
+const emptyEditForm = { name: "", district: "", entity_type: "", value_chain: "" };
+
 export default function OrganisationsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_ORG_FORM);
@@ -59,6 +61,8 @@ export default function OrganisationsPage() {
   const [caseType, setCaseType] = useState("MAIN");
   const [search, setSearch] = useState("");
   const { page, setPage, pageSize, setPageSize } = usePaging();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState(emptyEditForm);
 
   const { data: organisations, isLoading } = useQuery({
     queryKey: ["organisations", search, page, pageSize],
@@ -94,6 +98,22 @@ export default function OrganisationsPage() {
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to create sample case."),
   });
+
+  const updateOrganisation = useMutation({
+    mutationFn: (id: number) =>
+      adminFetch<Organisation>(`/organisations/${id}/`, { method: "PATCH", body: JSON.stringify(editForm) }),
+    onSuccess: () => {
+      setError(null);
+      setEditingId(null);
+      queryClient.invalidateQueries({ queryKey: ["organisations"] });
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the correction."),
+  });
+
+  const startEditing = (org: Organisation) => {
+    setEditingId(org.id);
+    setEditForm({ name: org.name, district: org.district, entity_type: org.entity_type, value_chain: org.value_chain });
+  };
 
   const orgList = Array.isArray(organisations) ? organisations : organisations?.results ?? [];
   const orgCount = Array.isArray(organisations) ? organisations.length : organisations?.count ?? 0;
@@ -243,27 +263,96 @@ export default function OrganisationsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orgList.map((org) => (
-                    <tr key={org.id} className="border-t border-border">
-                      <td className="py-2 pr-4 font-mono text-xs">{org.master_id}</td>
-                      <td className="py-2 pr-4">{org.name}</td>
-                      <td className="py-2 pr-4">{org.province}</td>
-                      <td className="py-2 pr-4">{org.verification_status}</td>
-                      <td className="py-2">
-                        <WriteOnly note={null}>
-                          <button
-                            onClick={() => {
-                              setCaseType("MAIN");
-                              setJustCreated(org);
-                            }}
-                            className="text-header underline text-xs"
-                          >
-                            Create sample case
-                          </button>
-                        </WriteOnly>
-                      </td>
-                    </tr>
-                  ))}
+                  {orgList.map((org) =>
+                    editingId === org.id ? (
+                      <tr key={org.id} className="border-t border-border">
+                        <td className="py-2 pr-4 font-mono text-xs align-top">{org.master_id}</td>
+                        <td className="py-2 pr-4 align-top" colSpan={3}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg">
+                            <label className="text-xs space-y-1">
+                              <span className="block text-text-muted">Name</span>
+                              <input
+                                value={editForm.name}
+                                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                              />
+                            </label>
+                            <label className="text-xs space-y-1">
+                              <span className="block text-text-muted">District</span>
+                              <input
+                                value={editForm.district}
+                                onChange={(e) => setEditForm((f) => ({ ...f, district: e.target.value }))}
+                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                              />
+                            </label>
+                            <label className="text-xs space-y-1">
+                              <span className="block text-text-muted">Entity type</span>
+                              <input
+                                value={editForm.entity_type}
+                                onChange={(e) => setEditForm((f) => ({ ...f, entity_type: e.target.value }))}
+                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                              />
+                            </label>
+                            <label className="text-xs space-y-1">
+                              <span className="block text-text-muted">Value chain</span>
+                              <input
+                                value={editForm.value_chain}
+                                onChange={(e) => setEditForm((f) => ({ ...f, value_chain: e.target.value }))}
+                                className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                              />
+                            </label>
+                          </div>
+                          <p className="text-text-muted text-xs mt-2">
+                            Province ({org.province}), actor family and size class can&rsquo;t be corrected here --
+                            changing them could break Main-400/Reserve-400 sampling pairing. Ask the technical
+                            administrator if one of those is genuinely wrong.
+                          </p>
+                        </td>
+                        <td className="py-2 align-top">
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              onClick={() => updateOrganisation.mutate(org.id)}
+                              disabled={updateOrganisation.isPending || !editForm.name.trim() || !editForm.district.trim()}
+                            >
+                              {updateOrganisation.isPending ? "Saving…" : "Save"}
+                            </Button>
+                            <button
+                              onClick={() => setEditingId(null)}
+                              className="text-text-muted underline text-xs"
+                              disabled={updateOrganisation.isPending}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={org.id} className="border-t border-border">
+                        <td className="py-2 pr-4 font-mono text-xs">{org.master_id}</td>
+                        <td className="py-2 pr-4">{org.name}</td>
+                        <td className="py-2 pr-4">{org.province}</td>
+                        <td className="py-2 pr-4">{org.verification_status}</td>
+                        <td className="py-2">
+                          <WriteOnly note={null}>
+                            <div className="flex flex-col gap-1 items-start">
+                              <button onClick={() => startEditing(org)} className="text-header underline text-xs">
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setCaseType("MAIN");
+                                  setJustCreated(org);
+                                }}
+                                className="text-header underline text-xs"
+                              >
+                                Create sample case
+                              </button>
+                            </div>
+                          </WriteOnly>
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
               {orgList.length === 0 && (

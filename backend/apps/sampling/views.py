@@ -10,6 +10,7 @@ from api.permissions import CanViewSampleCases, IsFieldCoordinatorOrAdmin
 from .models import Organisation, SampleCase, SampleType
 from .serializers import (
     OrganisationSerializer,
+    OrganisationUpdateSerializer,
     ReserveActivationSerializer,
     SampleCaseSerializer,
     WorkflowTransitionSerializer,
@@ -111,6 +112,17 @@ class SampleCaseDetailView(generics.RetrieveUpdateAPIView):
                 )
             except InvalidMatchedCase as exc:
                 raise DRFValidationError({"matched_case": [str(exc)]}) from exc
+        # organisation/stratum/sample_type can't be read-only on the serializer
+        # itself (SampleCaseListCreateView.create() needs them writable to build
+        # a case at all) -- found 2026-10-01 while adding the case-edit screen: a
+        # bare PATCH here had no handling at all, unlike matched_case above, so it
+        # could silently reassign a Sample ID to a different organisation or flip
+        # a case between MAIN and RESERVE, with no validation and no audit trail.
+        # Dropped on update the same way matched_case is popped out above --
+        # correcting an organisation's own details goes through
+        # OrganisationDetailView instead, never through this endpoint.
+        for locked_field in ("organisation", "stratum", "sample_type"):
+            serializer.validated_data.pop(locked_field, None)
         serializer.save()
 
 
@@ -163,6 +175,29 @@ class OrganisationListCreateView(generics.ListCreateAPIView):
         serializer.is_valid(raise_exception=True)
         organisation = create_organisation(**serializer.validated_data)
         return Response(OrganisationSerializer(organisation).data, status=201)
+
+
+class OrganisationDetailView(generics.RetrieveUpdateAPIView):
+    """GET/PATCH /api/v1/organisations/{id}/ -- correcting an already-saved
+    organisation's own details (e.g. its name), same CanViewSampleCases
+    permission as the list/create view. PATCH uses the narrower
+    OrganisationUpdateSerializer (see its docstring for why province/
+    actor_family/size_class aren't writable here); GET still returns every
+    field via OrganisationSerializer so the screen can show them."""
+
+    permission_classes = [CanViewSampleCases]
+    queryset = Organisation.objects.all()
+
+    def get_serializer_class(self):
+        return OrganisationSerializer if self.request.method == "GET" else OrganisationUpdateSerializer
+
+    def update(self, request, *args, **kwargs):
+        super().update(request, *args, **kwargs)
+        # Always answer with the full read shape, including the fields the
+        # update serializer deliberately left out -- the screen re-renders
+        # from this response and needs province/actor_family/size_class to
+        # keep showing them.
+        return Response(OrganisationSerializer(self.get_object()).data)
 
 
 class ReserveActivateView(APIView):

@@ -20,6 +20,10 @@ interface KIIRecord {
   stakeholder_category: string;
   participant_name: string;
   participant_role: string;
+  preferred_mode: string;
+  interview_date: string | null;
+  duration_minutes: number | null;
+  field_notes: string;
   status: string;
   transcript_status: string;
   coding_status: string;
@@ -28,6 +32,12 @@ interface KIIRecord {
   kii_form_configured: boolean;
   coding_url: string | null;
 }
+
+const PREFERRED_MODES = [
+  ["TEAMS", "Microsoft Teams"], ["ZOOM", "Zoom"], ["MEET", "Google Meet"],
+  ["WHATSAPP_VOICE", "WhatsApp voice"], ["WHATSAPP_VIDEO", "WhatsApp video"],
+  ["PHONE", "Phone"], ["FACE_TO_FACE", "Face to face"],
+] as const;
 
 const STATUS_OPTIONS: Record<string, string[]> = {
   PROSPECT: ["INVITED", "DECLINED"],
@@ -49,6 +59,10 @@ export default function KIIDetailPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [withRecording, setWithRecording] = useState(false);
+  // null = not edited yet (show what the server has), so a detail can be cleared --
+  // same reasoning as the Document record's own details form.
+  const [details, setDetails] = useState<Record<string, string> | null>(null);
+  const [detailsSaved, setDetailsSaved] = useState(false);
 
   const { data: record, isLoading } = useQuery({
     queryKey: ["kii-record", params.id],
@@ -124,6 +138,17 @@ export default function KIIDetailPage() {
       setError(err instanceof ApiError ? err.message : "Could not update the coding status."),
   });
 
+  const saveDetails = useMutation({
+    mutationFn: () => adminFetch(`/kii/${params.id}/`, { method: "PATCH", body: JSON.stringify(details ?? {}) }),
+    onSuccess: () => {
+      setError(null);
+      setDetails(null);
+      setDetailsSaved(true);
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the details."),
+  });
+
   if (isLoading || !record) {
     return (
       <AdminShell backHref="/admin/kii" backLabel="KII Register">
@@ -139,6 +164,97 @@ export default function KIIDetailPage() {
         {record.kii_id} · {record.stakeholder_category} · {record.participant_role}
       </p>
       {error && <p className="text-danger text-sm mb-4">{error}</p>}
+
+      <Card className="space-y-3 mb-4">
+        <h3 className="font-medium">Record details</h3>
+        <p className="text-xs text-text-muted">Correct a mistyped name, role or category here. Status, transcript and coding progress have their own controls below and are never changed from this form.</p>
+        <WriteOnly note={null}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(
+              [
+                ["participant_name", "Participant name"],
+                ["participant_role", "Participant role"],
+                ["stakeholder_category", "Stakeholder category"],
+              ] as const
+            ).map(([field, label]) => (
+              <div key={field}>
+                <label className="block text-sm text-text-muted mb-1" htmlFor={`detail-${field}`}>{label}</label>
+                <input
+                  id={`detail-${field}`}
+                  value={details?.[field] ?? record[field] ?? ""}
+                  onChange={(e) => {
+                    setDetailsSaved(false);
+                    setDetails((d) => ({ ...(d ?? {}), [field]: e.target.value }));
+                  }}
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+            <div>
+              <label className="block text-sm text-text-muted mb-1" htmlFor="detail-preferred_mode">Preferred mode</label>
+              <select
+                id="detail-preferred_mode"
+                value={details?.preferred_mode ?? record.preferred_mode}
+                onChange={(e) => {
+                  setDetailsSaved(false);
+                  setDetails((d) => ({ ...(d ?? {}), preferred_mode: e.target.value }));
+                }}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface"
+              >
+                {PREFERRED_MODES.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1" htmlFor="detail-interview_date">Interview date</label>
+              <input
+                id="detail-interview_date"
+                type="date"
+                value={details?.interview_date ?? record.interview_date ?? ""}
+                onChange={(e) => {
+                  setDetailsSaved(false);
+                  setDetails((d) => ({ ...(d ?? {}), interview_date: e.target.value }));
+                }}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-muted mb-1" htmlFor="detail-duration_minutes">Duration (minutes)</label>
+              <input
+                id="detail-duration_minutes"
+                type="number"
+                min={0}
+                value={details?.duration_minutes ?? record.duration_minutes ?? ""}
+                onChange={(e) => {
+                  setDetailsSaved(false);
+                  setDetails((d) => ({ ...(d ?? {}), duration_minutes: e.target.value }));
+                }}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-text-muted mb-1" htmlFor="detail-field_notes">Field notes</label>
+              <textarea
+                id="detail-field_notes"
+                rows={3}
+                value={details?.field_notes ?? record.field_notes ?? ""}
+                onChange={(e) => {
+                  setDetailsSaved(false);
+                  setDetails((d) => ({ ...(d ?? {}), field_notes: e.target.value }));
+                }}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" disabled={!details || saveDetails.isPending} onClick={() => saveDetails.mutate()}>
+              {saveDetails.isPending ? "Saving…" : "Save details"}
+            </Button>
+            {detailsSaved && <span className="text-sm text-text-muted" role="status">Details saved.</span>}
+          </div>
+        </WriteOnly>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="space-y-3">

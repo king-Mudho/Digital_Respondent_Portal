@@ -28,10 +28,22 @@ class KIIRecordSerializer(serializers.ModelSerializer):
             "id", "kii_id", "stakeholder_category", "organisation", "participant_name",
             "participant_role", "status", "preferred_mode", "interview_date",
             "duration_minutes", "interviewer", "transcript_status", "coding_status",
-            "thematic_coverage_tags", "participation_consent_decision", "recording_consent_decision",
-            "kii_form_configured", "coding_url",
+            "thematic_coverage_tags", "field_notes", "participation_consent_decision",
+            "recording_consent_decision", "kii_form_configured", "coding_url",
         ]
-        read_only_fields = ["id", "kii_id", "kii_form_configured", "coding_url"]
+        # status/transcript_status/coding_status are read-only here on purpose (found
+        # 2026-10-01 while adding the record-details edit screen, never exploited): a
+        # bare PATCH to /kii/{id}/ had no restriction on them at all, so it could set
+        # status=COMPLETED directly and skip mark_completed()'s recording-consent
+        # check entirely. KIIStatusTransitionView / KIITranscriptStatusView /
+        # KIICodingStatusView (views.py) are the only validated, audited way to
+        # change these -- the same class of gap apps/sampling/serializers.py's
+        # SampleCaseSerializer already documents and guards against for its own
+        # status/workflow_status/activation_* fields.
+        read_only_fields = [
+            "id", "kii_id", "kii_form_configured", "coding_url",
+            "status", "transcript_status", "coding_status",
+        ]
 
     def _is_list_context(self) -> bool:
         # build_kii_coding_url() calls has_given_consent(), which always
