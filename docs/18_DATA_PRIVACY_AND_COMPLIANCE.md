@@ -90,6 +90,20 @@ fields and free-text identifiers, exclude anyone who withdrew consent, and inclu
 that passed QA unless the PI asks for the rest. The interview documents contain the interviewer's notes as entered,
 so they can still contain a name a respondent mentioned; the PI checks them before sharing outside the research team.
 
+**Research Clearance documents (2026-10).** `apps/clearance` is the one place this portal
+deliberately shows something to the public by design — the PI's official approval letters,
+so a respondent can check the study is genuine before answering anything. It is still
+default-private and PI-only to write: a document needs both a file and an explicit
+`is_public` toggle (off by default) before `GET /api/v1/respondent-clearance-documents/`
+(token-gated, `AllowAny`) returns it at all, and that response carries only the document's
+own title/issuing body/reference/description/date — no case, respondent, or other
+identifying data. The file itself is served through the same permission-checked, audited
+pattern as documentary evidence, never from a web-servable path. A document that was ever
+shown to a respondent cannot be deleted via the API, even after being switched back off —
+only unpublished — so there is no way to quietly make a previously-shown letter disappear
+without a record of it; see `docs/27_AGENT_EXECUTION_PLAN.md`'s "Research Clearance
+screen" section.
+
 **Update (Sep 2026, case-assignment gap closed)**: Contact RA's "assigned cases" grant is
 now literal, not "all cases" — `SampleCase.assigned_ra` (nullable FK to `accounts.User`,
 Field Coordinator/Admin-writable) records which Contact RA a case belongs to, and every

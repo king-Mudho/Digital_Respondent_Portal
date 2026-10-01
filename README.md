@@ -161,7 +161,9 @@ administration). The respondent's link looks like
    CEO/MD, finance/credit/risk, operations, strategy/BD, supply chain/commercial, other
    senior manager). Anyone outside this list is routed to a referral message, never
    silently marked eligible.
-4. **R05 Participant information** — the study information sheet.
+4. **R05 Participant information** — the study information sheet, followed by the
+   Research Clearance section if the PI has published one or more official approval
+   letters. See [Research Clearance](#research-clearance--verifying-the-study-is-genuine).
 5. **R06 Electronic consent** — participation consent, captured as its own
    `ConsentRecord` row.
 6. **PROIT verification** (`/i/<token>/verify`) — if a locked pre-profile exists for the
@@ -415,6 +417,31 @@ It was first switched on (12 Sep 2026) on the PI's documented risk acceptance. O
 2026 the PI confirmed in writing that PROIT is covered by his CUT student research
 clearance. `docs/30_PROIT_MODULE.md` records both as the PI's statements.
 
+### Research Clearance — verifying the study is genuine
+
+`backend/apps/clearance/` lets the PI publish the study's official approval letters
+(ethics clearance, institutional approval, supervision confirmation, introduction
+letters) so a respondent can check the study is real before answering anything.
+
+- **`/admin/clearance` (PI only).** Add a document's title, issuing body, type, reference
+  number and a plain-language description, then upload its file (PDF/JPG/PNG, 20MB max).
+  Two independent switches, both off by default: `active` and **Shown to respondents**
+  (`is_public`). A document needs a file and `is_public` on before any respondent sees it.
+- **Respondent-facing, token-gated.** The information step (R05 above) renders a "How to
+  verify this is a genuine study" section listing every public, active document with a
+  link to open its file — nothing at all if none is published, so an unconfigured study
+  doesn't show an empty box. The file is served through the same private-storage pattern
+  as documentary evidence: never web-served directly, only through a permission-checked,
+  audited view. The response carries no case or respondent data.
+- **Once shown, never silently deletable.** A document that was ever public — or whose
+  file a respondent actually opened — can't be deleted via the API, even after being
+  switched back off; the admin UI disables the button, but the server is the actual
+  boundary. Retiring one means switching `is_public`/`active` off, not erasing the record
+  of what respondents were shown.
+- Deployed 1 Oct 2026; see `docs/27_AGENT_EXECUTION_PLAN.md`'s "Research Clearance screen"
+  section for the build record, including an open question about which supervision
+  letter(s) to publish.
+
 ### Contact, reminders and withdrawal
 
 - **Assignment and verification.** Main cases are assigned to a Contact RA from the case
@@ -495,9 +522,9 @@ Nginx  (research.agribizframework.com, TLS via Certbot)
   └── /  (everything else)                  → Next.js (127.0.0.1:3100)
 ```
 
-- **Backend**: Django 5.1 + Django REST Framework, Python 3.12, PostgreSQL, 13 apps
+- **Backend**: Django 5.1 + Django REST Framework, Python 3.12, PostgreSQL, 15 apps
   (`accounts, sampling, contacts, consent, invitations, kobo, messaging, kii, evidence,
-  qa, dashboards, costs, audit`).
+  qa, dashboards, costs, audit, proit, clearance`).
 - **Frontend**: Next.js 15 (App Router) + TypeScript, Tailwind, TanStack Query (30 s
   stale time, no retry on refusals), recharts for Reports.
 - **Background jobs**: Celery + Redis, for Kobo reconciliation and the reminder queue
