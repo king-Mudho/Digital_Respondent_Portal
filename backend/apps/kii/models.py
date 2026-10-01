@@ -9,6 +9,8 @@ the frontend/workflow wiring itself still lands in Phase 7.
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
+from apps.invitations.models import Channel
+
 
 class KIIStatus(models.TextChoices):
     # A prospect identified in the KII sampling frame but not yet approached
@@ -50,6 +52,13 @@ class KIIRecord(models.Model):
     )
     participant_name = models.CharField(max_length=255)
     participant_role = models.CharField(max_length=255)
+    # Same pattern as contacts.Respondent's own contact fields (CharField, not a
+    # stricter validator -- real-world register data is messier than a single clean
+    # number). Needed to send a self-service invitation link (see KIIInvitationToken
+    # below); blank until an RA records them.
+    phone = models.CharField(max_length=255, blank=True)
+    whatsapp_number = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
     status = models.CharField(max_length=16, choices=KIIStatus.choices, default=KIIStatus.INVITED)
     # blank=True (2026-09-12): a PROSPECT hasn't chosen a mode yet -- only
     # meaningful once an actual invitation goes out.
@@ -102,3 +111,51 @@ class KIIRecord(models.Model):
 
     def __str__(self):
         return f"{self.kii_id} — {self.participant_name}"
+
+
+class KIIInvitationTokenStatus(models.TextChoices):
+    GENERATED = "GENERATED", "Generated"
+    SENT = "SENT", "Sent"
+    OPENED = "OPENED", "Opened"
+    CONSENTED = "CONSENTED", "Consented"
+    # Set when the KII Guide link was actually issued to the informant (see
+    # KIIKoboRedirectView) -- not "COMPLETED": this view has no way to know
+    # whether they go on to finish the form. Whether the interview is actually
+    # done lives on KIIRecord.status, set by an RA once the submission appears.
+    STARTED = "STARTED", "Started"
+    EXPIRED = "EXPIRED", "Expired"
+    REVOKED = "REVOKED", "Revoked"
+
+
+class KIIInvitationToken(models.Model):
+    """A KII informant's own self-service link -- same crypto/lifecycle pattern as
+    invitations.InvitationToken (32-byte CSPRNG token, only a salted SHA-256 hash ever
+    persisted; see kii.services), deliberately a SEPARATE model rather than reusing
+    InvitationToken directly: that model's status set (ELIGIBILITY_PASSED,
+    SURVEY_STARTED, QA_PASSED, ...) is QUAN-shaped and consumed by QUAN-only code
+    (reconciliation, dashboards, exports) -- forcing KII through it would mean either
+    meaningless statuses or overloading existing ones, and touching a model that
+    central risks the live Main-400 flow. No eligibility concept here, and no
+    SampleCase workflow to advance: a KII informant was already identified by name by
+    an RA, unlike an anonymous Main-400 organisation."""
+
+    kii_record = models.ForeignKey(
+        KIIRecord, on_delete=models.PROTECT, related_name="invitation_tokens"
+    )
+    token_hash = models.CharField(max_length=128, unique=True)
+    manual_code_hash = models.CharField(max_length=128, unique=True, null=True, blank=True)
+    status = models.CharField(
+        max_length=16, choices=KIIInvitationTokenStatus.choices, default=KIIInvitationTokenStatus.GENERATED
+    )
+    channel = models.CharField(max_length=16, choices=Channel.choices)
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_reason = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-issued_at"]
+
+    def __str__(self):
+        return f"KIIInvitationToken({self.kii_record_id}, {self.status})"

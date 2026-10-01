@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import KIIRecord
+from .models import KIIInvitationToken, KIIRecord
 from .services import build_kii_coding_url, kii_form_is_configured
 
 
@@ -26,8 +26,8 @@ class KIIRecordSerializer(serializers.ModelSerializer):
         model = KIIRecord
         fields = [
             "id", "kii_id", "stakeholder_category", "organisation", "participant_name",
-            "participant_role", "status", "preferred_mode", "interview_date",
-            "duration_minutes", "interviewer", "transcript_status", "coding_status",
+            "participant_role", "phone", "whatsapp_number", "email", "status", "preferred_mode",
+            "interview_date", "duration_minutes", "interviewer", "transcript_status", "coding_status",
             "thematic_coverage_tags", "field_notes", "participation_consent_decision",
             "recording_consent_decision", "kii_form_configured", "coding_url",
         ]
@@ -66,3 +66,13 @@ class KIIRecordSerializer(serializers.ModelSerializer):
         if self._is_list_context():
             return None
         return build_kii_coding_url(obj)
+
+
+class KIIInvitationTokenSerializer(serializers.ModelSerializer):
+    """Status/lifecycle fields only -- token_hash/manual_code_hash never
+    serialized, same reasoning as invitations.InvitationTokenSerializer."""
+
+    class Meta:
+        model = KIIInvitationToken
+        fields = ["id", "status", "channel", "issued_at", "expires_at", "revoked_at", "revoked_reason"]
+        read_only_fields = fields

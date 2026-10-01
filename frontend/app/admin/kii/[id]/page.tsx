@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
@@ -20,6 +21,9 @@ interface KIIRecord {
   stakeholder_category: string;
   participant_name: string;
   participant_role: string;
+  phone: string;
+  whatsapp_number: string;
+  email: string;
   preferred_mode: string;
   interview_date: string | null;
   duration_minutes: number | null;
@@ -33,6 +37,17 @@ interface KIIRecord {
   coding_url: string | null;
 }
 
+interface KIIInvitationTokenEntry {
+  id: number;
+  status: string;
+  channel: string;
+  issued_at: string;
+  expires_at: string;
+}
+
+const OPEN_KII_TOKEN_STATUSES = ["GENERATED", "SENT", "OPENED", "CONSENTED", "STARTED"];
+const KII_INVITATION_CHANNELS = ["WHATSAPP", "EMAIL", "SMS"];
+
 const PREFERRED_MODES = [
   ["TEAMS", "Microsoft Teams"], ["ZOOM", "Zoom"], ["MEET", "Google Meet"],
   ["WHATSAPP_VOICE", "WhatsApp voice"], ["WHATSAPP_VIDEO", "WhatsApp video"],
@@ -41,7 +56,9 @@ const PREFERRED_MODES = [
 
 const STATUS_OPTIONS: Record<string, string[]> = {
   PROSPECT: ["INVITED", "DECLINED"],
-  INVITED: ["SCHEDULED", "DECLINED"],
+  // COMPLETED direct from INVITED (2026-10-01): a self-administered interview
+  // (see the Invite panel below) has no call to schedule.
+  INVITED: ["SCHEDULED", "DECLINED", "COMPLETED"],
   SCHEDULED: ["COMPLETED", "NO_SHOW", "DECLINED"],
   NO_SHOW: ["SCHEDULED"],
 };
@@ -167,7 +184,7 @@ export default function KIIDetailPage() {
 
       <Card className="space-y-3 mb-4">
         <h3 className="font-medium">Record details</h3>
-        <p className="text-xs text-text-muted">Correct a mistyped name, role or category here. Status, transcript and coding progress have their own controls below and are never changed from this form.</p>
+        <p className="text-xs text-text-muted">Correct a mistyped name, role, category or contact detail here. Status, transcript and coding progress have their own controls below and are never changed from this form.</p>
         <WriteOnly note={null}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(
@@ -190,6 +207,38 @@ export default function KIIDetailPage() {
                 />
               </div>
             ))}
+            {(
+              [
+                ["phone", "Phone"],
+                ["whatsapp_number", "WhatsApp number"],
+              ] as const
+            ).map(([field, label]) => (
+              <div key={field}>
+                <label className="block text-sm text-text-muted mb-1" htmlFor={`detail-${field}`}>{label}</label>
+                <input
+                  id={`detail-${field}`}
+                  value={details?.[field] ?? record[field] ?? ""}
+                  onChange={(e) => {
+                    setDetailsSaved(false);
+                    setDetails((d) => ({ ...(d ?? {}), [field]: e.target.value }));
+                  }}
+                  className="w-full rounded-md border border-border px-3 py-2 text-sm"
+                />
+              </div>
+            ))}
+            <div>
+              <label className="block text-sm text-text-muted mb-1" htmlFor="detail-email">Email</label>
+              <input
+                id="detail-email"
+                type="email"
+                value={details?.email ?? record.email ?? ""}
+                onChange={(e) => {
+                  setDetailsSaved(false);
+                  setDetails((d) => ({ ...(d ?? {}), email: e.target.value }));
+                }}
+                className="w-full rounded-md border border-border px-3 py-2 text-sm"
+              />
+            </div>
             <div>
               <label className="block text-sm text-text-muted mb-1" htmlFor="detail-preferred_mode">Preferred mode</label>
               <select
@@ -398,6 +447,8 @@ export default function KIIDetailPage() {
         </Card>
       </div>
 
+      <KIIInvitePanel kiiId={record.kii_id} />
+
       <div className="mt-4">
         {/* PROIT is the Field Coordinator's and PI's tool (api/permissions IsFieldCoordinatorOrAdmin,
             Supervisor read-only). Other roles on this page used to get a 403 from it. */}
@@ -415,5 +466,132 @@ export default function KIIDetailPage() {
         </IfRole>
       </div>
     </AdminShell>
+  );
+}
+
+/**
+ * The informant's own self-service link (2026-10-01): a personal link they
+ * can open unsupervised, the same way a Main-400 respondent already can --
+ * mirrors the sample case page's own Invitations panel, pointed at
+ * kii-invitations/ instead of invitations/ (apps/kii/urls.py).
+ */
+function KIIInvitePanel({ kiiId }: { kiiId: string }) {
+  const queryClient = useQueryClient();
+  const [channel, setChannel] = useState("WHATSAPP");
+  const [justIssued, setJustIssued] = useState<(IssuedInvitation & { channel: string }) | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { data: history } = useQuery({
+    queryKey: ["kii-invitations", kiiId],
+    queryFn: () => adminFetch<{ results: KIIInvitationTokenEntry[] }>(`/kii-invitations/?kii_id=${kiiId}`),
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["kii-invitations", kiiId] });
+
+  const issue = useMutation({
+    mutationFn: () =>
+      adminFetch<IssuedInvitation>("/kii-invitations/", {
+        method: "POST",
+        body: JSON.stringify({ kii_id: kiiId, channel, link_base: window.location.origin }),
+      }),
+    onSuccess: (data) => {
+      setError(null);
+      setJustIssued({ ...data, channel });
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to issue invitation."),
+  });
+
+  const revoke = useMutation({
+    mutationFn: (tokenId: number) =>
+      adminFetch(`/kii-invitations/${tokenId}/revoke/`, {
+        method: "POST",
+        body: JSON.stringify({ reason: "Revoked from admin UI" }),
+      }),
+    onSuccess: () => {
+      setError(null);
+      invalidate();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to revoke invitation."),
+  });
+
+  const entries = history?.results ?? [];
+  const hasOpenToken = entries.some((e) => OPEN_KII_TOKEN_STATUSES.includes(e.status));
+
+  return (
+    <Card className="space-y-3 mt-4">
+      <h3 className="font-medium">Invite (self-service link)</h3>
+      <p className="text-xs text-text-muted">
+        A personal link the informant can open on their own, in their own time -- for someone who would rather
+        complete the interview alone than do a live call. Needs a phone, WhatsApp number or email on file above.
+      </p>
+      {error && <p className="text-danger text-sm">{error}</p>}
+
+      {justIssued && (
+        <InvitationSendPanel
+          key={justIssued.token_id}
+          invitation={justIssued}
+          preferred={justIssued.channel}
+          sendEmailPath={`/kii-invitations/${justIssued.token_id}/send-email/`}
+        />
+      )}
+
+      <WriteOnly>
+        <div className="flex flex-wrap items-end gap-2">
+          <div>
+            <label className="block text-xs text-text-muted mb-1">Channel</label>
+            <select
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+            >
+              {KII_INVITATION_CHANNELS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
+            {issue.isPending ? "Issuing…" : hasOpenToken ? "Send new link (replaces current)" : "Send link"}
+          </Button>
+        </div>
+      </WriteOnly>
+
+      {entries.length > 0 && (
+        <div className="border-t border-border pt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-text-muted">
+                <th className="py-1 pr-4">Channel</th>
+                <th className="py-1 pr-4">Status</th>
+                <th className="py-1 pr-4">Issued</th>
+                <th className="py-1">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => (
+                <tr key={e.id} className="border-t border-border">
+                  <td className="py-1 pr-4">{e.channel}</td>
+                  <td className="py-1 pr-4">{e.status}</td>
+                  <td className="py-1 pr-4">{new Date(e.issued_at).toLocaleDateString()}</td>
+                  <td className="py-1">
+                    {OPEN_KII_TOKEN_STATUSES.includes(e.status) && (
+                      <WriteOnly note={null}>
+                        <button
+                          onClick={() => revoke.mutate(e.id)}
+                          disabled={revoke.isPending}
+                          className="text-danger underline text-xs"
+                        >
+                          Revoke
+                        </button>
+                      </WriteOnly>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
   );
 }

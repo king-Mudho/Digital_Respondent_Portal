@@ -31,8 +31,19 @@ const linkClass = "inline-flex items-center rounded-md border border-border px-3
  * 2026-09-16). The texts come from the server (invitations/messages.py), so
  * WhatsApp, SMS, email and the study-address email all say the same thing:
  * link, expiry, manual code and the study contact line.
+ *
+ * `sendEmailPath` defaults to the Main-400 endpoint; the KII invite panel
+ * (2026-10-01) passes its own `/kii-invitations/{id}/send-email/` -- same
+ * response shape (apps/kii/messages.py mirrors apps/invitations/messages.py),
+ * so this one component serves both rather than a near-duplicate copy.
  */
-export function InvitationSendPanel({ invitation, preferred }: { invitation: IssuedInvitation; preferred?: string }) {
+export function InvitationSendPanel({
+  invitation, preferred, sendEmailPath,
+}: {
+  invitation: IssuedInvitation;
+  preferred?: string;
+  sendEmailPath?: string;
+}) {
   // Open on the channel the RA chose when issuing it (EMAIL, SMS); WhatsApp otherwise.
   const [channel, setChannel] = useState<Channel>(
     preferred === "EMAIL" ? "email" : preferred === "SMS" ? "sms" : "whatsapp",
@@ -44,7 +55,7 @@ export function InvitationSendPanel({ invitation, preferred }: { invitation: Iss
 
   const sendEmail = useMutation({
     mutationFn: () =>
-      adminFetch<{ sent_to: string }>(`/invitations/${invitation.token_id}/send-email/`, {
+      adminFetch<{ sent_to: string }>(sendEmailPath ?? `/invitations/${invitation.token_id}/send-email/`, {
         method: "POST",
         body: JSON.stringify({ link: invitation.link, manual_code: invitation.raw_manual_code }),
       }),

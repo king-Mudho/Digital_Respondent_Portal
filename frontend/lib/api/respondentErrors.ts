@@ -24,6 +24,7 @@ const MESSAGES: Record<string, string> = {
   // The Kobo form is not connected yet. Previously the respondent was sent
   // to a questionnaire link that 404'd on Kobo's own site.
   questionnaire_unavailable: "The online questionnaire isn't open yet. A researcher can go through it with you by phone or WhatsApp instead.",
+  kobo_not_configured: "The interview form isn't open yet. Please contact the research team using the details in your invitation.",
 };
 
 const FALLBACK = "Something went wrong on our side. Please try again in a moment — if it keeps happening, contact the research team using the details in your invitation.";

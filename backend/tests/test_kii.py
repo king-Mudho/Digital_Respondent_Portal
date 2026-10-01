@@ -41,9 +41,18 @@ def test_valid_status_transition(kii_record):
     assert updated.status == KIIStatus.SCHEDULED
 
 
+def test_invited_can_go_straight_to_completed_for_a_self_administered_interview(kii_record):
+    """2026-10-01: a self-administered KII (see KIIInvitationToken) has no call
+    to schedule, so INVITED -> COMPLETED is now a valid direct transition --
+    this used to be the one this test proved was rejected, before that design
+    decision."""
+    updated = transition_kii_status(kii_record, KIIStatus.COMPLETED)
+    assert updated.status == KIIStatus.COMPLETED
+
+
 def test_invalid_status_transition_rejected(kii_record):
     with pytest.raises(InvalidKIITransition):
-        transition_kii_status(kii_record, KIIStatus.COMPLETED)  # can't skip SCHEDULED
+        transition_kii_status(kii_record, KIIStatus.NO_SHOW)  # can't skip SCHEDULED
 
 
 def test_completed_without_recording_needs_no_consent(kii_record):
