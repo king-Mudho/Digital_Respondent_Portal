@@ -1221,6 +1221,45 @@ for the new "Invite" panel.
       Guide chapter, the new Role Guide 5 procedure, and the System Manual sentence all
       actually landed.
 
+## Manuals: covering Organisation/KII record correction, and a numbering bug found in the build source (2026-10-01)
+
+Checked the System Manual against everything shipped this session and found a second,
+older gap: the Organisation-editing and KII-record-editing screens (built and deployed
+earlier in the day, before the KII self-service work) had never been documented in any
+manual — same shape of gap as the KII self-service one just closed above.
+
+- [x] `tasks.js` `T.registerOrg`: new "Correcting an already-registered organisation"
+      section (Edit/Save/Cancel steps, plus a warn box explaining province, actor family
+      and size class can't be corrected there because `resolve_stratum_for_organisation()`
+      only resolves the stratum once, at case creation).
+- [x] `tasks.js` `T.kii`: new "Correcting a KII record's details" section, inserted right
+      after "Creating a KII record" (full Record details field set, plus a tip noting
+      status/transcript/coding have their own separate controls).
+- [x] `system.js` §6.7 (Organisations): sentence added mentioning correction.
+- [x] **Bug found in the manual-building source itself, not the portal**: `system.js`
+      built its Organisations section with
+      `T.registerOrg.map((b) => (b[0] === "h2" ? ["h2", "7.3 Registering an organisation (PI, FC)"] : b))`
+      — this overwrites the heading text of **every** `h2` in the block with the same
+      literal string, not just the first. Adding a second `h2` to `T.registerOrg` above
+      didn't get its own heading; it silently became a second, misnamed copy of the first.
+      Caught by the same pypdf-text-extraction verification habit used throughout this
+      project: "Correcting an already-registered organisation" was present in the rebuilt
+      Role Guide 2 PDF (which numbers `T.kii`/`T.registerOrg` headings through a different,
+      correct mechanism in `roles.js`'s `guide()`) but **absent** from the System Manual
+      PDF. Fixed by using the existing `numberedSections()` helper instead — already used
+      correctly elsewhere in the same file for `T.kii`, `T.documents` and
+      `T.proitInterview` — which numbers the first `h2` with the given title and any
+      further ones with a letter suffix (so this became "7.3a").
+- [x] `common.js` `REVISION` bumped to **v1.15** (v1.14 was already committed and pushed
+      in the previous pass, so this round needs its own version rather than silently
+      amending a copy that may already be circulating). Rebuilt and finalised (System
+      Manual 72→74 pages, Role Guide 2 52→53, Role Guide 5 22→23). Verified by extracting
+      text from the rebuilt PDFs: "7.3 Registering an organisation (PI, FC)" and
+      "7.3a Correcting an already-registered organisation" now both appear, each exactly
+      once in the TOC and once in the body, with their own distinct section numbers; the
+      KII side ("7.16a Correcting a KII record's details") was confirmed unaffected by the
+      bug (it already used `numberedSections()`) and unaffected by the fix.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.

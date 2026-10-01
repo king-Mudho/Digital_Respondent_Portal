@@ -46,7 +46,7 @@ T.bulkVerify = [
 
 T.registerOrg = [
   ["h2", "Registering a new organisation and its sample case"],
-  ["p", "The approved registers are already loaded. Use this only for a late addition, replacement or correction."],
+  ["p", "The approved registers are already loaded. Use this only for a late addition or replacement."],
   ["steps", [
     { text: "Select **Organisations** in the top bar.", img: "adm_organisations.jpg", caption: "Register Organisation: the form (top) and the list of registered organisations (below)." },
     "Complete **Name**, **District**, **Province**, **Entity type**, **Actor family**, **Value chain** and **Size class**. Province, actor family and size class decide the stratum, so check them carefully.",
@@ -54,6 +54,14 @@ T.registerOrg = [
     "When offered, choose **Main** or **Reserve** and select **Create sample case**. The Sample ID is generated and the new case page opens. You can also create the case later from the organisation's row in the list.",
     "For a Main case, register its Reserve counterpart in the **same province, actor family and size class**, then pair them (next procedure).",
   ]],
+  ["h2", "Correcting an already-registered organisation"],
+  ["p", "For a mistyped name or a wrong district, entity type or value chain found after registration."],
+  ["steps", [
+    { text: "In **Organisations**, find the row and select **Edit**.", img: "adm_organisations.jpg", caption: "Edit opens the row's own Name, District, Entity type and Value chain fields." },
+    "Correct **Name**, **District**, **Entity type** and/or **Value chain**, then select **Save**.",
+    "Select **Cancel** to close the row without saving.",
+  ]],
+  ["warn", "Province, actor family and size class can't be corrected here", "These three decide which stratum the organisation's case is paired and Reserve-matched against, set once at registration — changing them later here would silently detach the organisation from that pairing. If one was genuinely entered wrong, ask the technical administrator rather than registering a replacement."],
 ];
 
 T.pairAssign = [
@@ -305,6 +313,13 @@ T.kii = [
     { text: "Select **KII Register → New KII record**.", img: "kii_new.jpg", caption: "New KII Record." },
     "Enter **Stakeholder category**, **Participant name**, **Participant role** and **Preferred mode**, then select **Create KII record**. The KII ID (e.g. KII-0026) is generated.",
   ]],
+  ["h2", "Correcting a KII record's details"],
+  ["p", "For a mistyped name, role or category, a contact detail, or anything else under **Record details** -- found after the record was created."],
+  ["steps", [
+    { text: "On the KII record, under **Record details**, correct **Participant name**, **Participant role**, **Stakeholder category**, **Phone**, **WhatsApp number**, **Email**, **Preferred mode**, **Interview date**, **Duration** or **Field notes**.", img: "kii_detail.jpg", caption: "Record details: everything except status, transcript and coding progress." },
+    "Select **Save details**.",
+  ]],
+  ["tip", "Status, transcript and coding have their own controls", "This form never changes Status, Transcript or Coding progress, even though they're part of the same record -- those only move through their own validated buttons below (status transitions, consent, transcript/coding progress), each of which is audited."],
   ["h2", "Taking a KII from invitation to coded transcript"],
   ["steps", [
     { text: "In **KII Register**, select **Manage** on the record.", img: "kii_register.jpg", caption: "KII Register." },
