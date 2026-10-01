@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { ClearanceDocuments } from "@/components/respondent/ClearanceDocuments";
 import { StudyHeader } from "@/components/respondent/StudyHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,7 @@ export default function ParticipantInformationPage() {
           <div className="text-text-muted text-sm whitespace-pre-line leading-relaxed">
             {PARTICIPANT_INFORMATION_SHEET}
           </div>
+          <ClearanceDocuments token={params.token} />
           <Button className="w-full" onClick={() => router.push(`/i/${params.token}/consent`)}>
             Continue to consent
           </Button>

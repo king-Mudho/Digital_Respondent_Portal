@@ -131,6 +131,7 @@ SCREEN_ENDPOINTS = {
     "cost": "/api/v1/dashboards/cost/",
     "audit": "/api/v1/audit/",
     "export": "/api/v1/export/analysis/",
+    "clearance_documents": "/api/v1/clearance-documents/",
 }
 
 

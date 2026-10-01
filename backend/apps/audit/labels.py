@@ -12,6 +12,13 @@ later without an entry here still shows something readable (its code, unslugifie
 ACTION_LABELS: dict[str, str] = {
     "accounts.email_changed": "Account email changed",
     "accounts.staff_accounts_created": "Staff accounts created",
+    "clearance.document_created": "Clearance document added",
+    "clearance.document_deleted": "Clearance document deleted",
+    "clearance.file_downloaded_by_staff": "Clearance document file downloaded by staff",
+    "clearance.file_removed": "Clearance document file removed",
+    "clearance.file_uploaded": "Clearance document file uploaded",
+    "clearance.file_viewed_by_respondent": "Clearance document viewed by a respondent",
+    "clearance.visibility_changed": "Clearance document shown-to-respondents setting changed",
     "consent.recorded": "Consent recorded",
     "consent.withdrawn": "Consent withdrawn",
     "consent.withdrawal_processed": "Participation withdrawn",

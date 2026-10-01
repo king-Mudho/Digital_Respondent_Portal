@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "@/config/env";
+
 import { apiFetch } from "./client";
 
 export interface ValidateTokenResponse {
@@ -138,4 +140,22 @@ export function requestAppointment(params: { token: string; scheduledFor: string
       mode: params.mode,
     }),
   });
+}
+
+export interface ClearanceDocumentSummary {
+  id: number;
+  title: string;
+  issuing_body: string;
+  document_type_display: string;
+  reference_number: string;
+  issue_date: string | null;
+  description: string;
+}
+
+export function fetchClearanceDocuments(token: string) {
+  return apiFetch<{ results: ClearanceDocumentSummary[] }>(`/respondent-clearance-documents/?t=${encodeURIComponent(token)}`);
+}
+
+export function clearanceDocumentFileUrl(token: string, id: number) {
+  return `${API_BASE_URL}/respondent-clearance-documents/${id}/file/?t=${encodeURIComponent(token)}`;
 }

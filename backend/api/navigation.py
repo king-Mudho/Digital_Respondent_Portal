@@ -116,6 +116,12 @@ SCREENS = {
         "/admin/export", "Export",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST},
     ),
+    # The study's own authorisation letters (ethics clearance, institutional approval) -- what a
+    # respondent can be shown to verify the study is genuine (IsAdminOnly, apps/clearance/views.py).
+    "clearance_documents": (
+        "/admin/clearance", "Research Clearance",
+        {Role.PI_ADMIN},
+    ),
 }
 
 # Screens every signed-in role may open, and which never appear in the main
