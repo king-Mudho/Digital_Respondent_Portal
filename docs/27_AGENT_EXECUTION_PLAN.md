@@ -155,6 +155,15 @@ work — resolve them with the PI before or during the phase noted, not silently
   own account can, including managing users. It was left exactly as found while the question
   was open; the PI's decision to keep it, at that role, is recorded here.
 
+- **Supervisor named on the "Confirmation of PhD Supervision" letter — flagged, not
+  resolved (2026-10-01).** Of the four clearance/approval documents the PI attached for the
+  new Research Clearance screen (see below), the supervision confirmation letter names
+  only Dr L. Chikazhe. Dr J. Kanyepe appears as co-supervisor elsewhere in this system (the
+  Participant Information Sheet and prior ethics-pack text). The four documents have not
+  been uploaded into the production Research Clearance screen yet, pending the PI
+  confirming whether a second letter exists or the PIS text needs correcting instead —
+  this should be settled before that letter is uploaded and marked `is_public`.
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
@@ -891,6 +900,61 @@ methodology chapter and thesis declaration still need the PI's own wording (draf
 **Not changed.** The respondent-facing "Before we continue" verification screen still says the team
 reviewed publicly available information and does not mention the AI tool; the information sheet, shown
 before consent, is where the disclosure is made.
+
+## Research Clearance screen (2026-09-30 / 2026-10-01)
+
+The PI attached four official approval/clearance documents and a general-purpose
+re-implementation prompt. Most of what that prompt described already exists, built and
+tested in Phases 0-10; the one genuinely new, well-scoped thing it pointed at was a way
+for a respondent to check the study is real before answering anything — not previously
+specced in `docs/00`-`28`.
+
+- [x] New `backend/apps/clearance` app: `ClearanceDocument` model (title, issuing body,
+      type, reference number, issue date, description, a private file, `is_public` and
+      `active` flags, both defaulting so nothing is shown until explicitly switched on).
+      Private file storage follows the existing `apps/evidence` pattern (never web-served
+      directly, served only through a permission-checked, audited view) rather than
+      sharing code with it, matching how the rest of this codebase keeps each app's file
+      handling self-contained.
+- [x] Admin screen `/admin/clearance` (PI_ADMIN only, registered in
+      `backend/api/navigation.py` and covered by the `SCREEN_ENDPOINTS` reachability test
+      per `AGENTS.md` ground rule 10): add a document, upload/replace its file, toggle
+      `is_public`/`active`.
+- [x] Respondent-facing section on the information step of the invitation flow
+      (`frontend/app/i/[token]/information/page.tsx`), token-gated like every other
+      respondent endpoint, rendering nothing at all when no document is public.
+- [x] Once a document has ever been shown to a respondent (`is_public` was ever true, or
+      an `AuditEvent` shows its file was actually fetched) it can't be deleted via the API,
+      only hidden — the admin UI disables the button too, but the server is the actual
+      boundary, per `AGENTS.md`'s "frontend declining to route somewhere is not a control."
+- [x] 18 backend tests, mutation-tested against all 4 safety rules. Two tests were
+      rewritten mid-mutation-testing: they used a `file_ref` string with no real file on
+      disk, so a broken permission check still 404'd for the wrong reason (`open_file()`
+      raising "missing on disk" before the permission check ever ran) and could not have
+      caught a real bypass — exactly the "a test that cannot fail is worse than no test"
+      trap this file already warns about. Fixed with a real file written to `tmp_path`.
+- [x] One Playwright e2e spec driving the full admin-to-respondent round trip in a real
+      browser. Three bugs were found and fixed in the test itself (the feature was already
+      correct): a row locator matching the wrong nested `<div>`; `.check()`/`.uncheck()`
+      not working on a checkbox whose state is query-cache-controlled rather than native,
+      which snaps back before the mutation resolves; and page-wide text assertions that
+      broke once a prior run's own permanently-public document (an intended consequence of
+      the no-delete-once-public rule) was still showing.
+- [x] Full backend suite (603 tests) and frontend typecheck/lint/build re-run clean before
+      deploying.
+- [x] Deployed to production (2026-10-01): `git archive HEAD | gzip`, scp'd to the server
+      and extracted into `/srv/agribiz-drp`, then `deploy/deploy.sh` — backup taken first,
+      `clearance.0001_initial` migration applied, frontend rebuilt, all four services
+      restarted, all three health checks (backend, frontend, through nginx HTTPS) passed.
+      Verified live: the admin API refuses unauthenticated access (401), the respondent
+      endpoint refuses a request with no token (400), and `/admin/clearance` renders.
+- [ ] Upload the four PI-supplied documents into the production screen and decide, with
+      the PI, which should be marked `is_public` — blocked on the supervisor-name question
+      above for the supervision-confirmation letter specifically.
+- [ ] Mention the Research Clearance screen in `README.md`,
+      `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals (`docs/tools/
+      build_guide.py`), per this file's "Keeping the documentation honest" section — not
+      yet done.
 
 ## Phase 11 — Go-live
 
