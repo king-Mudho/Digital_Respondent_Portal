@@ -971,9 +971,14 @@ specced in `docs/00`-`28`.
       the PI's production login) after a fresh backup, attributed to the PI's own account
       (`created_by`/audit `user_id` both 6, `happyson`), with the same two `log_action`
       calls (`clearance.document_created`, `clearance.file_uploaded`) the real admin
-      upload flow makes. All four created with `is_public=False` — none are visible to
-      respondents yet; publishing which ones is the PI's decision, blocked for the
-      supervision-confirmation letter specifically on the open question above.
+      upload flow makes. All four created with `is_public=False`.
+- [x] PI confirmed which to publish (2026-10-01): the ethics clearance letter (id 2) and
+      both Ministry letters (ids 3, 4) are now `is_public=True` — same service-layer
+      approach, the same `clearance.visibility_changed` audit event the admin PATCH
+      endpoint fires, attributed to the PI's account. Confirmed live via
+      `RespondentClearanceDocumentSerializer` that exactly these three are returned, with
+      no case/respondent data. The supervision-confirmation letter (id 5) stays
+      `is_public=False`, per the open question above.
 - [x] `README.md`, `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals
       (`docs/tools/manuals/*.js`, rebuilt to v1.13 via `build_manuals.js` and
       `finalise_manuals.ps1`, verified by extracting text from the built PDFs) now describe
