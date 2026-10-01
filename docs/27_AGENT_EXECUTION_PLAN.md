@@ -178,6 +178,17 @@ work — resolve them with the PI before or during the phase noted, not silently
   needs the PI's sign-off (AGENTS.md § Open questions convention), not an engineering
   judgement call.
 
+- **KII RA accounts need their own KoboToolbox collaborator login for the KII Guide
+  project — raised with the PI before this session, never actually written down here
+  until now (2026-10-01).** The staff-side "Continue this interview" button
+  (`/admin/kii/[id]`) opens the KII Guide form directly; a logged-in KII RA without their
+  own Kobo access to that specific project would hit the same KoboToolbox sign-in wall
+  the anonymous self-service link hit before its `add_submissions` permission was added
+  (see "Verifying all three KoboToolbox links end to end" below). Granting a named
+  collaborator account per RA (not widening anonymous access, which is already granted
+  and is a different, broader permission) is a KoboToolbox project-settings action for
+  whoever administers that project, not something fixable in this codebase.
+
 ---
 
 ## Phase 0 — Governance, specification & environment provisioning
@@ -1101,6 +1112,46 @@ self-administered interview has no call to schedule.
 - See the Open Questions section above for the one unresolved item this surfaced: the
   self-service information screen currently reuses the Main-400 PIS text verbatim, which
   describes "the questionnaire" rather than a KII interview.
+
+## Verifying all three KoboToolbox links end to end (2026-10-01)
+
+The PI asked, after the KII self-service feature shipped, to confirm every KoboToolbox
+link actually works for a respondent opening it -- not just that the portal issues a
+URL, but that the real Kobo form opens and the identifier prefills land where
+reconciliation reads them. Tested all three directly: loaded the real public URL fresh
+(a new browser context each time, matching how a respondent encounters it) with the
+exact `?d[...]=` query the portal constructs, then inspected the actual form field
+values via the rendered page, not just that the page returned 200.
+
+- [x] **Main Study Questionnaire** — opens with no login. `d[sample_id]=`/
+      `d[administration_mode]=` land correctly in `SAMPLE_ID_FINAL` (the exact field
+      `apps.kobo.services.FORM_SAMPLE_ID_FIELD` reads) and `ADMIN_MODE_FINAL`
+      (correctly translated from the portal's numeric code to the form's own choice
+      name, e.g. `01` → `web_portal`). The "FIELD-NAME ASSUMPTION" flagged as unverified
+      in that module's docstring since before a real Kobo asset existed is confirmed
+      correct in production; the docstring's caution is now stale but harmless.
+- [x] **Document, Digital Platform & Media Analysis Tool** — opens with no login,
+      `d[section_a/DOC_ID]=` lands correctly.
+- [x] **Main Study KII Guide — found broken, fixed.** The link redirected to a
+      KoboToolbox *login page* instead of the form, confirmed in a clean browser context
+      with no cached session. Root cause, confirmed via the KoboToolbox API (the same
+      token already configured for reconciliation, not a new credential): the
+      Questionnaire and Document Tool Kobo projects both grant the anonymous/public user
+      `add_submissions`; the KII Guide project granted it to no one. **This is a real gap
+      in the KII self-service feature shipped earlier today** — it was built and tested
+      against the portal's own token/consent/redirect logic without separately verifying
+      the underlying Kobo project's sharing settings permit an anonymous informant to
+      actually reach the form. Flagged to the PI as a KoboToolbox project-configuration
+      change (not something fixable in this codebase), who made the change directly.
+      Re-verified immediately after in a fresh browser context: the form now opens with
+      no login, and `d[part_a/KII_ID]=` lands correctly in `part_a/KII_ID`.
+- **Still separately open, newly recorded here** (see Open Questions above): a KII RA's
+  own staff-side "Continue this interview" button needs the RA to hold their own
+  KoboToolbox collaborator login for this project — a different, narrower permission
+  than the anonymous-submission one just fixed. Not touched in this pass; not previously
+  written down anywhere in this file despite being raised earlier in conversation with
+  the PI, so recorded properly now rather than left as something only this agent
+  remembered.
 
 ## Phase 11 — Go-live
 

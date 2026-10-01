@@ -1,16 +1,16 @@
 """
 Kobo redirect-URL construction and submission reconciliation.
 
-FIELD-NAME ASSUMPTION (flagged in docs/27_AGENT_EXECUTION_PLAN.md "Open
-questions"): docs/11_KOBOTOOLBOX_INTEGRATION.md requires the exact hidden-
-field names, as they appear in the live Kobo form, to be frozen before
-Phase 1 build -- this has not happened yet (no Kobo account is provisioned).
-This module assumes the submission payload echoes back the same field names
-used to populate the launch URL (master_id, sample_id, invitation_wave,
-administration_mode, respondent_role_category, consent_status,
-consent_version, portal_token_id, ra_id). Update EXPECTED_HIDDEN_FIELDS
-below once the real Kobo form's field names are frozen against a real asset
--- do not assume this guess is correct in production.
+FIELD NAMES -- confirmed against the real, deployed Kobo asset (2026-10-01):
+loaded the live form with the exact ?d[...] query this module builds and
+read the rendered field values directly. SAMPLE_ID_FINAL and ADMIN_MODE_FINAL
+(FORM_SAMPLE_ID_FIELD/FORM_MODE_FIELD below) populate correctly, including
+the numeric-code-to-choice-name translation FORM_MODE_TO_CODE depends on.
+This paragraph used to warn that the field names below were an unverified
+guess made before a real Kobo account existed ("do not assume this guess is
+correct in production") -- that caution predates the real asset and was
+left stale; the guess turned out correct, confirmed live, not by rereading
+this comment.
 
 EDIT DETECTION: rather than depend on any single Kobo metadata field for
 "was this submission edited since we last saw it" (Kobo's exact edit-
