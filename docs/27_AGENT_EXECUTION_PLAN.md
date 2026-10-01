@@ -155,14 +155,15 @@ work — resolve them with the PI before or during the phase noted, not silently
   own account can, including managing users. It was left exactly as found while the question
   was open; the PI's decision to keep it, at that role, is recorded here.
 
-- **Supervisor named on the "Confirmation of PhD Supervision" letter — in progress
-  (2026-10-01).** Of the four clearance/approval documents the PI attached for the new
-  Research Clearance screen (see below), the supervision confirmation letter names only
-  Dr L. Chikazhe. Dr J. Kanyepe appears as co-supervisor elsewhere in this system (the
-  Participant Information Sheet and prior ethics-pack text). The PI confirmed a second
-  letter covering Dr Kanyepe exists and is locating it. The four documents have not been
-  uploaded into the production Research Clearance screen yet; upload both supervision
-  letters together once found, rather than publishing the Chikazhe-only one first.
+- **Supervisor named on the "Confirmation of PhD Supervision" letter — still open
+  (2026-10-01).** All four clearance/approval documents are now uploaded to production
+  (see below), but the supervision confirmation letter still names only Dr L. Chikazhe,
+  dated 20 August 2026 -- re-checked against the actual PDF content when it was uploaded,
+  not assumed unchanged. Dr J. Kanyepe appears as co-supervisor elsewhere in this system
+  (the Participant Information Sheet and prior ethics-pack text). No second letter has
+  been supplied yet. This document was created with `is_public=False` and should stay
+  that way until either a second letter covering Dr Kanyepe is found (publish both
+  together) or the PI confirms this single letter is sufficient as-is.
 
 - **The KII self-service information screen reuses the Main-400 Participant Information
   Sheet verbatim, and its wording describes "the questionnaire" — flagged, not resolved
@@ -961,10 +962,18 @@ specced in `docs/00`-`28`.
       restarted, all three health checks (backend, frontend, through nginx HTTPS) passed.
       Verified live: the admin API refuses unauthenticated access (401), the respondent
       endpoint refuses a request with no token (400), and `/admin/clearance` renders.
-- [ ] Upload the four PI-supplied documents into the production screen and decide, with
-      the PI, which should be marked `is_public` — blocked on the supervisor-name question
-      above for the supervision-confirmation letter specifically; a second letter covering
-      Dr Kanyepe is being located (2026-10-01) and both should be uploaded together.
+- [x] Uploaded the four PI-supplied documents to production (2026-10-01): Research Ethics
+      Clearance Letter (id 2), Approval of Research Proposal — Ministry of Agriculture,
+      Mechanisation and Water Resources Development (id 3), Clearance and Support for the
+      Research Project — same Ministry (id 4), Confirmation of PhD Research Supervision
+      (id 5). Done at the service layer (`apps.clearance.services.save_file`, a
+      `manage.py shell` script, not the admin web UI — this agent does not hold or enter
+      the PI's production login) after a fresh backup, attributed to the PI's own account
+      (`created_by`/audit `user_id` both 6, `happyson`), with the same two `log_action`
+      calls (`clearance.document_created`, `clearance.file_uploaded`) the real admin
+      upload flow makes. All four created with `is_public=False` — none are visible to
+      respondents yet; publishing which ones is the PI's decision, blocked for the
+      supervision-confirmation letter specifically on the open question above.
 - [x] `README.md`, `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md` and the user-guide manuals
       (`docs/tools/manuals/*.js`, rebuilt to v1.13 via `build_manuals.js` and
       `finalise_manuals.ps1`, verified by extracting text from the built PDFs) now describe
