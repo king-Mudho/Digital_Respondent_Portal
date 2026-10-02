@@ -262,6 +262,8 @@ def test_ai_draft_generate_success_saves_draft_and_audits(documentary_ra_client,
         "section_b/RELEVANCE": "high",
         "_generated_by_model": "claude-opus-5",
         "_generated_at": "2026-09-17T12:00:00",
+        "_tokens_in": 41000,
+        "_tokens_out": 6200,
     }
     with patch("apps.evidence.tasks.generate_draft", return_value=fake_draft):
         resp = documentary_ra_client.post(f"/api/v1/documents/{document_with_file.pk}/ai-draft/")
@@ -272,7 +274,9 @@ def test_ai_draft_generate_success_saves_draft_and_audits(documentary_ra_client,
 
     from apps.audit.models import AuditEvent
 
-    assert AuditEvent.objects.filter(action="document.ai_draft_generated").exists()
+    event = AuditEvent.objects.get(action="document.ai_draft_generated")
+    # The audit record carries what the draft cost, so spend can be measured without reading every draft.
+    assert event.metadata["tokens_in"] == 41000 and event.metadata["tokens_out"] == 6200
 
 
 def test_ai_draft_put_saves_edits(documentary_ra_client, document_with_file, settings):
