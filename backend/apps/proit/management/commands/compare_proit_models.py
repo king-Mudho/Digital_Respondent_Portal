@@ -236,19 +236,24 @@ def _describe(p) -> tuple[str, str, str]:
 
 
 def build_review(claude: list[dict], muse: list[dict], fields: dict, seed: int = 1):
-    """(rows, key). A/B is shuffled per row; the key says which arm is which."""
+    """(rows, key). With both providers, A/B is shuffled per row and the key says which is which. With one
+    provider only, its answers are always A and B is "n/a" (there is nothing to blind)."""
     rng, rows, key = random.Random(seed), [], {}
     by_org = {(r["arm"], r["organisation"]): r for r in [*claude, *muse]}
+    arms = [arm for arm, results in (("claude", claude), ("muse", muse)) if results]
     for org in sorted({r["organisation"] for r in [*claude, *muse]}):
         for field_id, (label, _module, _route) in fields.items():
-            claude_p = _proposal(by_org.get(("claude", org)), field_id)
-            muse_p = _proposal(by_org.get(("muse", org)), field_id)
-            if not any(p and p["status"] != "not_found" for p in (claude_p, muse_p)):
+            found = {arm: _proposal(by_org.get((arm, org)), field_id) for arm in arms}
+            if not any(p and p["status"] != "not_found" for p in found.values()):
                 continue
-            swap = rng.random() < 0.5
-            a, b = (muse_p, claude_p) if swap else (claude_p, muse_p)
-            key[f"{org}|{field_id}"] = {"A": "muse" if swap else "claude", "B": "claude" if swap else "muse"}
-            (a_status, a_value, a_src), (b_status, b_value, b_src) = _describe(a), _describe(b)
+            if len(arms) == 2:
+                swap = rng.random() < 0.5
+                a_arm, b_arm = ("muse", "claude") if swap else ("claude", "muse")
+            else:
+                a_arm, b_arm = arms[0], None
+            key[f"{org}|{field_id}"] = {"A": a_arm, "B": b_arm}
+            (a_status, a_value, a_src) = _describe(found[a_arm])
+            (b_status, b_value, b_src) = _describe(found[b_arm]) if b_arm else ("n/a", "", "")
             rows.append({
                 "organisation": org, "field_id": field_id, "field": label,
                 "A_status": a_status, "A_value": a_value, "A_sources": a_src,
@@ -266,6 +271,7 @@ For each row, open the cited source for answer A and for answer B and decide, se
   X  wrong: the source or another reliable source contradicts it
 Leave the verdict empty when the status is not_found. Do not guess which answer came from which model:
 the labels are shuffled on purpose. Two people should mark independently; resolve differences by discussion.
+If answer B says n/a, only one provider was run: mark answer A and leave B empty.
 """
 
 
@@ -275,13 +281,16 @@ def score(rows: list[dict], key: dict, claude: list[dict], muse: list[dict], tot
         mapping = key[f"{row['organisation']}|{row['field_id']}"]
         for label in ("A", "B"):
             verdict = (row[f"{label}_verdict"] or "").strip().upper()
-            if row[f"{label}_status"] in ("not_found", "error"):
+            if mapping[label] is None or row[f"{label}_status"] in ("not_found", "error", "n/a"):
                 continue
             if verdict not in ("C", "U", "X"):
                 raise CommandError(f"Row {row['organisation']} / {row['field_id']}: answer {label} needs a verdict C, U or X.")
             tally[mapping[label]][verdict] += 1
     summary = {}
     for arm, results in (("claude", claude), ("muse", muse)):
+        if not results:
+            summary[arm] = None  # that provider was not run
+            continue
         t = tally[arm]
         judged = sum(t.values())
         sources = [s for r in results for p in r["proposals"] for s in p["sources"]]
@@ -303,8 +312,18 @@ def score(rows: list[dict], key: dict, claude: list[dict], muse: list[dict], tot
     return summary
 
 
-def thresholds(summary: dict) -> list[tuple[str, bool, str]]:
+def thresholds(summary: dict) -> list[tuple[str, bool | None, str]]:
+    """(label, passed, detail). passed is None for a figure that cannot be judged without the other provider."""
     c, m = summary["claude"], summary["muse"]
+    if c is None:  # Muse alone: only the absolute checks mean anything
+        return [
+            ("At least 95% of cited quotes found on the page", m["quote_valid_rate"] is not None and m["quote_valid_rate"] >= 0.95,
+             f"{m['quote_valid_rate']}"),
+            ("No banned financing wording", m["banned_wording"] == 0, f"{m['banned_wording']}"),
+            ("No organisation failed", m["errors"] == 0, f"{m['errors']} failed"),
+            ("Accuracy, invented claims and cost need a Claude run to compare", None,
+             f"muse precision {m['precision']}, fabricated {m['fabricated']}, coverage {m['coverage']}, cost ${m['cost_usd']}"),
+        ]
     cost_ok = c["cost_usd"] is not None and m["cost_usd"] is not None and m["cost_usd"] <= 0.7 * c["cost_usd"]
     return [
         ("Accuracy no more than 5 points below the current model", m["precision"] is not None and c["precision"] is not None
@@ -331,14 +350,14 @@ class Command(BaseCommand):
         run.add_argument("--model", help="Model name (default: the portal's PROIT model, or muse-spark-1.3)")
         run.add_argument("--no-quote-check", action="store_true")
         review = sub.add_parser("review")
-        review.add_argument("--claude", required=True)
+        review.add_argument("--claude", help="Claude results (optional: leave out to review Muse alone)")
         review.add_argument("--muse", required=True)
         review.add_argument("--out-dir", required=True)
         review.add_argument("--seed", type=int, default=1)
         scoring = sub.add_parser("score")
         scoring.add_argument("--review", required=True)
         scoring.add_argument("--key", required=True)
-        scoring.add_argument("--claude", required=True)
+        scoring.add_argument("--claude", help="Claude results (optional: leave out to score Muse alone)")
         scoring.add_argument("--muse", required=True)
 
     def handle(self, *args, **options):
@@ -370,7 +389,7 @@ class Command(BaseCommand):
         self.stdout.write(f"Wrote {options['out']}")
 
     def _review(self, options):
-        claude = json.loads(Path(options["claude"]).read_text(encoding="utf-8"))
+        claude = json.loads(Path(options["claude"]).read_text(encoding="utf-8")) if options["claude"] else []
         muse = json.loads(Path(options["muse"]).read_text(encoding="utf-8"))
         rows, key = build_review(claude, muse, pr.ai_fields(), options["seed"])
         out = Path(options["out_dir"])
@@ -384,17 +403,23 @@ class Command(BaseCommand):
         self.stdout.write(f"{len(rows)} rows to mark in {out / 'review.csv'}. Keep key.json away from the reviewers.")
 
     def _score(self, options):
-        claude = json.loads(Path(options["claude"]).read_text(encoding="utf-8"))
+        claude = json.loads(Path(options["claude"]).read_text(encoding="utf-8")) if options["claude"] else []
         muse = json.loads(Path(options["muse"]).read_text(encoding="utf-8"))
         key = json.loads(Path(options["key"]).read_text(encoding="utf-8"))
         with open(options["review"], newline="", encoding="utf-8-sig") as handle:
             rows = list(csv.DictReader(handle))
         summary = score(rows, key, claude, muse, len(pr.ai_fields()))
         for arm in ("claude", "muse"):
-            self.stdout.write(f"{arm}: " + ", ".join(f"{k}={v}" for k, v in summary[arm].items()))
+            if summary[arm] is not None:
+                self.stdout.write(f"{arm}: " + ", ".join(f"{k}={v}" for k, v in summary[arm].items()))
         self.stdout.write("\nProposed thresholds (for the supervisors to confirm):")
         results = thresholds(summary)
         for label, ok, detail in results:
-            self.stdout.write(f"  {'PASS' if ok else 'FAIL'}  {label}  ({detail})")
-        self.stdout.write(self.style.SUCCESS("All thresholds met: Muse is worth a larger confirmatory run.") if all(r[1] for r in results)
-                          else self.style.WARNING("Not all thresholds met: do not switch PROIT to Muse on this evidence."))
+            self.stdout.write(f"  {'INFO' if ok is None else 'PASS' if ok else 'FAIL'}  {label}  ({detail})")
+        judged = [r[1] for r in results if r[1] is not None]
+        if summary["claude"] is None:
+            self.stdout.write(self.style.SUCCESS("Muse alone passes its absolute checks. Compare it with Claude before deciding.")
+                              if all(judged) else self.style.WARNING("Muse fails an absolute check. Do not use it for PROIT on this evidence."))
+        else:
+            self.stdout.write(self.style.SUCCESS("All thresholds met: Muse is worth a larger confirmatory run.") if all(judged)
+                              else self.style.WARNING("Not all thresholds met: do not switch PROIT to Muse on this evidence."))

@@ -1347,6 +1347,14 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
   - **Unknown until it runs:** the exact shape of Meta's Responses output (read defensively; the raw
     responses are saved in the result file), and whether `web_search` plus a function tool in one
     request behaves as the docs imply.
+  - **Muse alone (added 2026-10-02):** because the Claude half cannot run (below), `review` and `score`
+    accept Muse without `--claude`. Muse's answers are then all A and B reads n/a; scoring judges only
+    the absolute checks (95% of quotes found, no banned wording, no failed organisation) and prints
+    accuracy, invented claims and cost as information, to be compared once Claude is restored. Two more
+    tests, proved by removing both skip guards. Run on the server so the sample check has a database:
+    `read -rsp "Meta key: " META_API_KEY; export META_API_KEY`, then
+    `sudo --preserve-env=META_API_KEY -u agribiz-drp bash -c 'cd /srv/agribiz-drp/backend; set -a; . ../.env; set +a;
+    venv/bin/python manage.py compare_proit_models run --arm muse --out /tmp/proit_muse.json'`.
   - **Deployed 2026-10-02 (release 20261002211108, after a fresh backup). The Claude half could not
     run: production's Anthropic key is rejected.** All five organisations failed in 0.3 s with
     "the AI key was not accepted"; a direct one-token call confirmed it (HTTP 401, "API key is

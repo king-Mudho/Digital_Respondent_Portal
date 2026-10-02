@@ -198,6 +198,37 @@ def test_scoring_refuses_a_row_left_unmarked_and_passes_when_muse_matches_and_is
     assert all(ok for _label, ok, _detail in cmp.thresholds(summary))  # same accuracy, 37.5% cheaper at 1M input tokens
 
 
+def test_reviewing_muse_alone_puts_it_in_a_with_nothing_in_b_and_needs_no_b_verdict():
+    fields = {f"f{i}": (f"F{i}", "m", "r") for i in range(5)}
+    muse = [_result("muse", "Org", fields)]
+    rows, key = cmp.build_review([], muse, fields, seed=1)
+    assert len(rows) == 5 and all(k == {"A": "muse", "B": None} for k in key.values())
+    assert all(r["B_status"] == "n/a" and r["A_status"] == "found" for r in rows)
+    for row in rows:
+        row["A_verdict"] = "C"  # B stays empty and must not be demanded
+    summary = cmp.score(rows, key, [], muse, total_fields=5)
+    assert summary["claude"] is None and summary["muse"]["precision"] == 1.0 and summary["muse"]["judged"] == 5
+
+
+def test_muse_alone_is_judged_on_absolute_checks_that_can_fail_and_the_rest_is_information_only():
+    fields = {"f0": ("F0", "m", "r")}
+    muse = [_result("muse", "Org", fields)]
+    rows, key = cmp.build_review([], muse, fields, seed=1)
+    rows[0]["A_verdict"] = "C"
+    good = cmp.thresholds(cmp.score(rows, key, [], muse, total_fields=1))
+    assert [ok for _l, ok, _d in good] == [True, True, True, None]  # the last cannot be judged without Claude
+    assert "need a Claude run" in good[-1][0]
+
+    muse[0]["banned_wording"], muse[0]["error"] = 2, "boom"
+    bad = {label: ok for label, ok, _d in cmp.thresholds(cmp.score(rows, key, [], muse, total_fields=1))}
+    assert bad["No banned financing wording"] is False and bad["No organisation failed"] is False
+
+    muse[0]["banned_wording"], muse[0]["error"] = 0, None
+    muse[0]["proposals"][0]["sources"][0]["quote_check"] = "quote_not_found"
+    poor = {label: ok for label, ok, _d in cmp.thresholds(cmp.score(rows, key, [], muse, total_fields=1))}
+    assert poor["At least 95% of cited quotes found on the page"] is False
+
+
 def test_a_muse_run_refuses_to_start_without_the_key_in_the_environment(db, monkeypatch, tmp_path):
     monkeypatch.delenv("META_API_KEY", raising=False)
     with pytest.raises(CommandError, match="META_API_KEY"):
