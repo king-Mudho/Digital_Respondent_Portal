@@ -1292,6 +1292,36 @@ own stated capabilities rather than only against today's new features.
       (self-service)" (4.18) and "Logging fieldwork costs" (4.27) each appear exactly
       once.
 
+## AI cost baseline, and evaluating Meta's Muse Spark (2026-10-02)
+
+The PI was shown a third-party chat proposing Meta's Muse Spark for PROIT, document coding and
+pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervisor brief written
+(a private Artifact, not committed). Findings that matter to the build:
+
+- The chat's claims about the portal were wrong: it read the public GitHub repo's `AGENTS.md`
+  (the repo answers without login), not the database; `api.research...` and its endpoint list do
+  not exist; `/bankability/check` would break ground rule 3.
+- **No cost baseline existed.** On production: 0 of 101 document records held an AI draft, the
+  `document.ai_draft_generated` audit entry carried no token counts, and the one `AIResearchRun`
+  showed 0 tokens. A draft stores its own token counts, but drafts are discarded when a file is
+  replaced or removed, so the numbers did not outlive them.
+- [x] The audit entry now carries `tokens_in` / `tokens_out` (`evidence/tasks.py`), with a test
+      that fails when the line is removed. Deployed to production 2026-10-02 (release
+      20261002194341), preceded by a fresh `backup.sh`. Backend only, no migration.
+- Meta's docs: Standard tier does not train on prompts; web search is a separate $2.50 per 1,000
+  queries; PDF input is supported. Whether its Anthropic-compatible endpoint supports forced tool
+  use, PDF blocks and streaming is **not documented and untested**. Third-party guides say
+  access is US-only during public preview; the PI's account exists but its console asked for a
+  payment method before any request.
+- **Not done, and why:** a configurable `AI_DOCUMENT_CODING_BASE_URL` (so document coding could
+  call Meta's endpoint) was written and then blocked by the session's safety check as redirecting
+  document contents and the API key to another host. It was reverted, not worked around. Needs the
+  PI's explicit go-ahead, ideally via the permission settings. PROIT is a larger job: its web
+  search is an Anthropic server tool.
+- PIS v1.5 already says the AI tool is "provided by a company outside Zimbabwe", so a provider
+  change needs no new participant wording; the ethics position still has to cover Meta as the
+  processor, which the PI says the supervisors have agreed.
+
 ## Phase 11 — Go-live
 
 - [ ] Verify `28_DEFINITION_OF_DONE.md` in full, including the 15-item go-live checklist.
