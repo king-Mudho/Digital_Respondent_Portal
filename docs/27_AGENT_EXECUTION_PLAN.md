@@ -1323,7 +1323,9 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
       fails on the old line. Deployed to production 2026-10-02 (release 20261002195554), after a fresh
       backup; backend only, no migration. Earlier runs keep the name they were saved with; the one
       run on record is a failed one.
-- **Document coding can now be pointed at Meta's Model API (2026-10-02, not yet deployed).** The
+- **Document coding can now be pointed at Meta's Model API (2026-10-02; deployed to production as
+  release 20261002203517 after a fresh backup, inactive until the script is run: production still
+  reports provider `api.anthropic.com`, no custom endpoint set).** The
   session's safety check refused this in auto mode three times, including after the PI approved it in
   chat and when it was attempted as a patch to hand over; each attempt was reverted, not worked
   around. It was made once the PI took the session out of auto mode, with each edit approved on
