@@ -1346,7 +1346,19 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
     refusal and the conversation link, and watching each go red. Full suite 660 passed.
   - **Unknown until it runs:** the exact shape of Meta's Responses output (read defensively; the raw
     responses are saved in the result file), and whether `web_search` plus a function tool in one
-    request behaves as the docs imply. The Claude arm has not been run yet.
+    request behaves as the docs imply.
+  - **Deployed 2026-10-02 (release 20261002211108, after a fresh backup). The Claude half could not
+    run: production's Anthropic key is rejected.** All five organisations failed in 0.3 s with
+    "the AI key was not accepted"; a direct one-token call confirmed it (HTTP 401, "API key is
+    invalid"; the key is well-formed, 108 characters, no stray whitespace). History: the last
+    successful AI use on production was the four document drafts of 2026-09-19 to 2026-09-20; PROIT
+    run 11 (2026-09-29) failed with "the AI account has run out of credit", which is also why that run
+    shows zero tokens. So **document Auto-fill and PROIT AI research have been unavailable on
+    production since at least 2026-09-29**, while `ai_coding_is_configured()` (key present) still
+    shows the buttons. Nothing was written: the run spent nothing and its files were deleted from the
+    server. Needs the PI to create a new Anthropic key and add credit (or to decide Muse replaces it
+    for document coding), after which `configure-ai-coding.sh` re-enters the key. Not yet known why
+    the key became invalid (revoked, rotated or deleted in the Anthropic console).
 - [x] **PROIT recorded the wrong model.** `run_research()` called `AI_PROIT_RESEARCH_MODEL` but
       saved `AI_DOCUMENT_CODING_MODEL` on the `AIResearchRun`, so the run history named a model that
       never did the work. It went unnoticed because the two settings defaulted to different Claude
