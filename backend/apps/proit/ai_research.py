@@ -433,7 +433,7 @@ def run_research(run_id: int) -> None:
         )
     run.status = AIResearchStatus.DONE
     run.finished_at = timezone.now()
-    run.model = settings.AI_DOCUMENT_CODING_MODEL
+    run.model = settings.AI_PROIT_RESEARCH_MODEL
     run.searches_used, run.tokens_in, run.tokens_out = usage["searches"], usage["in"], usage["out"]
     run.summary = (raw.get("summary") or "")[:2000]
     run.dropped = dropped

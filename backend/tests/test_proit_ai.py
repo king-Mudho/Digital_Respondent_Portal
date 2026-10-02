@@ -180,6 +180,13 @@ def test_a_research_run_records_proposals_and_puts_nothing_in_the_profile(profil
     assert AuditEvent.objects.filter(action="proit.ai_research_completed").exists()
 
 
+def test_a_research_run_records_the_model_research_used_not_the_document_coding_model(profile, settings):
+    settings.AI_DOCUMENT_CODING_MODEL = "document-model"
+    settings.AI_PROIT_RESEARCH_MODEL = "research-model"
+    resp = _run_ai(_client(Role.FIELD_COORDINATOR, "ai_fc_model"), profile, settings)
+    assert AIResearchRun.objects.get(pk=resp.data["id"]).model == "research-model"
+
+
 def test_research_is_refused_up_front_when_ai_is_off_the_profile_is_locked_or_it_is_already_running(profile, settings):
     coordinator = _client(Role.FIELD_COORDINATOR, "ai_fc2")
     settings.ANTHROPIC_API_KEY = ""
