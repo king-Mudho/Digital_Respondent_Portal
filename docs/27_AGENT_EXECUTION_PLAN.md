@@ -1315,6 +1315,18 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
   payment method before any request.
 - PROIT is a larger job than document coding: its web search is an Anthropic server tool, and
   Meta's own search is a separate paid feature, so it stays on Anthropic for now.
+  **Researched 2026-10-02 from Meta's own docs (not tested; no key yet):** search grounding is on the
+  *Responses API only* (`tools=[{"type":"web_search"}]`), not Chat Completions, and Meta's docs say
+  not the Messages endpoint either (one third-party page says otherwise; trust Meta's). Citations come
+  back as `url_citation` annotations, and the raw results with `include: ["web_search_call.results"]`,
+  so PROIT's rule "every source URL must be one the search actually returned" could still be enforced.
+  What is missing against what PROIT relies on today: no cap on searches per request, no allow or
+  block list for domains (PROIT blocks Facebook, LinkedIn personal pages and similar at the request;
+  with Meta it could only drop them afterwards, after the model has already read them), no view of the
+  queries made, "the model decides whether to search", and Meta describes it as best for single-fact
+  and recent-events questions rather than multi-step research. A port would be a new Responses-API
+  code path (a different request format, not the Anthropic SDK), testable only with a key. Open until
+  the PI decides between porting and comparing first.
 - [x] **PROIT recorded the wrong model.** `run_research()` called `AI_PROIT_RESEARCH_MODEL` but
       saved `AI_DOCUMENT_CODING_MODEL` on the `AIResearchRun`, so the run history named a model that
       never did the work. It went unnoticed because the two settings defaulted to different Claude
