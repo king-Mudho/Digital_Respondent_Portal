@@ -1325,8 +1325,28 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
   with Meta it could only drop them afterwards, after the model has already read them), no view of the
   queries made, "the model decides whether to search", and Meta describes it as best for single-fact
   and recent-events questions rather than multi-step research. A port would be a new Responses-API
-  code path (a different request format, not the Anthropic SDK), testable only with a key. Open until
-  the PI decides between porting and comparing first.
+  code path (a different request format, not the Anthropic SDK), testable only with a key. The PI
+  chose to compare first.
+- **PROIT comparison tool (2026-10-02, committed, not yet deployed or run):**
+  `manage.py compare_proit_models` (`proit/management/commands/compare_proit_models.py`) runs PROIT's
+  own prompt, fields and clean-up rules on Claude and on Muse Spark (Meta Responses API), for public
+  organisations only, and writes nothing to the database. `run` per provider; `review` makes one CSV
+  with A/B shuffled per row (key kept apart); `score` unblinds and checks the thresholds from the
+  supervisor brief. Every cited quote is fetched and checked against the live page. The Meta key is
+  read only from `META_API_KEY`, never an argument or file, and never printed. The five organisations
+  (Cottco Holdings, Tanganda Tea Company, Ariston Holdings, Windmill, Dairibord Holdings) were checked
+  absent from the 800-case sample; the command refuses any name that matches the sample when a
+  database is available. No individual is researched (no respondent name is given).
+  - Prices used, from the vendors' pages on 2026-10-02: Claude Sonnet 5 $2 in / $10 out per million
+    tokens, cache read $0.20, web search $10 per 1,000; Opus 5 $5 / $25; Muse Spark Standard $1.25 /
+    $4.25, cache read $0.15, search $2.50 per 1,000 (Meta publishes no cache-write price; taken as the
+    input price). Muse is therefore far cheaper than Opus (document coding) and moderately cheaper than
+    Sonnet (PROIT), before counting how many tokens each actually uses.
+  - Tests (15) were proved by breaking the A/B key, quote check, script-stripping, a price, the sample
+    refusal and the conversation link, and watching each go red. Full suite 660 passed.
+  - **Unknown until it runs:** the exact shape of Meta's Responses output (read defensively; the raw
+    responses are saved in the result file), and whether `web_search` plus a function tool in one
+    request behaves as the docs imply. The Claude arm has not been run yet.
 - [x] **PROIT recorded the wrong model.** `run_research()` called `AI_PROIT_RESEARCH_MODEL` but
       saved `AI_DOCUMENT_CODING_MODEL` on the `AIResearchRun`, so the run history named a model that
       never did the work. It went unnoticed because the two settings defaulted to different Claude
