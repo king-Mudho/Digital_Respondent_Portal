@@ -27,6 +27,7 @@ import base64
 import io
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import anthropic
 from django.conf import settings
@@ -105,8 +106,53 @@ def ai_error_text(exc) -> str:
     return text
 
 
+# Where document contents and the API key may be sent. Anything else is refused, so a mistyped or tampered setting
+# cannot quietly route source documents to an unknown host.
+ALLOWED_CODING_HOSTS = {"api.anthropic.com", "api.meta.ai"}
+ANTHROPIC_HOST = "api.anthropic.com"
+
+
+def _configured_base_url() -> str:
+    return (settings.AI_DOCUMENT_CODING_BASE_URL or "").strip()
+
+
+def coding_base_url() -> str:
+    """"" for Anthropic's own endpoint, otherwise a validated https URL on the allowlist."""
+    url = _configured_base_url()
+    if not url:
+        return ""
+    parts = urlsplit(url)
+    if parts.scheme != "https" or parts.hostname not in ALLOWED_CODING_HOSTS:
+        raise AIDraftError(
+            "ai_provider_not_allowed",
+            f"AI_DOCUMENT_CODING_BASE_URL must be an https address on one of: {', '.join(sorted(ALLOWED_CODING_HOSTS))}.",
+            503,
+        )
+    return url
+
+
+def coding_provider() -> str:
+    """The host that actually receives the documents, for the draft and the audit entry."""
+    url = _configured_base_url()
+    return (urlsplit(url).hostname or url) if url else ANTHROPIC_HOST
+
+
+def coding_api_key() -> str:
+    # The Anthropic key must never be sent to another provider, so a custom endpoint uses only its own key.
+    if _configured_base_url():
+        return (settings.AI_DOCUMENT_CODING_API_KEY or "").strip()
+    return (settings.ANTHROPIC_API_KEY or "").strip()
+
+
+def coding_client(*, timeout: float) -> anthropic.Anthropic:
+    """The one place a document-coding client is built, so switching provider is configuration, not code."""
+    base_url = coding_base_url()
+    extra = {"base_url": base_url} if base_url else {}
+    return anthropic.Anthropic(api_key=coding_api_key(), timeout=timeout, max_retries=4, **extra)
+
+
 def ai_coding_is_configured() -> bool:
-    return bool((settings.ANTHROPIC_API_KEY or "").strip())
+    return bool(coding_api_key())
 
 
 def with_current_record_details(document: DocumentRecord, draft: dict) -> dict:
@@ -374,7 +420,7 @@ def _call_model(content: list, *, what: str) -> tuple[dict, dict]:
     """One streamed call that must answer through the coding tool. Returns
     (answers keyed by form path, {"in": n, "out": n})."""
     # 15 minutes: reading a long document and writing ~110 fields is slow.
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=900.0, max_retries=4)
+    client = coding_client(timeout=900.0)
     try:
         # Streamed: the SDK refuses a non-streaming request with a large
         # output budget, and a full answer runs to tens of thousands of tokens
@@ -427,6 +473,7 @@ def _finish(document: DocumentRecord, answers: dict, user, tokens: dict, source_
         draft[path] = resolver(document)
     draft["_generated_at"] = timezone.now().isoformat()
     draft["_generated_by_model"] = settings.AI_DOCUMENT_CODING_MODEL
+    draft["_generated_by_provider"] = coding_provider()
     draft["_generated_by_user_id"] = getattr(user, "id", None)
     for key, name in (("in", "_tokens_in"), ("out", "_tokens_out")):
         if isinstance(tokens.get(key), int):  # what this draft cost, for the PI's billing
@@ -615,7 +662,7 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
         f"You are given {sent}.{part_note} Call record_document_details with the details as the document itself states them "
         "(title page, cover, headers, front matter). Leave a detail empty rather than guessing it."
     )
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=300.0, max_retries=4)
+    client = coding_client(timeout=300.0)
     try:
         response = client.messages.create(
             model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=2000, tools=[_DETAILS_TOOL],

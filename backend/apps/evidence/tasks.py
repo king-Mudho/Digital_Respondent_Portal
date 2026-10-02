@@ -102,4 +102,5 @@ def generate_ai_draft(
     log_action("document.ai_draft_generated", document, {
         "model": document.ai_draft_model, "user_id": user_id, "pages": page_range or "all", "parts": draft.get("_parts", 1),
         "tokens_in": draft.get("_tokens_in"), "tokens_out": draft.get("_tokens_out"),
+        "provider": draft.get("_generated_by_provider"),
     }, user=user)
