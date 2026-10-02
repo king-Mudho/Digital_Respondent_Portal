@@ -1318,6 +1318,16 @@ pre-filling, plus extending the sample to 10,000 firms. Reviewed, and a supervis
   document contents and the API key to another host. It was reverted, not worked around. Needs the
   PI's explicit go-ahead, ideally via the permission settings. PROIT is a larger job: its web
   search is an Anthropic server tool.
+- [x] **PROIT recorded the wrong model.** `run_research()` called `AI_PROIT_RESEARCH_MODEL` but
+      saved `AI_DOCUMENT_CODING_MODEL` on the `AIResearchRun`, so the run history named a model that
+      never did the work. It went unnoticed because the two settings defaulted to different Claude
+      models and nothing compared the record with the call. It would have put another provider's name
+      on PROIT runs once the document model changed. Fixed (`proit/ai_research.py`), with a test that
+      fails on the old line. Deployed to production 2026-10-02 (release 20261002195554), after a fresh
+      backup; backend only, no migration. Earlier runs keep the name they were saved with; the one
+      run on record is a failed one.
+- A second attempt at the endpoint switch, made after the PI approved it in chat, was blocked by the
+  session's safety check again and reverted. Only a change to the PI's permission settings clears it.
 - PIS v1.5 already says the AI tool is "provided by a company outside Zimbabwe", so a provider
   change needs no new participant wording; the ethics position still has to cover Meta as the
   processor, which the PI says the supervisors have agreed.
