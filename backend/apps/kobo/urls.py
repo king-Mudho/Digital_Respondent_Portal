@@ -1,9 +1,9 @@
 from django.urls import path
 
 from .copy_views import (
+    KoboAnalysisPackView,
     KoboFormDataExportView,
     KoboFormPDFZipView,
-    KoboAnalysisPackView,
     KoboFormSubmissionsView,
     KoboFormsView,
     KoboRecordLookupView,

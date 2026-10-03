@@ -85,7 +85,8 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Audit Log");
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
-  expect(labels.length).toBe(19);
+  expect(labels).toContain("Research Clearance"); // the PI-only screen added 2026-09-30, which made it 20
+  expect(labels.length).toBe(20);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

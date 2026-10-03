@@ -6,7 +6,6 @@ set is_public=True and it has an uploaded file -- the default must never leak, a
 never made public must never be discoverable by guessing its id.
 """
 
-import io
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -115,7 +114,7 @@ def test_a_document_once_shown_to_a_respondent_cannot_be_deleted_even_after_bein
 # --- Respondent side -----------------------------------------------------------------------------
 
 def test_a_respondent_sees_only_public_active_documents_with_a_file(token_for):
-    shown = ClearanceDocument.objects.create(title="Shown", issuing_body="CUT", document_type="ETHICS_CLEARANCE", is_public=True, file_ref="clearance/a.pdf", file_name="a.pdf")
+    ClearanceDocument.objects.create(title="Shown", issuing_body="CUT", document_type="ETHICS_CLEARANCE", is_public=True, file_ref="clearance/a.pdf", file_name="a.pdf")
     ClearanceDocument.objects.create(title="Not public", issuing_body="CUT", document_type="OTHER", is_public=False, file_ref="clearance/b.pdf", file_name="b.pdf")
     ClearanceDocument.objects.create(title="Archived", issuing_body="CUT", document_type="OTHER", is_public=True, active=False, file_ref="clearance/c.pdf", file_name="c.pdf")
     ClearanceDocument.objects.create(title="No file yet", issuing_body="CUT", document_type="OTHER", is_public=True)

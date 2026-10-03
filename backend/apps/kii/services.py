@@ -26,7 +26,14 @@ from apps.consent.services import has_given_consent
 from apps.invitations.models import Channel
 from apps.sampling.services import next_sequence
 
-from .models import CodingStatus, KIIInvitationToken, KIIInvitationTokenStatus, KIIRecord, KIIStatus, TranscriptStatus
+from .models import (
+    CodingStatus,
+    KIIInvitationToken,
+    KIIInvitationTokenStatus,
+    KIIRecord,
+    KIIStatus,
+    TranscriptStatus,
+)
 
 
 def generate_kii_id() -> str:

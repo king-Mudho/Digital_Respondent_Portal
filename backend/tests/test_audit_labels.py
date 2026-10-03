@@ -1,6 +1,5 @@
 """apps/audit/labels.py -- turning a raw action code + metadata into what the Audit Log screen shows."""
 
-import pytest
 
 from apps.audit.labels import ACTION_LABELS, describe
 

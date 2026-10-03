@@ -5,15 +5,21 @@ from unittest.mock import Mock, patch
 from xml.etree import ElementTree as ET
 
 import pytest
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.proit import kobo_form as F
 from apps.proit.kobo_submit import ProitKoboError, build_xml, push_profile
 from apps.proit.services import (
-    add_evidence, add_field, create_pre_profile, lock_pre_profile, reconcile_field, record_protocol_deviation,
-    record_verification, refresh_reconciliation,
+    add_evidence,
+    add_field,
+    create_pre_profile,
+    lock_pre_profile,
+    reconcile_field,
+    record_protocol_deviation,
+    record_verification,
+    refresh_reconciliation,
 )
-from django.utils import timezone
 
 
 @pytest.fixture
