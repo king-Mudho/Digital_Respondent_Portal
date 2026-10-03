@@ -31,12 +31,12 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import Error as DatabaseError
 
 from apps.proit import ai_research as pr
+from apps.proit.muse import call_muse, muse_function_call, muse_search_count, muse_urls  # noqa: F401
 
 DEFAULT_ORGS = [
     "Cottco Holdings Limited", "Tanganda Tea Company Limited", "Ariston Holdings Limited",
     "Windmill Limited", "Dairibord Holdings Limited",
 ]  # public companies, checked absent from the sample on 2026-10-02
-META_RESPONSES_URL = "https://api.meta.ai/v1/responses"
 DEFAULT_MUSE_MODEL = "muse-spark-1.3"
 
 # USD per million tokens, and per 1,000 searches. Anthropic: platform.claude.com pricing page; Meta: Model API
@@ -48,10 +48,6 @@ PRICES = {
     "muse-spark-1.3": {"inp": 1.25, "out": 4.25, "cache_read": 0.15, "cache_write": 1.25, "search": 2.50},
 }
 BANNED_WORDING = re.compile(r"\b(approved|loan approval|credit rating|bankability score|guarantee[ds]?)\b", re.I)
-INCOMPLETE = (
-    "Incomplete: you returned {got} findings but there are {want} fields. Call record_findings again with an entry for "
-    "EVERY field: the fact and its source where you found one, and not_found only where you searched and found nothing."
-)
 
 
 def cost_usd(model: str, usage: dict):
@@ -67,92 +63,6 @@ def cost_usd(model: str, usage: dict):
 
 def banned_wording_count(proposals: list[dict]) -> int:
     return sum(len(BANNED_WORDING.findall(f"{p.get('value', '')} {p.get('notes', '')}")) for p in proposals)
-
-
-# --- Reading Meta's Responses API output (shapes are read defensively: the docs give no full example) ----------------
-
-def _walk(node):
-    if isinstance(node, dict):
-        yield node
-        for value in node.values():
-            yield from _walk(value)
-    elif isinstance(node, list):
-        for value in node:
-            yield from _walk(value)
-
-
-def muse_urls(output: list) -> set[str]:
-    """Every URL the search returned (raw results) or the answer cited (url_citation annotations)."""
-    urls: set[str] = set()
-    for item in output:
-        if item.get("type") == "web_search_call":
-            urls |= {n["url"] for n in _walk(item) if isinstance(n.get("url"), str)}
-        for node in _walk(item.get("content")):
-            if node.get("type") == "url_citation" and isinstance(node.get("url"), str):
-                urls.add(node["url"])
-    return urls
-
-
-def muse_search_count(output: list) -> int:
-    return sum(1 for item in output if item.get("type") == "web_search_call")
-
-
-def muse_function_call(output: list, name: str = "record_findings"):
-    for item in output:
-        if item.get("type") == "function_call" and item.get("name") == name:
-            args = item.get("arguments")
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except ValueError:
-                    args = {}
-            return item.get("call_id"), dict(args or {})
-    return None
-
-
-def _muse_post(post, key: str, body: dict) -> dict:
-    response = post(META_RESPONSES_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=600)
-    if response.status_code >= 400:
-        raise CommandError(f"Meta API returned {response.status_code}: {response.text[:500]}")
-    return response.json()
-
-
-def call_muse(context: dict, fields: dict, model: str, key: str, post=requests.post):
-    """PROIT's search conversation on Meta's Responses API. Returns (tool input, urls returned, usage, raw responses)."""
-    tool = pr._findings_tool(fields)
-    function = {"type": "function", "name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]}
-    body = {
-        "model": model, "instructions": pr.SYSTEM_PROMPT, "input": pr.build_prompt(context, fields),
-        "tools": [{"type": "web_search"}, function], "include": ["web_search_call.results"],
-        "max_output_tokens": pr.MAX_OUTPUT_TOKENS,
-    }
-    seen: set[str] = set()
-    usage = {"in": 0, "out": 0, "searches": 0, "cache_read": 0, "cache_write": 0}
-    raw_log, reminders = [], 0
-    for _turn in range(pr.MAX_TURNS + pr.MAX_REMINDERS):
-        response = _muse_post(post, key, body)
-        raw_log.append(response)
-        output = response.get("output") or []
-        used = response.get("usage") or {}
-        cached = (used.get("input_tokens_details") or {}).get("cached_tokens", 0) or 0
-        usage["in"] += max((used.get("input_tokens", 0) or 0) - cached, 0)
-        usage["cache_read"] += cached
-        usage["out"] += used.get("output_tokens", 0) or 0
-        usage["searches"] += muse_search_count(output)
-        seen |= muse_urls(output)
-        call = muse_function_call(output)
-        if call:
-            call_id, answer = call
-            answer["findings"] = pr._as_list(answer.get("findings"))
-            if len(answer["findings"]) >= max(1, len(fields) // 2) or reminders >= pr.MAX_REMINDERS:
-                return answer, seen, usage, raw_log
-            reminders += 1
-            next_input = [{"type": "function_call_output", "call_id": call_id,
-                           "output": INCOMPLETE.format(got=len(answer["findings"]), want=len(fields))}]
-        else:
-            next_input = "Now call record_findings with an entry for every field."
-        body = {**body, "previous_response_id": response.get("id"), "input": next_input}
-    raise CommandError("Muse did not finish recording its findings.")
 
 
 # --- Checking that a cited quote is really on the cited page ---------------------------------------------------------

@@ -278,7 +278,7 @@ class AIResearchView(APIView):
     def post(self, request, pk):
         profile = get_object_or_404(PreProfile, pk=pk)
         if not ai_research_is_configured():
-            return _error("ai_not_configured", "AI research hasn't been set up (ANTHROPIC_API_KEY).", 503)
+            return _error("ai_not_configured", "AI research hasn't been set up (no API key for the configured AI provider).", 503)
         if profile.prepopulation_locked_at is not None:
             return _error("locked", "This pre-profile is locked, so it cannot be researched again.", 409)
         running = profile.ai_runs.filter(status=AIResearchStatus.RUNNING).first()

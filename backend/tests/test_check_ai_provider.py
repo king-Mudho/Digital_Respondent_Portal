@@ -52,6 +52,48 @@ def test_a_provider_that_errors_is_reported_not_crashed_and_never_shows_a_key(se
     assert "sk-ant-secret-value" not in out.getvalue()
 
 
+def _proit_meta(settings):
+    settings.AI_PROIT_PROVIDER, settings.AI_PROIT_API_KEY, settings.AI_PROIT_RESEARCH_MODEL = "meta", "meta-key", "muse-spark-1.3"
+
+
+def _year_answer(value, searched=True):
+    output = [{"type": "function_call", "name": "report_number", "call_id": "c1", "arguments": f'{{"value": {value}}}'}]
+    if searched:
+        output.insert(0, {"type": "web_search_call", "results": [{"url": "https://en.wikipedia.org/wiki/Zimbabwe"}]})
+    return {"id": "r1", "output": output, "usage": {"input_tokens": 300, "output_tokens": 20}}
+
+
+def test_the_proit_check_passes_when_meta_searches_and_answers_correctly(settings):
+    _proit_meta(settings)
+    out = StringIO()
+    with patch("apps.proit.muse.post_responses", return_value=_year_answer(1980)) as post:
+        call_command("check_ai_provider", "--proit", stdout=out)
+    assert "All 3 PROIT checks passed" in out.getvalue()
+    body = post.call_args.args[1]
+    assert {"type": "web_search"} in body["tools"] and post.call_args.args[0] == "meta-key"
+
+
+def test_the_proit_check_fails_when_meta_answers_without_searching_or_wrongly(settings):
+    _proit_meta(settings)
+    with patch("apps.proit.muse.post_responses", return_value=_year_answer(1979, searched=False)):
+        with pytest.raises(CommandError, match="2 of 3 PROIT checks failed"):
+            call_command("check_ai_provider", "--proit", stdout=StringIO())
+
+
+def test_the_proit_check_asks_again_when_meta_searches_but_does_not_answer_in_the_format(settings):
+    _proit_meta(settings)
+    first = {"id": "r1", "output": [{"type": "web_search_call", "results": [{"url": "https://a.example"}]}, {"type": "message"}], "usage": {}}
+    with patch("apps.proit.muse.post_responses", side_effect=[first, _year_answer(1980, searched=False)]) as post:
+        call_command("check_ai_provider", "--proit", stdout=StringIO())
+    assert post.call_args_list[1].args[1]["previous_response_id"] == "r1"
+
+
+def test_the_proit_check_refuses_when_proit_is_not_set_to_meta(settings):
+    settings.AI_PROIT_PROVIDER = "anthropic"
+    with pytest.raises(CommandError, match="set to Anthropic"):
+        call_command("check_ai_provider", "--proit", stdout=StringIO())
+
+
 def test_the_check_refuses_to_run_with_no_key(settings):
     settings.ANTHROPIC_API_KEY = ""
     with pytest.raises(CommandError, match="No API key"):

@@ -187,6 +187,61 @@ def test_a_research_run_records_the_model_research_used_not_the_document_coding_
     assert AIResearchRun.objects.get(pk=resp.data["id"]).model == "research-model"
 
 
+def _meta(settings, key="meta-key"):
+    settings.AI_PROIT_PROVIDER, settings.AI_PROIT_API_KEY = "meta", key
+    settings.AI_PROIT_RESEARCH_MODEL = "muse-spark-1.3"
+
+
+def test_meta_uses_only_its_own_key_and_never_borrows_the_anthropic_one(settings):
+    from apps.proit.ai_research import ai_research_is_configured
+
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    _meta(settings, key="")
+    assert ai_research_is_configured() is False
+    _meta(settings, key="meta-key")
+    assert ai_research_is_configured() is True
+    settings.AI_PROIT_PROVIDER = "anthropic"
+    settings.ANTHROPIC_API_KEY = ""
+    assert ai_research_is_configured() is False  # the Meta key does not switch Anthropic on either
+
+
+def test_with_meta_switched_on_a_run_goes_to_muse_never_to_anthropic_and_the_audit_names_it(profile, settings):
+    _meta(settings)
+    raw = {"summary": "Looked at the company site.", "findings": [_found()]}
+    usage = {"in": 900, "out": 80, "searches": 3, "cache_read": 0, "cache_write": 0}
+    with patch("apps.proit.muse.call_muse", return_value=(raw, {URL}, usage, [])) as muse_call, patch("anthropic.Anthropic") as anthropic_cls:
+        resp = _client(Role.FIELD_COORDINATOR, "ai_fc_meta").post(f"/api/v1/proit/pre-profiles/{profile.pk}/ai-research/")
+    assert resp.status_code == 202
+    run = AIResearchRun.objects.get(pk=resp.data["id"])
+    assert run.status == AIResearchStatus.DONE and run.model == "muse-spark-1.3" and run.searches_used == 3
+    assert muse_call.call_args.args[3] == "meta-key"
+    anthropic_cls.assert_not_called()
+    event = AuditEvent.objects.get(action="proit.ai_research_completed")
+    assert event.metadata["provider"] == "meta" and event.metadata["tokens_in"] == 900
+
+
+def test_a_refusal_from_meta_is_recorded_as_a_failed_run(profile, settings):
+    from apps.proit.muse import MuseError
+
+    _meta(settings)
+    with patch("apps.proit.muse.call_muse", side_effect=MuseError("Meta API returned 403: not available in your region")):
+        resp = _client(Role.FIELD_COORDINATOR, "ai_fc_meta2").post(f"/api/v1/proit/pre-profiles/{profile.pk}/ai-research/")
+    run = AIResearchRun.objects.get(pk=resp.data["id"])
+    assert run.status == AIResearchStatus.FAILED and "403" in run.error
+
+
+def test_social_sites_are_dropped_after_the_search_even_when_the_search_returned_them():
+    # Meta's search cannot be told to avoid these, so the server refuses them whatever the provider.
+    blocked = ["https://www.reddit.com/r/zimbabwe/x", "https://t.me/agri_channel", "https://www.pinterest.com/pin/1"]
+    raw = {"findings": [_found("legal_name", url=blocked[0]), _found("trading_name", url=blocked[1]),
+                        _found("year_established", url=blocked[2]), _found("hq_province", url=URL)]}
+    proposals, dropped = clean_findings(raw, {URL, *blocked}, FIELDS)
+    by_field = {p["field_id"]: p for p in proposals}
+    assert all(by_field[f]["status"] == "not_found" for f in ("legal_name", "trading_name", "year_established"))
+    assert by_field["hq_province"]["status"] == "found"
+    assert {d["url"] for d in dropped if d.get("reason") == "personal or social page refused"} == set(blocked)
+
+
 def test_research_is_refused_up_front_when_ai_is_off_the_profile_is_locked_or_it_is_already_running(profile, settings):
     coordinator = _client(Role.FIELD_COORDINATOR, "ai_fc2")
     settings.ANTHROPIC_API_KEY = ""

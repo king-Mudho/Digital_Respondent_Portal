@@ -98,8 +98,10 @@ def test_an_incomplete_answer_is_sent_back_with_the_function_output_for_that_cal
 
 
 def test_a_refused_request_raises_with_the_status_and_never_the_key():
+    from apps.proit.muse import MuseError
+
     post = FakePost(Mock(status_code=401, text="invalid credentials"))
-    with pytest.raises(CommandError) as exc:
+    with pytest.raises(MuseError) as exc:
         cmp.call_muse({"organisation": {"name": "X"}}, FIELDS, "muse-spark-1.3", "secret-key-123", post=post)
     assert "401" in str(exc.value) and "secret-key-123" not in str(exc.value)
 

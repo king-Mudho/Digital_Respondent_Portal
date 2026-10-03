@@ -98,7 +98,14 @@ class AIResearchError(Exception):
         super().__init__(message)
 
 
+def proit_provider() -> str:
+    return "meta" if (settings.AI_PROIT_PROVIDER or "").strip().lower() == "meta" else "anthropic"
+
+
 def ai_research_is_configured() -> bool:
+    # Meta has its own key; it never falls back to the Anthropic one.
+    if proit_provider() == "meta":
+        return bool((settings.AI_PROIT_API_KEY or "").strip())
     return bool((settings.ANTHROPIC_API_KEY or "").strip())
 
 
@@ -349,7 +356,26 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     raise AIResearchError("ai_no_answer", "The AI did not finish recording its findings.", 502)
 
 
+def call_model_meta(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
+    """The same conversation on Muse Spark (apps/proit/muse.py). Same return shape as call_model."""
+    import requests
+
+    from .muse import MuseError, call_muse
+
+    try:
+        raw, seen, usage, _raw_log = call_muse(context, fields, settings.AI_PROIT_RESEARCH_MODEL, (settings.AI_PROIT_API_KEY or "").strip())
+    except MuseError as exc:
+        raise AIResearchError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+    except requests.RequestException as exc:
+        raise AIResearchError("ai_request_failed", f"The AI service could not be reached: {type(exc).__name__}", 502) from exc
+    return raw, seen, usage
+
+
 # --- Turning the model's answer into safe proposals ------------------------------------------
+
+def _blocked_site(url: str) -> bool:
+    host = (urlsplit(url).hostname or "").lower().removeprefix("www.")
+    return any(host == domain or host.endswith("." + domain) for domain in BLOCKED_DOMAINS)
 
 def _clean_date(text: str) -> str:
     text = (text or "").strip()
@@ -374,7 +400,8 @@ def clean_findings(raw: dict, seen_urls: set[str], fields: dict) -> tuple[list[d
             url = (s.get("url") or "").strip()
             if not url.lower().startswith(("http://", "https://")):
                 continue
-            if PERSONAL_URL.search(url):
+            # Anthropic's search never returns BLOCKED_DOMAINS; Meta's cannot be told to avoid them, so check here too.
+            if PERSONAL_URL.search(url) or _blocked_site(url):
                 dropped.append({"field_id": fid, "reason": "personal or social page refused", "url": url})
                 continue
             if _norm(url) not in allowed:
@@ -415,7 +442,8 @@ def run_research(run_id: int) -> None:
     fields = ai_fields()
     try:
         context = case_context(profile)
-        raw, seen_urls, usage = call_model(context, fields)
+        research = call_model_meta if proit_provider() == "meta" else call_model
+        raw, seen_urls, usage = research(context, fields)
         proposals, dropped = clean_findings(raw, seen_urls, fields)
     except AIResearchError as exc:
         _fail(run, str(exc))
@@ -442,6 +470,7 @@ def run_research(run_id: int) -> None:
     log_action("proit.ai_research_completed", profile, {
         "run": run.pk, "proposed": found, "not_found": len(proposals) - found, "dropped": len(dropped),
         "searches": usage["searches"], "user_id": run.requested_by_id,
+        "provider": proit_provider(), "model": run.model, "tokens_in": usage["in"], "tokens_out": usage["out"],
     }, user=run.requested_by_id)
 
 

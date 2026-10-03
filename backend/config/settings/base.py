@@ -276,6 +276,11 @@ AI_DOCUMENT_CODING_API_KEY = env("AI_DOCUMENT_CODING_API_KEY", default="")
 # PROIT desk research is search-and-read work whose every fact a researcher accepts or rejects, so it runs on the
 # cheaper model. Override with AI_PROIT_RESEARCH_MODEL (e.g. claude-opus-5) if quality needs it.
 AI_PROIT_RESEARCH_MODEL = env("AI_PROIT_RESEARCH_MODEL", default="claude-sonnet-5")
+# "anthropic" (default) or "meta" (Muse Spark through Meta's Responses API, apps/proit/muse.py). Meta uses only its own
+# AI_PROIT_API_KEY, never ANTHROPIC_API_KEY. Switch with deploy/configure-ai-provider.sh --proit, which checks Meta
+# with a synthetic public question first; turn it on only after the compare_proit_models review has passed.
+AI_PROIT_PROVIDER = env("AI_PROIT_PROVIDER", default="anthropic")
+AI_PROIT_API_KEY = env("AI_PROIT_API_KEY", default="")
 
 # --- KoboToolbox submission (apps/evidence/kobo_submit.py) ------------------
 # The OpenRosa endpoint every ODK-compatible client (KoboCollect, Enketo)
