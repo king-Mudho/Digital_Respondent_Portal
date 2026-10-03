@@ -44,7 +44,7 @@ const SCHEDULE_DAY3 = [
 ];
 
 const TRACKS = [
-  ["Contact RA", "Finding the right person; recording respondents and numbers; sending invitations on WhatsApp, SMS and email; logging every attempt; Follow-ups; Appointments; assisted interviews; refusals and withdrawals", "Role Guide 3; Manual Module A"],
+  ["Contact RA", "Finding the right person; recording respondents and numbers; sending invitations on WhatsApp, SMS and email; the WhatsApp invitations queue; logging every attempt; Follow-ups; Appointments; assisted interviews; refusals and withdrawals", "Role Guide 3; Manual Module A"],
   ["QUAN/Kobo QA RA", "QA Dashboard; reading a completed form PDF; the QA rules; Accept / Re-query / Reject with good notes; working QA exceptions; Sync now", "Role Guide 4; Manual Module B"],
   ["KII RA", "KII records and statuses; participation and recording consent; conducting the interview; Executive Short Form (K1, K2, K3, K7, K9); transcript and coding progress; KII Guide in KoboToolbox", "Role Guide 5; Manual Module C"],
   ["Documentary RA", "Recording a source precisely; judging authenticity; Include / Exclude; interpretive memos; the Document Analysis Tool (Exclude skips Sections C–L); attaching or removing a source file; Auto-fill and how to review an AI draft", "Role Guide 6; Manual Module D"],
@@ -363,6 +363,7 @@ const manual = {
     ["h2", "Module A — Contact RA"],
     ...T.respondents.slice(1),
     ...T.invite.map((b) => (b[0] === "h2" ? ["h3", b[1]] : b)),
+    ...T.whatsappQueue.map((b) => (b[0] === "h2" ? ["h3", b[1]] : b)),
     ...T.logContact.map((b) => (b[0] === "h2" ? ["h3", b[1]] : b)),
     ...T.followUps.map((b) => (b[0] === "h2" ? ["h3", b[1]] : b)),
     ...T.appointments.map((b) => (b[0] === "h2" ? ["h3", b[1]] : b)),

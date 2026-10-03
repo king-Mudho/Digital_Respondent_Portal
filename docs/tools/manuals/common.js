@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.16 · 1 October 2026";
+const REVISION = "Version 1.17 · 3 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -90,6 +90,10 @@ const INTERNAL_TROUBLE = [
   ["Form PDFs says \"Not in sync with KoboToolbox yet\"", "The counts differ: a form was submitted or changed in KoboToolbox since the last sync (it runs every 15 minutes).", "Select **Sync now**. If it still differs, or says it couldn't reach KoboToolbox, try again in a few minutes and tell the PI if it persists."],
   ["A document says \"Already submitted\" and its answers are locked", "Its coding was already sent to KoboToolbox; changing it here would not change that record.", "To redo the coding, delete that record in KoboToolbox, then select **Sync now** on Form PDFs. The document unlocks."],
   ["A page keeps loading", "A slow or dropped connection.", "Refresh the page. Your saved work is not lost; unsaved typing may be."],
+  ["**Email invitations** says email isn't set up", "Outgoing email has not been configured on the server.", "Ask the administrator to run `configure-email.sh`. Until then, send invitations by WhatsApp."],
+  ["A WhatsApp invitation was prepared but never sent", "**Prepare** counts it as sent and moves the case to S05.", "Open the case and **Revoke** that invitation; send a new one from the case's Invitations panel when you can reach the person."],
+  ["A case is missing from the WhatsApp or email queue", "It is not verified (S03 or S04), has no number or email on file, already has an open invitation, or is assigned to another Contact RA.", "Verify the case, add the contact detail, or check its invitation history."],
+  ["The contact finder says it would overwrite a detail", "The organisation contact already has a different phone or email.", "Check which is right and correct it under **Respondents and contact details**."],
   ["A file upload seems stuck", "A large file on a slow connection takes time; the bar shows how much has been sent.", "Wait for **Saving…** and the file name. If it fails, try again or upload a smaller version."],
 ];
 
@@ -106,6 +110,11 @@ const GLOSSARY = [
   ["Consent", "The respondent's recorded agreement to take part (participation consent). KII recording consent is separate."],
   ["PIS", "Participant Information Sheet, currently version 1.5."],
   ["AI research", "In PROIT, an AI searches public sources for an organisation and the respondent's published professional role and proposes background facts with sources. A researcher accepts or rejects each; nothing enters the profile automatically."],
+  ["Muse", "Meta's AI model, used for document drafting, PROIT research and the contact finder, billed to the study's Meta account."],
+  ["Organisation social page", "An organisation's own business page on Facebook, LinkedIn, X or similar. It may be cited as a Tier 4 source for the organisation's own facts and contact details, never for a person. Personal profiles are never used."],
+  ["Contact finder", "**Find contact details with AI**: proposes an organisation's published phone, email, website, office location and named senior staff, each with its page and passage. Nothing is saved until a person accepts it."],
+  ["Email invitations", "The register panel that emails the approved invitation to a batch of verified cases (S03 or S04) with a respondent email and no open invitation."],
+  ["WhatsApp queue", "The register panel listing verified cases ready for a WhatsApp invitation. **Prepare** creates the link and message; the RA sends it from the study phone."],
   ["Interview sheet", "The locked pre-interview profile as the interviewer uses it: public facts to confirm, gaps to ask, and where the respondent's answers stand."],
   ["Reconciliation", "After the interview, the researcher's coded value for each fact the respondent corrected or qualified. A case is not complete until its profile is reconciled."],
   ["Protocol deviation", "A recorded reason why a profile could not be reconciled. It releases the case but leaves it flagged."],

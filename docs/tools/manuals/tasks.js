@@ -52,7 +52,7 @@ T.registerOrg = [
     "Complete **Name**, **District**, **Province**, **Entity type**, **Actor family**, **Value chain** and **Size class**. Province, actor family and size class decide the stratum, so check them carefully.",
     "Select **Register organisation**. The Master ID (e.g. MID-HA-000012) is generated automatically.",
     "When offered, choose **Main** or **Reserve** and select **Create sample case**. The Sample ID is generated and the new case page opens. You can also create the case later from the organisation's row in the list.",
-    "For a Main case, register its Reserve counterpart in the **same province, actor family and size class**, then pair them (next procedure).",
+    "For a Main case, register its Reserve counterpart in the **same province, actor family and size class**, then pair them (see “Pairing a Main case with its Reserve”).",
   ]],
   ["h2", "Correcting an already-registered organisation"],
   ["p", "For a mistyped name or a wrong district, entity type or value chain found after registration."],
@@ -226,10 +226,11 @@ T.proit = [
     "Decide on each one. **Accept** puts it into the profile with its sources. Edit the wording first if it needs correcting, then **Accept**. **Reject** discards it. Nothing enters the profile until you accept it. Take special care where the note says the organisation may be a different one with a similar name.",
     "Read **Not found publicly: ask the respondent**. These are the facts the AI could not find in any public source. They become the questions the interviewer asks in full.",
   ]],
-  ["tip", "Cost", "PROIT research is a paid request on the study's AI account, run on a lower-cost model than document drafting (about USD 1-3 per organisation researched). Research the organisations that need it rather than re-running it on the same one."],
+  ["tip", "Cost", "PROIT research is a paid request on the study's AI account (Meta's Muse model). Measured on real organisations it cost about USD 0.20–0.95 each, around USD 0.50 on average, so researching every Main case is roughly USD 200. Research the organisations that need it rather than re-running it on the same one."],
   ["warn", "The AI proposes, you decide", [
     "The AI only suggests. Every fact still needs a source, a person to accept it and a second person to lock the profile, exactly as if you had typed it in.",
-    "Only sources the search actually returned can be cited. A fact with no verifiable source is turned into “not found publicly”, and anything that looks private is removed automatically. The AI never records health, religion, ethnicity, politics, family, home addresses, personal phone numbers or emails, private finances, or anything from personal social-media pages.",
+    "Only sources the search actually returned can be cited. A fact with no verifiable source is turned into “not found publicly”, and anything that looks private is removed automatically. The AI never records health, religion, ethnicity, politics, family, home addresses, personal phone numbers or emails, private finances, or anything from a person's own social-media profile.",
+    "An organisation's **own** business page (for example its Facebook, LinkedIn company or X page) may be cited, but only when the quoted passage names the organisation, never for the respondent's role, and always as Tier 4, the weakest tier. Personal profiles are removed automatically, as are messaging apps and forums.",
     "What is sent to the AI provider's search: the organisation's name, province, district and type, and the respondent's name and role. Never a phone number, email, gatekeeper or any other contact detail.",
   ]],
   ["h3", "Step 2: add or correct facts by hand"],
@@ -239,6 +240,75 @@ T.proit = [
     "Use **Researcher review screen** to check the whole profile, including gaps and contradictions.",
     "A second researcher reviews it and selects **Lock pre-profile**. Only a locked profile is used with the respondent, who confirms, corrects, or says they don't know, prefer not to say, or it is not applicable. The public value, the respondent's answer and the reconciled value are kept separately.",
   ]],
+  ["h3", "After the research: from profile to KoboToolbox"],
+  ["p", "Accepting the AI's proposals is the first of five steps. A profile only does its job once it has been through all of them:"],
+  ["table", ["Step", "Who", "Where", "What it produces"], [
+    ["1. Accept or reject each proposal, add any facts found by hand", "Coordinator or PI", "PROIT panel on the case (or KII) page", "A draft profile: every fact with a source and a named person who accepted it."],
+    ["2. Lock the profile", "A second researcher", "**Lock pre-profile**", "A fixed version the interview is planned from. It cannot be locked while a fact has no source."],
+    ["3. Verify with the respondent", "Whoever runs the interview", "**Interview sheet** (see “Verifying a profile with the respondent”)", "The respondent's own answer to each fact, kept apart from the public value."],
+    ["4. Reconcile the facts that differ", "Coordinator or PI", "**Reconciled value (required)** on the interview sheet", "The value coded for analysis, wherever the respondent corrected or qualified a fact."],
+    ["5. Saved to KoboToolbox", "Automatic", "**ABF-FST PROIT Interview Profile** form", "Sent by the portal the moment the last fact is settled; the sheet then shows **Saved to KoboToolbox**."],
+  ], [0.3, 0.17, 0.25, 0.28]],
+  ["p", "Until step 4 is finished, QA cannot accept that case's questionnaire and a KII's coding cannot become COMPLETE (see the warning under “Verifying a profile with the respondent”)."],
+];
+
+T.contactFinder = [
+  ["h2", "Finding contact details with AI"],
+  ["p", "Many cases have no phone, WhatsApp or email on file, so they cannot be invited. The contact finder searches public sources for an organisation's **published** phone, email, website and office location, and for senior staff the organisation itself names (for example on its own website or annual report). Like PROIT research, it only proposes: nothing is saved until you accept it."],
+  ["h3", "For one case"],
+  ["steps", [
+    "Open the case (**Main-400 Register → View**) and find **Find contact details with AI**.",
+    "Select **Find contact details**. The search runs in the background for a minute or two; you can leave the page and come back.",
+    "Under **To review**, each finding shows what was found, a confidence level, and the page it came from with the passage that shows it. Select the page title to open it and check it is the right organisation.",
+    { text: "Decide on each one:", sub: [
+      "An organisation **phone** or **email**: **Accept** records it on a respondent called “Organisation contact (to be identified)”, ready for you to phone the organisation and find the right person. It never overwrites a different number or address already there; edit that under **Respondents and contact details** instead.",
+      "A **named person**: choose their **Role** if the page shows it, then **Accept**. They become a new respondent, marked not yet screened. Screen them for eligibility before inviting.",
+      "A **website** or **office location** is kept with the organisation and shown at the top of the panel.",
+      "**Reject** anything that belongs to a different organisation with a similar name, or that you cannot confirm on the page.",
+    ] },
+    "When the case has a confirmed eligible respondent and a number, verify it to **S03** and invite it as usual.",
+  ]],
+  ["h3", "For many cases at once (coordinator and PI)"],
+  ["steps", [
+    "Open **Main-400 Register**. The **Find contact details with AI** panel says how many cases not yet invited have no phone, WhatsApp or email, and the rough cost per case.",
+    "Type a number in **How many cases** (up to 25 at a time) and select **Find contacts**. Cases are searched in Sample ID order; a case searched in the last 30 days is skipped.",
+    "The searches run in the background. Open each case later to accept or reject what was found: a batch never saves anything by itself.",
+  ]],
+  ["tip", "Cost", "Each search is a paid request on the study's AI account, about USD 0.05–0.15 per organisation. The batch panel shows the estimate before you start."],
+  ["warn", "Only what an organisation publishes about itself", [
+    "Only the organisation's name, province, district and value chain are sent to the AI provider. Never a respondent's name or any contact detail already on file.",
+    "Every finding must appear in the passage quoted from its page; anything that does not is removed automatically. Personal social-media profiles are never used. An organisation's own business page may be, for the organisation's own contact details only, and a finding seen only there is never rated higher than MODERATE.",
+    "An email on a personal-style service (for example Gmail) is flagged: check the page presents it as the organisation's own address.",
+  ]],
+];
+
+T.emailBatch = [
+  ["h2", "Emailing invitations in batches"],
+  ["p", "Instead of sending invitations one case at a time, the coordinator or PI can have the portal email them. It sends exactly what the case-page **Email from study address** button sends: the approved invitation email from abffst.research@gmail.com, with each case's own link (valid 14 days) and manual code. Only **verified** cases are included: status **S03** or **S04**, a respondent email on file, and no open invitation."],
+  ["steps", [
+    "Open **Main-400 Register** and find **Email invitations**. It says how many verified cases are ready and how many emails are left today. Open **Next in line** to see the first cases, their organisations and the (partly hidden) addresses.",
+    "Type a number in **How many** (up to 100 in one batch) and select **Review and send**.",
+    "Read the confirmation, then select **Send N invitations**, or **Cancel**.",
+    "The panel shows progress while it sends, then the result: sent, failed and skipped. Open **Case by case** to see each Sample ID and the reason for any failure. Each case that was sent moves to **S05 Invitation sent**.",
+  ]],
+  ["warn", "Before the first batch", [
+    "Email must be set up on the server first (`configure-email.sh`, see the System Manual). Until then the panel says so and the button stays disabled.",
+    "At most 300 emails a day, to stay inside the study mailbox's sending limit. The panel shows what is left.",
+    "If an email fails, nothing is kept for that case: no link is issued, it stays at S03 or S04, and the next batch tries it again.",
+    "Day 2 and Day 7 reminders are not emailed. They appear on **Follow-ups** like any other invitation, to send by hand.",
+  ]],
+];
+
+T.whatsappQueue = [
+  ["h2", "Sending WhatsApp invitations from the queue"],
+  ["p", "The study has no WhatsApp Business account, so the portal cannot send WhatsApp messages itself. The queue does the next best thing: it lists every verified case (**S03** or **S04**) with a WhatsApp or phone number and no open invitation, and prepares each invitation so you send it with one tap from the study phone. A Contact RA sees only their own cases."],
+  ["steps", [
+    "Open **Main-400 Register** and find **WhatsApp invitations**. Each row shows the Sample ID, the organisation, the person and a partly hidden number.",
+    "Select **Prepare** on a row. The portal creates the case's personal link and code, writes the approved WhatsApp message, and moves the case to **S05 Invitation sent**.",
+    "Select **Open WhatsApp**. WhatsApp opens at that person's chat with the message ready. Check you are on the study number, then press Send. (**Copy message** copies the text if WhatsApp will not open.)",
+    "Log the attempt on the case's **Contact timeline**, as for any invitation.",
+  ]],
+  ["warn", "Prepare only what you are about to send", "Preparing an invitation counts it as sent: the case moves to S05 and the Day 2 and Day 7 reminders start counting. If you prepare one and cannot send it, open the case and **Revoke** that invitation so the link stops working. The case stays at S05 and does not come back to the queue: when you can reach the person, send a new invitation from the case's **Invitations** panel."],
 ];
 
 T.proitInterview = [
@@ -448,7 +518,7 @@ T.documents = [
     ["“The AI's answer was cut off…”", "The range was too big to answer in one go.", "Try a narrower range."],
     ["“A draft is already being generated”", "You or a colleague already started one.", "Wait for it to finish (about five minutes; up to half an hour for a document read in parts)."],
     ["“The last attempt failed: …”", "The AI request did not complete.", "Select **Generate AI draft** again. If it keeps failing, tell the administrator the message."],
-    ["“The AI account has run out of credit…”", "The study's AI account has no funds left.", "Tell the administrator to add credit in the Anthropic console; nothing else to do on this screen."],
+    ["“The AI account has run out of credit…”", "The study's AI account has no funds left.", "Tell the administrator, who adds credit on the AI provider's billing page (Meta, for the Muse model); nothing else to do on this screen."],
     ["No **Auto-fill** button", "AI drafting has not been switched on, or there is no source file yet.", "Attach the file; otherwise ask the administrator."],
     ["**Submit** is refused by KoboToolbox", "KoboToolbox did not accept the record.", "Tell the administrator; your draft is kept."],
   ], [0.3, 0.35, 0.35]],

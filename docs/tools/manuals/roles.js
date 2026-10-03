@@ -122,7 +122,7 @@ module.exports = [
         "To remove access, untick **Active** and save. Do not delete users; their audit history must remain.",
       ]]],
       T.dashboards, T.reports,
-      T.reassign, T.pairAssign, T.bulkVerify, T.registerOrg, T.respondents, T.invite, T.exports("pi"), T.audit, T.clearance, T.kii, T.documents, T.cost, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
+      T.reassign, T.pairAssign, T.bulkVerify, T.registerOrg, T.contactFinder, T.respondents, T.invite, T.emailBatch, T.whatsappQueue, T.exports("pi"), T.audit, T.clearance, T.kii, T.documents, T.cost, T.withdrawal, T.reserve, T.proit, T.proitInterview, T.qaReview, T.qaExceptions,
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"),
       [["h2", "KoboToolbox: rotating credentials and changing forms"], ["steps", [
         "Change the KoboToolbox password, then create a new API token (**Account settings → Security**).",
@@ -158,6 +158,7 @@ module.exports = [
       "Open 18 screens — everything except the Audit Log and Research Clearance.",
       "Register organisations, pair Reserves, assign Contact RAs and verify cases in bulk.",
       "Record respondents, invite, log contacts, send follow-ups, manage appointments.",
+      "Find missing contact details with AI, email invitations in batches, and prepare WhatsApp invitations from the queue.",
       "Record withdrawals and activate Reserves.",
       "Take QA decisions and work QA exceptions; manage KII and document records; log costs.",
       "Download the de-identified analysis export.",
@@ -170,7 +171,7 @@ module.exports = [
     landing: "Executive Dashboard",
     screens: [
       ["Dashboards and Reports", "Track progress, coverage and bottlenecks."],
-      ["Main-400 Register", "Cases, bulk verification."],
+      ["Main-400 Register", "Cases, bulk verification, the contact finder, email invitations and the WhatsApp queue."],
       ["Organisations", "Late additions and replacements."],
       ["Appointments, Follow-ups", "Keep contact on schedule."],
       ["Form PDFs", "Completed forms for all three forms, and whether the portal matches KoboToolbox (Sync now)."],
@@ -186,7 +187,7 @@ module.exports = [
       ["End of day", "Reports (last 7 days): submissions, response rate, coverage; note strata falling behind."],
       ["Weekly", "Cases stuck at S05–S07 beyond Day 7; Reserve activations; cost entries; brief the PI."],
     ],
-    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.respondents, T.invite, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.proitInterview, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
+    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.contactFinder, T.respondents, T.invite, T.emailBatch, T.whatsappQueue, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.proitInterview, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
     extraRules: ["Record a withdrawal the same day you hear of it.", "Activate a Reserve only with an authorised reason and written evidence."],
     trouble: [
       ["\"Move all\" shows 0", "No Main cases are at that step.", "Choose the next step in the list."],
@@ -202,7 +203,7 @@ module.exports = [
     can: [
       "See the Main-400 Register — only the cases assigned to you — and open their case pages.",
       "Add and edit respondents and contact details.",
-      "Send, resend and revoke invitations.",
+      "Send, resend and revoke invitations, one case at a time or from the **WhatsApp invitations** queue on the register.",
       "Log contact attempts and change a case's status where allowed.",
       "Send follow-up reminders and manage appointments for your cases.",
     ],
@@ -229,7 +230,7 @@ module.exports = [
         "Type a Sample ID, Master ID or organisation name in **Search**, or page through with **Next**.",
         "Select **View** to open the case page.",
       ]]],
-      T.respondents, T.invite, T.logContact, T.followUps, T.appointments, T.phoneAssisted, T.proitInterview, T.notEligible,
+      T.respondents, T.invite, T.whatsappQueue, T.logContact, T.followUps, T.appointments, T.phoneAssisted, T.proitInterview, T.notEligible,
       [["h2", "When someone refuses or asks to withdraw"], ["steps", [
         "Thank them politely and do not try to persuade them.",
         "Log the contact attempt with outcome **REFUSED** and their words in the note.",
@@ -479,6 +480,8 @@ module.exports = [
       [["h2", "Reviewing a case read-only"], ["steps", [
         "Select **Main-400 Register**, search for a case, and select **View**.",
         { text: "Review the respondent, invitation history, completed questionnaire, status and contact timeline. Controls are replaced by read-only notes.", img: "sup_case.jpg", caption: "A case page in read-only view." },
+        "**Find contact details with AI** on the case page shows what the AI found for the organisation, with the page and passage for each finding, and which findings the team accepted or rejected.",
+        "On the register, **WhatsApp invitations** lists the verified cases waiting for a WhatsApp invitation. You see the list, not the **Prepare** button.",
       ]]],
       [["h2", "Reviewing QA"], ["img", "sup_qa_queue.jpg", "QA Queue in read-only view."], ["p", "Check that notes explain decisions and that exceptions are closed with reasons."]],
       T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg").map((b) => (b[0] === "steps" ? ["steps", [b[1][0], b[1][1]]] : b)),
