@@ -128,7 +128,8 @@ def coding_base_url() -> str:
             f"AI_DOCUMENT_CODING_BASE_URL must be an https address on one of: {', '.join(sorted(ALLOWED_CODING_HOSTS))}.",
             503,
         )
-    return url
+    # The SDK appends /v1/messages itself, so a base ending in /v1 would call /v1/v1/messages.
+    return url.rstrip("/").removesuffix("/v1")
 
 
 def coding_provider() -> str:
@@ -147,8 +148,11 @@ def coding_api_key() -> str:
 def coding_client(*, timeout: float) -> anthropic.Anthropic:
     """The one place a document-coding client is built, so switching provider is configuration, not code."""
     base_url = coding_base_url()
-    extra = {"base_url": base_url} if base_url else {}
-    return anthropic.Anthropic(api_key=coding_api_key(), timeout=timeout, max_retries=4, **extra)
+    if not base_url:
+        return anthropic.Anthropic(api_key=coding_api_key(), timeout=timeout, max_retries=4)
+    # Meta reads the key as "Authorization: Bearer", not Anthropic's x-api-key header. Passing auth_token explicitly
+    # also stops the SDK reading ANTHROPIC_API_KEY from the environment, so that key is never sent to Meta.
+    return anthropic.Anthropic(auth_token=coding_api_key(), base_url=base_url, timeout=timeout, max_retries=4)
 
 
 def ai_coding_is_configured() -> bool:

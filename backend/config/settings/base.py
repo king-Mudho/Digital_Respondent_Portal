@@ -268,7 +268,7 @@ DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=20)
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 AI_DOCUMENT_CODING_MODEL = env("AI_DOCUMENT_CODING_MODEL", default="claude-opus-5")
 # Optional: send document coding to another provider that speaks the Anthropic Messages API, e.g. Meta Model API
-# (https://api.meta.ai/v1, model muse-spark-1.3). Blank = Anthropic. Only hosts on the allowlist in
+# (https://api.meta.ai, model muse-spark-1.3; the SDK adds /v1/messages). Blank = Anthropic. Only hosts on the allowlist in
 # apps/evidence/ai_coding.py are accepted, and ANTHROPIC_API_KEY is never sent to another host: the other provider
 # needs its own AI_DOCUMENT_CODING_API_KEY. Run `manage.py check_ai_provider` before switching.
 AI_DOCUMENT_CODING_BASE_URL = env("AI_DOCUMENT_CODING_BASE_URL", default="")

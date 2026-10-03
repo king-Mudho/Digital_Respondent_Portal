@@ -26,7 +26,7 @@ set -euo pipefail
 APP_USER="agribiz-drp"
 BACKEND="/srv/agribiz-drp/backend"
 ENV_FILE="$BACKEND/.env"
-META_URL="https://api.meta.ai/v1"
+META_URL="https://api.meta.ai"  # the Anthropic SDK appends /v1/messages
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"

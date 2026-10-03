@@ -20,7 +20,7 @@ from apps.evidence.ai_coding import (
 from apps.evidence.models import DocumentRecord
 from apps.evidence.services import generate_document_id
 
-META = "https://api.meta.ai/v1"
+META = "https://api.meta.ai"
 
 
 @pytest.fixture
@@ -60,7 +60,8 @@ def test_another_provider_gets_only_its_own_key_never_the_anthropic_key(settings
     with patch("anthropic.Anthropic") as client_cls:
         coding_client(timeout=5.0)
     kwargs = client_cls.call_args.kwargs
-    assert kwargs["api_key"] == "meta-key" and kwargs["base_url"] == META
+    assert kwargs["auth_token"] == "meta-key" and kwargs["base_url"] == META
+    assert "api_key" not in kwargs  # the Anthropic key is never offered to Meta
     assert coding_provider() == "api.meta.ai"
 
 
@@ -96,7 +97,7 @@ def test_a_full_draft_goes_to_the_configured_provider_and_names_it(document, set
         client_cls.return_value.messages.stream.return_value.__enter__.return_value.get_final_message.return_value = response
         draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
     kwargs = client_cls.call_args.kwargs
-    assert kwargs["base_url"] == META and kwargs["api_key"] == "meta-key"
+    assert kwargs["base_url"] == META and kwargs["auth_token"] == "meta-key" and "api_key" not in kwargs
     assert draft["_generated_by_provider"] == "api.meta.ai" and draft["_generated_by_model"] == "muse-spark-1.3"
 
 
@@ -110,3 +111,20 @@ def test_reading_a_documents_details_goes_to_the_same_provider(settings, tmp_pat
         details = extract_document_details(str(pdf), "application/pdf")
     assert client_cls.call_args.kwargs["base_url"] == META
     assert details["title"] == "A Report"
+
+
+def test_the_real_sdk_sends_only_a_bearer_token_to_meta_even_with_an_anthropic_key_in_the_environment(settings, monkeypatch):
+    # No mock: this is the installed SDK deciding which headers and URL it would use. A mocked client hid
+    # exactly this (x-api-key instead of Bearer, and a doubled /v1) until a live 401 showed it.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-must-never-reach-meta")
+    _configure(settings, base_url="https://api.meta.ai/v1", own_key="meta-key")  # an older setting with /v1
+    client = coding_client(timeout=5.0)
+    assert client.auth_headers == {"Authorization": "Bearer meta-key"}
+    assert str(client._prepare_url("/v1/messages")) == "https://api.meta.ai/v1/messages"
+
+
+def test_the_real_sdk_still_uses_the_anthropic_key_header_for_anthropic(settings):
+    _configure(settings, anthropic_key="sk-ant-test")
+    client = coding_client(timeout=5.0)
+    assert client.auth_headers == {"X-Api-Key": "sk-ant-test"}
+    assert str(client._prepare_url("/v1/messages")) == "https://api.anthropic.com/v1/messages"
