@@ -10,6 +10,7 @@ import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { RespondentsPanel } from "@/components/admin/RespondentsPanel";
+import { ContactFinderPanel } from "@/components/admin/ContactFinderPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ApiError } from "@/lib/api/client";
@@ -567,6 +568,15 @@ export default function SampleCaseDetailPage() {
         {/* A Contact RA running an assisted interview verifies the locked profile with the respondent. */}
         <IfRole roles={["CONTACT_RA"]}>
           <InterviewSheet sampleCaseId={sampleCase.id} />
+        </IfRole>
+
+        {/* The contact finder costs money per run, so it is the PI's and Field Coordinator's tool
+            (IsFieldCoordinatorOrAdmin); Supervisor may read it. */}
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
+          <ContactFinderPanel
+            sampleId={sampleCase.sample_id}
+            invitable={sampleCase.sample_type === "MAIN" || sampleCase.status === "ACTIVATED"}
+          />
         </IfRole>
 
         <RespondentsPanel sampleId={sampleCase.sample_id} />

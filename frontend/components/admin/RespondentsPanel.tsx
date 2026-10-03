@@ -21,7 +21,7 @@ interface Respondent {
   gatekeeper_contact: string;
 }
 
-const ROLE_OPTIONS: Array<[string, string]> = [
+export const ROLE_OPTIONS: Array<[string, string]> = [
   ["", "Not known"],
   ["OWNER_FOUNDER", "Owner/founder"],
   ["CEO_MD", "CEO/MD"],

@@ -118,3 +118,77 @@ class Appointment(models.Model):
 
     class Meta:
         ordering = ["scheduled_for"]
+
+
+class ContactSearchStatus(models.TextChoices):
+    RUNNING = "RUNNING", "Running"
+    DONE = "DONE", "Done"
+    FAILED = "FAILED", "Failed"
+
+
+class ContactSearchRun(models.Model):
+    """One AI search for an organisation's published contact details (apps/contacts/contact_finder.py). The AI
+    only proposes: nothing reaches a Respondent until the PI or Field Coordinator accepts a ContactProposal.
+    Recorded so the study can say exactly what was AI-assisted, by which provider and model, at what cost."""
+
+    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_searches")
+    status = models.CharField(max_length=8, choices=ContactSearchStatus.choices, default=ContactSearchStatus.RUNNING)
+    requested_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    provider = models.CharField(max_length=16, blank=True)
+    model = models.CharField(max_length=64, blank=True)
+    searches_used = models.PositiveIntegerField(default=0)
+    tokens_in = models.PositiveIntegerField(default=0)
+    tokens_out = models.PositiveIntegerField(default=0)
+    summary = models.TextField(blank=True)
+    error = models.TextField(blank=True)
+    dropped = models.JSONField(default=list, blank=True)  # findings the server refused, and why
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"ContactSearchRun({self.sample_case_id} {self.status})"
+
+
+class ContactKind(models.TextChoices):
+    ORG_PHONE = "ORG_PHONE", "Organisation phone"
+    ORG_EMAIL = "ORG_EMAIL", "Organisation email"
+    WEBSITE = "WEBSITE", "Website"
+    OFFICE_LOCATION = "OFFICE_LOCATION", "Office location"
+    PERSON = "PERSON", "Senior staff member"
+
+
+class ContactProposalStatus(models.TextChoices):
+    PROPOSED = "PROPOSED", "Proposed"
+    ACCEPTED = "ACCEPTED", "Accepted"
+    REJECTED = "REJECTED", "Rejected"
+
+
+class ContactProposal(models.Model):
+    """A published contact detail the AI found, with its sources, waiting for a person's decision."""
+
+    run = models.ForeignKey(ContactSearchRun, on_delete=models.CASCADE, related_name="proposals")
+    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_proposals")
+    kind = models.CharField(max_length=16, choices=ContactKind.choices)
+    value = models.CharField(max_length=500, blank=True)  # phone, email, website or office location
+    person_name = models.CharField(max_length=255, blank=True)
+    person_title = models.CharField(max_length=255, blank=True)
+    person_email = models.EmailField(blank=True)
+    person_phone = models.CharField(max_length=64, blank=True)
+    sources = models.JSONField(default=list, blank=True)  # [{title, url, quote}]
+    confidence = models.CharField(max_length=16, blank=True)
+    flags = models.JSONField(default=list, blank=True)  # e.g. ["webmail"] for the reviewer to weigh
+    status = models.CharField(max_length=8, choices=ContactProposalStatus.choices, default=ContactProposalStatus.PROPOSED)
+    reviewed_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reject_reason = models.CharField(max_length=300, blank=True)
+    respondent = models.ForeignKey(Respondent, null=True, blank=True, on_delete=models.SET_NULL, related_name="contact_proposals")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"ContactProposal({self.kind} {self.status})"

@@ -292,12 +292,14 @@ def _with_cache_breakpoint(messages: list) -> list:
     return [*messages[:-1], {**last, "content": marked}]
 
 
-def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
-    """Runs the search conversation until the model calls record_findings.
-    Returns (tool input, urls the search returned, usage numbers)."""
+def search_conversation(*, system: str, prompt: str, tool: dict, items_key: str, min_items: int,
+                        incomplete: str, nudge: str) -> tuple[dict, set[str], dict]:
+    """A web-search conversation on Anthropic that ends when the model calls `tool`. Shared by PROIT and the
+    contact finder (apps/contacts/contact_finder.py). Returns (tool input, urls the search returned, usage).
+    An answer with fewer than min_items entries under items_key is sent back once or twice (`incomplete`, with
+    {got} filled in); a reply that stops without calling the tool is nudged (`nudge`)."""
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=900.0, max_retries=4)
-    findings_tool = _findings_tool(fields)
-    messages: list = [{"role": "user", "content": build_prompt(context, fields)}]
+    messages: list = [{"role": "user", "content": prompt}]
     seen_urls: set[str] = set()
     usage = {"in": 0, "out": 0, "searches": 0, "cache_read": 0, "cache_write": 0}
     search_type = SEARCH_TOOL_TYPE
@@ -306,12 +308,12 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     for _turn in range(MAX_TURNS + MAX_REMINDERS):
         tools = [
             {"type": search_type, "name": "web_search", "max_uses": MAX_SEARCHES, "blocked_domains": BLOCKED_DOMAINS},
-            findings_tool,
+            tool,
         ]
         try:
             with client.messages.stream(
                 model=settings.AI_PROIT_RESEARCH_MODEL, max_tokens=MAX_OUTPUT_TOKENS,
-                system=[{"type": "text", "text": SYSTEM_PROMPT, "cache_control": CACHE}],
+                system=[{"type": "text", "text": system, "cache_control": CACHE}],
                 tools=tools, messages=_with_cache_breakpoint(messages),
             ) as stream:
                 response = stream.get_final_message()
@@ -331,11 +333,11 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
         usage["cache_write"] += _count(u, "cache_creation_input_tokens")
         usage["searches"] += _search_count(response)
 
-        tool_use = next((b for b in response.content if b.type == "tool_use" and b.name == "record_findings"), None)
+        tool_use = next((b for b in response.content if b.type == "tool_use" and b.name == tool["name"]), None)
         if tool_use is not None:
             answer = dict(tool_use.input)
-            answer["findings"] = _as_list(answer.get("findings"))
-            if len(answer["findings"]) >= max(1, len(fields) // 2) or reminders >= MAX_REMINDERS:
+            answer[items_key] = _as_list(answer.get(items_key))
+            if len(answer[items_key]) >= min_items or reminders >= MAX_REMINDERS:
                 return answer, seen_urls, usage
             # Incomplete (seen once on a live run: a well-documented company came back with no findings at all).
             # Tell the model, using the tool result, and let it finish the job rather than accept an empty answer.
@@ -343,21 +345,60 @@ def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": [{
                 "type": "tool_result", "tool_use_id": tool_use.id, "is_error": True,
-                "content": f"Incomplete: you returned {len(answer['findings'])} findings but there are {len(fields)} fields. Call record_findings "
-                           "again with an entry for EVERY field: the fact and its source where you found one, and not_found only where you "
-                           "searched and found nothing public.",
+                "content": incomplete.format(got=len(answer[items_key])),
             }]})
             continue
         if response.stop_reason == "max_tokens":
             raise AIResearchError("ai_answer_cut_off", "The AI's answer was cut off before it finished.", 502)
         messages.append({"role": "assistant", "content": response.content})
         if response.stop_reason != "pause_turn":  # it stopped without recording: ask once more
-            messages.append({"role": "user", "content": "Now call record_findings with an entry for every field."})
+            messages.append({"role": "user", "content": nudge})
     raise AIResearchError("ai_no_answer", "The AI did not finish recording its findings.", 502)
 
 
+def search_conversation_meta(*, system: str, prompt: str, tool: dict, items_key: str, min_items: int,
+                             incomplete: str, nudge: str) -> tuple[dict, set[str], dict]:
+    """The same conversation on Muse Spark (apps/proit/muse.py), with PROIT's Meta key only."""
+    import requests
+
+    from .muse import MuseError
+    from .muse import search_conversation as muse_search
+
+    try:
+        raw, seen, usage, _raw_log = muse_search(
+            system=system, prompt=prompt, tool=tool, items_key=items_key, min_items=min_items, incomplete=incomplete,
+            nudge=nudge, model=settings.AI_PROIT_RESEARCH_MODEL, key=(settings.AI_PROIT_API_KEY or "").strip(),
+        )
+    except MuseError as exc:
+        raise AIResearchError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+    except requests.RequestException as exc:
+        raise AIResearchError("ai_request_failed", f"The AI service could not be reached: {type(exc).__name__}", 502) from exc
+    return raw, seen, usage
+
+
+def research_conversation(**kwargs) -> tuple[dict, set[str], dict]:
+    """Runs a search conversation on whichever provider PROIT is set to."""
+    return (search_conversation_meta if proit_provider() == "meta" else search_conversation)(**kwargs)
+
+
+def _proit_conversation_args(context: dict, fields: dict) -> dict:
+    return {
+        "system": SYSTEM_PROMPT, "prompt": build_prompt(context, fields), "tool": _findings_tool(fields),
+        "items_key": "findings", "min_items": max(1, len(fields) // 2),
+        "incomplete": (f"Incomplete: you returned {{got}} findings but there are {len(fields)} fields. Call record_findings "
+                       "again with an entry for EVERY field: the fact and its source where you found one, and not_found only "
+                       "where you searched and found nothing public."),
+        "nudge": "Now call record_findings with an entry for every field.",
+    }
+
+
+def call_model(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
+    """PROIT's search conversation on Anthropic. Returns (tool input, urls the search returned, usage numbers)."""
+    return search_conversation(**_proit_conversation_args(context, fields))
+
+
 def call_model_meta(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
-    """The same conversation on Muse Spark (apps/proit/muse.py). Same return shape as call_model."""
+    """PROIT's search conversation on Muse Spark. Same return shape as call_model."""
     import requests
 
     from .muse import MuseError, call_muse

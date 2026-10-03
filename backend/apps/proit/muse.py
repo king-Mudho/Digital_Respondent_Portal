@@ -17,10 +17,6 @@ import requests
 from . import ai_research as pr
 
 META_RESPONSES_URL = "https://api.meta.ai/v1/responses"
-INCOMPLETE = (
-    "Incomplete: you returned {got} findings but there are {want} fields. Call record_findings again with an entry for "
-    "EVERY field: the fact and its source where you found one, and not_found only where you searched and found nothing."
-)
 
 
 class MuseError(Exception):
@@ -74,12 +70,13 @@ def post_responses(key: str, body: dict, post=requests.post) -> dict:
     return response.json()
 
 
-def call_muse(context: dict, fields: dict, model: str, key: str, post=requests.post):
-    """PROIT's search conversation on Muse. Returns (tool input, urls returned, usage, raw responses)."""
-    tool = pr._findings_tool(fields)
+def search_conversation(*, system: str, prompt: str, tool: dict, items_key: str, min_items: int, incomplete: str,
+                        nudge: str, model: str, key: str, post=requests.post):
+    """A web-search conversation on Muse that ends when the model calls `tool`. Shared by PROIT and the contact
+    finder. Returns (tool input, urls returned, usage, raw responses)."""
     function = {"type": "function", "name": tool["name"], "description": tool["description"], "parameters": tool["input_schema"]}
     body = {
-        "model": model, "instructions": pr.SYSTEM_PROMPT, "input": pr.build_prompt(context, fields),
+        "model": model, "instructions": system, "input": prompt,
         "tools": [{"type": "web_search"}, function], "include": ["web_search_call.results"],
         "max_output_tokens": pr.MAX_OUTPUT_TOKENS,
     }
@@ -97,16 +94,22 @@ def call_muse(context: dict, fields: dict, model: str, key: str, post=requests.p
         usage["out"] += used.get("output_tokens", 0) or 0
         usage["searches"] += muse_search_count(output)
         seen |= muse_urls(output)
-        call = muse_function_call(output)
+        call = muse_function_call(output, tool["name"])
         if call:
             call_id, answer = call
-            answer["findings"] = pr._as_list(answer.get("findings"))
-            if len(answer["findings"]) >= max(1, len(fields) // 2) or reminders >= pr.MAX_REMINDERS:
+            answer[items_key] = pr._as_list(answer.get(items_key))
+            if len(answer[items_key]) >= min_items or reminders >= pr.MAX_REMINDERS:
                 return answer, seen, usage, raw_log
             reminders += 1
             next_input = [{"type": "function_call_output", "call_id": call_id,
-                           "output": INCOMPLETE.format(got=len(answer["findings"]), want=len(fields))}]
+                           "output": incomplete.format(got=len(answer[items_key]))}]
         else:
-            next_input = "Now call record_findings with an entry for every field."
+            next_input = nudge
         body = {**body, "previous_response_id": response.get("id"), "input": next_input}
     raise MuseError("Muse did not finish recording its findings.")
+
+
+def call_muse(context: dict, fields: dict, model: str, key: str, post=requests.post):
+    """PROIT's search conversation on Muse. Returns (tool input, urls returned, usage, raw responses)."""
+    args = pr._proit_conversation_args(context, fields)
+    return search_conversation(**args, model=model, key=key, post=post)

@@ -113,6 +113,80 @@ const raName = (ra: ContactRA) => (ra.full_name ? `${ra.full_name} (${ra.usernam
  * started on one shared account; one case page at a time that was 400
  * dropdowns. "How many" splits a big province between several RAs.
  */
+interface BatchInfo {
+  configured: boolean;
+  without_contacts: number;
+  max: number;
+  cost_per_case_usd: [number, number];
+}
+
+/**
+ * Queues the AI contact finder (backend/apps/contacts/contact_finder.py) for cases that may be invited but have no
+ * phone, WhatsApp or email on file yet. Each finding still has to be accepted on its case page before it is saved.
+ */
+function ContactFinderBatchPanel() {
+  const queryClient = useQueryClient();
+  const [count, setCount] = useState("");
+  const [result, setResult] = useState<string | null>(null);
+  const { data: info } = useQuery({
+    queryKey: ["contact-search-batch"],
+    queryFn: () => adminFetch<BatchInfo>("/contacts/contact-search/batch/"),
+  });
+  const run = useMutation({
+    mutationFn: (limit: number) =>
+      adminFetch<{ queued: number; without_contacts: number; estimated_cost_usd: [number, number] }>(
+        "/contacts/contact-search/batch/",
+        { method: "POST", body: JSON.stringify({ limit }) },
+      ),
+    onSuccess: (data) => {
+      const [low, high] = data.estimated_cost_usd;
+      setResult(
+        `Searching for ${data.queued} case${data.queued === 1 ? "" : "s"} (estimated US$${low.toFixed(2)}–${high.toFixed(2)}). ` +
+          "Open each case to accept or reject what was found.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["contact-search-batch"] });
+    },
+    onError: (err) => setResult(err instanceof Error ? err.message : "Could not start the searches."),
+  });
+  if (!info) return null;
+  const max = Math.min(info.max, info.without_contacts);
+  const limit = Number(count || 0);
+  const [low, high] = info.cost_per_case_usd;
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <h3 className="font-medium text-sm">Find contact details with AI</h3>
+      <p className="text-xs text-text-muted">
+        {info.without_contacts} case{info.without_contacts === 1 ? "" : "s"} not yet invited ha{info.without_contacts === 1 ? "s" : "ve"} no
+        phone, WhatsApp or email on file. The AI searches public sources for each organisation&rsquo;s published contact
+        details; nothing is saved until you accept it on the case page. Roughly US${low.toFixed(2)}–{high.toFixed(2)} per case.
+      </p>
+      {!info.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet. Ask the administrator.</p>}
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="text-xs text-text-muted">
+          How many cases (up to {max})
+          <input
+            type="number"
+            min={1}
+            max={max}
+            value={count}
+            onChange={(e) => setCount(e.target.value)}
+            className="block mt-1 w-28 rounded-md border border-border px-3 py-2 bg-surface text-sm"
+          />
+        </label>
+        <Button
+          variant="outline"
+          disabled={!info.configured || max < 1 || limit < 1 || limit > max || run.isPending}
+          onClick={() => run.mutate(limit)}
+        >
+          {run.isPending ? "Starting…" : "Find contacts"}
+        </Button>
+      </div>
+      {result && <p className="text-sm">{result}</p>}
+    </Card>
+  );
+}
+
 function BulkAssignmentPanel() {
   const queryClient = useQueryClient();
   const [from, setFrom] = useState("any");
@@ -267,6 +341,7 @@ export default function SampleRegisterPage() {
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
           <BulkVerificationPanel />
           <BulkAssignmentPanel />
+          <ContactFinderBatchPanel />
         </IfRole>
       )}
       <Card>
