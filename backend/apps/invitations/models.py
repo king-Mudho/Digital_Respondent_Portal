@@ -53,3 +53,32 @@ class InvitationToken(models.Model):
 
     def __str__(self):
         return f"InvitationToken({self.sample_case_id}, {self.status})"
+
+
+class InvitationBatchStatus(models.TextChoices):
+    RUNNING = "RUNNING", "Sending"
+    DONE = "DONE", "Done"
+    FAILED = "FAILED", "Failed"
+
+
+class InvitationBatch(models.Model):
+    """One batch of emailed invitations (apps/invitations/batch.py), started by the PI or Field Coordinator. Each
+    case goes through the same issue_invitation() and email_invitation() as the case-page Email button; this records
+    what the batch did, case by case, with masked addresses only."""
+
+    created_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    requested = models.PositiveIntegerField()
+    status = models.CharField(max_length=8, choices=InvitationBatchStatus.choices, default=InvitationBatchStatus.RUNNING)
+    sent = models.PositiveIntegerField(default=0)
+    failed = models.PositiveIntegerField(default=0)
+    skipped = models.PositiveIntegerField(default=0)
+    results = models.JSONField(default=list, blank=True)  # [{sample_id, outcome, detail}]
+    error = models.TextField(blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"InvitationBatch({self.pk} {self.status})"

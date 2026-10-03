@@ -113,6 +113,155 @@ const raName = (ra: ContactRA) => (ra.full_name ? `${ra.full_name} (${ra.usernam
  * started on one shared account; one case page at a time that was 400
  * dropdowns. "How many" splits a big province between several RAs.
  */
+interface InvitationBatch {
+  id: number;
+  requested: number;
+  status: "RUNNING" | "DONE" | "FAILED";
+  sent: number;
+  failed: number;
+  skipped: number;
+  results: { sample_id: string; outcome: "sent" | "failed" | "skipped"; detail: string }[];
+  error: string;
+}
+
+interface EmailBatchInfo {
+  email_configured: boolean;
+  candidates: number;
+  preview: { sample_id: string; organisation: string; email: string }[];
+  max_per_batch: number;
+  daily_max: number;
+  left_today: number;
+  latest: InvitationBatch | null;
+}
+
+/**
+ * Emails invitations to verified cases (S03/S04) with an email and no open invitation, through the same issue and
+ * email steps as the case-page Email button (backend/apps/invitations/batch.py). Sending needs a second, explicit
+ * click: the viewer has no confirm() dialog, so the confirmation is part of the page.
+ */
+function EmailInvitationsPanel() {
+  const queryClient = useQueryClient();
+  const [count, setCount] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { data: info } = useQuery({
+    queryKey: ["invitation-batch"],
+    queryFn: () => adminFetch<EmailBatchInfo>("/invitations/batch/"),
+    refetchInterval: (query) => (query.state.data?.latest?.status === "RUNNING" ? 3000 : false),
+  });
+  const send = useMutation({
+    mutationFn: (limit: number) =>
+      adminFetch<InvitationBatch>("/invitations/batch/", { method: "POST", body: JSON.stringify({ limit }) }),
+    onSuccess: () => {
+      setError(null);
+      setConfirming(false);
+      setCount("");
+      queryClient.invalidateQueries({ queryKey: ["invitation-batch"] });
+      queryClient.invalidateQueries({ queryKey: ["sample-cases"] });
+    },
+    onError: (err) => {
+      setConfirming(false);
+      setError(err instanceof Error ? err.message : "Could not start sending.");
+    },
+  });
+  if (!info) return null;
+  const latest = info.latest;
+  const sending = latest?.status === "RUNNING";
+  const allowed = Math.min(info.max_per_batch, info.left_today, info.candidates);
+  const limit = Number(count || 0);
+  const valid = limit >= 1 && limit <= allowed;
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <h3 className="font-medium text-sm">Email invitations</h3>
+      <p className="text-xs text-text-muted">
+        {plural(info.candidates, "verified case")} (S03 or S04) {info.candidates === 1 ? "has" : "have"} a respondent email and no
+        open invitation. Each gets the approved invitation email from the study address with its own link (valid 14 days)
+        and phone code, and moves to &ldquo;Invitation sent&rdquo;. {info.left_today} of {info.daily_max} emails left today. Day 2 and
+        Day 7 reminders appear on Follow-ups to send by hand.
+      </p>
+      {error && <p className="text-danger text-sm">{error}</p>}
+      {!info.email_configured && (
+        <p className="text-sm">
+          Email isn&rsquo;t set up on the server yet. The administrator runs <code>deploy/configure-email.sh</code> with the
+          study&rsquo;s email account first.
+        </p>
+      )}
+
+      {info.preview.length > 0 && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-text-muted">Next in line ({Math.min(info.preview.length, info.candidates)} shown)</summary>
+          <ul className="mt-1 space-y-0.5">
+            {info.preview.map((row) => (
+              <li key={row.sample_id} className="break-words">
+                <span className="font-mono">{row.sample_id}</span> · {row.organisation} · {row.email}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {!confirming ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs text-text-muted">
+            How many (up to {Math.max(allowed, 0)})
+            <input
+              type="number"
+              min={1}
+              max={allowed}
+              value={count}
+              onChange={(e) => setCount(e.target.value)}
+              className="block mt-1 w-28 rounded-md border border-border px-3 py-2 bg-surface text-sm"
+            />
+          </label>
+          <Button variant="outline" disabled={!info.email_configured || sending || !valid} onClick={() => setConfirming(true)}>
+            Review and send
+          </Button>
+        </div>
+      ) : (
+        <div className="rounded-md border border-border p-3 space-y-2">
+          <p className="text-sm">
+            Email {plural(limit, "invitation")} now, to the respondents on file, in Sample ID order? This can&rsquo;t be undone, but any
+            single invitation can be revoked from its case page.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => send.mutate(limit)} disabled={send.isPending}>
+              {send.isPending ? "Starting…" : `Send ${plural(limit, "invitation")}`}
+            </Button>
+            <Button variant="outline" onClick={() => setConfirming(false)} disabled={send.isPending}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {latest && (
+        <div className="text-sm space-y-1">
+          <p>
+            {sending ? "Sending…" : latest.status === "FAILED" ? "The last batch stopped early." : "Last batch:"} {latest.sent} sent,{" "}
+            {latest.failed} failed, {latest.skipped} skipped of {latest.requested}.
+          </p>
+          {latest.error && <p className="text-danger text-xs">{latest.error}</p>}
+          {latest.results.length > 0 && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-text-muted">Case by case</summary>
+              <ul className="mt-1 space-y-0.5">
+                {latest.results.map((row) => (
+                  <li key={row.sample_id} className="break-words">
+                    <span className="font-mono">{row.sample_id}</span>: {row.outcome}
+                    {row.detail ? ` (${row.detail})` : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 interface BatchInfo {
   configured: boolean;
   without_contacts: number;
@@ -342,6 +491,7 @@ export default function SampleRegisterPage() {
           <BulkVerificationPanel />
           <BulkAssignmentPanel />
           <ContactFinderBatchPanel />
+          <EmailInvitationsPanel />
         </IfRole>
       )}
       <Card>
