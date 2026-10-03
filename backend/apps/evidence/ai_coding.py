@@ -159,6 +159,29 @@ def ai_coding_is_configured() -> bool:
     return bool(coding_api_key())
 
 
+def forced_tool_choice(name: str) -> dict:
+    """Make the model answer through the one tool offered. Meta's Messages endpoint refuses a NAMED tool_choice
+    (400 "named `tool_choice` is not supported"); with a single tool, "any" forces the same thing."""
+    return {"type": "any"} if coding_base_url() else {"type": "tool", "name": name}
+
+
+def call_with_tool_choice_fallback(call, **kwargs):
+    """Sends the request; if the provider refuses "any" too, sends it again without tool_choice. The prompt still
+    asks for the tool and it is the only one offered, and a reply without it is refused by the caller."""
+    try:
+        return call(**kwargs)
+    except anthropic.BadRequestError as exc:
+        if (kwargs.get("tool_choice") or {}).get("type") == "any" and "tool_choice" in str(exc):
+            kwargs.pop("tool_choice")
+            return call(**kwargs)
+        raise
+
+
+def stream_final(client, **kwargs):
+    with client.messages.stream(**kwargs) as stream:
+        return stream.get_final_message()
+
+
 def with_current_record_details(document: DocumentRecord, draft: dict) -> dict:
     """The draft with the record-derived fields (DOC ID, author, title, date, source) taken
     from the record as it is NOW, so a correction made on the record after the draft was
@@ -429,14 +452,14 @@ def _call_model(content: list, *, what: str) -> tuple[dict, dict]:
         # Streamed: the SDK refuses a non-streaming request with a large
         # output budget, and a full answer runs to tens of thousands of tokens
         # (16,000 cut the first real NDS2 draft off; the model allows 128,000).
-        with client.messages.stream(
+        response = call_with_tool_choice_fallback(
+            lambda **kw: stream_final(client, **kw),
             model=settings.AI_DOCUMENT_CODING_MODEL,
             max_tokens=MAX_OUTPUT_TOKENS,
             tools=[_tool_schema()],
-            tool_choice={"type": "tool", "name": "submit_document_coding"},
+            tool_choice=forced_tool_choice("submit_document_coding"),
             messages=[{"role": "user", "content": content}],
-        ) as stream:
-            response = stream.get_final_message()
+        )
     except anthropic.APIError as exc:
         raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {ai_error_text(exc)}", 502) from exc
 
@@ -668,9 +691,10 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
     )
     client = coding_client(timeout=300.0)
     try:
-        response = client.messages.create(
+        response = call_with_tool_choice_fallback(
+            client.messages.create,
             model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=2000, tools=[_DETAILS_TOOL],
-            tool_choice={"type": "tool", "name": "record_document_details"},
+            tool_choice=forced_tool_choice("record_document_details"),
             messages=[{"role": "user", "content": [block, {"type": "text", "text": prompt}]}],
         )
     except anthropic.APIError as exc:

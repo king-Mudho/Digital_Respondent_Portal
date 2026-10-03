@@ -13,14 +13,20 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from reportlab.pdfgen import canvas
 
-from apps.evidence.ai_coding import ai_coding_is_configured, coding_client, coding_provider
+from apps.evidence.ai_coding import (
+    ai_coding_is_configured,
+    call_with_tool_choice_fallback,
+    coding_client,
+    coding_provider,
+    forced_tool_choice,
+    stream_final,
+)
 
 TOOL = {
     "name": "report_number",
     "description": "Report the number that was asked for.",
     "input_schema": {"type": "object", "properties": {"value": {"type": "integer"}}, "required": ["value"]},
 }
-FORCED = {"type": "tool", "name": "report_number"}
 
 
 def _invoice_pdf() -> bytes:
@@ -37,26 +43,26 @@ def _value(response):
     return None if block is None else dict(block.input).get("value")
 
 
+# The same request path the portal uses (ai_coding), so a pass here means drafting will work.
 def _plain(client, model):
-    return client.messages.create(
-        model=model, max_tokens=200, tools=[TOOL], tool_choice=FORCED,
-        messages=[{"role": "user", "content": "The number is 17. Report it."}],
+    return call_with_tool_choice_fallback(
+        client.messages.create, model=model, max_tokens=200, tools=[TOOL], tool_choice=forced_tool_choice("report_number"),
+        messages=[{"role": "user", "content": "The number is 17. Report it by calling report_number."}],
     )
 
 
-def _streamed(client, model, content="The number is 17. Report it."):
-    with client.messages.stream(
-        model=model, max_tokens=200, tools=[TOOL], tool_choice=FORCED,
-        messages=[{"role": "user", "content": content}],
-    ) as stream:
-        return stream.get_final_message()
+def _streamed(client, model, content="The number is 17. Report it by calling report_number."):
+    return call_with_tool_choice_fallback(
+        lambda **kw: stream_final(client, **kw), model=model, max_tokens=200, tools=[TOOL],
+        tool_choice=forced_tool_choice("report_number"), messages=[{"role": "user", "content": content}],
+    )
 
 
 def _pdf(client, model):
     data = base64.standard_b64encode(_invoice_pdf()).decode()
     content = [
         {"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": data}},
-        {"type": "text", "text": "Read the attached document and report the total due as a whole number."},
+        {"type": "text", "text": "Read the attached document and report the total due as a whole number by calling report_number."},
     ]
     return _streamed(client, model, content)
 

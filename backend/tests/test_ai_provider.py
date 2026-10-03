@@ -128,3 +128,66 @@ def test_the_real_sdk_still_uses_the_anthropic_key_header_for_anthropic(settings
     client = coding_client(timeout=5.0)
     assert client.auth_headers == {"X-Api-Key": "sk-ant-test"}
     assert str(client._prepare_url("/v1/messages")) == "https://api.anthropic.com/v1/messages"
+
+
+def _bad_request(message):
+    import anthropic
+
+    return anthropic.BadRequestError(message, response=Mock(status_code=400, headers={}, request=Mock()), body=None)
+
+
+def _final(response):
+    cm = Mock()
+    cm.__enter__ = Mock(return_value=Mock(get_final_message=Mock(return_value=response)))
+    cm.__exit__ = Mock(return_value=False)
+    return cm
+
+
+ANSWER = Mock(content=[Mock(type="tool_use", input={"section_b__RELEVANCE": "high", "section_j__metric_repeat": []})], stop_reason="tool_use")
+
+
+def test_meta_is_asked_for_any_tool_because_it_refuses_a_named_one_and_anthropic_keeps_the_named_one(document, settings, tmp_path):
+    pdf = tmp_path / "s.pdf"
+    _blank_pdf(pdf)
+    for base_url, own_key, expected in ((META, "meta-key", {"type": "any"}),
+                                        ("", "", {"type": "tool", "name": "submit_document_coding"})):
+        _configure(settings, base_url=base_url, own_key=own_key)
+        with patch("anthropic.Anthropic") as client_cls:
+            client_cls.return_value.messages.stream.return_value = _final(ANSWER)
+            generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
+        assert client_cls.return_value.messages.stream.call_args.kwargs["tool_choice"] == expected
+
+
+def test_if_meta_refuses_any_too_the_request_is_sent_again_without_tool_choice(document, settings, tmp_path):
+    _configure(settings, base_url=META, own_key="meta-key")
+    pdf = tmp_path / "s.pdf"
+    _blank_pdf(pdf)
+    with patch("anthropic.Anthropic") as client_cls:
+        client_cls.return_value.messages.stream.side_effect = [_bad_request("`tool_choice` any is not supported"), _final(ANSWER)]
+        draft = generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
+    calls = client_cls.return_value.messages.stream.call_args_list
+    assert calls[0].kwargs["tool_choice"] == {"type": "any"} and "tool_choice" not in calls[1].kwargs
+    assert draft["section_b/RELEVANCE"] == "high"
+
+
+def test_other_refusals_are_not_retried(document, settings, tmp_path):
+    pdf = tmp_path / "s.pdf"
+    _blank_pdf(pdf)
+    for base_url, own_key, message in ((META, "meta-key", "the PDF is too large"), ("", "", "tool_choice is wrong")):
+        _configure(settings, base_url=base_url, own_key=own_key)
+        with patch("anthropic.Anthropic") as client_cls:
+            client_cls.return_value.messages.stream.side_effect = [_bad_request(message), _final(ANSWER)]
+            with pytest.raises(AIDraftError) as exc:
+                generate_draft(document, source_path=str(pdf), source_content_type="application/pdf", user=None)
+        assert exc.value.code == "ai_request_failed" and client_cls.return_value.messages.stream.call_count == 1
+
+
+def test_the_details_call_also_falls_back_when_meta_refuses_any(settings, tmp_path):
+    _configure(settings, base_url=META, own_key="meta-key")
+    pdf = tmp_path / "s.pdf"
+    _blank_pdf(pdf)
+    response = Mock(content=[Mock(type="tool_use", input={"title": "A Report", "document_type": "OFFICIAL"})])
+    with patch("anthropic.Anthropic") as client_cls:
+        client_cls.return_value.messages.create.side_effect = [_bad_request("tool_choice not supported"), response]
+        details = extract_document_details(str(pdf), "application/pdf")
+    assert details["title"] == "A Report" and "tool_choice" not in client_cls.return_value.messages.create.call_args.kwargs
