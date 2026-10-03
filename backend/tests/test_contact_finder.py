@@ -62,6 +62,13 @@ def test_a_contact_shown_in_its_quote_survives_and_phone_formats_are_matched():
     assert [p["kind"] for p in proposals] == ["ORG_PHONE", "ORG_EMAIL", "WEBSITE"] and dropped == []
 
 
+def test_a_website_written_without_https_is_kept_with_https_added():
+    # Muse wrote websites as "cottco.co.zw" for three real companies on 2026-10-03, and each was refused.
+    raw = {"contacts": [{"kind": "WEBSITE", "value": "www.testorg.co.zw", "sources": _src("Visit www.testorg.co.zw")}]}
+    proposals, dropped = cf.clean_contacts(raw, {URL})
+    assert [p["value"] for p in proposals] == ["https://www.testorg.co.zw"] and dropped == []
+
+
 def test_a_contact_missing_from_its_quoted_passage_is_dropped_as_unsupported():
     raw = {"contacts": [
         {"kind": "ORG_PHONE", "value": "0772 000 111", "sources": _src("Call us on 0773 943 709")},
@@ -82,8 +89,26 @@ def test_a_source_the_search_never_returned_or_a_social_page_is_dropped():
     proposals, dropped = cf.clean_contacts(raw, {URL, facebook, "https://elsewhere.example/other"})
     assert proposals == []
     reasons = [d["reason"] for d in dropped]
-    assert "url was not returned by the search" in reasons and "personal or social page refused" in reasons
+    assert "url was not returned by the search" in reasons and "social page not shown to be the organisation's own" in reasons
     assert "not an organisation website" in reasons
+
+
+def test_the_organisations_own_social_page_can_support_its_contacts_but_never_a_named_person():
+    page = "https://www.facebook.com/testorganisationzw"
+    profile = "https://www.facebook.com/profile.php?id=99"
+    own = [{"title": "Test Organisation | Facebook", "url": page, "quote": "Test Organisation. Call us on 0773 943 709"}]
+    raw = {"contacts": [
+        {"kind": "ORG_PHONE", "value": "0773943709", "confidence": "HIGH", "sources": own},
+        {"kind": "WEBSITE", "value": page, "sources": own},
+        {"kind": "PERSON", "person_name": "Tendai Moyo", "person_title": "Owner",
+         "sources": [{"title": "Test Organisation | Facebook", "url": page, "quote": "Tendai Moyo, Owner, Test Organisation"}]},
+        {"kind": "ORG_EMAIL", "value": "info@testorg.co.zw", "sources": [{"title": "Profile", "url": profile, "quote": "info@testorg.co.zw"}]},
+    ]}
+    proposals, dropped = cf.clean_contacts(raw, {page, profile}, org_name="Test Organisation (Pvt) Ltd")
+    assert [p["kind"] for p in proposals] == ["ORG_PHONE", "WEBSITE"]
+    assert proposals[0]["confidence"] == "MODERATE"  # a social page alone is at most moderate
+    reasons = {d["reason"] for d in dropped}
+    assert "social pages are not used for a named person" in reasons and "personal or social page refused" in reasons
 
 
 def test_a_person_needs_a_title_and_a_name_in_the_quote_and_unshown_details_are_cleared():

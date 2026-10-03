@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { IfRole, IfScreen } from "@/components/admin/RoleGate";
+import { IfRole, IfScreen, WriteOnly } from "@/components/admin/RoleGate";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -113,6 +113,105 @@ const raName = (ra: ContactRA) => (ra.full_name ? `${ra.full_name} (${ra.usernam
  * started on one shared account; one case page at a time that was 400
  * dropdowns. "How many" splits a big province between several RAs.
  */
+interface WhatsAppRow {
+  sample_id: string;
+  organisation: string;
+  to_name: string;
+  number: string;
+}
+
+interface PreparedInvitation {
+  sample_id: string;
+  whatsapp_url: string;
+  message: string;
+}
+
+/**
+ * WhatsApp send queue (backend/apps/invitations/whatsapp_queue.py). With no WhatsApp Business account nothing can be
+ * sent automatically, so each verified case gets its invitation prepared here and the RA sends it from their own
+ * phone with one tap. A Contact RA sees only their assigned cases.
+ */
+function WhatsAppQueuePanel() {
+  const queryClient = useQueryClient();
+  const [prepared, setPrepared] = useState<Record<string, PreparedInvitation>>({});
+  const [copied, setCopied] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { data } = useQuery({
+    queryKey: ["whatsapp-queue"],
+    queryFn: () => adminFetch<{ results: WhatsAppRow[]; waiting: number }>("/invitations/whatsapp-queue/"),
+  });
+  const prepare = useMutation({
+    mutationFn: (sampleId: string) =>
+      adminFetch<PreparedInvitation>(`/invitations/whatsapp-queue/${sampleId}/prepare/`, {
+        method: "POST",
+        body: JSON.stringify({ link_base: window.location.origin }),
+      }),
+    onSuccess: (result) => {
+      setError(null);
+      setPrepared((p) => ({ ...p, [result.sample_id]: result }));
+      queryClient.invalidateQueries({ queryKey: ["sample-cases"] });
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not prepare that invitation."),
+  });
+  if (!data) return null;
+  const copy = (item: PreparedInvitation) => {
+    navigator.clipboard
+      .writeText(item.message)
+      .then(() => setCopied(item.sample_id))
+      .catch(() => setError("Copying isn't available here. Open WhatsApp instead."));
+  };
+
+  return (
+    <Card className="mb-4 space-y-2">
+      <h3 className="font-medium text-sm">WhatsApp invitations</h3>
+      <p className="text-xs text-text-muted">
+        {data.waiting} verified case{data.waiting === 1 ? "" : "s"} (S03 or S04) {data.waiting === 1 ? "has" : "have"} a WhatsApp or
+        phone number and no open invitation. <strong>Prepare</strong> creates the case&rsquo;s personal link and marks it sent, so open
+        WhatsApp and send it straight away. If you can&rsquo;t, revoke it on the case page.
+      </p>
+      {error && <p className="text-danger text-sm">{error}</p>}
+      {data.results.length > 0 && (
+        <ul className="divide-y divide-border text-sm">
+          {data.results.map((row) => {
+            const ready = prepared[row.sample_id];
+            return (
+              <li key={row.sample_id} className="py-2 flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-words">
+                  <span className="font-mono">{row.sample_id}</span> · {row.organisation}
+                  <span className="block text-xs text-text-muted">
+                    {row.to_name} · {row.number}
+                  </span>
+                </span>
+                <WriteOnly note={null}>
+                  {ready ? (
+                    <span className="flex flex-wrap gap-2">
+                      <a
+                        href={ready.whatsapp_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center rounded-md bg-header text-white px-3 py-1.5 text-sm"
+                      >
+                        Open WhatsApp
+                      </a>
+                      <Button variant="outline" onClick={() => copy(ready)}>
+                        {copied === row.sample_id ? "Copied" : "Copy message"}
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button variant="outline" disabled={prepare.isPending} onClick={() => prepare.mutate(row.sample_id)}>
+                      Prepare
+                    </Button>
+                  )}
+                </WriteOnly>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 interface InvitationBatch {
   id: number;
   requested: number;
@@ -492,6 +591,11 @@ export default function SampleRegisterPage() {
           <BulkAssignmentPanel />
           <ContactFinderBatchPanel />
           <EmailInvitationsPanel />
+        </IfRole>
+      )}
+      {sampleType === "MAIN" && (
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "SUPERVISOR_READONLY"]}>
+          <WhatsAppQueuePanel />
         </IfRole>
       )}
       <Card>

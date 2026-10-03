@@ -6,10 +6,12 @@ from rest_framework import serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsFieldCoordinatorOrAdmin
+from api.permissions import CanManageContact, IsFieldCoordinatorOrAdmin
 
 from . import batch as b
+from . import whatsapp_queue as wq
 from .models import InvitationBatch
+from .services import TokenNotInvitable
 from .tasks import send_invitation_batch
 
 
@@ -58,3 +60,29 @@ class InvitationBatchDetailView(APIView):
 
     def get(self, request, pk):
         return Response(InvitationBatchSerializer(get_object_or_404(InvitationBatch, pk=pk)).data)
+
+
+class WhatsAppQueueView(APIView):
+    """GET /api/v1/invitations/whatsapp-queue/ -- verified cases waiting for a WhatsApp invitation (a Contact RA sees
+    only their own). Sending WhatsApp invitations is Contact RA work, so CanManageContact; Supervisor may read."""
+
+    permission_classes = [CanManageContact]
+
+    def get(self, request):
+        return Response({"results": wq.queue_rows(request.user), "waiting": wq.queue_cases(request.user).count()})
+
+
+class WhatsAppPrepareView(APIView):
+    """POST /api/v1/invitations/whatsapp-queue/{sample_id}/prepare/ {link_base?} -- issue the invitation and return
+    the wa.me link with the approved message, shown once."""
+
+    permission_classes = [CanManageContact]
+
+    def post(self, request, sample_id):
+        try:
+            result = wq.prepare(sample_id, user=request.user, link_base=request.data.get("link_base"))
+        except wq.QueueError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        except TokenNotInvitable as exc:
+            return Response({"error": {"code": "not_invitable", "message": str(exc), "field_errors": {}}}, status=403)
+        return Response(result, status=201)

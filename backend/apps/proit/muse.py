@@ -4,8 +4,9 @@ Used by ai_research.run_research when AI_PROIT_PROVIDER is "meta", and by the co
 returns exactly what ai_research.call_model returns, so the same clean_findings rules apply to both providers.
 
 What Meta's search cannot do that Anthropic's can, and how that is handled:
-  * No blocked-domain list at request time. Personal and social pages are therefore dropped AFTER the search,
-    by clean_findings (ai_research.BLOCKED_DOMAINS and PERSONAL_URL), not kept away from the model.
+  * No blocked-domain list at request time. Personal profiles, messaging apps and forums are therefore dropped AFTER
+    the search by clean_findings (ai_research.PERSONAL_URL, BLOCKED_DOMAINS, and the social-page rules), not kept
+    away from the model.
   * No cap on searches per request. The conversation is still capped by MAX_TURNS, and searches are counted.
 The endpoint is fixed here, never configurable, so documents and the key can only go to Meta.
 """

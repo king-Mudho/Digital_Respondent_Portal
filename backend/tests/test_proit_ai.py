@@ -72,11 +72,36 @@ def test_a_real_source_is_kept_and_a_single_non_statutory_source_is_capped_at_mo
     assert p["confidence"] == "MODERATE"  # the model said HIGH on one institutional source
 
 
-def test_personal_and_social_pages_are_never_a_source():
-    finding = _found(url="https://www.linkedin.com/in/some-person")
-    proposals, dropped = clean_findings({"findings": [finding]}, {"https://www.linkedin.com/in/some-person"}, FIELDS)
+@pytest.mark.parametrize("url", ["https://www.linkedin.com/in/some-person", "https://www.facebook.com/profile.php?id=1001"])
+def test_personal_profiles_are_never_a_source(url):
+    finding = _found(url=url, quote="Test Organisation")
+    proposals, dropped = clean_findings({"findings": [finding]}, {url}, FIELDS, org_name="Test Organisation")
     assert next(p for p in proposals if p["field_id"] == "legal_name")["status"] == "not_found"
     assert any("personal or social" in d["reason"] for d in dropped)
+
+
+def test_the_organisations_own_social_page_is_a_tier_4_source_for_organisational_facts():
+    page = "https://www.facebook.com/testorganisationzw"
+    source = {"title": "Test Organisation | Facebook", "url": page, "quote": "Test Organisation, growers of horticulture in Harare",
+              "authority": "TIER_1_STATUTORY"}
+    finding = {**_found(), "sources": [source]}
+    proposals, dropped = clean_findings({"findings": [finding]}, {page}, FIELDS, org_name="Test Organisation (Pvt) Ltd")
+    kept = next(p for p in proposals if p["field_id"] == "legal_name")
+    assert kept["status"] == "found" and kept["sources"][0]["authority"] == "TIER_4_SOCIAL"  # never higher than Tier 4
+    assert kept["confidence"] == "MODERATE" and dropped == []
+
+
+def test_a_social_page_must_name_the_organisation_and_is_never_used_for_a_persons_role():
+    page = "https://www.instagram.com/someoneelse"
+    unnamed = {**_found(), "sources": [{"title": "Instagram", "url": page, "quote": "Fresh produce daily"}]}
+    role = {**_found("job_title", value="Managing Director"),
+            "sources": [{"title": "Test Organisation | LinkedIn", "url": "https://www.linkedin.com/company/testorg", "quote": "Test Organisation"}]}
+    proposals, dropped = clean_findings({"findings": [unnamed, role]}, {page, "https://www.linkedin.com/company/testorg"}, FIELDS,
+                                        org_name="Test Organisation")
+    by_field = {p["field_id"]: p for p in proposals}
+    assert by_field["legal_name"]["status"] == "not_found" and by_field["job_title"]["status"] == "not_found"
+    reasons = {d["reason"] for d in dropped}
+    assert {"social page not shown to be the organisation's own", "social pages are not used for a person's role"} <= reasons
 
 
 @pytest.mark.parametrize("value", [
@@ -134,7 +159,8 @@ def test_the_search_conversation_continues_through_a_pause_and_collects_the_urls
     assert sent["system"][0]["cache_control"] == {"type": "ephemeral"}  # the prompt is cached across the search turns
     assert raw["summary"] == "Found it." and seen == {URL, "https://other.example/x"}
     assert usage == {"in": 2000, "out": 400, "searches": 5, "cache_read": 0, "cache_write": 0}
-    assert tools[0]["name"] == "web_search" and "facebook.com" in tools[0]["blocked_domains"]  # social pages are excluded up front
+    assert tools[0]["name"] == "web_search" and "reddit.com" in tools[0]["blocked_domains"]  # messaging apps and forums excluded up front
+    assert "facebook.com" not in tools[0]["blocked_domains"]  # an organisation's own page may be read; the server checks it
     assert stream.call_count == 2
 
 
@@ -533,6 +559,17 @@ def test_findings_sent_as_a_json_string_are_still_read():
     raw = {"findings": json.dumps([_found()])}
     proposals, _ = clean_findings(raw, {URL}, FIELDS)
     assert next(p for p in proposals if p["field_id"] == "legal_name")["status"] == "found"
+
+
+@pytest.mark.parametrize("tail", [', "summary": "Incorporated 1930; no respondent named."}', "}", ']}'])
+def test_findings_text_with_the_rest_of_the_answer_run_on_after_it_is_still_read(tail):
+    # The exact shape Muse Spark sent for two real companies on 2026-10-03: every finding was lost until this was read.
+    import json
+
+    raw = {"findings": json.dumps([_found(), _found("trading_name", value="Test Org")]) + tail}
+    proposals, _ = clean_findings(raw, {URL}, FIELDS)
+    by_field = {p["field_id"]: p for p in proposals}
+    assert by_field["legal_name"]["status"] == "found" and by_field["trading_name"]["status"] == "found"
 
 
 @pytest.mark.parametrize("value", [

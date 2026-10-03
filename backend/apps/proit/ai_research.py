@@ -71,12 +71,29 @@ def ai_fields() -> dict:
     }
 
 
-# Personal and social pages are never a source, however credible they look.
-BLOCKED_DOMAINS = [
-    "facebook.com", "instagram.com", "tiktok.com", "x.com", "twitter.com", "snapchat.com",
-    "telegram.org", "t.me", "wa.me", "whatsapp.com", "pinterest.com", "reddit.com",
-]
-PERSONAL_URL = re.compile(r"linkedin\.com/(in|pub)/|/profile/|facebook\.|instagram\.|tiktok\.|twitter\.|x\.com/", re.I)
+# Messaging apps and forums are never a source, however credible they look.
+BLOCKED_DOMAINS = ["snapchat.com", "telegram.org", "t.me", "wa.me", "whatsapp.com", "pinterest.com", "reddit.com"]
+PERSONAL_URL = re.compile(r"linkedin\.com/(in|pub)/|facebook\.com/(profile\.php|people/)|/profile/", re.I)
+# Social platforms (PI decision 2026-10-03): an organisation's OWN business page may be a source for organisational
+# facts and its published contact details, marked Tier 4. The page must name the organisation, and it is never a
+# source for a person's role or a named staff member. Personal profiles stay refused (PERSONAL_URL).
+SOCIAL_DOMAINS = ["facebook.com", "instagram.com", "x.com", "twitter.com", "tiktok.com", "youtube.com", "linkedin.com"]
+_LEGAL_WORDS = {"limited", "ltd", "pvt", "private", "company", "plc", "inc", "the", "and", "of", "co"}
+
+
+def social_site(url: str) -> bool:
+    host = (urlsplit(url).hostname or "").lower().removeprefix("www.").removeprefix("m.")
+    return any(host == domain or host.endswith("." + domain) for domain in SOCIAL_DOMAINS)
+
+
+def names_organisation(org_name: str, text: str) -> bool:
+    """Whether a social page shows itself to be this organisation's own: its first distinctive word, and at least half
+    of its distinctive words, appear in the page title or quoted text (so "Cottco | Facebook" names "Cottco Holdings")."""
+    words = [w for w in re.findall(r"[a-z0-9]+", (org_name or "").lower()) if w not in _LEGAL_WORDS and len(w) > 2]
+    if not words:
+        return False
+    present = set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+    return words[0] in present and sum(w in present for w in words) * 2 >= len(words)
 # Private facts about a person. Deliberately about individuals: an organisation that is called "Christian Care" or
 # is church-linked is an organisational fact, not a private one.
 SENSITIVE = re.compile(
@@ -197,7 +214,9 @@ SYSTEM_PROMPT = (
     "and you cannot tell which, mark the finding ambiguous and say why. Never merge two organisations.\n"
     "- Record ONLY professional and organisational facts. Never record anything private: health, religion, ethnicity, "
     "politics, sexual orientation, family, home address, personal phone or email, private finances, opinions, or anything "
-    "from personal social-media pages. Do not search for the person beyond their published professional role.\n"
+    "from a person's own social-media profile. Do not search for the person beyond their published professional role.\n"
+    "- The organisation's OWN business page on Facebook, LinkedIn (company page), Instagram, X, TikTok or YouTube may be "
+    "used for facts about the organisation; quote the organisation's name as it appears on that page.\n"
     "- Every fact needs at least one source you actually opened through search, with a short exact quote (under 25 words). "
     "Do not cite from memory. If you cannot find a reliable public source, mark the field not_found. Never guess or infer.\n"
     "- State dates. An old source lowers confidence. If two sources disagree, report both and lower confidence.\n"
@@ -253,14 +272,20 @@ def _search_count(response) -> int:
 
 
 def _as_list(value) -> list:
-    """The findings should be a list; a model sometimes sends the same list as a JSON string."""
+    """The findings should be a list; a model sometimes sends the same list as a JSON string. Muse Spark has sent that
+    string with the rest of the call's arguments run on after the list ('[...], "summary": "..."}'), which threw away
+    every finding of two real companies on 2026-10-03; so the leading list is read and whatever follows is ignored."""
     if isinstance(value, str):
         import json
 
+        text = value.strip()
         try:
-            value = json.loads(value)
+            value = json.loads(text)
         except ValueError:
-            return []
+            try:
+                value, _end = json.JSONDecoder().raw_decode(text)
+            except ValueError:
+                return []
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
 
 
@@ -423,9 +448,10 @@ def _clean_date(text: str) -> str:
     return text if re.fullmatch(r"\d{4}(-\d{2}-\d{2})?", text) else ""
 
 
-def clean_findings(raw: dict, seen_urls: set[str], fields: dict) -> tuple[list[dict], list[dict]]:
+def clean_findings(raw: dict, seen_urls: set[str], fields: dict, org_name: str = "") -> tuple[list[dict], list[dict]]:
     """(proposals, dropped). Never trusts the model: URLs must have come from the search, private content
-    is removed, and a fact without a verifiable source becomes 'not found publicly'."""
+    is removed, and a fact without a verifiable source becomes 'not found publicly'. A social page counts only as
+    the organisation's own page (it names org_name) and only for organisational facts."""
     allowed = {_norm(u) for u in seen_urls}
     proposals, dropped, done = [], [], set()
     for item in _as_list(raw.get("findings")):
@@ -449,6 +475,14 @@ def clean_findings(raw: dict, seen_urls: set[str], fields: dict) -> tuple[list[d
                 dropped.append({"field_id": fid, "reason": "url was not returned by the search", "url": url})
                 continue
             authority = s.get("authority") if s.get("authority") in [a.value for a in SourceAuthority] else SourceAuthority.TIER_3_MEDIA
+            if social_site(url):
+                if fields[fid][1] == Module.RESPONDENT_PROFILE:
+                    dropped.append({"field_id": fid, "reason": "social pages are not used for a person's role", "url": url})
+                    continue
+                if not names_organisation(org_name, f"{s.get('title') or ''} {s.get('quote') or ''}"):
+                    dropped.append({"field_id": fid, "reason": "social page not shown to be the organisation's own", "url": url})
+                    continue
+                authority = SourceAuthority.TIER_4_SOCIAL
             sources.append({
                 "title": (s.get("title") or url)[:400], "url": url[:1000], "publisher": (s.get("publisher") or "")[:250],
                 "published": _clean_date(s.get("published", "")), "quote": (s.get("quote") or "")[:300], "authority": authority,
@@ -485,7 +519,7 @@ def run_research(run_id: int) -> None:
         context = case_context(profile)
         research = call_model_meta if proit_provider() == "meta" else call_model
         raw, seen_urls, usage = research(context, fields)
-        proposals, dropped = clean_findings(raw, seen_urls, fields)
+        proposals, dropped = clean_findings(raw, seen_urls, fields, org_name=context["organisation"].get("name", ""))
     except AIResearchError as exc:
         _fail(run, str(exc))
         return

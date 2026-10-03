@@ -102,7 +102,7 @@ def research_one(arm: str, name: str, fields: dict, *, model: str, key: str = ""
             raw, seen, usage = pr.call_model(context, fields)
         else:
             raw, seen, usage, raw_log = call_muse(context, fields, model, key)
-        proposals, dropped = pr.clean_findings(raw, seen, fields)
+        proposals, dropped = pr.clean_findings(raw, seen, fields, org_name=name)
         if check_quotes:
             for proposal in proposals:
                 for source in proposal["sources"]:
