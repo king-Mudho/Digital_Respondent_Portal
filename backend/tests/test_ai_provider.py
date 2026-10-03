@@ -202,3 +202,62 @@ def test_the_details_call_leaves_a_reasoning_model_room_to_think(settings, tmp_p
         client_cls.return_value.messages.create.return_value = response
         extract_document_details(str(pdf), "application/pdf")
     assert client_cls.return_value.messages.create.call_args.kwargs["max_tokens"] >= 8000
+
+
+# --- What staff are told when the provider refuses ---------------------------------------------------------------
+
+
+class _Refusal(Exception):
+    def __init__(self, message, status_code=None):
+        super().__init__(message)
+        self.status_code = status_code
+
+
+def test_an_empty_balance_names_the_provider_actually_in_use():
+    from apps.evidence.ai_coding import ai_error_text
+
+    anthropic_text = ai_error_text(_Refusal("Your credit balance is too low", 400), "api.anthropic.com")
+    assert "Anthropic account's billing page" in anthropic_text
+    meta_text = ai_error_text(Exception("Meta API returned 402: payment required"), "meta")
+    assert "run out of credit" in meta_text and "Meta account's billing page" in meta_text
+    assert "Anthropic" not in meta_text
+    assert "Meta account" in ai_error_text(_Refusal("insufficient_quota", 429), "api.meta.ai")
+
+
+def test_a_rejected_key_names_the_provider_and_never_an_environment_variable():
+    from apps.evidence.ai_coding import ai_error_text
+
+    meta_text = ai_error_text(Exception('Meta API returned 401: {"error": "bad token"}'), "meta")
+    assert meta_text == "The AI key was not accepted. Ask the administrator to re-enter the Meta key on the server."
+    anthropic_text = ai_error_text(_Refusal("invalid x-api-key", 401))
+    assert "Anthropic key" in anthropic_text and "ANTHROPIC_API_KEY" not in anthropic_text
+
+
+def test_a_region_refusal_keeps_the_providers_words_rather_than_blaming_the_key():
+    # Meta answers 403 when the service is not offered somewhere; re-entering the key would not help.
+    from apps.evidence.ai_coding import ai_error_text
+
+    text = ai_error_text(Exception("Meta API returned 403: not available in your region"), "meta")
+    assert "not available in your region" in text and "key" not in text
+
+
+def test_a_document_draft_refused_by_meta_says_meta(document, settings, tmp_path):
+    settings.AI_DOCUMENT_CODING_BASE_URL, settings.AI_DOCUMENT_CODING_API_KEY = META, "meta-key"
+    path = tmp_path / "doc.pdf"
+    _blank_pdf(path)
+    import anthropic
+
+    refusal = anthropic.AuthenticationError("bad token", response=Mock(status_code=401, headers={}, request=Mock()), body=None)
+    with patch("apps.evidence.ai_coding.stream_final", side_effect=refusal):
+        with pytest.raises(AIDraftError) as caught:
+            generate_draft(document, source_path=str(path), source_content_type="application/pdf", user=None)
+    assert "re-enter the Meta key" in str(caught.value) and "Anthropic" not in str(caught.value)
+
+
+def test_not_set_up_never_names_the_anthropic_key(document, settings, tmp_path):
+    settings.AI_DOCUMENT_CODING_BASE_URL, settings.AI_DOCUMENT_CODING_API_KEY = META, ""
+    path = tmp_path / "doc.pdf"
+    _blank_pdf(path)
+    with pytest.raises(AIDraftError) as caught:
+        generate_draft(document, source_path=str(path), source_content_type="application/pdf", user=None)
+    assert caught.value.code == "ai_not_configured" and "ANTHROPIC" not in str(caught.value)

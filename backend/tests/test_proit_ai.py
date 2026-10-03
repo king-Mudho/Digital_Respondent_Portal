@@ -580,3 +580,15 @@ def test_findings_text_with_the_rest_of_the_answer_run_on_after_it_is_still_read
 def test_ordinary_organisational_facts_are_not_mistaken_for_private_ones(value):
     proposals, dropped = clean_findings({"findings": [_found(field_id="key_products", value=value)]}, {URL}, FIELDS)
     assert next(p for p in proposals if p["field_id"] == "key_products")["status"] == "found" and not dropped
+
+
+def test_a_rejected_meta_key_tells_staff_to_re_enter_the_meta_key_not_the_raw_response(profile, settings):
+    from apps.proit.muse import MuseError
+
+    _meta(settings)
+    raw = 'Meta API returned 401: {"error": {"message": "Invalid OAuth access token", "trace": "AbC123"}}'
+    with patch("apps.proit.muse.call_muse", side_effect=MuseError(raw)):
+        resp = _client(Role.FIELD_COORDINATOR, "ai_fc_meta3").post(f"/api/v1/proit/pre-profiles/{profile.pk}/ai-research/")
+    run = AIResearchRun.objects.get(pk=resp.data["id"])
+    assert run.status == AIResearchStatus.FAILED
+    assert "re-enter the Meta key" in run.error and "trace" not in run.error

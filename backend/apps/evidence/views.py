@@ -16,6 +16,7 @@ from .ai_coding import (
     DETERMINISTIC_FIELDS,
     MAX_PDF_PAGES,
     MAX_WHOLE_DOCUMENT_PAGES,
+    NOT_CONFIGURED_TEXT,
     AIDraftError,
     ai_coding_is_configured,
     parse_page_range,
@@ -209,7 +210,7 @@ class DocumentQuickCreateView(APIView):
 
     def post(self, request):
         if not ai_coding_is_configured():
-            return _error("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+            return _error("ai_not_configured", NOT_CONFIGURED_TEXT, 503)
         uploaded = request.FILES.get("file")
         if uploaded is None:
             return _error("no_file", "Choose the document to upload.", 400)
@@ -303,7 +304,7 @@ class DocumentAIDraftView(APIView):
         here first so a mistake is refused immediately, not minutes later."""
         document = get_object_or_404(DocumentRecord, pk=pk)
         if not ai_coding_is_configured():
-            return _error("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+            return _error("ai_not_configured", NOT_CONFIGURED_TEXT, 503)
         if _already_running(document):
             return _error("already_running", "A draft is already being generated for this document.", 409)
         try:

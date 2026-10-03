@@ -119,7 +119,7 @@ export function AIResearchPanel({ profileId, onChanged }: { profileId: number; o
       </div>
 
       {error && <p className="text-danger text-sm">{error}</p>}
-      {!data.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet (ANTHROPIC_API_KEY). Ask the administrator.</p>}
+      {!data.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet. Ask the administrator.</p>}
 
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="outline" disabled={!data.configured || running || start.isPending} onClick={() => start.mutate()}>

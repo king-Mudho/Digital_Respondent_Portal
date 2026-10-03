@@ -92,16 +92,32 @@ class AIDraftError(Exception):
         super().__init__(message)
 
 
-def ai_error_text(exc) -> str:
+NOT_CONFIGURED_TEXT = "AI drafting hasn't been set up. Ask the administrator."
+
+_STATUS_IN_TEXT = re.compile(r"\breturned (\d{3})\b")  # MuseError: "Meta API returned 401: ..."
+
+
+def _provider_label(provider: str) -> str:
+    return "Meta" if "meta" in (provider or "").lower() else "Anthropic"
+
+
+def ai_error_text(exc, provider: str = "") -> str:
     """What to tell a person when the AI provider refuses a request. An empty credit balance and a bad key are
-    the administrator's to fix, so say that plainly instead of showing the provider's raw error."""
+    the administrator's to fix, so say that plainly, naming the provider actually in use, instead of showing the
+    provider's raw error. `provider` is a host (coding_provider()) or "meta"/"anthropic" (proit_provider())."""
     text = str(exc)
     low = text.lower()
-    if "credit balance" in low:
-        return "The AI account has run out of credit. Ask the administrator to add credit in the Anthropic console, then try again."
-    if "authentication" in low or "invalid x-api-key" in low or "invalid api key" in low:
-        return "The AI key was not accepted. Ask the administrator to check ANTHROPIC_API_KEY."
-    if "rate limit" in low or "overloaded" in low:
+    status = getattr(exc, "status_code", None)
+    if status is None and (match := _STATUS_IN_TEXT.search(text)):
+        status = int(match.group(1))
+    label = _provider_label(provider)
+    if status == 402 or any(word in low for word in ("credit balance", "insufficient credit", "insufficient funds", "insufficient_quota")):
+        return f"The AI account has run out of credit. Ask the administrator to add credit on the {label} account's billing page, then try again."
+    # 401 only: Meta answers 403 for a region or access restriction, where re-entering the key would not help, so a 403
+    # keeps the provider's own words.
+    if status == 401 or "authentication" in low or "invalid x-api-key" in low or "invalid api key" in low:
+        return f"The AI key was not accepted. Ask the administrator to re-enter the {label} key on the server."
+    if status in (429, 529) or "rate limit" in low or "overloaded" in low:
         return "The AI service is busy right now. Wait a few minutes and try again."
     return text
 
@@ -461,7 +477,7 @@ def _call_model(content: list, *, what: str) -> tuple[dict, dict]:
             messages=[{"role": "user", "content": content}],
         )
     except anthropic.APIError as exc:
-        raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {ai_error_text(exc)}", 502) from exc
+        raise AIDraftError("ai_request_failed", f"The AI request failed while {what}: {ai_error_text(exc, coding_provider())}", 502) from exc
 
     if response.stop_reason == "max_tokens":
         # A cut-off answer is missing fields; never save it as a draft.
@@ -525,7 +541,7 @@ def generate_draft(
     `whole_document` is set, in which case it is read in parts and combined
     (generate_chunked_draft). `progress(text)` reports how far a long read is."""
     if not ai_coding_is_configured():
-        raise AIDraftError("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+        raise AIDraftError("ai_not_configured", NOT_CONFIGURED_TEXT, 503)
 
     if whole_document and source_path.lower().endswith(".pdf"):
         total = pdf_page_count(source_path)
@@ -675,7 +691,7 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
     DETAILS_PAGES pages of a PDF. Nothing is guessed -- an unstated detail comes
     back empty for the person to fill in."""
     if not ai_coding_is_configured():
-        raise AIDraftError("ai_not_configured", "AI drafting hasn't been set up (ANTHROPIC_API_KEY).", 503)
+        raise AIDraftError("ai_not_configured", NOT_CONFIGURED_TEXT, 503)
     span = ""
     if source_path.lower().endswith(".pdf"):
         total = pdf_page_count(source_path)
@@ -701,7 +717,7 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
             messages=[{"role": "user", "content": [block, {"type": "text", "text": prompt}]}],
         )
     except anthropic.APIError as exc:
-        raise AIDraftError("ai_request_failed", f"The AI request failed while reading the document's details: {ai_error_text(exc)}", 502) from exc
+        raise AIDraftError("ai_request_failed", f"The AI request failed while reading the document's details: {ai_error_text(exc, coding_provider())}", 502) from exc
     tool_use = next((b for b in response.content if b.type == "tool_use"), None)
     if tool_use is None:
         raise AIDraftError("ai_no_answer", "The AI didn't return the document's details.", 502)

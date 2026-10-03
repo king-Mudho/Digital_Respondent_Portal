@@ -285,7 +285,7 @@ export default function DocumentAIDraftPage() {
 
       {!aiConfigured && (
         <Card className="mb-4">
-          <p className="text-sm">AI drafting hasn&rsquo;t been set up yet (ANTHROPIC_API_KEY). Ask the administrator.</p>
+          <p className="text-sm">AI drafting hasn&rsquo;t been set up yet. Ask the administrator.</p>
         </Card>
       )}
       {error && <p className="text-danger text-sm mb-4">{error}</p>}

@@ -346,9 +346,9 @@ def search_conversation(*, system: str, prompt: str, tool: dict, items_key: str,
             if search_type == SEARCH_TOOL_TYPE and "web_search" in str(exc):
                 search_type = FALLBACK_SEARCH_TOOL_TYPE  # the account/model lacks the newer variant
                 continue
-            raise AIResearchError("ai_request_failed", f"The AI request was refused: {ai_error_text(exc)}", 502) from exc
+            raise AIResearchError("ai_request_failed", f"The AI request was refused: {ai_error_text(exc, 'anthropic')}", 502) from exc
         except anthropic.APIError as exc:
-            raise AIResearchError("ai_request_failed", f"The AI request failed: {ai_error_text(exc)}", 502) from exc
+            raise AIResearchError("ai_request_failed", f"The AI request failed: {ai_error_text(exc, 'anthropic')}", 502) from exc
 
         seen_urls |= _result_urls(response.content)
         u = getattr(response, "usage", None)
@@ -395,7 +395,7 @@ def search_conversation_meta(*, system: str, prompt: str, tool: dict, items_key:
             nudge=nudge, model=settings.AI_PROIT_RESEARCH_MODEL, key=(settings.AI_PROIT_API_KEY or "").strip(),
         )
     except MuseError as exc:
-        raise AIResearchError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+        raise AIResearchError("ai_request_failed", f"The AI request failed: {ai_error_text(exc, 'meta')}", 502) from exc
     except requests.RequestException as exc:
         raise AIResearchError("ai_request_failed", f"The AI service could not be reached: {type(exc).__name__}", 502) from exc
     return raw, seen, usage
@@ -431,7 +431,7 @@ def call_model_meta(context: dict, fields: dict) -> tuple[dict, set[str], dict]:
     try:
         raw, seen, usage, _raw_log = call_muse(context, fields, settings.AI_PROIT_RESEARCH_MODEL, (settings.AI_PROIT_API_KEY or "").strip())
     except MuseError as exc:
-        raise AIResearchError("ai_request_failed", f"The AI request failed: {exc}", 502) from exc
+        raise AIResearchError("ai_request_failed", f"The AI request failed: {ai_error_text(exc, 'meta')}", 502) from exc
     except requests.RequestException as exc:
         raise AIResearchError("ai_request_failed", f"The AI service could not be reached: {type(exc).__name__}", 502) from exc
     return raw, seen, usage
