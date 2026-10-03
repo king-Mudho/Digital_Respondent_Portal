@@ -91,9 +91,12 @@ if [[ "$MODE" == "proit" ]]; then
     [[ "$PASSED" =~ ^[Yy] ]] || die "switch PROIT only after the comparison has passed. Nothing was changed."
 fi
 
-read -rp "Model [muse-spark-1.3]: " MODEL
+read -rp "Model -- press Enter for muse-spark-1.3 (do NOT paste the key here): " MODEL
 MODEL="${MODEL:-muse-spark-1.3}"
 [[ "$MODEL" == *-contributor ]] && die "contributor models let Meta train on what is sent; use a Standard model"
+# Never echo what was typed: a key pasted here by mistake must not be printed.
+[[ "$MODEL" =~ ^muse-spark-[0-9][0-9.]*$ ]] \
+    || die "that is not a model name (expected e.g. muse-spark-1.3). If you pasted the API key there, delete that key at dev.meta.ai and create a new one. Nothing was changed."
 read -rsp "Meta Model API key: " META_KEY; echo
 [[ -n "$META_KEY" ]] || die "no API key given"
 
