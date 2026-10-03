@@ -191,3 +191,14 @@ def test_the_details_call_also_falls_back_when_meta_refuses_any(settings, tmp_pa
         client_cls.return_value.messages.create.side_effect = [_bad_request("tool_choice not supported"), response]
         details = extract_document_details(str(pdf), "application/pdf")
     assert details["title"] == "A Report" and "tool_choice" not in client_cls.return_value.messages.create.call_args.kwargs
+
+
+def test_the_details_call_leaves_a_reasoning_model_room_to_think(settings, tmp_path):
+    _configure(settings, base_url=META, own_key="meta-key")
+    pdf = tmp_path / "s.pdf"
+    _blank_pdf(pdf)
+    response = Mock(content=[Mock(type="tool_use", input={"title": "A Report"})])
+    with patch("anthropic.Anthropic") as client_cls:
+        client_cls.return_value.messages.create.return_value = response
+        extract_document_details(str(pdf), "application/pdf")
+    assert client_cls.return_value.messages.create.call_args.kwargs["max_tokens"] >= 8000

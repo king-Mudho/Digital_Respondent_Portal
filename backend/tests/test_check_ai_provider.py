@@ -98,3 +98,17 @@ def test_the_check_refuses_to_run_with_no_key(settings):
     settings.ANTHROPIC_API_KEY = ""
     with pytest.raises(CommandError, match="No API key"):
         call_command("check_ai_provider", stdout=StringIO())
+
+
+def test_a_reasoning_model_gets_room_to_think_and_a_cut_off_reply_says_why(settings):
+    # Muse Spark used all 200 output tokens thinking and never answered, so every check failed with "got None".
+    settings.ANTHROPIC_API_KEY = "sk-ant-test"
+    cut_off = Mock(content=[Mock(type="thinking")], stop_reason="max_tokens", usage=Mock(input_tokens=435, output_tokens=4000))
+    client = _client(cut_off, cut_off, cut_off)
+    out = StringIO()
+    with patch(COMMAND, return_value=client):
+        with pytest.raises(CommandError):
+            call_command("check_ai_provider", stdout=out)
+    assert client.messages.create.call_args.kwargs["max_tokens"] >= 4000
+    assert client.messages.stream.call_args.kwargs["max_tokens"] >= 4000
+    assert "stopped: max_tokens" in out.getvalue()

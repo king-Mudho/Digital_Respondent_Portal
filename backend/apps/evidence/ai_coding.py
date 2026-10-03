@@ -637,6 +637,9 @@ def generate_chunked_draft(
 
 DETAILS_PAGES = 12  # the front matter of a PDF (title page, contents, first pages) says who/what/when
 
+# Room for a reasoning model to think before it answers (the details themselves are short).
+DETAILS_MAX_TOKENS = 8000
+
 _DETAILS_TOOL = {
     "name": "record_document_details",
     "description": "Records the register details of the source document, as the document itself states them.",
@@ -693,7 +696,7 @@ def extract_document_details(source_path: str, source_content_type: str, *, page
     try:
         response = call_with_tool_choice_fallback(
             client.messages.create,
-            model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=2000, tools=[_DETAILS_TOOL],
+            model=settings.AI_DOCUMENT_CODING_MODEL, max_tokens=DETAILS_MAX_TOKENS, tools=[_DETAILS_TOOL],
             tool_choice=forced_tool_choice("record_document_details"),
             messages=[{"role": "user", "content": [block, {"type": "text", "text": prompt}]}],
         )

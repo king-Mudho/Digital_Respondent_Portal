@@ -29,6 +29,10 @@ TOOL = {
 }
 
 
+# A reasoning model (Muse Spark) spends output tokens thinking before it answers; 200 cut every reply off.
+CHECK_MAX_TOKENS = 4000
+
+
 def _invoice_pdf() -> bytes:
     buffer = io.BytesIO()
     page = canvas.Canvas(buffer)
@@ -46,14 +50,14 @@ def _value(response):
 # The same request path the portal uses (ai_coding), so a pass here means drafting will work.
 def _plain(client, model):
     return call_with_tool_choice_fallback(
-        client.messages.create, model=model, max_tokens=200, tools=[TOOL], tool_choice=forced_tool_choice("report_number"),
+        client.messages.create, model=model, max_tokens=CHECK_MAX_TOKENS, tools=[TOOL], tool_choice=forced_tool_choice("report_number"),
         messages=[{"role": "user", "content": "The number is 17. Report it by calling report_number."}],
     )
 
 
 def _streamed(client, model, content="The number is 17. Report it by calling report_number."):
     return call_with_tool_choice_fallback(
-        lambda **kw: stream_final(client, **kw), model=model, max_tokens=200, tools=[TOOL],
+        lambda **kw: stream_final(client, **kw), model=model, max_tokens=CHECK_MAX_TOKENS, tools=[TOOL],
         tool_choice=forced_tool_choice("report_number"), messages=[{"role": "user", "content": content}],
     )
 
@@ -99,7 +103,7 @@ class Command(BaseCommand):
                 got = _value(response)
                 usage = getattr(response, "usage", None)
                 tokens = f"{getattr(usage, 'input_tokens', '?')} in / {getattr(usage, 'output_tokens', '?')} out"
-                ok, note = got == expected, f"expected {expected}, got {got}"
+                ok, note = got == expected, f"expected {expected}, got {got} (stopped: {getattr(response, 'stop_reason', '?')})"
             except Exception as exc:  # a diagnostic: any failure is a result, not a crash
                 ok, tokens, note = False, "-", f"{type(exc).__name__}: {str(exc)[:200]}"
             failed += 0 if ok else 1
@@ -119,7 +123,7 @@ class Command(BaseCommand):
         key, model = settings.AI_PROIT_API_KEY.strip(), settings.AI_PROIT_RESEARCH_MODEL
         self.stdout.write(f"Provider: api.meta.ai (Responses API)   Model: {model}")
         body = {"model": model, "input": PROIT_QUESTION, "tools": [{"type": "web_search"}, {"type": "function", **{k: TOOL[k] for k in ("name", "description")}, "parameters": TOOL["input_schema"]}],
-                "include": ["web_search_call.results"], "max_output_tokens": 2000}
+                "include": ["web_search_call.results"], "max_output_tokens": CHECK_MAX_TOKENS}
         started, urls, searches, call, tokens = time.monotonic(), set(), 0, None, [0, 0]
         try:
             for _turn in range(3):
