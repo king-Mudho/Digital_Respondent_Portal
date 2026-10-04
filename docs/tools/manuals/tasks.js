@@ -415,6 +415,20 @@ T.kii = [
     "Complete the interview in the form as usual.",
   ]],
   ["tip", "What the link carries", "Only the KII ID and your own username. It never carries the participant's name, role or organisation, so nothing identifying is left in a web address or your browser history."],
+  ["h2", "Finding an informant's contact details with AI"],
+  ["p", "Most KII records have no phone or email yet. The contact finder searches public sources for the informant's organisation's published phone, email and website, and for the informant's own **work** email or phone where their organisation (or an official register) publishes it. For a record still called “… (contact not yet identified)”, it looks for whoever currently holds the role. It only proposes: nothing reaches the record until you accept it."],
+  ["steps", [
+    "Open the record (**KII Register → Manage**) and find **Find contact details with AI**, above **Invite (self-service link)**.",
+    "Select **Find contact details**. Searches run one at a time, about a minute each; if others are ahead the button reads **Waiting in line…**. You can leave the page and come back.",
+    "Under **To review**, check each finding against the page and passage shown, then **Accept** or **Reject**. An organisation phone or email, or the informant's work contact, fills the record's **Phone** or **Email**, but never over a different one already there (correct that under **Record details**). A person found for an unidentified record becomes its informant: the name and role on the record change to theirs.",
+    "For many records at once, use **Find contact details with AI** on the **KII Register**: choose **How many records** (up to 25) and **Find contacts**. It shows the batch's progress and lists every record with **Findings to review**, each with a link to its page. One KII batch runs at a time.",
+    "When a record has a phone, WhatsApp number or email, send the informant their link (next section).",
+  ]],
+  ["warn", "Work contacts only", [
+    "Only the organisation's name and type and the informant's name and role are sent to the AI provider, never a contact detail already on file.",
+    "A personal mobile, a personal email or a personal social-media profile is never proposed, and anything that does not appear in the passage quoted from its page is removed automatically. For a named informant, findings about anyone else are removed too.",
+    "Searching, accepting and rejecting are open to the PI, Field Coordinator and KII RA; the Supervisor can see the findings. Every decision is recorded in the audit log, without the contact values.",
+  ]],
   ["h2", "Sending the informant their own link (self-service)"],
   ["p", "Some informants would rather complete the interview alone, in their own time, than do a live call. The **Invite** panel on the record sends them a personal link they can open unsupervised -- the same idea as a Main-400 invitation, but for a KII."],
   ["steps", [

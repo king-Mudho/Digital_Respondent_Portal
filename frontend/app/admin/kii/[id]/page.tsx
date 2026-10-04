@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { KiiContactFinderPanel } from "@/components/admin/ContactFinderPanel";
 import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
@@ -445,6 +446,13 @@ export default function KIIDetailPage() {
             </div>
           </WriteOnly>
         </Card>
+      </div>
+
+      {/* CanManageKII: the PI, Field Coordinator and KII RA search and decide; the Supervisor reads. */}
+      <div className="my-4">
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA", "SUPERVISOR_READONLY"]}>
+          <KiiContactFinderPanel kiiId={record.id} onChange={invalidate} />
+        </IfRole>
       </div>
 
       <KIIInvitePanel kiiId={record.kii_id} />

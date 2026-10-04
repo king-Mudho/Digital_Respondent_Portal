@@ -132,7 +132,13 @@ class ContactSearchRun(models.Model):
     only proposes: nothing reaches a Respondent until the PI or Field Coordinator accepts a ContactProposal.
     Recorded so the study can say exactly what was AI-assisted, by which provider and model, at what cost."""
 
-    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_searches")
+    # Exactly one of these: a Main/Reserve case, or a KII record (apps/contacts/kii_finder.py, 2026-10-04).
+    sample_case = models.ForeignKey(
+        "sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_searches",
+    )
+    kii_record = models.ForeignKey(
+        "kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_searches",
+    )
     status = models.CharField(max_length=8, choices=ContactSearchStatus.choices, default=ContactSearchStatus.QUEUED)
     requested_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     started_at = models.DateTimeField(auto_now_add=True)  # when it was requested (queued)
@@ -150,9 +156,16 @@ class ContactSearchRun(models.Model):
 
     class Meta:
         ordering = ["-started_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sample_case__isnull=False, kii_record__isnull=True)
+                | models.Q(sample_case__isnull=True, kii_record__isnull=False),
+                name="contact_search_one_target",
+            ),
+        ]
 
     def __str__(self):
-        return f"ContactSearchRun({self.sample_case_id} {self.status})"
+        return f"ContactSearchRun({self.sample_case_id or 'KII ' + str(self.kii_record_id)} {self.status})"
 
 
 class ContactKind(models.TextChoices):
@@ -173,7 +186,12 @@ class ContactProposal(models.Model):
     """A published contact detail the AI found, with its sources, waiting for a person's decision."""
 
     run = models.ForeignKey(ContactSearchRun, on_delete=models.CASCADE, related_name="proposals")
-    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_proposals")
+    sample_case = models.ForeignKey(
+        "sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_proposals",
+    )
+    kii_record = models.ForeignKey(
+        "kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_proposals",
+    )
     kind = models.CharField(max_length=16, choices=ContactKind.choices)
     value = models.CharField(max_length=500, blank=True)  # phone, email, website or office location
     person_name = models.CharField(max_length=255, blank=True)
@@ -192,6 +210,13 @@ class ContactProposal(models.Model):
 
     class Meta:
         ordering = ["id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sample_case__isnull=False, kii_record__isnull=True)
+                | models.Q(sample_case__isnull=True, kii_record__isnull=False),
+                name="contact_proposal_one_target",
+            ),
+        ]
 
     def __str__(self):
         return f"ContactProposal({self.kind} {self.status})"

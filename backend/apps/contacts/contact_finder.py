@@ -298,27 +298,36 @@ def run_search(run_id: int) -> None:
     if not claimed:
         logger.info("Contact search %s is not waiting (already started or closed); skipped", run_id)
         return
-    run = ContactSearchRun.objects.select_related("sample_case__organisation").get(pk=run_id)
+    run = ContactSearchRun.objects.select_related("sample_case__organisation", "kii_record").get(pk=run_id)
+    target = run.kii_record or run.sample_case
     try:
+        if run.kii_record_id:  # a key informant (apps/contacts/kii_finder.py): same search, its own brief and checks
+            from . import kii_finder
+
+            system, prompt, org_name = kii_finder.SYSTEM_PROMPT, kii_finder.build_prompt(run.kii_record), kii_finder.organisation_name(run.kii_record)
+        else:
+            system, prompt, org_name = SYSTEM_PROMPT, build_prompt(run.sample_case), run.sample_case.organisation.name
         raw, seen_urls, usage = pr.research_conversation(
-            system=SYSTEM_PROMPT, prompt=build_prompt(run.sample_case), tool=contact_tool(), items_key="contacts",
+            system=system, prompt=prompt, tool=contact_tool(), items_key="contacts",
             min_items=0, incomplete=INCOMPLETE, nudge=NUDGE,
         )
-        proposals, dropped = clean_contacts(raw, seen_urls, org_name=run.sample_case.organisation.name)
+        proposals, dropped = clean_contacts(raw, seen_urls, org_name=org_name)
+        if run.kii_record_id:
+            proposals, dropped = kii_finder.keep_the_informant(run.kii_record, proposals, dropped)
     except (pr.AIResearchError, ContactFinderError) as exc:
         _fail(run, str(exc))
         return
     except Exception:  # never leave a run stuck on RUNNING
-        logger.exception("Contact search crashed for case %s", run.sample_case_id)
+        logger.exception("Contact search crashed for %s", target)
         _fail(run, "Something went wrong during the search. Try again, and tell the administrator if it repeats.")
         return
     for p in proposals:
-        ContactProposal.objects.create(run=run, sample_case=run.sample_case, **p)
+        ContactProposal.objects.create(run=run, sample_case=run.sample_case, kii_record=run.kii_record, **p)
     run.status, run.finished_at = ContactSearchStatus.DONE, timezone.now()
     run.searches_used, run.tokens_in, run.tokens_out = usage["searches"], usage["in"], usage["out"]
     run.summary, run.dropped = (raw.get("summary") or "")[:2000], dropped
     run.save()
-    log_action("contacts.search_completed", run.sample_case, {
+    log_action("contacts.search_completed", target, {
         "run": run.pk, "proposed": len(proposals), "dropped": len(dropped), "searches": usage["searches"],
         "provider": run.provider, "model": run.model, "tokens_in": usage["in"], "tokens_out": usage["out"],
         "user_id": run.requested_by_id,
@@ -328,7 +337,7 @@ def run_search(run_id: int) -> None:
 def _fail(run: ContactSearchRun, message: str) -> None:
     run.status, run.error, run.finished_at = ContactSearchStatus.FAILED, message, timezone.now()
     run.save(update_fields=["status", "error", "finished_at"])
-    log_action("contacts.search_failed", run.sample_case, {"run": run.pk, "error": message[:300]})
+    log_action("contacts.search_failed", run.kii_record or run.sample_case, {"run": run.pk, "error": message[:300]})
 
 
 def start_search(case, *, user, batch: str = "") -> ContactSearchRun:
@@ -360,7 +369,9 @@ def _placeholder(case) -> Respondent:
 
 @transaction.atomic
 def accept_proposal(proposal: ContactProposal, *, user, role_category: str = "") -> ContactProposal:
-    proposal = ContactProposal.objects.select_for_update().select_related("sample_case__organisation").get(pk=proposal.pk)
+    # of=("self",): lock only the finding. sample_case is nullable since KII findings share the table, and PostgreSQL
+    # refuses FOR UPDATE on the nullable side of the outer join select_related() would add.
+    proposal = ContactProposal.objects.select_for_update(of=("self",)).select_related("sample_case__organisation").get(pk=proposal.pk)
     if proposal.status != ContactProposalStatus.PROPOSED:
         raise ContactFinderError("already_decided", "This finding has already been accepted or rejected.", 409)
     case, respondent = proposal.sample_case, None
@@ -458,7 +469,7 @@ def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
         raise ContactFinderError("bad_limit", f"Choose between 1 and {batch_limit_max()} cases.")
     # One batch at a time: a second would only join the same line, doubling the cost of a mistaken second click.
     expire_stale_runs()
-    waiting = ContactSearchRun.objects.filter(status__in=ACTIVE).exclude(batch="").count()
+    waiting = ContactSearchRun.objects.filter(status__in=ACTIVE, sample_case__isnull=False).exclude(batch="").count()
     if waiting:
         raise ContactFinderError(
             "batch_running", f"A batch is still running ({waiting} searches left). Start the next one when it has finished.", 409,
@@ -498,7 +509,7 @@ def review_queue(*, kinds=(), confidences=(), site: str = "") -> dict:
     Also returns counts over ALL waiting findings, so the filters can say how many each choice would show, and each
     case's current organisation phone and email, so a reviewer sees what an accept would sit beside."""
     waiting = list(
-        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED)
+        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED, sample_case__isnull=False)
         .select_related("sample_case__organisation").order_by("sample_case__sample_id", "id")
     )
     facets = {
@@ -530,7 +541,10 @@ REVIEW_LIST_MAX = 100
 def batch_status() -> dict:
     """What the register shows: the latest batch's progress, and every case with findings waiting for a decision."""
     expire_stale_runs()
-    latest = ContactSearchRun.objects.exclude(batch="").order_by("-started_at", "-pk").values_list("batch", flat=True).first()
+    latest = (
+        ContactSearchRun.objects.filter(sample_case__isnull=False).exclude(batch="")
+        .order_by("-started_at", "-pk").values_list("batch", flat=True).first()
+    )
     progress = None
     if latest:
         counts = Counter(ContactSearchRun.objects.filter(batch=latest).values_list("status", flat=True))
@@ -541,7 +555,7 @@ def batch_status() -> dict:
         }
         progress["active"] = progress["queued"] + progress["running"] > 0
     pending = (
-        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED)
+        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED, sample_case__isnull=False)
         .values("sample_case__sample_id", "sample_case__organisation__name")
         .annotate(findings=Count("id")).order_by("sample_case__sample_id")
     )

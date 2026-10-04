@@ -81,7 +81,7 @@ class ContactProposalAcceptView(APIView):
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
     def post(self, request, pk):
-        proposal = get_object_or_404(ContactProposal, pk=pk)
+        proposal = get_object_or_404(ContactProposal, pk=pk, sample_case__isnull=False)  # KII findings: kii_views
         try:
             proposal = cf.accept_proposal(proposal, user=request.user, role_category=str(request.data.get("role_category") or ""))
         except cf.ContactFinderError as exc:
@@ -95,7 +95,7 @@ class ContactProposalRejectView(APIView):
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
     def post(self, request, pk):
-        proposal = get_object_or_404(ContactProposal, pk=pk)
+        proposal = get_object_or_404(ContactProposal, pk=pk, sample_case__isnull=False)  # KII findings: kii_views
         try:
             proposal = cf.reject_proposal(proposal, user=request.user, reason=str(request.data.get("reason") or "").strip())
         except cf.ContactFinderError as exc:

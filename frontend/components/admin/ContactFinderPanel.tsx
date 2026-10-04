@@ -42,6 +42,8 @@ interface Run {
 
 interface FinderState {
   configured: boolean;
+  searchable?: boolean; // KII: not yet interviewed or declined
+  placeholder?: boolean; // KII: "(contact not yet identified)"
   run: Run | null;
   proposals: Proposal[];
   public_contacts: Record<string, { value: string; source: string }>;
@@ -52,21 +54,29 @@ function describe(p: Proposal) {
   return [`${p.person_name}, ${p.person_title}`, p.person_email, p.person_phone].filter(Boolean).join(" · ");
 }
 
+interface CardProps {
+  stateUrl: string; // GET state, POST to start a search
+  decideBase: string; // {decideBase}/{id}/accept/ and /reject/
+  queryKey: string[];
+  alsoRefresh: string[][]; // queries an accept changes (the respondents list, the KII record)
+  intro: React.ReactNode;
+  blocked: (data: FinderState) => string | null; // why this one may not be searched, if so
+  personRoles: boolean; // Main-400: choose the person's role category when accepting
+  onDecided?: () => void; // e.g. the KII record page reloading the record an accept changed
+}
+
 /**
- * AI finds the organisation's PUBLISHED contact details (backend/apps/contacts/contact_finder.py). Every finding
- * carries the page it came from and the passage that shows it; nothing is saved until the PI or Field Coordinator
- * accepts it. Organisation phone/email go to the "Organisation contact (to be identified)" respondent; a named
- * person becomes a new respondent.
+ * AI finds PUBLISHED contact details (backend/apps/contacts/contact_finder.py, kii_finder.py). Every finding carries
+ * the page it came from and the passage that shows it; nothing is saved until a person accepts it.
  */
-export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; invitable: boolean }) {
+function ContactFinderCard({ stateUrl, decideBase, queryKey: key, alsoRefresh, intro, blocked, personRoles, onDecided }: CardProps) {
   const queryClient = useQueryClient();
-  const key = ["contact-search", sampleId];
   const [error, setError] = useState<string | null>(null);
   const [roles, setRoles] = useState<Record<number, string>>({});
 
   const { data } = useQuery({
     queryKey: key,
-    queryFn: () => adminFetch<FinderState>(`/contacts/${sampleId}/contact-search/`),
+    queryFn: () => adminFetch<FinderState>(stateUrl),
     // A search waits its turn (the research worker does one at a time), then runs for a minute or two; keep
     // checking until it stops.
     refetchInterval: (query) => {
@@ -76,12 +86,13 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   });
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: key });
-    queryClient.invalidateQueries({ queryKey: ["respondents", sampleId] });
+    for (const other of alsoRefresh) queryClient.invalidateQueries({ queryKey: other });
+    onDecided?.();
   };
   const failed = (fallback: string) => (err: unknown) => setError(err instanceof ApiError ? err.message : fallback);
 
   const start = useMutation({
-    mutationFn: () => adminFetch<Run>(`/contacts/${sampleId}/contact-search/`, { method: "POST" }),
+    mutationFn: () => adminFetch<Run>(stateUrl, { method: "POST" }),
     onSuccess: () => {
       setError(null);
       queryClient.invalidateQueries({ queryKey: key });
@@ -90,9 +101,9 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   });
   const accept = useMutation({
     mutationFn: (p: Proposal) =>
-      adminFetch(`/contacts/contact-proposals/${p.id}/accept/`, {
+      adminFetch(`${decideBase}/${p.id}/accept/`, {
         method: "POST",
-        body: JSON.stringify(p.kind === "PERSON" ? { role_category: roles[p.id] ?? "" } : {}),
+        body: JSON.stringify(personRoles && p.kind === "PERSON" ? { role_category: roles[p.id] ?? "" } : {}),
       }),
     onSuccess: () => {
       setError(null);
@@ -102,7 +113,7 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   });
   const reject = useMutation({
     mutationFn: (p: Proposal) =>
-      adminFetch(`/contacts/contact-proposals/${p.id}/reject/`, { method: "POST", body: JSON.stringify({}) }),
+      adminFetch(`${decideBase}/${p.id}/reject/`, { method: "POST", body: JSON.stringify({}) }),
     onSuccess: () => {
       setError(null);
       refresh();
@@ -117,29 +128,24 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   const pending = data.proposals.filter((p) => p.status === "PROPOSED");
   const decided = data.proposals.filter((p) => p.status !== "PROPOSED");
   const publicContacts = Object.entries(data.public_contacts ?? {});
+  const blockedNote = blocked(data);
 
   return (
     <Card className="space-y-3" aria-label="Find contact details">
       <div className="space-y-1">
         <h3 className="font-semibold">Find contact details with AI</h3>
-        <p className="text-xs text-text-muted">
-          Searches public sources for this organisation&rsquo;s published phone, email, website and office location, and
-          senior staff the organisation itself names. Every detail comes with the page it was found on and the passage
-          that shows it. Nothing is saved until you accept it: an organisation phone or email goes to &ldquo;Organisation
-          contact (to be identified)&rdquo;, and a named person becomes a new respondent. Only the organisation&rsquo;s
-          name, province, district and value chain are sent to the AI provider.
-        </p>
+        <p className="text-xs text-text-muted">{intro}</p>
       </div>
 
       {error && <p className="text-danger text-sm">{error}</p>}
       {!data.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet. Ask the administrator.</p>}
-      {!invitable && <p className="text-sm">This is a locked Reserve, so it is not searched for contact details.</p>}
+      {blockedNote && <p className="text-sm">{blockedNote}</p>}
 
       <WriteOnly note={null}>
         <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="outline"
-            disabled={!data.configured || !invitable || running || start.isPending}
+            disabled={!data.configured || !!blockedNote || running || start.isPending}
             onClick={() => start.mutate()}
           >
             {queued ? "Waiting in line…" : running || start.isPending ? "Searching…" : data.run ? "Search again" : "Find contact details"}
@@ -207,7 +213,7 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
               </ul>
               <WriteOnly note={null}>
                 <div className="flex flex-wrap items-end gap-2">
-                  {p.kind === "PERSON" && (
+                  {personRoles && p.kind === "PERSON" && (
                     <label className="text-xs text-text-muted">
                       Role
                       <select
@@ -249,5 +255,57 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
         </details>
       )}
     </Card>
+  );
+}
+
+/** Main-400 case page: organisation phone/email go to "Organisation contact (to be identified)"; a named person
+ * becomes a new respondent. PI and Field Coordinator decide. */
+export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; invitable: boolean }) {
+  return (
+    <ContactFinderCard
+      stateUrl={`/contacts/${sampleId}/contact-search/`}
+      decideBase="/contacts/contact-proposals"
+      queryKey={["contact-search", sampleId]}
+      alsoRefresh={[["respondents", sampleId]]}
+      personRoles
+      blocked={() => (invitable ? null : "This is a locked Reserve, so it is not searched for contact details.")}
+      intro={
+        <>
+          Searches public sources for this organisation&rsquo;s published phone, email, website and office location, and
+          senior staff the organisation itself names. Every detail comes with the page it was found on and the passage
+          that shows it. Nothing is saved until you accept it: an organisation phone or email goes to &ldquo;Organisation
+          contact (to be identified)&rdquo;, and a named person becomes a new respondent. Only the organisation&rsquo;s
+          name, province, district and value chain are sent to the AI provider.
+        </>
+      }
+    />
+  );
+}
+
+/** KII record page (backend/apps/contacts/kii_finder.py): the organisation's published contacts and the informant's
+ * WORK contact where their organisation publishes it; for a placeholder record, the current holder of the role.
+ * Accepting fills the record's phone and email (never over a different one). PI, Field Coordinator and KII RA decide. */
+export function KiiContactFinderPanel({ kiiId, onChange }: { kiiId: number; onChange?: () => void }) {
+  return (
+    <ContactFinderCard
+      stateUrl={`/contacts/kii/${kiiId}/contact-search/`}
+      decideBase="/contacts/kii-proposals"
+      queryKey={["kii-contact-search", String(kiiId)]}
+      alsoRefresh={[["kii-contact-batch"]]}
+      onDecided={onChange}
+      personRoles={false}
+      blocked={(data) => (data.searchable === false ? "This informant has already been interviewed or declined." : null)}
+      intro={
+        <>
+          Searches public sources for the informant&rsquo;s organisation&rsquo;s published phone, email and website, and
+          the informant&rsquo;s work email or phone where their own organisation publishes it (never a personal number,
+          personal email or personal social media). For a record still marked &ldquo;contact not yet identified&rdquo;, it
+          looks for whoever currently holds the role. Every detail comes with the page and the passage that shows it.
+          Nothing is saved until you accept it: a phone or email fills the record (never over a different one), and a
+          person found for an unidentified record becomes its informant. Only the organisation&rsquo;s name and type and
+          the informant&rsquo;s name and role are sent to the AI provider.
+        </>
+      }
+    />
   );
 }
