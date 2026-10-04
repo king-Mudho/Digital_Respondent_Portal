@@ -17,6 +17,7 @@ It runs on PROIT's provider and key (AI_PROIT_PROVIDER), the same kind of desk r
 name, province, district and value chain are sent; no respondent data.
 """
 
+import functools
 import logging
 import re
 import uuid
@@ -444,7 +445,12 @@ def batch_limit_max() -> int:
 
 
 def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
+    """Creates up to `limit` QUEUED runs and queues them for the research worker. All or nothing: the runs and the
+    batch's audit entry are saved in one transaction, and the tasks are queued only once it has committed. A
+    failure part-way used to leave the runs already created waiting for tasks never sent (2026-10-04: 25 cases)."""
     from apps.sampling.services import is_invitable
+
+    from .tasks import search_contacts
 
     if not is_configured():
         raise ContactFinderError("ai_not_configured", "AI research hasn't been set up (no API key for the configured AI provider).", 503)
@@ -459,19 +465,24 @@ def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
         )
     batch = str(uuid.uuid4())
     runs = []
-    for case in cases_without_contacts()[: limit * 2]:  # a few may be skipped below
-        if len(runs) >= limit:
-            break
-        if not is_invitable(case) or not (case.organisation and (case.organisation.name or "").strip()):
-            continue
-        try:
-            runs.append(start_search(case, user=user, batch=batch))
-        except ContactFinderError:
-            continue
-    # Recorded against the person who started it; each case also gets its own contacts.search_started entry.
-    log_action("contacts.batch_started", user, {
-        "batch": batch, "queued": len(runs), "limit": limit, "user_id": getattr(user, "id", None),
-    }, user=user)
+    with transaction.atomic():
+        for case in cases_without_contacts()[: limit * 2]:  # a few may be skipped below
+            if len(runs) >= limit:
+                break
+            if not is_invitable(case) or not (case.organisation and (case.organisation.name or "").strip()):
+                continue
+            try:
+                runs.append(start_search(case, user=user, batch=batch))
+            except ContactFinderError:
+                continue
+        # Recorded against the person who started it -- or, started from the server with nobody signed in, against
+        # its first run, with no user. Each case also gets its own contacts.search_started entry.
+        if user is not None or runs:
+            log_action("contacts.batch_started", user if user is not None else runs[0], {
+                "batch": batch, "queued": len(runs), "limit": limit, "user_id": getattr(user, "id", None),
+            }, user=user)
+        for run in runs:
+            transaction.on_commit(functools.partial(search_contacts.delay, run.pk))
     return runs
 
 

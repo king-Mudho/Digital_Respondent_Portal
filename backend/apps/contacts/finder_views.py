@@ -168,11 +168,9 @@ class ContactSearchBatchView(APIView):
         except (TypeError, ValueError):
             limit = 0
         try:
-            runs = cf.start_batch(limit, user=request.user)
+            runs = cf.start_batch(limit, user=request.user)  # queues the searches itself, once they are saved
         except cf.ContactFinderError as exc:
             return _error(exc)
-        for run in runs:
-            search_contacts.delay(run.pk)
         low, high = cf.COST_PER_CASE_USD
         return Response({
             "queued": len(runs), "without_contacts": cf.cases_without_contacts().count(),

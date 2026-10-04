@@ -26,7 +26,8 @@ from apps.sampling.models import SampleType
 from apps.sampling.services import create_sample_case
 
 URL = "https://www.testorg.co.zw/contact-us"
-DELAY = "apps.contacts.finder_views.search_contacts.delay"
+DELAY = "apps.contacts.finder_views.search_contacts.delay"  # a single-case search, queued by the view
+BATCH_DELAY = "apps.contacts.tasks.search_contacts.delay"  # a batch, queued by start_batch once saved
 USAGE = {"in": 2000, "out": 300, "searches": 2, "cache_read": 0, "cache_write": 0}
 
 
@@ -313,7 +314,7 @@ def test_a_batch_picks_only_not_yet_invited_invitable_cases_still_without_contac
     assert not picked & {with_phone.sample_id, invited.sample_id, searched_recently.sample_id, locked_reserve_case.sample_id}
 
 
-def test_a_batch_respects_the_cap_and_queues_one_search_per_case(main_case, organisation, stratum, settings):
+def test_a_batch_respects_the_cap_and_queues_one_search_per_case(main_case, organisation, stratum, settings, django_capture_on_commit_callbacks):
     _meta(settings)
     settings.CONTACT_FINDER_BATCH_MAX = 2
     _case(organisation, stratum)
@@ -321,7 +322,7 @@ def test_a_batch_respects_the_cap_and_queues_one_search_per_case(main_case, orga
     coordinator = _client("FIELD_COORDINATOR", "cf_fc_batch")
     batch = "/api/v1/contacts/contact-search/batch/"
     assert coordinator.get(batch).data["without_contacts"] == 3
-    with patch(DELAY) as delay:
+    with patch(BATCH_DELAY) as delay, django_capture_on_commit_callbacks(execute=True):
         too_many = coordinator.post(batch, {"limit": 3}, format="json")
         ok = coordinator.post(batch, {"limit": 2}, format="json")
     assert too_many.status_code == 400 and too_many.data["error"]["code"] == "bad_limit"
@@ -435,7 +436,7 @@ def test_a_second_batch_is_refused_while_one_runs_but_a_single_case_search_is_no
     other = _case(organisation, stratum)
     coordinator = _client("FIELD_COORDINATOR", "cf_fc_twice")
     batch = "/api/v1/contacts/contact-search/batch/"
-    with patch(DELAY):
+    with patch(DELAY), patch(BATCH_DELAY):
         first = coordinator.post(batch, {"limit": 1}, format="json")
         second = coordinator.post(batch, {"limit": 1}, format="json")
         single = coordinator.post(f"/api/v1/contacts/{other.sample_id}/contact-search/")
@@ -443,14 +444,14 @@ def test_a_second_batch_is_refused_while_one_runs_but_a_single_case_search_is_no
     assert second.status_code == 409 and second.data["error"]["code"] == "batch_running"
     assert single.status_code == 202
     ContactSearchRun.objects.exclude(batch="").update(status=ContactSearchStatus.DONE)
-    with patch(DELAY):
+    with patch(BATCH_DELAY):
         assert coordinator.post(batch, {"limit": 1}, format="json").status_code == 202
 
 
 def test_the_register_shows_batch_progress_and_every_case_with_findings_to_review(main_case, organisation, stratum, settings):
     _meta(settings)
     _case(organisation, stratum)
-    with patch(DELAY):
+    with patch(BATCH_DELAY):
         assert _client("FIELD_COORDINATOR", "cf_fc_prog").post(
             "/api/v1/contacts/contact-search/batch/", {"limit": 2}, format="json").status_code == 202
     done, waiting = ContactSearchRun.objects.exclude(batch="").order_by("sample_case__sample_id")
@@ -561,3 +562,46 @@ def test_only_the_pi_and_coordinator_review_and_the_supervisor_may_read(main_cas
     assert _client("SUPERVISOR_READONLY", "cf_rev_sup").get(REVIEW).status_code == 200
     assert _client("CONTACT_RA", "cf_rev_cra").get(REVIEW).status_code == 403
     assert APIClient().get(REVIEW).status_code in (401, 403)
+
+
+# --- A batch is all or nothing -----------------------------------------------------------------------------------
+
+def test_a_batch_queues_its_searches_only_once_they_are_saved(main_case, organisation, stratum, settings, django_capture_on_commit_callbacks):
+    _meta(settings)
+    _case(organisation, stratum)
+    with patch(BATCH_DELAY) as delay:
+        with django_capture_on_commit_callbacks(execute=False) as callbacks:
+            runs = cf.start_batch(2, user=_user())
+        delay.assert_not_called()  # nothing is queued before the runs are committed
+        for callback in callbacks:
+            callback()
+    assert sorted(call.args[0] for call in delay.call_args_list) == sorted(run.pk for run in runs)
+
+
+def test_a_batch_that_fails_part_way_leaves_nothing_behind(main_case, organisation, stratum, settings, django_capture_on_commit_callbacks):
+    # 2026-10-04: a failure after the runs were created left 25 cases "waiting" for tasks never sent.
+    _meta(settings)
+    _case(organisation, stratum)
+    real_log = cf.log_action
+
+    def failing_log(action, *args, **kwargs):
+        if action == "contacts.batch_started":
+            raise RuntimeError("audit write failed")
+        return real_log(action, *args, **kwargs)
+
+    with patch(BATCH_DELAY) as delay, patch("apps.contacts.contact_finder.log_action", side_effect=failing_log),             django_capture_on_commit_callbacks(execute=True):
+        with pytest.raises(RuntimeError):
+            cf.start_batch(2, user=_user())
+    assert ContactSearchRun.objects.count() == 0
+    assert not AuditEvent.objects.filter(action="contacts.search_started").exists()
+    delay.assert_not_called()
+
+
+def test_a_batch_started_with_nobody_signed_in_is_audited_against_its_first_run(main_case, settings, django_capture_on_commit_callbacks):
+    _meta(settings)
+    with patch(BATCH_DELAY) as delay, django_capture_on_commit_callbacks(execute=True):
+        runs = cf.start_batch(1, user=None)
+    event = AuditEvent.objects.get(action="contacts.batch_started")
+    assert event.user_id is None and event.object_type == "ContactSearchRun" and event.object_id == str(runs[0].pk)
+    assert event.metadata["batch"] == runs[0].batch and event.metadata["queued"] == 1
+    delay.assert_called_once_with(runs[0].pk)

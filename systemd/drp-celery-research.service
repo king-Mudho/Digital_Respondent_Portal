@@ -26,10 +26,15 @@ Environment=PYTHONUNBUFFERED=1
 
 # %%h: systemd would otherwise expand %h itself; celery needs the literal %h for its node name.
 ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config worker -Q research -n research@%%h \
-    --pool=solo --concurrency=1 --loglevel=info
+    --pool=solo --concurrency=1 --prefetch-multiplier=1 --loglevel=info
 
+# --prefetch-multiplier=1: hold only the search being run. Searches held in advance go back to the queue only when the
+# worker shuts down cleanly; if it is killed, Redis keeps them for its one-hour visibility timeout.
+# A restart (every deploy) sends SIGTERM: celery finishes the search in progress (one to three minutes), hands back
+# anything it holds, then exits. 15 seconds, as the other units use, killed a search mid-way at the 2026-10-04 11:16
+# deploy and held two more back for an hour.
 KillMode=mixed
-TimeoutStopSec=15
+TimeoutStopSec=240
 Restart=always
 RestartSec=5
 
