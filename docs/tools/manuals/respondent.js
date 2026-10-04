@@ -77,7 +77,7 @@ module.exports = {
     ["steps", [
       "Tap **Start the questionnaire**.",
       "The questionnaire opens on KoboToolbox, the secure data-collection service used by the study. Read each question and choose or type your answer, then tap **Next**.",
-      "Continue to the end and tap **Submit**. Your answers are sent to the research team.",
+      "Continue to the end and tap **Submit**. Keep the page open until KoboToolbox confirms your answers have been sent; they then reach the research team automatically.",
     ]],
     phone("resp_07_ready.jpg", "Ready to begin."),
     phone("resp_07b_kobo_form.jpg", "The questionnaire's first page."),
@@ -85,6 +85,8 @@ module.exports = {
       "Answer for your organisation as a whole, from your own knowledge. There are no right or wrong answers.",
       "If the questionnaire does not open, tap **Try again**, or choose **Ask a researcher to help me instead**.",
       "Complete it in one sitting where possible, with a steady connection.",
+      "If **Submit** does not go through, look for a question marked in red: it still needs an answer.",
+      "Always start from your personal link, never from a saved or forwarded questionnaire page: only answers started from your link can be matched to your organisation.",
     ]],
     ["h2", "Step 8b — Ask a researcher to call you"],
     ["steps", [
@@ -95,7 +97,11 @@ module.exports = {
     phone("resp_08_appointment.jpg", "Choosing a time for a call."),
     phone("resp_09_done_appointment.jpg", "Your request has been sent."),
     ["h2", "Step 9 — Finished"],
-    ["p", "A thank-you screen confirms you have finished. You will not see any score or result, because the study does not produce one."],
+    ["bullets", [
+      "**If you completed the questionnaire yourself**, KoboToolbox's confirmation that your answers were submitted is the end: you can close the page. Submit once. If an empty form appears afterwards, do not fill it in again.",
+      "**If you asked a researcher to call you**, the portal shows **Your request has been sent**, and the researcher completes the questionnaire with you during the call.",
+      "You will not see any score or result, because the study does not produce one.",
+    ]],
 
     ["h1", "4. Reminders"],
     ["p", "If you have not yet taken part, you may receive up to two short reminders by WhatsApp (around two days and seven days after your invitation). They simply ask you to use the link you were sent. If you do not wish to take part, just tell the research team and the reminders will stop."],

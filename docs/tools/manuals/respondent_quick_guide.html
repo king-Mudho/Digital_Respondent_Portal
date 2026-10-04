@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Completing the ABF-FST Questionnaire</title>
+<!-- One-page respondent guide. Build: docs/tools/build_respondent_quick_guide.ps1 (A4 PDF + PNG for WhatsApp).
+     Every button name below is copied from frontend/app/i/[token]/*; check them there before changing wording. -->
+<style>
+  @page { size: A4; margin: 0; }
+  :root {
+    --navy: #1d2f4f; --navy-soft: #e9eef5; --gold: #b8862b; --ink: #1c2330; --muted: #5a6476; --rule: #d5dce6;
+    --warn-bg: #fdf6e9; --warn-rule: #e3c48a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: var(--ink); }
+  body { font-family: "Segoe UI", Calibri, "Helvetica Neue", Arial, sans-serif; font-size: 9.6pt; line-height: 1.38; }
+  .page { width: 210mm; height: 297mm; padding: 0 14mm 10mm; display: flex; flex-direction: column; overflow: hidden; }
+
+  header { background: var(--navy); color: #fff; margin: 0 -14mm; padding: 9mm 14mm 6mm; }
+  header .eyebrow { font-size: 8pt; letter-spacing: .12em; text-transform: uppercase; color: #c9d4e4; margin: 0 0 1.5mm; }
+  header h1 { font-size: 19pt; line-height: 1.15; margin: 0 0 2mm; font-weight: 700; text-wrap: balance; }
+  header .facts { display: flex; flex-wrap: wrap; gap: 1.5mm 4.5mm; font-size: 8.6pt; color: #e4eaf3; margin: 0; padding: 0; list-style: none; }
+  header .facts li::before { content: "•"; color: var(--gold); margin-right: 1.6mm; }
+  header .facts li:first-child::before { content: none; }
+
+  h2 { font-size: 11pt; color: var(--navy); margin: 4.5mm 0 2mm; padding-bottom: 1mm; border-bottom: 1.2pt solid var(--navy); }
+  .before { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 0; padding: 0; list-style: none; }
+  .before li { background: var(--navy-soft); border-radius: 1.5mm; padding: 2.4mm 3mm; }
+  .before strong { display: block; color: var(--navy); margin-bottom: .6mm; }
+  .link { font-family: Consolas, "Courier New", monospace; font-size: 8.4pt; white-space: nowrap; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: column;
+    grid-template-rows: repeat(4, auto); gap: 2.6mm 7mm; counter-reset: step; }
+  ol.steps li { counter-increment: step; display: grid; grid-template-columns: 7mm 1fr; grid-template-rows: auto 1fr; align-content: start; column-gap: 2mm; }
+  ol.steps li::before { content: counter(step); grid-row: 1 / span 2; width: 6.4mm; height: 6.4mm; border-radius: 50%;
+    background: var(--gold); color: #fff; font-weight: 700; font-size: 9.5pt; display: flex; align-items: center; justify-content: center; }
+  ol.steps h3 { font-size: 9.9pt; margin: .5mm 0 .6mm; color: var(--navy); }
+  ol.steps p { margin: 0; }
+  .alt { color: var(--muted); font-size: 8.8pt; display: block; margin-top: .6mm; }
+  b.btn { font-weight: 700; white-space: nowrap; }
+
+  .submit { margin-top: 4.5mm; background: var(--warn-bg); border: 1pt solid var(--warn-rule); border-radius: 2mm; padding: 3mm 4mm; }
+  .submit h2 { margin: 0 0 1.6mm; border: 0; padding: 0; }
+  .submit ul { margin: 0; padding-left: 4.5mm; display: grid; gap: 1.2mm; }
+
+  footer { margin-top: auto; padding-top: 3mm; border-top: .8pt solid var(--rule); display: grid; grid-template-columns: 1.35fr 1fr; gap: 6mm; font-size: 8.6pt; }
+  footer p { margin: 0 0 1mm; }
+  footer .contact strong { color: var(--navy); }
+  .version { color: var(--muted); font-size: 7.6pt; margin-top: 1.5mm; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <p class="eyebrow">ABF-FST research study · Chinhoyi University of Technology</p>
+    <h1>How to complete and submit the questionnaire</h1>
+    <ul class="facts">
+      <li>About 15–25 minutes</li>
+      <li>Phone, tablet or computer</li>
+      <li>No app to install, no account to create</li>
+      <li>Voluntary: you may stop at any time</li>
+    </ul>
+  </header>
+
+  <h2>Before you start</h2>
+  <ul class="before">
+    <li><strong>Your personal link</strong>Sent to you by WhatsApp, SMS or email. It begins <span class="link">research.agribizframework.com/i/</span></li>
+    <li><strong>For your organisation only</strong>It works for 14 days. Please don’t forward it; ask us for a new one if it has expired.</li>
+    <li><strong>A steady connection</strong>And 15–25 minutes without interruption. We will never ask for a password, bank details or payment.</li>
+  </ul>
+
+  <h2>Step by step</h2>
+  <ol class="steps">
+    <li><h3>Open your link</h3><p>Tap the link in your message. The study page opens in your browser.</p></li>
+    <li><h3>Confirm your organisation</h3><p>If the name shown is yours, tap <b class="btn">Yes, that’s correct</b>.<span class="alt">Not your organisation? Stop here and contact us.</span></p></li>
+    <li><h3>Tell us a little about you</h3><p>Type <b>Your full name</b>, choose the answer to <b>Which best describes your role?</b>, then tap <b class="btn">Continue</b>.<span class="alt">If no role fits, choose <b>None of these describe me</b> and tell us who should answer.</span></p></li>
+    <li><h3>Read the participant information</h3><p>It explains the study, how your information is protected and your rights. Then tap <b class="btn">Continue to consent</b>.</p></li>
+    <li><h3>Give your consent</h3><p>Tap <b class="btn">I agree to take part</b>.<span class="alt">Prefer not to? Tap <b>I do not wish to take part</b>. That is completely fine.</span></p></li>
+    <li><h3>Check what is already public <span style="font-weight:400;color:var(--muted)">(only if shown)</span></h3><p>On <b>Before we continue</b>, mark each item <b>Yes, correct</b>, <b>Partly correct</b>, <b>No — correct it</b>, <b>Don’t know</b>, <b>Prefer not to say</b> or <b>Not applicable</b>, then <b class="btn">Continue</b>. Or tap <b>Skip this step</b>.</p></li>
+    <li><h3>Choose how to take part</h3><p>Tap <b class="btn">Complete it myself now</b>, then <b class="btn">Start the questionnaire</b>.<span class="alt">Would like help? Choose <b>Have a researcher call me</b> or <b>Complete it via WhatsApp</b> instead.</span></p></li>
+    <li><h3>Answer and submit</h3><p>The questionnaire opens on KoboToolbox, the study’s secure form service. Answer each question and tap <b class="btn">Next</b>. On the last page tap <b class="btn">Submit</b> and wait for the confirmation that it has been sent.</p></li>
+  </ol>
+
+  <div class="submit">
+    <h2>Make sure your answers arrive</h2>
+    <ul>
+      <li><b>Always start from your personal link</b>, never from a saved or forwarded questionnaire page. Only answers started from your link can be matched to your organisation.</li>
+      <li><b>Submit won’t work?</b> Look for a question marked in red: it still needs an answer.</li>
+      <li><b>Submit once.</b> Keep the page open until KoboToolbox confirms. If an empty form appears afterwards, don’t fill it in again. Just close the page.</li>
+      <li><b>Questionnaire won’t open?</b> Tap <b>Try again</b>, or <b>Ask a researcher to help me instead</b>. <b>Interrupted?</b> Open your link again; if you cannot carry on, contact us and a researcher will help.</li>
+    </ul>
+  </div>
+
+  <footer>
+    <div>
+      <p><b>Your answers are for research only.</b> No score, rating or financing decision is produced, and your individual answers are never shared with any lender. Results are reported only in combined, anonymised form.</p>
+      <p class="version">Respondent quick guide · Version 1.0 · 4 October 2026</p>
+    </div>
+    <div class="contact">
+      <p><strong>Questions or help</strong></p>
+      <p>Happyson Saina, doctoral researcher</p>
+      <p>0773943709 (phone or WhatsApp)</p>
+      <p>abffst.research@gmail.com</p>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
