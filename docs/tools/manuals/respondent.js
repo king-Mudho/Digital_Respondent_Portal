@@ -77,7 +77,8 @@ module.exports = {
     ["steps", [
       "Tap **Start the questionnaire**.",
       "The questionnaire opens on KoboToolbox, the secure data-collection service used by the study. Read each question and choose or type your answer, then tap **Next**.",
-      "Continue to the end and tap **Submit**. Keep the page open until KoboToolbox confirms your answers have been sent; they then reach the research team automatically.",
+      "On the last page, tap **Submit**, not **Save Draft**. The thank-you text on that page appears before you submit: your answers are sent only when you tap **Submit**.",
+      "The form jumps straight back to its first page, empty. A few seconds later a banner at the top says your answers **were successfully submitted**. That banner means you are done, and your answers reach the research team automatically. You can close the page.",
     ]],
     phone("resp_07_ready.jpg", "Ready to begin."),
     phone("resp_07b_kobo_form.jpg", "The questionnaire's first page."),
@@ -86,6 +87,7 @@ module.exports = {
       "If the questionnaire does not open, tap **Try again**, or choose **Ask a researcher to help me instead**.",
       "Complete it in one sitting where possible, with a steady connection.",
       "If **Submit** does not go through, look for a question marked in red: it still needs an answer.",
+      "**Save Draft** keeps your answers on your own device only; nothing reaches the study until you tap **Submit**.",
       "Always start from your personal link, never from a saved or forwarded questionnaire page: only answers started from your link can be matched to your organisation.",
     ]],
     ["h2", "Step 8b — Ask a researcher to call you"],
@@ -98,7 +100,7 @@ module.exports = {
     phone("resp_09_done_appointment.jpg", "Your request has been sent."),
     ["h2", "Step 9 — Finished"],
     ["bullets", [
-      "**If you completed the questionnaire yourself**, KoboToolbox's confirmation that your answers were submitted is the end: you can close the page. Submit once. If an empty form appears afterwards, do not fill it in again.",
+      "**If you completed the questionnaire yourself**, the banner saying your answers **were successfully submitted** is the end: you can close the page. The empty form that appears just before it is normal. Submit once, and do not fill the form in again.",
       "**If you asked a researcher to call you**, the portal shows **Your request has been sent**, and the researcher completes the questionnaire with you during the call.",
       "You will not see any score or result, because the study does not produce one.",
     ]],
