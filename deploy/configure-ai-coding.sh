@@ -75,10 +75,13 @@ except anthropic.AuthenticationError:
     raise SystemExit('the API key was rejected -- check it and re-run')
 " ) || die "key check failed"
 
-echo "Restarting the backend..."
-systemctl restart drp-backend
+# The worker too: drafts and PROIT research run in Celery, which reads .env only when it starts.
+echo "Restarting the backend and the Celery worker..."
+systemctl restart drp-backend drp-celery-worker
 sleep 4
-systemctl is-active --quiet drp-backend || die "drp-backend did not come back up: journalctl -u drp-backend -n 50"
+for service in drp-backend drp-celery-worker; do
+    systemctl is-active --quiet "$service" || die "$service did not come back up: journalctl -u $service -n 50"
+done
 
 echo "Done. 'Auto-fill' now appears on a document's page once a source file is uploaded."
 echo "Clear this terminal afterwards; the key above is also in $ENV_FILE."

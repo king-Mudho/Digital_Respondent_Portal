@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Set up outgoing email (PDF copies of completed forms).
+# Set up outgoing email (invitation emails, single and in batches, and PDF copies of completed forms).
 #
 #   ssh -t agribizframework 'sudo bash /srv/agribiz-drp/deploy/configure-email.sh'
 #
@@ -15,7 +15,7 @@
 #
 # Prompts for every value (the password without echo), writes them to
 # backend/.env (backed up first), blanks email in .env.staging, restarts the
-# backend and sends one test message to an address you choose.
+# backend and the Celery worker, and sends one test message to an address you choose.
 
 set -euo pipefail
 
@@ -74,9 +74,15 @@ if [[ -f "$STAGING_ENV" ]]; then
     set_kv "$STAGING_ENV" EMAIL_HOST ""
 fi
 
-echo "Restarting the backend..."
-systemctl restart drp-backend
+# The worker too: batch email invitations are sent by Celery, and each process reads .env only when it starts. Before
+# 2026-10-04 only the backend was restarted, so the register said email was set up while batches still went out
+# with the worker's old settings.
+echo "Restarting the backend and the Celery worker..."
+systemctl restart drp-backend drp-celery-worker
 sleep 4
+for service in drp-backend drp-celery-worker; do
+    systemctl is-active --quiet "$service" || die "$service did not come back up: journalctl -u $service -n 50"
+done
 
 echo "Sending a test message to $TEST_TO..."
 ( cd "$BACKEND" && sudo -u "$APP_USER" env DJANGO_SETTINGS_MODULE=config.settings.prod TEST_TO="$TEST_TO" \
@@ -87,5 +93,5 @@ send_mail('ABF-FST portal: email test', 'Outgoing email from research.agribizfra
 print('sent')
 " 2>&1 | grep -vE "Warning|warn" ) || die "sending failed -- check the server, port, username and password"
 
-echo "Done. Staff can now email PDF copies from the Form PDFs screen."
+echo "Done. Invitation emails (one at a time and in batches) and PDF copies from Form PDFs can now be sent."
 echo "Remember each staff account needs an email address (Account screen / Django admin)."
