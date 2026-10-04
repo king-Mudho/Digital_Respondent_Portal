@@ -475,6 +475,44 @@ def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
     return runs
 
 
+def source_site(proposal: ContactProposal) -> str:
+    """The site of a finding's first source, e.g. "egp.praz.org.zw" -- what a reviewer judges a finding by."""
+    sources = proposal.sources or []
+    host = (urlsplit(sources[0].get("url", "")).hostname or "") if sources else ""
+    return host[4:] if host.startswith("www.") else host
+
+
+def review_queue(*, kinds=(), confidences=(), site: str = "") -> dict:
+    """Every finding still waiting for a decision, filtered, grouped by case in Sample ID order -- the review page.
+    Also returns counts over ALL waiting findings, so the filters can say how many each choice would show, and each
+    case's current organisation phone and email, so a reviewer sees what an accept would sit beside."""
+    waiting = list(
+        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED)
+        .select_related("sample_case__organisation").order_by("sample_case__sample_id", "id")
+    )
+    facets = {
+        "kind": dict(Counter(p.kind for p in waiting)),
+        "confidence": dict(Counter(p.confidence or "LOW" for p in waiting)),
+        "site": Counter(source_site(p) for p in waiting).most_common(15),
+    }
+    shown = [
+        p for p in waiting
+        if (not kinds or p.kind in kinds) and (not confidences or (p.confidence or "LOW") in confidences)
+        and (not site or source_site(p) == site)
+    ]
+    cases: dict[int, dict] = {}
+    for p in shown:
+        entry = cases.setdefault(p.sample_case_id, {"case": p.sample_case, "proposals": []})
+        entry["proposals"].append(p)
+    placeholders = {
+        r.sample_case_id: r for r in Respondent.objects.filter(sample_case_id__in=cases, full_name=PLACEHOLDER_NAME)
+    }
+    for case_id, entry in cases.items():
+        holder = placeholders.get(case_id)
+        entry["current"] = {"phone": holder.phone if holder else "", "email": holder.email if holder else ""}
+    return {"facets": facets, "total_waiting": len(waiting), "total_shown": len(shown), "cases": list(cases.values())}
+
+
 REVIEW_LIST_MAX = 100
 
 

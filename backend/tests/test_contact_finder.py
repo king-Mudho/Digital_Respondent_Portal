@@ -485,3 +485,79 @@ def test_the_migration_marks_searches_still_waiting_as_queued_and_groups_them(ma
     finished.refresh_from_db()
     assert waiting.status == ContactSearchStatus.QUEUED and waiting.batch == "queued-before-research-lane"
     assert finished.status == ContactSearchStatus.DONE and finished.batch == ""
+
+
+# --- The review page: every waiting finding in one place -------------------------------------------------------
+
+REVIEW = "/api/v1/contacts/contact-proposals/review/"
+
+
+def _finding(case, kind="ORG_PHONE", value="0773943709", confidence="HIGH", url=URL, status=ContactProposalStatus.PROPOSED):
+    run = case.contact_searches.first() or ContactSearchRun.objects.create(sample_case=case, status=ContactSearchStatus.DONE)
+    return ContactProposal.objects.create(
+        run=run, sample_case=case, kind=kind, value=value, confidence=confidence, status=status,
+        sources=[{"title": "Listing", "url": url, "quote": f"Contact {value}"}],
+    )
+
+
+def test_the_review_page_lists_only_waiting_findings_grouped_by_case_in_sample_id_order(main_case, organisation, stratum):
+    later = _case(organisation, stratum)
+    _finding(later, kind="ORG_EMAIL", value="info@testorg.co.zw")
+    _finding(main_case)
+    _finding(main_case, kind="WEBSITE", value="https://www.testorg.co.zw")
+    _finding(main_case, value="0772000111", status=ContactProposalStatus.REJECTED)
+    _finding(later, value="0773000222", status=ContactProposalStatus.ACCEPTED)
+
+    data = _client("FIELD_COORDINATOR", "cf_rev_fc").get(REVIEW).data
+    assert [c["sample_id"] for c in data["cases"]] == sorted([main_case.sample_id, later.sample_id])
+    by_case = {c["sample_id"]: [p["kind"] for p in c["proposals"]] for c in data["cases"]}
+    assert by_case == {main_case.sample_id: ["ORG_PHONE", "WEBSITE"], later.sample_id: ["ORG_EMAIL"]}
+    assert data["total_waiting"] == 3 and data["total_shown"] == 3
+    assert data["cases"][0]["proposals"][0]["site"] == "testorg.co.zw"  # www. dropped
+    assert data["cases"][0]["proposals"][0]["sources"][0]["quote"].startswith("Contact")
+
+
+def test_the_filters_narrow_the_list_while_the_counts_cover_everything_waiting(main_case, organisation, stratum):
+    other = _case(organisation, stratum)
+    _finding(main_case, confidence="HIGH")
+    _finding(main_case, kind="OFFICE_LOCATION", value="Harare", confidence="HIGH")
+    _finding(other, kind="ORG_EMAIL", value="a@b.co.zw", confidence="LOW", url="https://www.findglocal.com/x")
+    client = _client("FIELD_COORDINATOR", "cf_rev_filter")
+
+    phones_emails = client.get(REVIEW, {"kind": "ORG_PHONE,ORG_EMAIL"}).data
+    assert phones_emails["total_shown"] == 2 and phones_emails["total_waiting"] == 3
+    assert phones_emails["facets"]["kind"] == {"ORG_PHONE": 1, "OFFICE_LOCATION": 1, "ORG_EMAIL": 1}
+    high = client.get(REVIEW, {"kind": "ORG_PHONE,ORG_EMAIL", "confidence": "HIGH"}).data
+    assert [p["kind"] for c in high["cases"] for p in c["proposals"]] == ["ORG_PHONE"]
+    site = client.get(REVIEW, {"site": "findglocal.com"}).data
+    assert [c["sample_id"] for c in site["cases"]] == [other.sample_id]
+    assert ("findglocal.com", 1) in [tuple(row) for row in site["facets"]["site"]]
+    assert client.get(REVIEW, {"kind": "NOT_A_KIND"}).data["total_shown"] == 3  # unknown values are ignored
+
+
+def test_the_review_page_shows_the_contact_an_accept_would_sit_beside(main_case):
+    Respondent.objects.create(sample_case=main_case, full_name=cf.PLACEHOLDER_NAME, phone="0773943709")
+    _finding(main_case, value="0772000111")
+    case = _client("FIELD_COORDINATOR", "cf_rev_cur").get(REVIEW).data["cases"][0]
+    assert case["current"] == {"phone": "0773943709", "email": ""}
+
+
+def test_the_review_page_pages_by_case(main_case, organisation, stratum):
+    from apps.contacts import finder_views
+
+    cases = [main_case] + [_case(organisation, stratum) for _ in range(finder_views.REVIEW_PAGE_CASES)]
+    for case in cases:
+        _finding(case)
+    client = _client("FIELD_COORDINATOR", "cf_rev_page")
+    first, second = client.get(REVIEW).data, client.get(REVIEW, {"page": 2}).data
+    assert (first["pages"], len(first["cases"]), len(second["cases"])) == (2, finder_views.REVIEW_PAGE_CASES, 1)
+    assert first["total_cases"] == len(cases)
+    assert {c["sample_id"] for c in first["cases"]}.isdisjoint({c["sample_id"] for c in second["cases"]})
+
+
+def test_only_the_pi_and_coordinator_review_and_the_supervisor_may_read(main_case):
+    _finding(main_case)
+    assert _client("PI_ADMIN", "cf_rev_pi").get(REVIEW).status_code == 200
+    assert _client("SUPERVISOR_READONLY", "cf_rev_sup").get(REVIEW).status_code == 200
+    assert _client("CONTACT_RA", "cf_rev_cra").get(REVIEW).status_code == 403
+    assert APIClient().get(REVIEW).status_code in (401, 403)

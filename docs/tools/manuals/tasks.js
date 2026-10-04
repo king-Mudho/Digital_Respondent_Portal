@@ -275,6 +275,14 @@ T.contactFinder = [
     "The searches run one at a time, about a minute each, so a batch of 25 takes around half an hour. The panel shows the progress, for example “Batch in progress: 6 done, 1 searching now, 18 waiting (of 25)”. Only one batch runs at a time: start the next when this one has finished.",
     "Under **Findings to review**, the panel lists every case whose findings are waiting for a decision. Select **Review N findings** to open the case and accept or reject them: a batch never saves anything by itself.",
   ]],
+  ["h3", "Reviewing many findings at once (coordinator and PI)"],
+  ["steps", [
+    "On the register, under **Findings to review**, select **Review them all on one page**. Every waiting finding is listed, grouped by case, with its confidence, the site it came from and the passage quoted from that page.",
+    "Use the filters to work in the most useful order. **Phones** and **Emails** are chosen to begin with, because they are what an invitation needs; add **Named people**, **Websites** or **Office locations** later. Choose **High** confidence to start with the strongest, or pick a **Source site** to judge one site's findings together.",
+    "For each finding, read the quote (select the title to open the page if in doubt), then **Accept** or **Reject**. For a named person, choose their **Role** first.",
+    "When everything shown for a case is right, **Accept all N shown** accepts them in one go. It is not offered when a case shows more than one phone or more than one email (choose the right one) or a named person (accept with a role). **Reject all shown** asks you to confirm first.",
+    "Decided findings disappear from the list. Each decision is recorded in the audit log under your name, exactly as on the case page.",
+  ]],
   ["tip", "Cost", "Each search is a paid request on the study's AI account, about USD 0.05–0.15 per organisation. The batch panel shows the estimate before you start."],
   ["warn", "Only what an organisation publishes about itself", [
     "Only the organisation's name, province, district and value chain are sent to the AI provider. Never a respondent's name or any contact detail already on file.",

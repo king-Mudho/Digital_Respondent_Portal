@@ -103,6 +103,51 @@ class ContactProposalRejectView(APIView):
         return Response(ContactProposalSerializer(proposal).data)
 
 
+REVIEW_PAGE_CASES = 15
+
+
+class ContactReviewView(APIView):
+    """GET /api/v1/contacts/contact-proposals/review/?kind=ORG_PHONE,ORG_EMAIL&confidence=HIGH&site=...&page=1
+    Every finding still waiting for a decision, grouped by case (15 cases a page, Sample ID order), with counts for
+    the filters. Decisions go through the accept/reject endpoints above, one finding at a time, each audited."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def get(self, request):
+        def listed(name, allowed):
+            return [v for v in (request.query_params.get(name) or "").split(",") if v in allowed]
+
+        from .models import ContactKind
+
+        queue = cf.review_queue(
+            kinds=listed("kind", ContactKind.values), confidences=listed("confidence", {"HIGH", "MODERATE", "LOW"}),
+            site=(request.query_params.get("site") or "").strip(),
+        )
+        cases = queue["cases"]
+        pages = max(1, -(-len(cases) // REVIEW_PAGE_CASES))
+        try:
+            page = min(max(1, int(request.query_params.get("page", 1))), pages)
+        except (TypeError, ValueError):
+            page = 1
+        chunk = cases[(page - 1) * REVIEW_PAGE_CASES: page * REVIEW_PAGE_CASES]
+        return Response({
+            "facets": queue["facets"], "total_waiting": queue["total_waiting"], "total_shown": queue["total_shown"],
+            "total_cases": len(cases), "page": page, "pages": pages,
+            "cases": [
+                {
+                    "sample_id": entry["case"].sample_id,
+                    "organisation": entry["case"].organisation.name if entry["case"].organisation else "",
+                    "workflow_status": entry["case"].workflow_status,
+                    "current": entry["current"],
+                    "proposals": [
+                        {**ContactProposalSerializer(p).data, "site": cf.source_site(p)} for p in entry["proposals"]
+                    ],
+                }
+                for entry in chunk
+            ],
+        })
+
+
 class ContactSearchBatchView(APIView):
     """GET /api/v1/contacts/contact-search/batch/ -- how many cases have no contact details, the cap, the latest
     batch's progress and the cases with findings waiting for a decision.

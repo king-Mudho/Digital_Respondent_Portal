@@ -470,7 +470,12 @@ function ContactFinderBatchPanel() {
           <summary className="cursor-pointer font-medium">
             Findings to review ({info.to_review_total} case{info.to_review_total === 1 ? "" : "s"})
           </summary>
-          <p className="text-xs text-text-muted mt-1">Open each case to accept or reject what was found.</p>
+          <p className="text-xs mt-1">
+            <Link href="/admin/sample/review-findings" className="text-header underline font-medium">
+              Review them all on one page
+            </Link>
+            <span className="text-text-muted"> with filters for phones and emails, confidence and source, or open a case below.</span>
+          </p>
           <ul className="mt-1 divide-y divide-border">
             {info.to_review.map((row) => (
               <li key={row.sample_id} className="py-1.5 flex flex-wrap items-center justify-between gap-2">
