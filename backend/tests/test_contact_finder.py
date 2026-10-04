@@ -328,3 +328,160 @@ def test_a_batch_respects_the_cap_and_queues_one_search_per_case(main_case, orga
     assert ok.status_code == 202 and ok.data["queued"] == 2 and delay.call_count == 2
     assert ok.data["without_contacts"] == 1  # the two just queued now count as searched
     assert _client("CONTACT_RA", "cf_cra_batch").post(batch, {"limit": 1}, format="json").status_code == 403
+
+
+# --- The research lane: one search at a time, without holding up anything else ------------------------------------
+
+def test_searches_have_their_own_queue_and_everything_else_stays_on_the_default_one():
+    from config.celery import app
+
+    route = app.amqp.router.route({}, "apps.contacts.tasks.search_contacts")
+    assert route["queue"].name == "research"
+    assert app.amqp.router.route({}, "apps.kobo.tasks.reconcile_kobo_submissions")["queue"].name == "celery"
+
+
+def test_a_leftover_search_in_the_default_queue_is_handed_to_the_research_lane_not_run_there(main_case, settings):
+    # Searches queued before the lane existed sit in the default queue; running them there is what held up the
+    # Kobo sync for an hour on 2026-10-04.
+    from apps.contacts.tasks import search_contacts
+
+    _meta(settings)
+    run = cf.start_search(main_case, user=_user())
+    for queue, handed_over in (("celery", True), ("research", False)):
+        search_contacts.push_request(delivery_info={"routing_key": queue})
+        try:
+            with patch.object(search_contacts, "apply_async") as apply_async, patch("apps.contacts.tasks.run_search") as run_search:
+                search_contacts.run(run.pk)
+        finally:
+            search_contacts.pop_request()
+        if handed_over:
+            apply_async.assert_called_once_with(args=[run.pk], queue="research")
+            run_search.assert_not_called()
+        else:
+            apply_async.assert_not_called()
+            run_search.assert_called_once_with(run.pk)
+
+
+def test_a_new_search_waits_queued_and_only_the_worker_marks_it_running(main_case, settings):
+    _meta(settings)
+    run = cf.start_search(main_case, user=_user())
+    assert run.status == ContactSearchStatus.QUEUED and run.running_since is None
+    seen = {}
+
+    def conversation(**kwargs):
+        seen["status"] = ContactSearchRun.objects.get(pk=run.pk).status
+        return {"summary": "", "contacts": []}, set(), USAGE
+
+    with patch("apps.proit.ai_research.research_conversation", side_effect=conversation):
+        cf.run_search(run.pk)
+    run.refresh_from_db()
+    assert seen["status"] == ContactSearchStatus.RUNNING
+    assert run.status == ContactSearchStatus.DONE and run.running_since is not None
+
+
+def test_a_search_delivered_twice_or_already_closed_never_searches_again(main_case, settings):
+    _meta(settings)
+    for status in (ContactSearchStatus.RUNNING, ContactSearchStatus.DONE, ContactSearchStatus.FAILED):
+        run = ContactSearchRun.objects.create(sample_case=main_case, status=status)
+        with patch("apps.proit.ai_research.research_conversation") as conv:
+            cf.run_search(run.pk)
+        conv.assert_not_called()
+        run.refresh_from_db()
+        assert run.status == status
+
+
+def test_lost_searches_are_closed_so_they_stop_blocking_the_case(main_case, organisation, stratum, settings):
+    _meta(settings)
+    now = timezone.now()
+    lost = ContactSearchRun.objects.create(sample_case=main_case, status=ContactSearchStatus.QUEUED)
+    ContactSearchRun.objects.filter(pk=lost.pk).update(started_at=now - timedelta(hours=4))
+    stuck = ContactSearchRun.objects.create(
+        sample_case=_case(organisation, stratum), status=ContactSearchStatus.RUNNING, running_since=now - timedelta(minutes=25),
+    )
+    waiting = ContactSearchRun.objects.create(sample_case=_case(organisation, stratum), status=ContactSearchStatus.QUEUED)
+    working = ContactSearchRun.objects.create(
+        sample_case=_case(organisation, stratum), status=ContactSearchStatus.RUNNING, running_since=now - timedelta(minutes=2),
+    )
+
+    assert cf.expire_stale_runs() == 2
+    for run, status in ((lost, "FAILED"), (stuck, "FAILED"), (waiting, "QUEUED"), (working, "RUNNING")):
+        run.refresh_from_db()
+        assert run.status == status
+    assert "Interrupted" in lost.error
+    assert cf.start_search(main_case, user=_user()).status == ContactSearchStatus.QUEUED  # no longer blocked
+    with pytest.raises(cf.ContactFinderError) as refused:
+        cf.start_search(waiting.sample_case, user=_user("FIELD_COORDINATOR", "cf_fc_wait"))
+    assert refused.value.code == "already_running"
+
+
+def test_the_case_page_says_how_many_searches_are_ahead(main_case, organisation, stratum, settings):
+    _meta(settings)
+    ContactSearchRun.objects.create(
+        sample_case=_case(organisation, stratum), status=ContactSearchStatus.RUNNING, running_since=timezone.now(),
+    )
+    first = ContactSearchRun.objects.create(sample_case=_case(organisation, stratum), status=ContactSearchStatus.QUEUED)
+    mine = cf.start_search(main_case, user=_user())
+    assert cf.queue_position(first) == 1 and cf.queue_position(mine) == 2
+    data = _client("FIELD_COORDINATOR", "cf_fc_pos").get(f"/api/v1/contacts/{main_case.sample_id}/contact-search/").data
+    assert data["run"]["status"] == "QUEUED" and data["run"]["queue_position"] == 2
+    ContactSearchRun.objects.filter(pk=mine.pk).update(status=ContactSearchStatus.RUNNING)
+    mine.refresh_from_db()
+    assert cf.queue_position(mine) is None
+
+
+def test_a_second_batch_is_refused_while_one_runs_but_a_single_case_search_is_not(main_case, organisation, stratum, settings):
+    _meta(settings)
+    _case(organisation, stratum)
+    other = _case(organisation, stratum)
+    coordinator = _client("FIELD_COORDINATOR", "cf_fc_twice")
+    batch = "/api/v1/contacts/contact-search/batch/"
+    with patch(DELAY):
+        first = coordinator.post(batch, {"limit": 1}, format="json")
+        second = coordinator.post(batch, {"limit": 1}, format="json")
+        single = coordinator.post(f"/api/v1/contacts/{other.sample_id}/contact-search/")
+    assert first.status_code == 202 and first.data["queued"] == 1
+    assert second.status_code == 409 and second.data["error"]["code"] == "batch_running"
+    assert single.status_code == 202
+    ContactSearchRun.objects.exclude(batch="").update(status=ContactSearchStatus.DONE)
+    with patch(DELAY):
+        assert coordinator.post(batch, {"limit": 1}, format="json").status_code == 202
+
+
+def test_the_register_shows_batch_progress_and_every_case_with_findings_to_review(main_case, organisation, stratum, settings):
+    _meta(settings)
+    _case(organisation, stratum)
+    with patch(DELAY):
+        assert _client("FIELD_COORDINATOR", "cf_fc_prog").post(
+            "/api/v1/contacts/contact-search/batch/", {"limit": 2}, format="json").status_code == 202
+    done, waiting = ContactSearchRun.objects.exclude(batch="").order_by("sample_case__sample_id")
+    ContactSearchRun.objects.filter(pk=done.pk).update(status=ContactSearchStatus.DONE)
+    for status in (ContactProposalStatus.PROPOSED, ContactProposalStatus.PROPOSED, ContactProposalStatus.ACCEPTED):
+        ContactProposal.objects.create(run=done, sample_case=done.sample_case, kind="ORG_PHONE", value="0773943709", status=status)
+    ContactProposal.objects.create(
+        run=waiting, sample_case=waiting.sample_case, kind="ORG_PHONE", value="0773000111", status=ContactProposalStatus.REJECTED,
+    )
+
+    data = _client("FIELD_COORDINATOR", "cf_fc_prog2").get("/api/v1/contacts/contact-search/batch/").data
+    progress = data["progress"]
+    assert (progress["total"], progress["done"], progress["queued"], progress["active"]) == (2, 1, 1, True)
+    assert data["to_review_total"] == 1
+    assert data["to_review"] == [
+        {"sample_id": done.sample_case.sample_id, "organisation": done.sample_case.organisation.name, "findings": 2},
+    ]
+
+
+def test_the_migration_marks_searches_still_waiting_as_queued_and_groups_them(main_case, organisation, stratum):
+    import importlib
+
+    from django.apps import apps as django_apps
+
+    migration = importlib.import_module("apps.contacts.migrations.0005_contact_search_queue")
+    waiting = ContactSearchRun.objects.create(sample_case=main_case, status=ContactSearchStatus.RUNNING)
+    finished = ContactSearchRun.objects.create(
+        sample_case=_case(organisation, stratum), status=ContactSearchStatus.DONE, finished_at=timezone.now(),
+    )
+    migration.mark_waiting_runs_queued(django_apps, None)
+    waiting.refresh_from_db()
+    finished.refresh_from_db()
+    assert waiting.status == ContactSearchStatus.QUEUED and waiting.batch == "queued-before-research-lane"
+    assert finished.status == ContactSearchStatus.DONE and finished.batch == ""

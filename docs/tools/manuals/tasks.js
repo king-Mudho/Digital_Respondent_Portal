@@ -258,7 +258,7 @@ T.contactFinder = [
   ["h3", "For one case"],
   ["steps", [
     "Open the case (**Main-400 Register → View**) and find **Find contact details with AI**.",
-    "Select **Find contact details**. The search runs in the background for a minute or two; you can leave the page and come back.",
+    "Select **Find contact details**. Searches run one at a time, about a minute each. If others are ahead, the button reads **Waiting in line…** and says how many; it starts by itself. You can leave the page and come back.",
     "Under **To review**, each finding shows what was found, a confidence level, and the page it came from with the passage that shows it. Select the page title to open it and check it is the right organisation.",
     { text: "Decide on each one:", sub: [
       "An organisation **phone** or **email**: **Accept** records it on a respondent called “Organisation contact (to be identified)”, ready for you to phone the organisation and find the right person. It never overwrites a different number or address already there; edit that under **Respondents and contact details** instead.",
@@ -272,7 +272,8 @@ T.contactFinder = [
   ["steps", [
     "Open **Main-400 Register**. The **Find contact details with AI** panel says how many cases not yet invited have no phone, WhatsApp or email, and the rough cost per case.",
     "Type a number in **How many cases** (up to 25 at a time) and select **Find contacts**. Cases are searched in Sample ID order; a case searched in the last 30 days is skipped.",
-    "The searches run in the background. Open each case later to accept or reject what was found: a batch never saves anything by itself.",
+    "The searches run one at a time, about a minute each, so a batch of 25 takes around half an hour. The panel shows the progress, for example “Batch in progress: 6 done, 1 searching now, 18 waiting (of 25)”. Only one batch runs at a time: start the next when this one has finished.",
+    "Under **Findings to review**, the panel lists every case whose findings are waiting for a decision. Select **Review N findings** to open the case and accept or reject them: a batch never saves anything by itself.",
   ]],
   ["tip", "Cost", "Each search is a paid request on the study's AI account, about USD 0.05–0.15 per organisation. The batch panel shows the estimate before you start."],
   ["warn", "Only what an organisation publishes about itself", [

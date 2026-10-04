@@ -57,10 +57,11 @@ set_kv() {
 secure_env() { chown "$APP_USER:$APP_USER" "$ENV_FILE"; chmod 600 "$ENV_FILE"; }
 
 restart_services() {
-    echo "Restarting the backend and the Celery worker..."
-    systemctl restart drp-backend drp-celery-worker
+    # The research worker runs the contact finder, which uses the PROIT provider and key.
+    echo "Restarting the backend and the Celery workers..."
+    systemctl restart drp-backend drp-celery-worker drp-celery-research
     sleep 4
-    for unit in drp-backend drp-celery-worker; do
+    for unit in drp-backend drp-celery-worker drp-celery-research; do
         systemctl is-active --quiet "$unit" || die "$unit did not come back up: journalctl -u $unit -n 50"
     done
 }

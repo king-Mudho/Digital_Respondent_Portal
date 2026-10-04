@@ -121,6 +121,7 @@ class Appointment(models.Model):
 
 
 class ContactSearchStatus(models.TextChoices):
+    QUEUED = "QUEUED", "Queued"  # waiting for the research worker, which runs one search at a time
     RUNNING = "RUNNING", "Running"
     DONE = "DONE", "Done"
     FAILED = "FAILED", "Failed"
@@ -132,9 +133,11 @@ class ContactSearchRun(models.Model):
     Recorded so the study can say exactly what was AI-assisted, by which provider and model, at what cost."""
 
     sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_searches")
-    status = models.CharField(max_length=8, choices=ContactSearchStatus.choices, default=ContactSearchStatus.RUNNING)
+    status = models.CharField(max_length=8, choices=ContactSearchStatus.choices, default=ContactSearchStatus.QUEUED)
     requested_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    started_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(auto_now_add=True)  # when it was requested (queued)
+    running_since = models.DateTimeField(null=True, blank=True)  # when the worker actually began it
+    batch = models.CharField(max_length=36, blank=True, db_index=True)  # shared by the runs one batch queued
     finished_at = models.DateTimeField(null=True, blank=True)
     provider = models.CharField(max_length=16, blank=True)
     model = models.CharField(max_length=64, blank=True)

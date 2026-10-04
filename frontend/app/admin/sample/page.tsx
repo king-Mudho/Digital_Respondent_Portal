@@ -361,16 +361,31 @@ function EmailInvitationsPanel() {
   );
 }
 
+interface BatchProgress {
+  batch: string;
+  total: number;
+  queued: number;
+  running: number;
+  done: number;
+  failed: number;
+  active: boolean;
+}
+
 interface BatchInfo {
   configured: boolean;
   without_contacts: number;
   max: number;
   cost_per_case_usd: [number, number];
+  progress: BatchProgress | null;
+  to_review_total: number;
+  to_review: { sample_id: string; organisation: string; findings: number }[];
 }
 
 /**
  * Queues the AI contact finder (backend/apps/contacts/contact_finder.py) for cases that may be invited but have no
- * phone, WhatsApp or email on file yet. Each finding still has to be accepted on its case page before it is saved.
+ * phone, WhatsApp or email on file yet, one batch at a time. The research worker does one search at a time, so the
+ * panel shows the batch's progress, and lists every case whose findings are waiting to be accepted or rejected on
+ * its case page -- nothing is saved until then.
  */
 function ContactFinderBatchPanel() {
   const queryClient = useQueryClient();
@@ -379,6 +394,7 @@ function ContactFinderBatchPanel() {
   const { data: info } = useQuery({
     queryKey: ["contact-search-batch"],
     queryFn: () => adminFetch<BatchInfo>("/contacts/contact-search/batch/"),
+    refetchInterval: (query) => (query.state.data?.progress?.active ? 10000 : false),
   });
   const run = useMutation({
     mutationFn: (limit: number) =>
@@ -388,18 +404,22 @@ function ContactFinderBatchPanel() {
       ),
     onSuccess: (data) => {
       const [low, high] = data.estimated_cost_usd;
+      setCount("");
       setResult(
-        `Searching for ${data.queued} case${data.queued === 1 ? "" : "s"} (estimated US$${low.toFixed(2)}–${high.toFixed(2)}). ` +
-          "Open each case to accept or reject what was found.",
+        `Queued ${data.queued} search${data.queued === 1 ? "" : "es"} (estimated US$${low.toFixed(2)}–${high.toFixed(2)}). ` +
+          "They run one at a time, about a minute each; findings appear below as they come in.",
       );
       queryClient.invalidateQueries({ queryKey: ["contact-search-batch"] });
     },
     onError: (err) => setResult(err instanceof Error ? err.message : "Could not start the searches."),
   });
   if (!info) return null;
+  const progress = info.progress;
+  const active = !!progress?.active;
   const max = Math.min(info.max, info.without_contacts);
   const limit = Number(count || 0);
   const [low, high] = info.cost_per_case_usd;
+  const left = progress ? progress.queued + progress.running : 0;
 
   return (
     <Card className="mb-4 space-y-2">
@@ -410,6 +430,17 @@ function ContactFinderBatchPanel() {
         details; nothing is saved until you accept it on the case page. Roughly US${low.toFixed(2)}–{high.toFixed(2)} per case.
       </p>
       {!info.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet. Ask the administrator.</p>}
+
+      {progress && (
+        <p className="text-sm" role="status">
+          {active ? "Batch in progress: " : "Last batch: "}
+          {progress.done} done{progress.running ? ", 1 searching now" : ""}
+          {progress.queued ? `, ${progress.queued} waiting` : ""}
+          {progress.failed ? `, ${progress.failed} failed` : ""} (of {progress.total}).
+          {active && ` About ${left} minute${left === 1 ? "" : "s"} left.`}
+        </p>
+      )}
+
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs text-text-muted">
           How many cases (up to {max})
@@ -418,19 +449,45 @@ function ContactFinderBatchPanel() {
             min={1}
             max={max}
             value={count}
+            disabled={active}
             onChange={(e) => setCount(e.target.value)}
             className="block mt-1 w-28 rounded-md border border-border px-3 py-2 bg-surface text-sm"
           />
         </label>
         <Button
           variant="outline"
-          disabled={!info.configured || max < 1 || limit < 1 || limit > max || run.isPending}
+          disabled={!info.configured || active || max < 1 || limit < 1 || limit > max || run.isPending}
           onClick={() => run.mutate(limit)}
         >
           {run.isPending ? "Starting…" : "Find contacts"}
         </Button>
       </div>
+      {active && <p className="text-xs text-text-muted">Start the next batch when this one has finished.</p>}
       {result && <p className="text-sm">{result}</p>}
+
+      {info.to_review_total > 0 && (
+        <details open className="text-sm">
+          <summary className="cursor-pointer font-medium">
+            Findings to review ({info.to_review_total} case{info.to_review_total === 1 ? "" : "s"})
+          </summary>
+          <p className="text-xs text-text-muted mt-1">Open each case to accept or reject what was found.</p>
+          <ul className="mt-1 divide-y divide-border">
+            {info.to_review.map((row) => (
+              <li key={row.sample_id} className="py-1.5 flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-words">
+                  <span className="font-mono text-xs">{row.sample_id}</span> · {row.organisation}
+                </span>
+                <Link href={`/admin/sample/${row.sample_id}`} className="text-header underline text-xs whitespace-nowrap">
+                  Review {row.findings} finding{row.findings === 1 ? "" : "s"}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {info.to_review_total > info.to_review.length && (
+            <p className="text-xs text-text-muted mt-1">Showing the first {info.to_review.length}.</p>
+          )}
+        </details>
+      )}
     </Card>
   );
 }

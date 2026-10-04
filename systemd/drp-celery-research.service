@@ -1,0 +1,43 @@
+# Celery worker for AI contact searches only (queue "research",
+# settings.CELERY_TASK_ROUTES). Each search takes a minute or more and a batch
+# queues up to 25, so they get their own one-at-a-time lane instead of holding
+# up the Kobo reconciliation, AI drafts and email batches on
+# drp-celery-worker. Solo pool, concurrency 1, as there: low throughput is
+# fine, and it keeps memory down (about 140 MB) and calls to the AI provider
+# one at a time.
+#
+# Installed and restarted by deploy/deploy.sh. It reads the AI keys from .env,
+# so deploy/configure-ai-provider.sh and configure-ai-coding.sh restart it too.
+
+[Unit]
+Description=DRP - Celery research worker (AI contact searches)
+After=network-online.target redis.service postgresql.service
+Wants=network-online.target
+Requires=redis.service postgresql.service
+
+[Service]
+Type=simple
+User=agribiz-drp
+Group=agribiz-drp
+WorkingDirectory=/srv/agribiz-drp/backend
+
+EnvironmentFile=/srv/agribiz-drp/backend/.env
+Environment=PYTHONUNBUFFERED=1
+
+# %%h: systemd would otherwise expand %h itself; celery needs the literal %h for its node name.
+ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config worker -Q research -n research@%%h \
+    --pool=solo --concurrency=1 --loglevel=info
+
+KillMode=mixed
+TimeoutStopSec=15
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/srv/agribiz-drp/backend/media /srv/agribiz-drp/logs
+
+[Install]
+WantedBy=multi-user.target

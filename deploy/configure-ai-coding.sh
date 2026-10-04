@@ -75,11 +75,12 @@ except anthropic.AuthenticationError:
     raise SystemExit('the API key was rejected -- check it and re-run')
 " ) || die "key check failed"
 
-# The worker too: drafts and PROIT research run in Celery, which reads .env only when it starts.
-echo "Restarting the backend and the Celery worker..."
-systemctl restart drp-backend drp-celery-worker
+# The workers too: drafts and PROIT research run in Celery, the contact finder in the research worker, and each
+# reads .env only when it starts.
+echo "Restarting the backend and the Celery workers..."
+systemctl restart drp-backend drp-celery-worker drp-celery-research
 sleep 4
-for service in drp-backend drp-celery-worker; do
+for service in drp-backend drp-celery-worker drp-celery-research; do
     systemctl is-active --quiet "$service" || die "$service did not come back up: journalctl -u $service -n 50"
 done
 

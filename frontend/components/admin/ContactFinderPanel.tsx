@@ -32,7 +32,8 @@ interface Proposal {
 
 interface Run {
   id: number;
-  status: "RUNNING" | "DONE" | "FAILED";
+  status: "QUEUED" | "RUNNING" | "DONE" | "FAILED";
+  queue_position: number | null;
   searches_used: number;
   summary: string;
   error: string;
@@ -66,8 +67,12 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   const { data } = useQuery({
     queryKey: key,
     queryFn: () => adminFetch<FinderState>(`/contacts/${sampleId}/contact-search/`),
-    // The search runs for a minute or two in the background; keep checking until it stops.
-    refetchInterval: (query) => (query.state.data?.run?.status === "RUNNING" ? 4000 : false),
+    // A search waits its turn (the research worker does one at a time), then runs for a minute or two; keep
+    // checking until it stops.
+    refetchInterval: (query) => {
+      const status = query.state.data?.run?.status;
+      return status === "RUNNING" ? 4000 : status === "QUEUED" ? 10000 : false;
+    },
   });
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: key });
@@ -106,7 +111,9 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
   });
 
   if (!data) return null;
-  const running = data.run?.status === "RUNNING";
+  const queued = data.run?.status === "QUEUED";
+  const running = queued || data.run?.status === "RUNNING";
+  const ahead = data.run?.queue_position ?? 0;
   const pending = data.proposals.filter((p) => p.status === "PROPOSED");
   const decided = data.proposals.filter((p) => p.status !== "PROPOSED");
   const publicContacts = Object.entries(data.public_contacts ?? {});
@@ -135,9 +142,16 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
             disabled={!data.configured || !invitable || running || start.isPending}
             onClick={() => start.mutate()}
           >
-            {running || start.isPending ? "Searching…" : data.run ? "Search again" : "Find contact details"}
+            {queued ? "Waiting in line…" : running || start.isPending ? "Searching…" : data.run ? "Search again" : "Find contact details"}
           </Button>
-          {running && <span className="text-xs text-text-muted">This takes a minute or two. You can leave this page and come back.</span>}
+          {queued && (
+            <span className="text-xs text-text-muted">
+              {ahead === 0
+                ? "Next in line. It starts by itself; you can leave this page and come back."
+                : `${ahead} search${ahead === 1 ? " is" : "es are"} ahead of this one (about a minute each). It starts by itself; you can leave this page and come back.`}
+            </span>
+          )}
+          {running && !queued && <span className="text-xs text-text-muted">This takes a minute or two. You can leave this page and come back.</span>}
         </div>
       </WriteOnly>
 

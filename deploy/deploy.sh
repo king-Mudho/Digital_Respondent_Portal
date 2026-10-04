@@ -151,15 +151,17 @@ log "Installing systemd units"
 install -m 644 "$APP_DIR/systemd/drp-backend.service"       /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-frontend.service"      /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-celery-worker.service" /etc/systemd/system/
+install -m 644 "$APP_DIR/systemd/drp-celery-research.service" /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-celery-beat.service"   /etc/systemd/system/
 install -m 644 "$APP_DIR/systemd/drp-offsite-backup.service" /etc/systemd/system/
 systemctl daemon-reload
 
 log "Restarting services"
-systemctl enable drp-backend drp-frontend drp-celery-worker drp-celery-beat >/dev/null 2>&1 || true
+systemctl enable drp-backend drp-frontend drp-celery-worker drp-celery-research drp-celery-beat >/dev/null 2>&1 || true
 systemctl restart drp-backend
 systemctl restart drp-frontend
 systemctl restart drp-celery-worker
+systemctl restart drp-celery-research
 systemctl restart drp-celery-beat
 
 # ------------------------------------------------------------------- nginx
@@ -225,6 +227,7 @@ Something is not answering. Check the logs:
     sudo journalctl -u drp-backend  -n 50 --no-pager
     sudo journalctl -u drp-frontend -n 50 --no-pager
     sudo journalctl -u drp-celery-worker -n 50 --no-pager
+    sudo journalctl -u drp-celery-research -n 50 --no-pager
     sudo tail -n 50 /var/log/nginx/drp-error.log
 
 To roll back to the previous release: sudo bash $APP_DIR/deploy/rollback.sh
@@ -234,4 +237,4 @@ fi
 
 log "$(printf '\033[1;32mDeploy complete\033[0m')"
 printf '    Release: %s\n' "$RELEASE_ID"
-systemctl --no-pager --lines=0 status drp-backend drp-frontend drp-celery-worker drp-celery-beat | grep -E 'drp-|Active:'
+systemctl --no-pager --lines=0 status drp-backend drp-frontend drp-celery-worker drp-celery-research drp-celery-beat | grep -E 'drp-|Active:'

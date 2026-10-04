@@ -81,7 +81,7 @@ if [[ -n "$RESTORE_DB" ]]; then
     [[ "$CONFIRM" == "$DB_NAME" ]] || die "Confirmation did not match -- aborting, nothing was touched."
 
     log "Stopping backend and Celery so nothing writes during restore"
-    systemctl stop drp-backend drp-celery-worker drp-celery-beat
+    systemctl stop drp-backend drp-celery-worker drp-celery-research drp-celery-beat
 
     log "Restoring $DB_NAME from $RESTORE_DB"
     sudo -u postgres psql -c "DROP DATABASE IF EXISTS ${DB_NAME}_restoring;" >/dev/null
@@ -91,7 +91,7 @@ if [[ -n "$RESTORE_DB" ]]; then
     sudo -u postgres psql -c "ALTER DATABASE ${DB_NAME}_restoring RENAME TO $DB_NAME;"
 
     log "Restarting services"
-    systemctl start drp-backend drp-celery-worker drp-celery-beat
+    systemctl start drp-backend drp-celery-worker drp-celery-research drp-celery-beat
     printf '    Restored. The pre-restore database was kept as %s_pre_restore_<timestamp>\n' "$DB_NAME"
     printf '    rather than dropped -- remove it manually once the restore is confirmed good.\n'
 fi

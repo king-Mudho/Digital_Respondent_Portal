@@ -14,9 +14,17 @@ from .tasks import search_contacts
 
 
 class ContactSearchRunSerializer(serializers.ModelSerializer):
+    queue_position = serializers.SerializerMethodField()
+
     class Meta:
         model = ContactSearchRun
-        fields = ["id", "status", "started_at", "finished_at", "provider", "model", "searches_used", "summary", "error", "dropped"]
+        fields = [
+            "id", "status", "started_at", "running_since", "finished_at", "provider", "model", "searches_used",
+            "summary", "error", "dropped", "queue_position",
+        ]
+
+    def get_queue_position(self, run):
+        return cf.queue_position(run)
 
 
 class ContactProposalSerializer(serializers.ModelSerializer):
@@ -44,6 +52,7 @@ class ContactSearchView(APIView):
         from apps.sampling.models import SampleCase
 
         case = get_object_or_404(SampleCase.objects.select_related("organisation"), sample_id=sample_id)
+        cf.expire_stale_runs()
         run = case.contact_searches.first()
         proposals = case.contact_proposals.order_by("-run_id", "id")
         return Response({
@@ -95,8 +104,9 @@ class ContactProposalRejectView(APIView):
 
 
 class ContactSearchBatchView(APIView):
-    """GET /api/v1/contacts/contact-search/batch/ -- how many cases have no contact details, and the cap.
-    POST {limit} -- queue searches for up to `limit` of them, oldest Sample ID first."""
+    """GET /api/v1/contacts/contact-search/batch/ -- how many cases have no contact details, the cap, the latest
+    batch's progress and the cases with findings waiting for a decision.
+    POST {limit} -- queue searches for up to `limit` of them, oldest Sample ID first (refused while a batch runs)."""
 
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
@@ -104,7 +114,7 @@ class ContactSearchBatchView(APIView):
         low, high = cf.COST_PER_CASE_USD
         return Response({
             "configured": cf.is_configured(), "without_contacts": cf.cases_without_contacts().count(),
-            "max": cf.batch_limit_max(), "cost_per_case_usd": [low, high],
+            "max": cf.batch_limit_max(), "cost_per_case_usd": [low, high], **cf.batch_status(),
         })
 
     def post(self, request):

@@ -25,7 +25,10 @@ WorkingDirectory=/srv/agribiz-drp/backend
 EnvironmentFile=/srv/agribiz-drp/backend/.env
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config worker \
+# -Q celery: the default queue only. AI contact searches have their own queue and worker
+# (drp-celery-research.service) -- a batch of them takes most of an hour, and here it held up
+# the Kobo sync and everything else.
+ExecStart=/srv/agribiz-drp/backend/venv/bin/celery -A config worker -Q celery \
     --pool=solo --concurrency=1 --loglevel=info
 
 KillMode=mixed

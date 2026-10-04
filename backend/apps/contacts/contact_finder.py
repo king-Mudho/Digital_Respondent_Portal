@@ -19,12 +19,14 @@ name, province, district and value chain are sent; no respondent data.
 
 import logging
 import re
+import uuid
+from collections import Counter
 from datetime import timedelta
 from urllib.parse import urlsplit
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Exists, OuterRef, Q
+from django.db.models import Count, Exists, OuterRef, Q
 from django.utils import timezone
 
 from apps.audit.utils import log_action
@@ -252,8 +254,49 @@ def is_configured() -> bool:
     return pr.ai_research_is_configured()
 
 
+# The research worker runs one search at a time (about a minute each), so a batch waits in line. These say when a
+# waiting or running search has been lost -- a restart drops what the worker was doing -- and should stop blocking.
+ACTIVE = (ContactSearchStatus.QUEUED, ContactSearchStatus.RUNNING)
+QUEUED_LOST_AFTER = timedelta(hours=3)  # a full batch of 25 clears in well under an hour
+RUNNING_STUCK_AFTER = timedelta(minutes=20)  # one search takes one to three minutes
+
+
+def expire_stale_runs() -> int:
+    """Closes searches that will never finish, so they neither block a case nor count as a batch in progress."""
+    now = timezone.now()
+    stale = ContactSearchRun.objects.filter(
+        Q(status=ContactSearchStatus.QUEUED, started_at__lt=now - QUEUED_LOST_AFTER)
+        | Q(status=ContactSearchStatus.RUNNING, running_since__lt=now - RUNNING_STUCK_AFTER)
+        | Q(status=ContactSearchStatus.RUNNING, running_since__isnull=True, started_at__lt=now - QUEUED_LOST_AFTER)
+    )
+    return stale.update(
+        status=ContactSearchStatus.FAILED, finished_at=now,
+        error="Interrupted: the server restarted before this search finished. Search again.",
+    )
+
+
+def queue_position(run: ContactSearchRun) -> int | None:
+    """How many searches are ahead of a queued one (the one running included); None once it has started."""
+    if run.status != ContactSearchStatus.QUEUED:
+        return None
+    ahead = ContactSearchRun.objects.filter(
+        Q(status=ContactSearchStatus.RUNNING)
+        | Q(status=ContactSearchStatus.QUEUED, started_at__lt=run.started_at)
+        | Q(status=ContactSearchStatus.QUEUED, started_at=run.started_at, pk__lt=run.pk)
+    )
+    return ahead.count()
+
+
 def run_search(run_id: int) -> None:
     """Executes one ContactSearchRun (from the Celery task). Records failure on the run, never raises."""
+    # Claim it: only a QUEUED run starts, so a message delivered twice, or one for a run already closed as lost,
+    # never searches (and bills) again.
+    claimed = ContactSearchRun.objects.filter(pk=run_id, status=ContactSearchStatus.QUEUED).update(
+        status=ContactSearchStatus.RUNNING, running_since=timezone.now(),
+    )
+    if not claimed:
+        logger.info("Contact search %s is not waiting (already started or closed); skipped", run_id)
+        return
     run = ContactSearchRun.objects.select_related("sample_case__organisation").get(pk=run_id)
     try:
         raw, seen_urls, usage = pr.research_conversation(
@@ -287,8 +330,8 @@ def _fail(run: ContactSearchRun, message: str) -> None:
     log_action("contacts.search_failed", run.sample_case, {"run": run.pk, "error": message[:300]})
 
 
-def start_search(case, *, user) -> ContactSearchRun:
-    """Creates the run (the caller queues it). Refuses up front what would only fail minutes later."""
+def start_search(case, *, user, batch: str = "") -> ContactSearchRun:
+    """Creates the run, QUEUED (the caller queues the task). Refuses up front what would only fail minutes later."""
     from apps.sampling.services import is_invitable
 
     if not is_configured():
@@ -296,16 +339,14 @@ def start_search(case, *, user) -> ContactSearchRun:
     if not is_invitable(case):
         raise ContactFinderError("not_invitable", "This case is a locked Reserve, so it is not researched for contact.", 409)
     build_prompt(case)
-    running = case.contact_searches.filter(status=ContactSearchStatus.RUNNING).first()
-    if running and timezone.now() - running.started_at < timedelta(minutes=15):
-        raise ContactFinderError("already_running", "A contact search is already running for this case.", 409)
-    if running:  # never finished (worker restarted): close it so it stops blocking
-        running.status, running.error, running.finished_at = ContactSearchStatus.FAILED, "Interrupted.", timezone.now()
-        running.save(update_fields=["status", "error", "finished_at"])
+    expire_stale_runs()
+    if case.contact_searches.filter(status__in=ACTIVE).exists():
+        raise ContactFinderError("already_running", "A contact search for this case is already waiting or running.", 409)
     run = ContactSearchRun.objects.create(
         sample_case=case, requested_by=user, provider=pr.proit_provider(), model=settings.AI_PROIT_RESEARCH_MODEL,
+        batch=batch,
     )
-    log_action("contacts.search_started", case, {"run": run.pk, "user_id": getattr(user, "id", None)}, user=user)
+    log_action("contacts.search_started", case, {"run": run.pk, "batch": batch, "user_id": getattr(user, "id", None)}, user=user)
     return run
 
 
@@ -409,6 +450,14 @@ def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
         raise ContactFinderError("ai_not_configured", "AI research hasn't been set up (no API key for the configured AI provider).", 503)
     if not 1 <= limit <= batch_limit_max():
         raise ContactFinderError("bad_limit", f"Choose between 1 and {batch_limit_max()} cases.")
+    # One batch at a time: a second would only join the same line, doubling the cost of a mistaken second click.
+    expire_stale_runs()
+    waiting = ContactSearchRun.objects.filter(status__in=ACTIVE).exclude(batch="").count()
+    if waiting:
+        raise ContactFinderError(
+            "batch_running", f"A batch is still running ({waiting} searches left). Start the next one when it has finished.", 409,
+        )
+    batch = str(uuid.uuid4())
     runs = []
     for case in cases_without_contacts()[: limit * 2]:  # a few may be skipped below
         if len(runs) >= limit:
@@ -416,9 +465,43 @@ def start_batch(limit: int, *, user) -> list[ContactSearchRun]:
         if not is_invitable(case) or not (case.organisation and (case.organisation.name or "").strip()):
             continue
         try:
-            runs.append(start_search(case, user=user))
+            runs.append(start_search(case, user=user, batch=batch))
         except ContactFinderError:
             continue
     # Recorded against the person who started it; each case also gets its own contacts.search_started entry.
-    log_action("contacts.batch_started", user, {"queued": len(runs), "limit": limit, "user_id": getattr(user, "id", None)}, user=user)
+    log_action("contacts.batch_started", user, {
+        "batch": batch, "queued": len(runs), "limit": limit, "user_id": getattr(user, "id", None),
+    }, user=user)
     return runs
+
+
+REVIEW_LIST_MAX = 100
+
+
+def batch_status() -> dict:
+    """What the register shows: the latest batch's progress, and every case with findings waiting for a decision."""
+    expire_stale_runs()
+    latest = ContactSearchRun.objects.exclude(batch="").order_by("-started_at", "-pk").values_list("batch", flat=True).first()
+    progress = None
+    if latest:
+        counts = Counter(ContactSearchRun.objects.filter(batch=latest).values_list("status", flat=True))
+        progress = {
+            "batch": latest, "total": sum(counts.values()), "queued": counts[ContactSearchStatus.QUEUED],
+            "running": counts[ContactSearchStatus.RUNNING], "done": counts[ContactSearchStatus.DONE],
+            "failed": counts[ContactSearchStatus.FAILED],
+        }
+        progress["active"] = progress["queued"] + progress["running"] > 0
+    pending = (
+        ContactProposal.objects.filter(status=ContactProposalStatus.PROPOSED)
+        .values("sample_case__sample_id", "sample_case__organisation__name")
+        .annotate(findings=Count("id")).order_by("sample_case__sample_id")
+    )
+    return {
+        "progress": progress,
+        "to_review_total": pending.count(),
+        "to_review": [
+            {"sample_id": row["sample_case__sample_id"], "organisation": row["sample_case__organisation__name"] or "",
+             "findings": row["findings"]}
+            for row in pending[:REVIEW_LIST_MAX]
+        ],
+    }

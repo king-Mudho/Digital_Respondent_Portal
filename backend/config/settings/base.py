@@ -324,6 +324,9 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+# Contact searches have their own lane (systemd/drp-celery-research.service): a batch takes most of an hour and must
+# not hold up the KoboToolbox sync, AI drafts or email batches on the default worker (-Q celery).
+CELERY_TASK_ROUTES = {"apps.contacts.tasks.search_contacts": {"queue": "research"}}
 
 # --- Backups (docs/23_DEPLOYMENT_ARCHITECTURE.md RPO/RTO targets) ----------
 BACKUP_RPO_HOURS = env.int("BACKUP_RPO_HOURS", default=4)
