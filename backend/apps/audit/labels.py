@@ -53,6 +53,7 @@ ACTION_LABELS: dict[str, str] = {
     "export.analysis_generated": "De-identified analysis export generated",
     "export.analysis_pack": "Analysis pack exported (SmartPLS or ATLAS.ti)",
     "export.operational_generated": "Operational export generated",
+    "export.outreach_generated": "Respondents and outreach workbook downloaded",
     "invitation.emailed": "Invitation emailed",
     "invitation.issued": "Invitation issued",
     "invitation.revoked": "Invitation revoked",

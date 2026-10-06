@@ -54,6 +54,26 @@ export default function ExportPage() {
             </a>
           </Card>
         </IfRole>
+
+        {/* Everyone contacted or contactable, not only those who submitted (backend outreach_export.py). */}
+        <IfRole roles={["PI_ADMIN"]}>
+          <Card className="space-y-3">
+            <h3 className="font-medium">Respondents and outreach</h3>
+            <p className="text-sm text-text-muted">
+              An Excel workbook of everyone the study can contact or has contacted: every Main-400 respondent with their
+              contact details, latest invitation, reminders and contact attempts; every KII informant; and a log of every
+              invitation sent (channel, date, who sent it, whether the portal emailed it). Contains names and contact
+              details: internal use only. PI/Admin only, and every download is recorded in the audit log.
+            </p>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- file download, not page navigation. */}
+            <a
+              href="/api/proxy/export/outreach/"
+              className="inline-block rounded-md bg-header text-white px-4 py-2.5 text-sm font-medium"
+            >
+              Download respondents and outreach (Excel)
+            </a>
+          </Card>
+        </IfRole>
       </div>
 
       {/* The data as the two analysis tools open it: no cleaning or re-typing between the portal and the software. */}

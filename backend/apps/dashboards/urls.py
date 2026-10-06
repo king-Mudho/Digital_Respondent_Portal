@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .exports import AnalysisExportView, OperationalExportView
+from .exports import AnalysisExportView, OperationalExportView, OutreachExportView
 from .views import (
     ContactDashboardView,
     CostDashboardView,
@@ -23,4 +23,5 @@ urlpatterns = [
     path("reports/overview/", ReportsOverviewView.as_view(), name="reports-overview"),
     path("export/analysis/", AnalysisExportView.as_view(), name="export-analysis"),
     path("export/operational/", OperationalExportView.as_view(), name="export-operational"),
+    path("export/outreach/", OutreachExportView.as_view(), name="export-outreach"),
 ]

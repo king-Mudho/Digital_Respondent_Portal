@@ -10,6 +10,7 @@ distributed externally (docs/18_DATA_PRIVACY_AND_COMPLIANCE.md).
 import csv
 
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework.views import APIView
 
 from api.permissions import CanExportDeidentified, IsAdminOnly
@@ -145,4 +146,21 @@ class OperationalExportView(APIView):
             writer.writerow(row)
 
         log_action("export.operational_generated", _ExportRow("operational"), {"requested_by_id": request.user.id})
+        return response
+
+
+class OutreachExportView(APIView):
+    """GET /api/v1/export/outreach/ -- the respondents and outreach workbook (outreach_export.py): every contactable
+    person, every KII informant and every invitation, with contact details. IsAdminOnly, internal use only."""
+
+    permission_classes = [IsAdminOnly]
+
+    def get(self, request):
+        from .outreach_export import build_outreach_workbook
+
+        content, counts = build_outreach_workbook()
+        stamp = timezone.localtime().strftime("%Y-%m-%d")
+        response = HttpResponse(content, content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        response["Content-Disposition"] = f'attachment; filename="abf-fst_respondents_and_outreach_{stamp}.xlsx"'
+        log_action("export.outreach_generated", _ExportRow("outreach"), {"requested_by_id": request.user.id, **counts})
         return response
