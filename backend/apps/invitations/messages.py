@@ -48,12 +48,13 @@ def recipients(sample_case) -> dict:
     people = sorted(sample_case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
     out = {"whatsapp_to": "", "whatsapp_to_name": "", "sms_to": "", "email_to": "", "email_to_name": ""}
     for person in people:
+        # Mobiles only (whatsapp_digits gives "" for a landline), from either field.
         if not out["whatsapp_to"]:
-            digits = whatsapp_digits(person.whatsapp_number or person.phone)
+            digits = whatsapp_digits(person.whatsapp_number) or whatsapp_digits(person.phone)
             if digits:
                 out.update(whatsapp_to=digits, whatsapp_to_name=person.full_name)
         if not out["sms_to"]:
-            digits = whatsapp_digits(person.phone or person.whatsapp_number)
+            digits = whatsapp_digits(person.phone) or whatsapp_digits(person.whatsapp_number)
             if digits:
                 out["sms_to"] = digits
         if not out["email_to"] and person.email:

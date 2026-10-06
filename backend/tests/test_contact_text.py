@@ -33,7 +33,11 @@ def test_register_contact_cells_are_split_into_their_parts(raw, name, phone, wha
     ("+263 778840932; +263719502023", "263778840932"),  # was 263778840932263719502023
     ("​+263712761382", "263712761382"),
     ("+263 4 749153 - 4; +263 772 965 397, 773 248 965", "263772965397"),  # a mobile before a landline
-    ("0242 665183", "263242665183"),
+    ("0242 665183", ""),  # a landline: WhatsApp can't reach it (was 263242665183 until 2026-10-06)
+    ("+263 9 75315", ""),
+    ("+263 4 749153 - 4; 0773 248 965", "263773248965"),  # the mobile, wherever it sits
+    ("+260 97 123 4567", "260971234567"),  # another country: kept, mobile or not
+    ("+27 11 555 1234", ""),  # a South African landline
 ])
 def test_wa_me_uses_one_number_from_a_multi_number_field(raw, expected):
     assert whatsapp_digits(raw) == expected

@@ -206,10 +206,11 @@ const screens = [
   {
     id: "followups", group: "The sample and contact", title: "Follow-ups due", path: "/admin/follow-ups",
     roles: [R.PI, R.FC, R.CRA, R.SUP],
-    purpose: "Approved reminders (on days 0, 2, 4–5 and 7 after an invitation) for invited cases that have not responded.",
+    purpose: "Approved reminders (on day 2 and day 7 after an invitation) for invited cases that have not responded, and below them the invitations that have run out and need a new one.",
     rows: [
       ["Case link (Sample ID)", "Opens the case the reminder is for.", "Lets you check the case before you send.", "The case page opens."],
-      ["Open in WhatsApp", "Opens WhatsApp with the reminder text already written for that respondent.", "Reminders are sent by a person from the study's WhatsApp account: nothing is sent automatically, so a person always decides.", "WhatsApp opens with the message. If the button says “Open WhatsApp (choose contact)”, there is no number on file: pick the contact in WhatsApp, and add the number on the case afterwards."],
+      ["Open in WhatsApp", "Opens WhatsApp with the reminder text already written for that respondent.", "Reminders are sent by a person from the study's WhatsApp account: nothing is sent automatically, so a person always decides.", "WhatsApp opens with the message. If the button says “Open WhatsApp (choose contact)”, there is no mobile number on file (WhatsApp can't reach a landline): phone them, or pick the contact in WhatsApp and add the mobile on the case afterwards."],
+      ["Invitations that have run out", "Cases still waiting whose link has expired, or whose last invitation was revoked or replaced.", "A reminder would point at a link that no longer works.", "Select the Sample ID and send a new invitation from the case page; the case leaves the list and the reminders start again."],
       ["Mark as sent", "Tells the portal you sent the reminder.", "Otherwise the same reminder stays due and could be sent twice.", "It is recorded as sent by you and leaves the list.", w],
     ],
   },

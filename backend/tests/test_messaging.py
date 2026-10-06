@@ -25,6 +25,7 @@ from apps.messaging.services import (
     dispatch_due_reminders,
     due_follow_ups,
     exhaust_nonresponse_cases,
+    expired_invitations,
     record_manual_follow_up,
     whatsapp_digits,
 )
@@ -269,3 +270,96 @@ def test_appointment_status_changes_are_audited_with_who_and_from_what(main_case
     event = AuditEvent.objects.get(action="appointment.status_changed")
     assert event.metadata["from"] == "REQUESTED" and event.metadata["to"] == "CONFIRMED"
     assert event.metadata["sample_id"] == main_case.sample_id and event.user.username == "fu_fc_appt"
+
+
+# --- An invitation that has run out is re-issued, not reminded (2026-10-06) ---------------------------------------
+
+def _expire(token, days_ago=1):
+    token.expires_at = timezone.now() - timedelta(days=days_ago)
+    token.save(update_fields=["expires_at"])
+
+
+@pytest.fixture
+def whatsapp_sent(monkeypatch):
+    """A connected WhatsApp account that records what it would send."""
+    from apps.messaging.whatsapp_client import WhatsAppClient
+
+    sent = []
+    monkeypatch.setattr(WhatsAppClient, "send_template_message",
+                        lambda self, *, to_phone, template_name, params=None: sent.append((to_phone, template_name)) or {})
+    return sent
+
+
+def test_no_reminder_for_a_link_past_its_expiry_date(main_case, whatsapp_sent):
+    token = _invited(main_case, days_ago=20)
+    assert [f["sample_id"] for f in due_follow_ups()] == [main_case.sample_id]  # still live: the Day 7 reminder
+    _expire(token)
+    assert due_follow_ups() == []
+    assert dispatch_due_reminders() == [] and whatsapp_sent == []
+
+
+def test_a_live_link_is_still_reminded_automatically(main_case, whatsapp_sent):
+    _invited(main_case, days_ago=2)
+    assert len(dispatch_due_reminders()) == 1
+    assert whatsapp_sent == [("263771234567", "drp_reminder_day2")]
+
+
+def test_an_expired_invitation_is_listed_to_re_invite(main_case):
+    token = _invited(main_case, days_ago=20)
+    assert expired_invitations() == []
+    _expire(token, days_ago=2)
+    [item] = expired_invitations()
+    assert (item["sample_id"], item["reason"], item["respondent_name"]) == (main_case.sample_id, "expired", "Jane Doe")
+    assert item["expired_on"] == timezone.localdate() - timedelta(days=2)
+
+
+def test_a_case_left_with_no_live_invitation_is_listed(main_case):
+    # SID-2026-000202 on production: its invitation was revoked, so it dropped off every list while reading S05.
+    from apps.invitations.services import revoke_token
+
+    revoke_token(_invited(main_case, days_ago=3), "Wrong contact")
+    [item] = expired_invitations()
+    assert (item["sample_id"], item["reason"], item["invited_on"]) == (main_case.sample_id, "no_live_invitation", None)
+
+
+def test_a_new_invitation_takes_the_case_off_the_expired_list(main_case):
+    _expire(_invited(main_case, days_ago=20))
+    issue_invitation(main_case)
+    assert expired_invitations() == []
+    assert [f["sample_id"] for f in due_follow_ups()] == []  # a fresh link: no reminder due on day 0
+
+
+def test_a_prepared_case_with_no_invitation_yet_is_not_expired(main_case):
+    for status in ("S01", "S02", "S03", "S04"):
+        transition_workflow_status(main_case, status)
+    assert expired_invitations() == []
+
+
+@pytest.mark.django_db
+def test_the_follow_ups_endpoint_lists_expired_invitations_by_ra(main_case):
+    _expire(_invited(main_case, days_ago=20))
+    ra = _user(Role.CONTACT_RA, "fu_exp_ra")
+    main_case.assigned_ra = ra
+    main_case.save(update_fields=["assigned_ra"])
+    mine, other = APIClient(), APIClient()
+    mine.force_authenticate(ra)
+    other.force_authenticate(_user(Role.CONTACT_RA, "fu_exp_other"))
+    assert [e["sample_id"] for e in mine.get("/api/v1/follow-ups/").json()["expired"]] == [main_case.sample_id]
+    assert other.get("/api/v1/follow-ups/").json()["expired"] == []
+
+
+# --- WhatsApp only to a mobile (2026-10-06) ----------------------------------------------------------------------
+
+def test_a_landline_gets_no_whatsapp_link_and_no_automatic_reminder(main_case, whatsapp_sent):
+    _invited(main_case, days_ago=2, phone="+263 9 75315")
+    [item] = due_follow_ups()
+    assert item["phone"] == "+263 9 75315" and item["can_whatsapp"] is False
+    assert item["whatsapp_link"].startswith("https://wa.me/?text=")  # choose the contact; never the landline
+    assert dispatch_due_reminders() == [] and whatsapp_sent == []
+
+
+def test_the_mobile_is_found_in_either_field(main_case):
+    _invited(main_case, days_ago=2, phone="0242 700000")
+    Respondent.objects.filter(sample_case=main_case).update(phone="0773 248 965")
+    [item] = due_follow_ups()
+    assert item["can_whatsapp"] is True and item["whatsapp_link"].startswith("https://wa.me/263773248965?")

@@ -20,7 +20,20 @@ interface FollowUp {
   message: string;
   respondent_name: string;
   phone: string;
+  can_whatsapp: boolean;
   whatsapp_link: string;
+  expires_on: string;
+}
+
+interface ExpiredInvitation {
+  sample_id: string;
+  organisation_name: string;
+  workflow_status: string;
+  invited_on: string | null;
+  expired_on: string | null;
+  reason: "expired" | "no_live_invitation";
+  respondent_name: string;
+  phone: string;
 }
 
 /**
@@ -36,7 +49,7 @@ export default function FollowUpsPage() {
   const [error, setError] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["follow-ups"],
-    queryFn: () => adminFetch<{ results: FollowUp[] }>("/follow-ups/"),
+    queryFn: () => adminFetch<{ results: FollowUp[]; expired: ExpiredInvitation[] }>("/follow-ups/"),
   });
 
   const markSent = useMutation({
@@ -53,6 +66,7 @@ export default function FollowUpsPage() {
   });
 
   const items = data?.results ?? [];
+  const expired = data?.expired ?? [];
 
   return (
     <AdminShell backHref="/admin/sample" backLabel="Main-400 Register">
@@ -83,7 +97,13 @@ export default function FollowUpsPage() {
                     {item.step_label} · invited {new Date(item.invited_on).toLocaleDateString()}
                     {item.respondent_name ? ` · ${item.respondent_name}` : ""}
                     {item.phone ? ` · ${item.phone}` : " · no number on file"}
+                    {` · link works until ${new Date(item.expires_on).toLocaleDateString()}`}
                   </p>
+                  {item.phone && !item.can_whatsapp && (
+                    <p className="text-xs text-danger">
+                      This is a landline: WhatsApp can&apos;t reach it. Phone them instead, or find a mobile number.
+                    </p>
+                  )}
                 </div>
                 <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">
                   {item.workflow_status}
@@ -98,7 +118,7 @@ export default function FollowUpsPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm"
                   >
-                    {item.phone ? "Open in WhatsApp" : "Open WhatsApp (choose contact)"}
+                    {item.can_whatsapp ? "Open in WhatsApp" : "Open WhatsApp (choose contact)"}
                   </a>
                   <Button onClick={() => markSent.mutate(item)} disabled={markSent.isPending}>
                     Mark as sent
@@ -109,6 +129,38 @@ export default function FollowUpsPage() {
             </article>
           ))}
         </div>
+      )}
+
+      {/* Waiting cases whose link no longer works (messaging.services.expired_invitations): a reminder
+          would point at a dead link, so they need a new invitation from the case page. */}
+      {expired.length > 0 && (
+        <section aria-label="Invitations that have run out" className="mt-8">
+          <h3 className="font-semibold text-lg mb-1">Invitations that have run out ({expired.length})</h3>
+          <p className="text-text-muted text-sm mb-3">
+            These organisations haven&apos;t responded and their link no longer works, so no reminder is offered. Open
+            the case and issue a new invitation; the reminders start again from the new one.
+          </p>
+          <Card className="divide-y divide-border p-0">
+            {expired.map((item) => (
+              <div key={item.sample_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
+                <div>
+                  <Link href={`/admin/sample/${item.sample_id}`} className="font-mono text-sm underline">
+                    {item.sample_id}
+                  </Link>{" "}
+                  <span className="text-sm">{item.organisation_name}</span>
+                  <p className="text-xs text-text-muted">
+                    {item.reason === "expired" && item.expired_on && item.invited_on
+                      ? `Invited ${new Date(item.invited_on).toLocaleDateString()} · link expired ${new Date(item.expired_on).toLocaleDateString()}`
+                      : "No working invitation: the last one was revoked or replaced"}
+                    {item.respondent_name ? ` · ${item.respondent_name}` : ""}
+                    {item.phone ? ` · ${item.phone}` : ""}
+                  </p>
+                </div>
+                <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">{item.workflow_status}</span>
+              </div>
+            ))}
+          </Card>
+        </section>
       )}
     </AdminShell>
   );

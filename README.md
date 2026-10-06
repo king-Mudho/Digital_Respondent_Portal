@@ -767,6 +767,24 @@ works):
 
 ## Notable fixes
 
+### Follow-ups: dead links and landlines (6 Oct 2026)
+
+Found by a gap audit of the live system, neither reported by anyone.
+
+1. **Reminders for links that no longer worked.** Invitation tokens are only marked EXPIRED
+   when someone tries one, so an unopened link past its 14-day date still read SENT, and the
+   reminder queue (`apps/messaging/services.py`) kept offering a Day 7 reminder pointing at
+   it. A case whose invitation had been revoked, with none issued since, dropped off every
+   list while still reading S05 (one such case on production). Reminders now skip any link
+   past its date, and Follow-ups lists **Invitations that have run out**
+   (`expired_invitations()`) for a new invitation from the case page. 152 open invitations
+   were due to expire on 17 and 19 October.
+2. **WhatsApp and SMS links to landlines.** `whatsapp_digits()` fell back to any number of
+   nine digits or more, so a respondent with only a landline (17 on production) got a wa.me
+   link that could never be delivered. It now returns only a mobile (or a number in another
+   country's international format), tries both the WhatsApp and phone fields, and the
+   invitation panel and Follow-ups say "landline: phone them instead".
+
 ### Seventh pass — AI-assisted document coding, human-reviewed (17 Sep 2026)
 
 The PI asked to have AI read an uploaded document, fill the Document Analysis Tool and

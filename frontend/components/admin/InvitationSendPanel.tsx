@@ -141,11 +141,11 @@ export function InvitationSendPanel({
         {channel === "whatsapp" &&
           (invitation.whatsapp_to
             ? `Opens the chat with ${invitation.whatsapp_to_name} (+${invitation.whatsapp_to}). Send it from the study WhatsApp number.`
-            : "No WhatsApp number on file, so WhatsApp will ask you to choose the chat. Add the number under Respondents and contact details.")}
+            : "No mobile number on file (a landline can't receive WhatsApp), so WhatsApp will ask you to choose the chat. Add a mobile under Respondents and contact details, or phone them.")}
         {channel === "sms" &&
           (invitation.sms_to
             ? `Opens your phone's messages app addressed to +${invitation.sms_to}. Use this on a phone.`
-            : "No phone number on file; your messages app will ask for one. Use this on a phone.")}
+            : "No mobile number on file (a landline can't receive SMS); your messages app will ask for one. Use this on a phone.")}
         {channel === "email" &&
           (emailBlocked ?? `Goes to ${invitation.email_to_name} (${invitation.email_to}) from the study address, with replies to the study inbox.`)}
       </p>

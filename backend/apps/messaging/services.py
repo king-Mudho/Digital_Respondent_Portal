@@ -12,7 +12,7 @@ from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from apps.audit.utils import log_action
-from apps.contacts.contact_text import first_number_digits
+from apps.contacts.contact_text import first_mobile, foreign_number_digits
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.sampling.models import SampleCase, SampleType, WorkflowStatus
 from apps.sampling.services import transition_workflow_status
@@ -55,6 +55,12 @@ class _Awaiting:
     def __init__(self, case, token, respondent, logs):
         self.case, self.token, self.respondent, self.logs = case, token, respondent, logs
 
+    @property
+    def expired(self) -> bool:
+        """The link no longer works. Tokens are only marked EXPIRED when someone tries one, so an unopened link past
+        its date still reads SENT: the date decides."""
+        return self.token is None or self.token.expires_at <= timezone.now()
+
     def delivered(self, step: ReminderSequenceStep) -> bool:
         return any(
             template_id == step.template_id and created_at >= self.token.issued_at
@@ -65,13 +71,21 @@ class _Awaiting:
     def phone(self) -> str:
         return (self.respondent.whatsapp_number or self.respondent.phone) if self.respondent else ""
 
+    @property
+    def whatsapp_to(self) -> str:
+        if not self.respondent:
+            return ""
+        return whatsapp_digits(self.respondent.whatsapp_number) or whatsapp_digits(self.respondent.phone)
 
-def _awaiting(assigned_to=None) -> list[_Awaiting]:
+
+def _awaiting(assigned_to=None, *, include_dead=False) -> list[_Awaiting]:
     """Invited cases still waiting for a response -- what the reminders, the Follow-ups screen and the Nonresponse
     rule all work from. A case whose respondent has asked for a call (an appointment REQUESTED or CONFIRMED) is not
     waiting: it is left out until the appointment is completed, missed or cancelled. Until 2026-10-06 it was not, so
     a respondent who had consented and booked a call was sent "please use the link you were sent", and once both
-    reminders were marked sent the case could become Nonresponse and its Reserve be activated in its place."""
+    reminders were marked sent the case could become Nonresponse and its Reserve be activated in its place.
+
+    A case with no live invitation at all (every one revoked or superseded) is left out unless `include_dead`."""
     from apps.contacts.models import Appointment, AppointmentStatus
 
     open_appointment = Appointment.objects.filter(
@@ -105,7 +119,7 @@ def _awaiting(assigned_to=None) -> list[_Awaiting]:
     out = []
     for case in cases:
         token = tokens.get(case.id)
-        if token is None:
+        if token is None and not include_dead:
             continue
         people = sorted(case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
         out.append(_Awaiting(case, token, people[0] if people else None, logs.get(case.id, [])))
@@ -141,8 +155,10 @@ def dispatch_due_reminders(reference_date=None) -> list[MessageLog]:
     client = WhatsAppClient()
 
     for item in _awaiting():
+        if item.expired:
+            continue  # a reminder about a link that no longer works; listed under expired_invitations()
         step = _due_step(item, steps, reference_date)
-        to_phone = whatsapp_digits(item.phone)
+        to_phone = item.whatsapp_to
         if step is None or step.channel != MessageChannel.WHATSAPP or not to_phone:
             continue
         try:
@@ -186,16 +202,15 @@ def exhaust_nonresponse_cases(reference_date=None) -> list[SampleCase]:
 # --- Follow-ups sent by hand (WhatsApp click-to-chat) ----------------------
 
 def whatsapp_digits(phone: str) -> str:
-    """Digits for a wa.me link. Zimbabwean local numbers (07x...) get the
-    263 country code; anything already international is kept. A field
-    holding several numbers ("0772 686106; 0773 626999") gives the first
-    mobile -- joining every digit made a number that opened nobody."""
-    digits = first_number_digits(phone)
-    if digits.startswith("00"):
-        digits = digits[2:]
-    if digits.startswith("0") and len(digits) == 10:
-        digits = "263" + digits[1:]
-    return digits
+    """Digits for a wa.me link or an SMS: the first mobile in the field, with its country code. A field holding
+    several numbers ("0772 686106; 0773 626999") gives the first mobile -- joining every digit made a number that
+    opened nobody.
+
+    A landline gives "" -- WhatsApp and SMS cannot reach one. Until 2026-10-06 a field holding only a landline
+    ("+263 9 75315", "0242 700000") still produced a link: the RA got a WhatsApp chat that could never be delivered,
+    and the case read as invited. 17 registered respondents had only a landline. They are phoned instead."""
+    mobile = first_mobile(phone)
+    return mobile.lstrip("+") if mobile else foreign_number_digits(phone)
 
 
 def whatsapp_link(phone: str, text: str) -> str:
@@ -213,6 +228,8 @@ def due_follow_ups(reference_date=None, *, assigned_to=None) -> list[dict]:
         return []
     items = []
     for item in _awaiting(assigned_to):
+        if item.expired:
+            continue  # the link has run out: re-invite rather than remind (expired_invitations)
         step = _due_step(item, steps, reference_date)
         if step is None:
             continue
@@ -227,9 +244,37 @@ def due_follow_ups(reference_date=None, *, assigned_to=None) -> list[dict]:
             "message": step.template.body,
             "respondent_name": item.respondent.full_name if item.respondent else "",
             "phone": item.phone,
-            "whatsapp_link": whatsapp_link(item.phone, step.template.body),
+            "can_whatsapp": bool(item.whatsapp_to),
+            "whatsapp_link": whatsapp_link(item.whatsapp_to, step.template.body),
+            "expires_on": timezone.localtime(item.token.expires_at).date(),
         })
     items.sort(key=lambda entry: entry["invited_on"])
+    return items
+
+
+def expired_invitations(*, assigned_to=None) -> list[dict]:
+    """Invited cases still waiting for a response whose link no longer works: it ran past its expiry date, or every
+    invitation was revoked or superseded with none issued since. Neither a reminder nor the Nonresponse rule can help
+    them -- a reminder points at a dead link, and Nonresponse needs every reminder sent. Until 2026-10-06 they were
+    listed nowhere: an expired case kept getting reminders, and one with no live invitation simply dropped out of the
+    Follow-ups screen while still reading "Invitation sent". The answer is a new invitation from the case page."""
+    items = []
+    for item in _awaiting(assigned_to, include_dead=True):
+        if not item.expired:
+            continue
+        if item.token is None and item.case.workflow_status == WorkflowStatus.S04_INVITATION_PREPARED:
+            continue  # prepared but never sent: nothing has run out
+        items.append({
+            "sample_id": item.case.sample_id,
+            "organisation_name": item.case.organisation.name,
+            "workflow_status": item.case.workflow_status,
+            "invited_on": timezone.localtime(item.token.issued_at).date() if item.token else None,
+            "expired_on": timezone.localtime(item.token.expires_at).date() if item.token else None,
+            "reason": "expired" if item.token else "no_live_invitation",
+            "respondent_name": item.respondent.full_name if item.respondent else "",
+            "phone": item.phone,
+        })
+    items.sort(key=lambda entry: (entry["expired_on"] is not None, entry["expired_on"] or entry["sample_id"]))
     return items
 
 

@@ -3,6 +3,14 @@
 Read this file first, then `docs/INDEX.md` for the full reading order. This file governs
 any agent (human or AI) that modifies this codebase.
 
+> **Note (2026-10-06).** The PI removed the design and planning documents from `docs/` on
+> 2026-10-02 (commit `c3130f3`), including `docs/INDEX.md` and every numbered `docs/NN_*.md`
+> file this page cites. They are still in git history — read one with
+> `git show c3130f3^:docs/<name>.md` — but they are no longer kept up to date. The rules
+> below still hold. In place of the execution plan, the build record is now the commit
+> history and `README.md`, and open questions go to the PI directly. The end-user manuals
+> are built by `docs/tools/build_manuals.js` (revision in `docs/tools/manuals/common.js`).
+
 ## Non-negotiable ground rules
 
 1. **This system is built, deployed, and holds real research data.** The PI approved the
@@ -26,8 +34,9 @@ any agent (human or AI) that modifies this codebase.
      whether it came from the import (imported rows carry provenance in `metadata`;
      hand-made ones do not) and what depends on it. Say what you found before acting.
 
-   Go-live (Phase 11 — issuing the first real invitations) remains explicitly the PI's
-   decision, not an engineering one. No invitation has been issued yet.
+   Go-live (Phase 11, issuing the first real invitations) was the PI's decision, and the PI
+   has taken it: real Main-400 and KII invitations are being issued, and real respondents
+   are answering. Every invitation, reminder and contact attempt is part of that record.
 2. **Never use "approved", "loan approval", "credit rating", "bankability score" or
    "guarantee" anywhere a respondent can see it.** This portal is a data-collection
    instrument for an unvalidated research framework, not a financing product. See

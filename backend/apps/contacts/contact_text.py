@@ -51,16 +51,22 @@ def first_mobile(text: str) -> str:
     return ""
 
 
-def first_number_digits(text: str) -> str:
-    """Digits of the first plausible phone number in a field that may hold
-    several -- never all of them run together."""
-    text = clean(text)
-    mobile = first_mobile(text)
-    if mobile:
-        return mobile.lstrip("+")
-    for chunk in CHUNK_SPLIT.split(text):
+# Country codes whose mobiles mobile_number() recognises: any other number under them is a landline.
+KNOWN_CODES = ("263", "27", "44")
+
+
+def foreign_number_digits(text: str) -> str:
+    """Digits of the first number written in another country's international format (+260 97 123 4567). WhatsApp may
+    reach it and nothing here can tell a mobile from a landline there, so it is offered; a Zimbabwean, South African or
+    UK number that is not a mobile never is."""
+    for chunk in CHUNK_SPLIT.split(clean(text)):
+        chunk = chunk.strip()
+        if not chunk.startswith(("+", "00")):
+            continue
         digits = re.sub(r"\D", "", chunk)
-        if len(digits) >= 9:
+        if digits.startswith("00"):
+            digits = digits[2:]
+        if 10 <= len(digits) <= 15 and not digits.startswith(KNOWN_CODES):
             return digits
     return ""
 

@@ -139,11 +139,18 @@ T.followUps = [
   ["p", "Approved reminders fall due on **Day 2** and **Day 7** after an invitation for respondents who have not yet submitted. Until automatic WhatsApp sending is connected, a person sends each one."],
   ["steps", [
     { text: "Select **Follow-ups**. Each card shows the case, organisation, which reminder is due, when the invitation went out, the respondent and their number, and the exact approved message.", img: "cra_follow_ups.jpg", caption: "Follow-ups due. Contact RAs see only their own cases." },
-    "Select **Open in WhatsApp**. WhatsApp opens with the message ready for that number; send it. If the card says **no number on file**, the button reads **Open WhatsApp (choose contact)** — pick the chat yourself, and add the number to the case afterwards.",
+    "Select **Open in WhatsApp**. WhatsApp opens with the message ready for that number; send it. If the card says **no number on file**, or that the number **is a landline**, the button reads **Open WhatsApp (choose contact)**: WhatsApp can't reach a landline, so phone them instead, or pick the chat yourself if you have their mobile, and add the mobile to the case afterwards.",
     "Come back and select **Mark as sent**. The card disappears and the reminder is recorded under your name.",
   ]],
   ["warn", "Mark as sent only after sending", "A case can become **S13 Nonresponse** (and be replaced by its Reserve) only after every reminder has been recorded as sent. Marking a reminder you did not send could lead to an organisation being replaced without being contacted."],
   ["tip", "Booked a call? No reminders", "When a respondent asks for a call (an appointment that is **REQUESTED** or **CONFIRMED**), their case leaves Follow-ups and can never become Nonresponse while the appointment is open. The reminders come back only if the appointment is marked **MISSED** or **CANCELLED** (or **COMPLETED** without the questionnaire being started). So keep Appointments up to date: an appointment left open after its date keeps that case out of the reminders."],
+  ["h3", "Invitations that have run out"],
+  ["p", "An invitation link works for 14 days. Below the reminders, **Follow-ups** lists **Invitations that have run out**: organisations that haven't responded and whose link no longer works, either because it passed its expiry date or because the last invitation was revoked or replaced. No reminder is offered for them, because it would point at a dead link."],
+  ["steps", [
+    "Select the Sample ID to open the case.",
+    "Select **Send invitation** (it may read **Send new invitation (replaces current)**) and send it as usual. The case leaves the list, and the Day 2 and Day 7 reminders start again from the new invitation.",
+  ]],
+  ["tip", "Landlines", "WhatsApp and SMS only go to mobile numbers. Where a respondent has only a landline, the invitation panel and Follow-ups say so: phone them, or ask for a mobile number and add it to the case."],
 ];
 
 T.appointments = [

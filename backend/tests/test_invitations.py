@@ -179,6 +179,23 @@ def test_issue_response_names_the_whatsapp_chat_to_open(admin_client, main_case)
     assert (resp.data["whatsapp_to"], resp.data["whatsapp_to_name"]) == ("263771234567", "Jane Doe")
 
 
+def test_whatsapp_and_sms_skip_a_landline(admin_client, main_case):
+    # Before 2026-10-06 a landline-only respondent got a wa.me link that could never be delivered.
+    from apps.contacts.models import Respondent
+
+    body = {"sample_id": main_case.sample_id, "channel": "WHATSAPP", "invitation_wave": 1}
+    Respondent.objects.create(sample_case=main_case, full_name="Front desk", is_eligible=True, phone="+263 20 64491")
+    resp = admin_client.post("/api/v1/invitations/", body, format="json")
+    assert (resp.data["whatsapp_to"], resp.data["sms_to"]) == ("", "")
+
+    # The WhatsApp field holds a landline; the mobile is in the phone field.
+    Respondent.objects.create(sample_case=main_case, full_name="Farm manager", phone="0773 248 965",
+                              whatsapp_number="0242 700000")
+    resp = admin_client.post("/api/v1/invitations/", body, format="json")
+    assert (resp.data["whatsapp_to"], resp.data["whatsapp_to_name"], resp.data["sms_to"]) == (
+        "263773248965", "Farm manager", "263773248965")
+
+
 def test_issue_endpoint_rejects_locked_reserve(admin_client, locked_reserve_case):
     resp = admin_client.post(
         "/api/v1/invitations/", {"sample_id": locked_reserve_case.sample_id, "channel": "WHATSAPP"}, format="json",

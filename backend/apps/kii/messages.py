@@ -24,8 +24,9 @@ def kii_recipients(kii_record) -> dict:
     InvitationSendPanel component can render this response unmodified."""
     from apps.messaging.services import whatsapp_digits
 
-    whatsapp = whatsapp_digits(kii_record.whatsapp_number or kii_record.phone)
-    sms = whatsapp_digits(kii_record.phone or kii_record.whatsapp_number)
+    # Mobiles only (whatsapp_digits gives "" for a landline), from either field.
+    whatsapp = whatsapp_digits(kii_record.whatsapp_number) or whatsapp_digits(kii_record.phone)
+    sms = whatsapp_digits(kii_record.phone) or whatsapp_digits(kii_record.whatsapp_number)
     name = kii_record.participant_name
     return {
         "whatsapp_to": whatsapp, "whatsapp_to_name": name if whatsapp else "",

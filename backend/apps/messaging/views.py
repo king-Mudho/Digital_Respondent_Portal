@@ -6,7 +6,7 @@ from api.permissions import CanManageContact
 from apps.sampling.models import SampleCase
 
 from .models import ReminderSequenceStep
-from .services import due_follow_ups, record_manual_follow_up
+from .services import due_follow_ups, expired_invitations, record_manual_follow_up
 
 
 class FollowUpListView(APIView):
@@ -18,7 +18,8 @@ class FollowUpListView(APIView):
 
     def get(self, request):
         is_contact_ra = getattr(request.user.role, "name", None) == "CONTACT_RA"
-        return Response({"results": due_follow_ups(assigned_to=request.user if is_contact_ra else None)})
+        mine = request.user if is_contact_ra else None
+        return Response({"results": due_follow_ups(assigned_to=mine), "expired": expired_invitations(assigned_to=mine)})
 
 
 class FollowUpMarkSentView(APIView):

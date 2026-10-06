@@ -91,10 +91,10 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   const wa = page.getByRole("link", { name: "Send via WhatsApp" });
   await expect(wa).toBeVisible();
   const href = decodeURIComponent((await wa.getAttribute("href")) ?? "");
-  expect(href).toMatch(/^https:\/\/wa\.me\/\?text=Hello\. You are invited/);
+  expect(href).toMatch(/^https:\/\/wa\.me\/\?text=Hello, E2E WhatsApp invite \d+\. You are invited/);
   expect(href).toMatch(/\/i\/[A-Za-z0-9_-]{20,}/);
   expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research@gmail\.com$/);
-  await expect(page.getByText("No WhatsApp number on file")).toBeVisible();
+  await expect(page.getByText(/^No mobile number on file/)).toBeVisible();
 
   // With contact details on file, every channel is addressed and written for them.
   await request.post(`${backend}/api/v1/contacts/${sampleId}/respondents/`, {
@@ -111,8 +111,8 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   await expect(page.getByLabel("Message preview")).toHaveValue(/Your personal link: http\S+\/i\//);
 
   await page.getByRole("tab", { name: "Email message" }).click();
-  await expect(page.getByLabel("Message preview")).toHaveValue(/^Subject: Invitation to take part[\s\S]*Dear Chat Tester,[\s\S]*0773943709/);
-  await expect(page.getByRole("link", { name: "Open in email app" })).toHaveAttribute("href", /^mailto:chat\.tester@example\.org\?subject=Invitation/);
+  await expect(page.getByLabel("Message preview")).toHaveValue(/^Subject: E2E WhatsApp invite \d+: invitation to take part[\s\S]*Dear Chat Tester,[\s\S]*0773943709/);
+  await expect(page.getByRole("link", { name: "Open in email app" })).toHaveAttribute("href", /^mailto:chat\.tester@example\.org\?subject=E2E%20WhatsApp%20invite/);
   await page.getByRole("button", { name: "Email from study address" }).click();
   await expect(page.getByText("Invitation emailed to c***@example.org from the study address.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Emailed" })).toBeDisabled();
