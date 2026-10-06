@@ -12,10 +12,15 @@ The endpoint is fixed here, never configurable, so documents and the key can onl
 """
 
 import json
+import logging
+import time
 
 import requests
+from django.conf import settings
 
 from . import ai_research as pr
+
+logger = logging.getLogger(__name__)
 
 META_RESPONSES_URL = "https://api.meta.ai/v1/responses"
 
@@ -64,11 +69,37 @@ def muse_function_call(output: list, name: str = "record_findings"):
     return None
 
 
-def post_responses(key: str, body: dict, post=requests.post) -> dict:
-    response = post(META_RESPONSES_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=600)
-    if response.status_code >= 400:
-        raise MuseError(f"Meta API returned {response.status_code}: {response.text[:500]}")
-    return response.json()
+# Meta is busy (429, 529) or had a fault of its own (5xx): worth waiting and asking again. A 4xx other than 429 is about
+# the request or the account (credit, key, region) and fails at once.
+TRANSIENT_STATUSES = {429, 500, 502, 503, 504, 529}
+
+
+def post_responses(key: str, body: dict, post=requests.post, *, delays=None, sleep=time.sleep) -> dict:
+    """One request to Meta's Responses API. When Meta answers busy or with a server error, or cannot be reached, it
+    waits and asks again (settings.AI_TRANSIENT_RETRY_DELAYS), so a search keeps the turns it has already made.
+
+    Until 2026-10-06 the first such answer failed the whole search: during a spell of overload on 6 October, 11 of
+    25 contact searches in one batch failed within minutes with "The AI service is busy right now". A read timeout
+    is not retried -- Meta may have done (and billed) that work already."""
+    delays = list(settings.AI_TRANSIENT_RETRY_DELAYS if delays is None else delays)
+    for attempt in range(len(delays) + 1):
+        retries_left = attempt < len(delays)
+        try:
+            response = post(META_RESPONSES_URL, json=body, headers={"Authorization": f"Bearer {key}"}, timeout=600)
+        except requests.ConnectionError:
+            if not retries_left:
+                raise
+            logger.warning("Meta API could not be reached; retrying in %ss", delays[attempt])
+            sleep(delays[attempt])
+            continue
+        if response.status_code in TRANSIENT_STATUSES and retries_left:
+            logger.warning("Meta API returned %s; retrying in %ss", response.status_code, delays[attempt])
+            sleep(delays[attempt])
+            continue
+        if response.status_code >= 400:
+            raise MuseError(f"Meta API returned {response.status_code}: {response.text[:500]}")
+        return response.json()
+    raise AssertionError("unreachable")  # every path above returns or raises
 
 
 def search_conversation(*, system: str, prompt: str, tool: dict, items_key: str, min_items: int, incomplete: str,

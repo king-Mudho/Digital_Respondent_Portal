@@ -127,7 +127,7 @@ class Command(BaseCommand):
         started, urls, searches, call, tokens = time.monotonic(), set(), 0, None, [0, 0]
         try:
             for _turn in range(3):
-                response = muse.post_responses(key, body)
+                response = muse.post_responses(key, body, delays=())  # a check reports at once, no waiting
                 output = response.get("output") or []
                 urls |= muse.muse_urls(output)
                 searches += muse.muse_search_count(output)

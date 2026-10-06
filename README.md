@@ -767,6 +767,16 @@ works):
 
 ## Notable fixes
 
+### Meta busy for a moment no longer fails a search (6 Oct 2026)
+
+During a spell of overload on Meta's side, 11 of 25 contact searches in one batch failed
+within minutes ("The AI service is busy right now", "internal server error"): the first
+such answer ended the whole search. `apps/proit/muse.py` `post_responses` now waits and asks
+again on 429/529, 5xx or a connection failure (`AI_TRANSIENT_RETRY_DELAYS`, default 30, 90
+and 180 seconds), keeping the turns the search has already made. A refusal about the request
+or the account (400, 401, 402, 403) still fails at once, and a read timeout is not retried
+because Meta may already have done and billed that work. `check_ai_provider` never waits.
+
 ### One invitation, every channel (6 Oct 2026)
 
 Reported by the PI: an organisation with both a WhatsApp number and an email could only be

@@ -280,6 +280,10 @@ AI_PROIT_RESEARCH_MODEL = env("AI_PROIT_RESEARCH_MODEL", default="claude-sonnet-
 # AI_PROIT_API_KEY, never ANTHROPIC_API_KEY. Switch with deploy/configure-ai-provider.sh --proit, which checks Meta
 # with a synthetic public question first; turn it on only after the compare_proit_models review has passed.
 AI_PROIT_PROVIDER = env("AI_PROIT_PROVIDER", default="anthropic")
+# Seconds to wait before each retry when Meta answers "busy" (429/529) or a server error (5xx), or cannot be reached
+# (apps/proit/muse.py post_responses). One wait per retry: three retries over about five minutes, then the search
+# fails as before. Empty turns retrying off.
+AI_TRANSIENT_RETRY_DELAYS = env.list("AI_TRANSIENT_RETRY_DELAYS", cast=int, default=[30, 90, 180])
 # Batch email invitations (apps/invitations/batch.py). Gmail allows roughly 500 messages a day, so the daily cap
 # leaves room for ordinary mail; the pause spaces messages out for the mail server.
 INVITATION_EMAIL_BATCH_MAX = env.int("INVITATION_EMAIL_BATCH_MAX", default=100)
