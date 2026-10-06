@@ -102,7 +102,7 @@ def test_each_case_gets_one_email_with_a_working_link_to_its_own_invitation(orga
     assert sorted(m.to[0] for m in mail.outbox) == ["first@example.co.zw", "second@example.co.zw"]
     for case, address in ((first, "first@example.co.zw"), (second, "second@example.co.zw")):
         message = next(m for m in mail.outbox if m.to == [address])
-        assert message.subject == "Invitation to take part in a Chinhoyi University of Technology research study"
+        assert message.subject == f"{organisation.name}: invitation to take part in a Chinhoyi University of Technology research study"
         case.refresh_from_db()
         assert case.workflow_status == "S05"
         raw = re.search(r"/i/([\w-]+)", message.body).group(1)

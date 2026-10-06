@@ -71,8 +71,10 @@ def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_n
     org = sample_case.organisation.name
     name = _greeting_name(to_name)
 
+    # The organisation is named first (PI request, 2026-10-06), so whoever reads it -- and whoever sent it, scrolling
+    # back through the study phone -- can tell at a glance which organisation the link belongs to.
     whatsapp = (
-        "Hello. You are invited to take part in the ABF-FST research study at Chinhoyi University of "
+        f"Hello, {org}. You are invited to take part in the ABF-FST research study at Chinhoyi University of "
         "Technology on agribusiness financing in Zimbabwe. Taking part is voluntary.\n\n"
         f"Your personal link: {link}\n(valid until {expires})\n\n"
         f"Prefer to answer by phone? Reply to this message and quote code {manual_code}.\n\n"
@@ -83,7 +85,7 @@ def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_n
         f"Voluntary, about 15-25 min. Your personal link: {link} (valid until {expires}). "
         f"Prefer a call? Ring 0773943709 and quote code {manual_code}."
     )
-    email_subject = "Invitation to take part in a Chinhoyi University of Technology research study"
+    email_subject = f"{org}: invitation to take part in a Chinhoyi University of Technology research study"
     email_body = (
         f"Dear {name or 'Sir or Madam'},\n\n"
         f"{org} has been selected to take part in a doctoral research study, \"{STUDY_TITLE}\" (ABF-FST), "

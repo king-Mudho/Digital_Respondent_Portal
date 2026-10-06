@@ -35,28 +35,48 @@ def kii_recipients(kii_record) -> dict:
 
 
 def build_kii_messages(*, kii_record, link: str, manual_code: str, expires_at) -> dict:
+    """Names the informant's organisation (PI request, 2026-10-06), so the informant and the sender can both tell
+    which organisation it is. A record still "<Organisation> (contact not yet identified)" goes to the organisation,
+    not a person: it is greeted by the organisation's name and says which role the study would like to interview,
+    instead of greeting "CBZ Bank (contact not yet identified)" by name."""
+    from apps.contacts.kii_finder import is_placeholder, organisation_name
+
     expires = timezone.localtime(expires_at).strftime("%d %B %Y").lstrip("0")
-    name = kii_record.participant_name
+    org = organisation_name(kii_record)
+    blank = is_placeholder(kii_record)
+    name = "" if blank else kii_record.participant_name
+    if blank:
+        hello = f"Hello, {org}." if org else "Hello."
+        role_line = f"We would like to interview the person who holds the role of {kii_record.participant_role}. "
+        sms_who = f"{org} is" if org else "you are"
+    else:
+        hello = f"Hello {name} ({org})." if org else f"Hello {name}."
+        role_line = ""
+        sms_who = f"{name} of {org}, you are" if org else "you are"
 
     whatsapp = (
-        f"Hello {name}. You are invited to take part in a confidential interview for the ABF-FST research "
-        "study at Chinhoyi University of Technology. Taking part is voluntary, and you can complete it in "
-        "your own time using the link below.\n\n"
+        f"{hello} You are invited to take part in a confidential interview for the ABF-FST research "
+        f"study at Chinhoyi University of Technology. {role_line}Taking part is voluntary, and you can complete "
+        "it in your own time using the link below.\n\n"
         f"Your personal link: {link}\n(valid until {expires})\n\n"
         f"Prefer to answer by phone instead? Reply to this message and quote code {manual_code}.\n\n"
         f"{CONTACT_LINE}"
     )
     sms = (
-        f"ABF-FST research study (Chinhoyi University of Technology): you are invited to an interview. "
+        f"ABF-FST research study (Chinhoyi University of Technology): {sms_who} invited to an interview. "
         f"Voluntary. Your personal link: {link} (valid until {expires}). "
         f"Prefer a call? Ring 0773943709 and quote code {manual_code}."
     )
-    email_subject = "Invitation to a Chinhoyi University of Technology research interview"
+    email_subject = (f"{org}: " if org else "") + "invitation to a Chinhoyi University of Technology research interview"
+    if blank:
+        invited = f"{org} is invited to take part" if org else "You are invited to take part"
+    else:
+        invited = f"You have been invited, as {kii_record.participant_role} at {org}, to take part" if org else "You have been invited to take part"
     email_body = (
-        f"Dear {name},\n\n"
-        f"You have been invited to take part in a Key Informant Interview for the doctoral research study, "
+        f"Dear {name or 'Sir or Madam'},\n\n"
+        f"{invited} in a Key Informant Interview for the doctoral research study, "
         f"\"{STUDY_TITLE}\" (ABF-FST), conducted by Happyson Saina, Doctor of Strategic Management candidate "
-        "at Chinhoyi University of Technology.\n\n"
+        f"at Chinhoyi University of Technology.{(' ' + role_line.strip()) if role_line else ''}\n\n"
         "Taking part is voluntary. Please use your personal link to read the study information, give your "
         "consent and complete the interview in your own time:\n\n"
         f"{link}\n\n"

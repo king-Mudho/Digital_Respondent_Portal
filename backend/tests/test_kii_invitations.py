@@ -225,3 +225,34 @@ def test_kobo_redirect_not_configured(kii_record, settings):
     resp = client.get(f"/api/v1/kii-invitations/kobo-redirect-url/?t={raw_token}")
     assert resp.status_code == 503
     assert resp.data["error"]["code"] == "kobo_not_configured"
+
+
+# --- The informant's organisation is named (PI request, 2026-10-06) -----------------------------------------------
+
+def _messages(record):
+    from apps.kii.messages import build_kii_messages
+
+    return build_kii_messages(kii_record=record, link="https://example.test/ki/abc", manual_code="ABCD2345",
+                              expires_at=timezone.now())
+
+
+def test_a_named_informant_is_greeted_with_their_organisation_on_every_channel(db):
+    record = create_kii_record(participant_name="Tendai Moyo", participant_role="Head of Agribusiness",
+                               stakeholder_category="Bank, DFI & MFI", metadata={"organisation_name": "CBZ Bank"})
+    msgs = _messages(record)
+    assert msgs["whatsapp"].startswith("Hello Tendai Moyo (CBZ Bank). You are invited")
+    assert msgs["email_subject"].startswith("CBZ Bank: ") and msgs["email_body"].startswith("Dear Tendai Moyo,")
+    assert "as Head of Agribusiness at CBZ Bank" in msgs["email_body"] and "Tendai Moyo of CBZ Bank" in msgs["sms"]
+
+
+def test_a_placeholder_record_greets_the_organisation_and_asks_for_the_role_never_the_placeholder_name(db):
+    record = create_kii_record(participant_name="CBZ Agro-Yield (contact not yet identified)",
+                               participant_role="Head of Agri-finance", stakeholder_category="Bank, DFI & MFI",
+                               metadata={"organisation_name": "CBZ Agro-Yield"})
+    msgs = _messages(record)
+    assert msgs["whatsapp"].startswith("Hello, CBZ Agro-Yield. You are invited")
+    assert msgs["email_body"].startswith("Dear Sir or Madam,") and msgs["email_subject"].startswith("CBZ Agro-Yield: ")
+    for key in ("whatsapp", "email_body"):
+        assert "the role of Head of Agri-finance" in msgs[key], key
+    for key in ("whatsapp", "sms", "email_subject", "email_body"):
+        assert "not yet identified" not in msgs[key], key

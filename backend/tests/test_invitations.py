@@ -260,6 +260,11 @@ def test_every_channel_gets_a_ready_message_with_the_link_code_and_contact_line(
         assert data["link"] in msgs[key] and data["raw_manual_code"] in msgs[key], key
     assert "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com" in msgs["whatsapp"]
     assert msgs["email_body"].startswith("Dear Jane Doe,") and main_case.organisation.name in msgs["email_body"]
+    # The organisation leads the WhatsApp message and the email subject (PI request, 2026-10-06), so the sender
+    # can tell which organisation a link belongs to.
+    org = main_case.organisation.name
+    assert msgs["whatsapp"].startswith(f"Hello, {org}. You are invited")
+    assert msgs["email_subject"].startswith(f"{org}: ") and org in msgs["sms"]
     assert "0773943709" in msgs["sms"]
 
     settings.DEBUG = False
