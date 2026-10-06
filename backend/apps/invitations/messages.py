@@ -116,16 +116,20 @@ def _mask(address: str) -> str:
 def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
     """Send a just-issued invitation from the study address. The link must be
     this invitation's own (checked against the stored fingerprint), so the
-    endpoint can't be used to email anything else."""
+    endpoint can't be used to email anything else.
+
+    Any invitation whose link still works can be emailed, not only one still at SENT: it is the same link sent on a
+    second channel. Until 2026-10-06 a respondent tapping the WhatsApp link a minute earlier (OPENED) made the email
+    refuse with "no longer open", and the only way on was a new invitation, which killed the WhatsApp link."""
     from apps.audit.utils import log_action
     from apps.kobo.submission_copies import email_is_configured
 
-    from .models import TokenStatus
+    from .batch import OPEN_STATUSES
     from .services import _verify_secret
 
     if not email_is_configured():
         raise InvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
-    if token.status not in (TokenStatus.GENERATED, TokenStatus.SENT) or token.expires_at <= timezone.now():
+    if token.status not in OPEN_STATUSES or token.expires_at <= timezone.now():
         raise InvitationSendError("invitation_not_open", "This invitation is no longer open. Send a new one.", 409)
     raw = link.rstrip("/").rsplit("/i/", 1)[-1] if "/i/" in link else ""
     if not raw or not _verify_secret(raw, token.token_hash) or portal_base(link) != link.split("/i/", 1)[0]:

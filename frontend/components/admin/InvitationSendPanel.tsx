@@ -27,8 +27,11 @@ const LABELS: Record<Channel, string> = { whatsapp: "WhatsApp", sms: "SMS", emai
 const linkClass = "inline-flex items-center rounded-md border border-border px-3 py-1.5 text-sm bg-surface";
 
 /**
- * Sends a just-issued invitation with its message on any channel (added
- * 2026-09-16). The texts come from the server (invitations/messages.py), so
+ * Sends a just-issued invitation with its message on every channel (added
+ * 2026-09-16). Every channel's send button shows at once, and the tabs only
+ * switch the message preview: until 2026-10-06 each button sat behind its own
+ * tab, so an RA who sent on WhatsApp and closed the page had to issue a second
+ * invitation to email it, and the WhatsApp link stopped working. The texts come from the server (invitations/messages.py), so
  * WhatsApp, SMS, email and the study-address email all say the same thing:
  * link, expiry, manual code and the study contact line.
  *
@@ -113,19 +116,17 @@ export function InvitationSendPanel({
         />
       </div>
 
+      <p className="text-xs font-medium">
+        Send it on every channel they use, now: it is the same link on WhatsApp, SMS and email, and it can&apos;t be
+        shown again once you leave this page.
+      </p>
       <div className="flex flex-wrap gap-2">
-        {channel === "whatsapp" && (
-          <a href={wa} target="_blank" rel="noopener noreferrer" className={linkClass}>Send via WhatsApp</a>
-        )}
-        {channel === "sms" && <a href={sms} className={linkClass}>Send by SMS</a>}
-        {channel === "email" && (
-          <>
-            <Button onClick={() => sendEmail.mutate()} disabled={!!emailBlocked || sendEmail.isPending || sendEmail.isSuccess}>
-              {sendEmail.isPending ? "Sending…" : sendEmail.isSuccess ? "Emailed" : "Email from study address"}
-            </Button>
-            <a href={mailto} className={linkClass}>Open in email app</a>
-          </>
-        )}
+        <a href={wa} target="_blank" rel="noopener noreferrer" className={linkClass}>Send via WhatsApp</a>
+        <Button onClick={() => sendEmail.mutate()} disabled={!!emailBlocked || sendEmail.isPending || sendEmail.isSuccess}>
+          {sendEmail.isPending ? "Sending…" : sendEmail.isSuccess ? "Emailed" : "Email from study address"}
+        </Button>
+        <a href={mailto} className={linkClass}>Open in email app</a>
+        <a href={sms} className={linkClass}>Send by SMS</a>
         <Button
           variant="outline"
           onClick={() => {
@@ -137,17 +138,21 @@ export function InvitationSendPanel({
         </Button>
       </div>
 
-      <p className="text-text-muted text-xs">
-        {channel === "whatsapp" &&
-          (invitation.whatsapp_to
+      <p className="text-text-muted text-xs space-y-1">
+        <span className="block">
+          WhatsApp:{" "}
+          {invitation.whatsapp_to
             ? `Opens the chat with ${invitation.whatsapp_to_name} (+${invitation.whatsapp_to}). Send it from the study WhatsApp number.`
-            : "No mobile number on file (a landline can't receive WhatsApp), so WhatsApp will ask you to choose the chat. Add a mobile under Respondents and contact details, or phone them.")}
+            : "No mobile number on file (a landline can't receive WhatsApp), so WhatsApp will ask you to choose the chat. Add a mobile under Respondents and contact details, or phone them."}
+        </span>
+        <span className="block">
+          Email:{" "}
+          {emailBlocked ?? `Goes to ${invitation.email_to_name} (${invitation.email_to}) from the study address, with replies to the study inbox.`}
+        </span>
         {channel === "sms" &&
           (invitation.sms_to
             ? `Opens your phone's messages app addressed to +${invitation.sms_to}. Use this on a phone.`
             : "No mobile number on file (a landline can't receive SMS); your messages app will ask for one. Use this on a phone.")}
-        {channel === "email" &&
-          (emailBlocked ?? `Goes to ${invitation.email_to_name} (${invitation.email_to}) from the study address, with replies to the study inbox.`)}
       </p>
       {emailResult && <p className="text-sm">{emailResult}</p>}
       <p className="text-text-muted text-xs">After sending, log it under Contact timeline.</p>

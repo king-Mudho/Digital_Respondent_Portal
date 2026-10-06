@@ -256,3 +256,23 @@ def test_a_placeholder_record_greets_the_organisation_and_asks_for_the_role_neve
         assert "the role of Head of Agri-finance" in msgs[key], key
     for key in ("whatsapp", "sms", "email_subject", "email_body"):
         assert "not yet identified" not in msgs[key], key
+
+
+def test_a_kii_invitation_is_emailed_with_its_own_link_even_after_the_whatsapp_link_was_opened(admin_client, kii_record, settings):
+    # 2026-10-06: the same invitation on WhatsApp and by email; opening the WhatsApp link first no longer blocks it.
+    from django.core import mail
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    data = admin_client.post("/api/v1/kii-invitations/", {"kii_id": kii_record.kii_id, "channel": "WHATSAPP"}, format="json").data
+    validate_kii_token(data["raw_token"])  # opened on WhatsApp
+    url = f"/api/v1/kii-invitations/{data['token_id']}/send-email/"
+    body = {"link": data["link"], "manual_code": data["raw_manual_code"]}
+    forged = admin_client.post(url, {**body, "link": data["link"][:-3] + "xyz"}, format="json")
+    assert forged.status_code == 400 and mail.outbox == []
+
+    assert admin_client.post(url, body, format="json").status_code == 200
+    [message] = mail.outbox
+    assert message.to == ["tmoyo@example.org"] and data["link"] in message.body
+
+    admin_client.post("/api/v1/kii-invitations/", {"kii_id": kii_record.kii_id, "channel": "EMAIL"}, format="json")
+    assert admin_client.post(url, body, format="json").data["error"]["code"] == "invitation_not_open"  # superseded

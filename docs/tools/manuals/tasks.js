@@ -92,18 +92,19 @@ T.invite = [
     "Open the case. Check the status is **S03** and a respondent with a number is recorded.",
     { text: "In **Invitations**, leave **Channel** as **WHATSAPP** (or choose EMAIL, SMS, PRINTED_CODE or QR to record how it was delivered) and **Wave** as **1**. Select **Send invitation**.", img: "cra_case_invitations_before.jpg", caption: "Invitations panel before sending, with the history of earlier invitations." },
     { text: "The personal link and 8-character manual code appear **once**, with the invitation already written for each channel. Choose **WhatsApp message**, **SMS message** or **Email message** to see exactly what will be sent: the personal link, its expiry date, the manual code and the study contact line. Every message names the organisation (WhatsApp opens “Hello, Sable Chickens.”, the email subject starts with the organisation's name), so you can always tell which organisation a sent link belongs to.", img: "cra_case_invitation_sent.jpg", caption: "The link, manual code and ready-written messages are shown once, with a send button for each channel." },
-    { text: "Send it on the channel that suits the respondent:", sub: [
+    { text: "Send it on **every channel the organisation has**, before you leave the page. It is one invitation with one link, so the WhatsApp message and the email carry the same link and both keep working. All the send buttons are on screen together (the message tabs only change the preview):", sub: [
       "**Send via WhatsApp** opens that respondent's chat (their WhatsApp number, or phone number if none) with the message ready. Check you are on the study WhatsApp number, then press Send.",
       "**Send by SMS** opens the phone's messages app addressed to the respondent, with the shorter SMS message. Use it on a phone.",
       "**Email from study address** sends the email from abffst.research@gmail.com to the respondent's email on file; replies go to the study inbox. The email is recorded in the audit log.",
       "**Open in email app** opens the same email in your own mail program, if you need to add something first.",
       "**Copy message** copies the message shown, for any other channel.",
     ] },
-    "If a button says no number or email is on file, add it under **Respondents and contact details**, then send a new invitation.",
+    "If a button says no mobile number or email is on file, add it under **Respondents and contact details**. Only then send a new invitation, and send that one on every channel.",
     "The case moves to **S05 Invitation sent** automatically. Log the attempt in **Contact timeline** (see Logging a contact attempt).",
   ]],
   ["warn", "The link is shown only once", [
     "The portal stores only a scrambled fingerprint of the link, so nobody can display it again. If you close the page before sending, select **Send new invitation (replaces current)**: this issues a fresh link and the old one stops working immediately.",
+    "**Never issue a new invitation just to send by another channel.** The organisation's earlier message would then say the invitation has expired. While the link still works the portal asks before replacing it (**Replace it** / **Keep the current one**): replace it only if the link was lost, went to the wrong person or never arrived.",
     "Links are valid for **14 days**. Each link belongs to one organisation; never forward one respondent's link to another organisation.",
   ]],
   ["h3", "Revoking an invitation"],
@@ -324,6 +325,7 @@ T.whatsappQueue = [
     "Open **Main-400 Register** and find **WhatsApp invitations**. Each row shows the Sample ID, the organisation, the person and a partly hidden number.",
     "Select **Prepare** on a row. The portal creates the case's personal link and code, writes the approved WhatsApp message, and moves the case to **S05 Invitation sent**.",
     "Select **Open WhatsApp**. WhatsApp opens at that person's chat with the message ready. Check you are on the study number, then press Send. (**Copy message** copies the text if WhatsApp will not open.)",
+    "If the case also has an email address, select **Email the same link** straight away. The same invitation goes by email from the study address, so the organisation can use whichever message it sees first. The button then reads **Emailed to …**.",
     "Log the attempt on the case's **Contact timeline**, as for any invitation.",
   ]],
   ["warn", "Prepare only what you are about to send", "Preparing an invitation counts it as sent: the case moves to S05 and the Day 2 and Day 7 reminders start counting. If you prepare one and cannot send it, open the case and **Revoke** that invitation so the link stops working. The case stays at S05 and does not come back to the queue: when you can reach the person, send a new invitation from the case's **Invitations** panel."],
@@ -443,7 +445,7 @@ T.kii = [
   ["steps", [
     { text: "Under **Record details**, enter the informant's **Phone**, **WhatsApp number** or **Email** and select **Save details**. At least one is needed to send a link.", img: "kii_detail.jpg", caption: "Record details: phone, WhatsApp number and email." },
     "Under **Invite (self-service link)**, choose a **Channel** and select **Send link**. The personal link, its manual code and ready-made WhatsApp/SMS/email messages appear -- the same panel used for Main-400 invitations. Each names the informant's organisation (“Hello Tendai Moyo (CBZ Bank).”); a record still marked “contact not yet identified” is greeted by the organisation's name and says which role you would like to interview.",
-    "Send it on the channel you chose: **Send via WhatsApp**, **Send by SMS**, **Email from study address** (if email is set up) or **Open in email app**, or **Copy message** for anything else.",
+    "Send it on every channel the informant has, before you leave the page: **Send via WhatsApp**, **Email from study address** (if email is set up), **Send by SMS** or **Open in email app**, or **Copy message** for anything else. It is the same link on each, and all of them keep working.",
   ]],
   ["p", "The informant opens the link, reads a short Key Informant Interview information sheet, agrees to take part, and is taken straight to the KII Guide with the KII ID already filled in -- no account, no app, nothing identifying in the link. Once they consent, **Record participation consent** on this page updates to **GIVEN** on its own, and **Continue this interview** above becomes available too, exactly as if an RA had recorded it."],
   ["tip", "Sending a new link replaces the old one", "Issuing another link for the same informant (for example after 14 days, or if they ask for a resend) immediately retires the previous one -- only one link is ever live per KII record, the same rule as Main-400 invitations."],

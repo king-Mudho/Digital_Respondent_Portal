@@ -94,7 +94,9 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
   expect(href).toMatch(/^https:\/\/wa\.me\/\?text=Hello, E2E WhatsApp invite \d+\. You are invited/);
   expect(href).toMatch(/\/i\/[A-Za-z0-9_-]{20,}/);
   expect(href).toMatch(/quote code \S+\.\n\nQuestions: Happyson Saina, 0773943709, abffst\.research@gmail\.com$/);
-  await expect(page.getByText(/^No mobile number on file/)).toBeVisible();
+  await expect(page.getByText(/No mobile number on file \(a landline can't receive WhatsApp\)/)).toBeVisible();
+  // Every channel's send button is on screen at once: the same link goes out on all of them.
+  await expect(page.getByRole("button", { name: "Email from study address" })).toBeVisible();
 
   // With contact details on file, every channel is addressed and written for them.
   await request.post(`${backend}/api/v1/contacts/${sampleId}/respondents/`, {
@@ -102,7 +104,11 @@ test("a new invitation can be sent through WhatsApp with the link and code", asy
     data: { full_name: "Chat Tester", phone: "0712 999 888", whatsapp_number: "0771234567", email: "chat.tester@example.org", is_eligible: true },
   });
   await page.reload();
-  await page.getByRole("button", { name: /^Send (new )?invitation/ }).click();
+  await page.getByRole("button", { name: "Send new invitation (replaces current)" }).click();
+  // The first link still works, so replacing it asks first.
+  const confirm = page.getByRole("alertdialog", { name: "Replace the current invitation?" });
+  await expect(confirm).toContainText("A new one makes that link stop working");
+  await confirm.getByRole("button", { name: "Replace it" }).click();
   await expect(page.getByRole("link", { name: "Send via WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/263771234567\?text=Hello/);
   await expect(page.getByText("Opens the chat with Chat Tester (+263771234567)")).toBeVisible();
 

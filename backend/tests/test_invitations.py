@@ -325,3 +325,24 @@ def test_an_invitation_is_emailed_from_the_study_address_only_with_its_own_link(
     # A superseded invitation can't be emailed any more.
     _issue(admin_client, main_case)
     assert admin_client.post(url, body, format="json").data["error"]["code"] == "invitation_not_open"
+
+
+def test_the_same_invitation_can_be_emailed_after_the_whatsapp_link_was_opened(admin_client, main_case, settings):
+    # 2026-10-06: a respondent tapping the WhatsApp link first (OPENED) made the email refuse, and a new invitation --
+    # the only way on -- killed the WhatsApp link. One invitation, every channel, while the link still works.
+    from django.core import mail
+
+    from apps.contacts.models import Respondent
+    from apps.invitations.services import validate_token
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    Respondent.objects.create(sample_case=main_case, full_name="Jane Doe", is_eligible=True,
+                              whatsapp_number="0771234567", email="jane@example.org")
+    data = _issue(admin_client, main_case, channel="WHATSAPP").data
+    validate_token(data["link"].rsplit("/i/", 1)[1])  # opened on WhatsApp
+    url = f"/api/v1/invitations/{data['token_id']}/send-email/"
+    resp = admin_client.post(url, {"link": data["link"], "manual_code": data["raw_manual_code"]}, format="json")
+    assert resp.status_code == 200
+    [message] = mail.outbox
+    assert data["link"] in message.body
+    assert validate_token(data["link"].rsplit("/i/", 1)[1]).pk == data["token_id"]  # the WhatsApp link still works

@@ -109,7 +109,10 @@ def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
 
     if not email_is_configured():
         raise KIIInvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
-    if token.status not in (KIIInvitationTokenStatus.GENERATED, KIIInvitationTokenStatus.SENT) or token.expires_at <= timezone.now():
+    # Any link that still works (2026-10-06): the same invitation on a second channel, as for Main-400.
+    still_open = (KIIInvitationTokenStatus.GENERATED, KIIInvitationTokenStatus.SENT, KIIInvitationTokenStatus.OPENED,
+                  KIIInvitationTokenStatus.CONSENTED, KIIInvitationTokenStatus.STARTED)
+    if token.status not in still_open or token.expires_at <= timezone.now():
         raise KIIInvitationSendError("invitation_not_open", "This invitation is no longer open. Send a new one.", 409)
     raw = link.rstrip("/").rsplit("/ki/", 1)[-1] if "/ki/" in link else ""
     if not raw or not _verify_secret(raw, token.token_hash) or portal_base(link) != link.split("/ki/", 1)[0]:

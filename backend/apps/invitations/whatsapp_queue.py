@@ -62,8 +62,16 @@ def queue_rows(user, limit: int = 50) -> list[dict]:
 
 
 def prepare(sample_id: str, *, user, link_base: str | None) -> dict:
-    """Issues the invitation for one queued case and returns the WhatsApp link to send it with."""
+    """Issues the invitation for one queued case and returns the WhatsApp link to send it with.
+
+    Also returns the link and code (shown once, like the case page) and where an email would go, so the RA can email
+    the same invitation from the queue. Until 2026-10-06 only the WhatsApp text came back: emailing an organisation
+    that also had an address meant issuing a second invitation on the case page, which made the WhatsApp link stop
+    working -- 49 organisations were left holding a dead WhatsApp link that way."""
+    from apps.kobo.submission_copies import email_is_configured
     from apps.messaging.services import whatsapp_link
+
+    from .messages import _mask
 
     case = queue_cases(user).filter(sample_id=sample_id).first()
     if case is None:
@@ -76,4 +84,6 @@ def prepare(sample_id: str, *, user, link_base: str | None) -> dict:
     text = build_messages(sample_case=case, link=link, manual_code=raw_code, expires_at=token.expires_at,
                           to_name=who["whatsapp_to_name"])["whatsapp"]
     return {"sample_id": case.sample_id, "token_id": token.id, "expires_at": token.expires_at,
-            "whatsapp_url": whatsapp_link(who["whatsapp_to"], text), "message": text}
+            "whatsapp_url": whatsapp_link(who["whatsapp_to"], text), "message": text,
+            "link": link, "manual_code": raw_code,
+            "email_to": _mask(who["email_to"]) if who["email_to"] else "", "email_configured": email_is_configured()}

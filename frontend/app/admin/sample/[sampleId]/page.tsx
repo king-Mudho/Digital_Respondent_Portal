@@ -179,6 +179,7 @@ function InvitationsPanel({
   const [channel, setChannel] = useState("WHATSAPP");
   const [wave, setWave] = useState(1);
   const [justIssued, setJustIssued] = useState<(IssuedInvitation & { channel: string }) | null>(null);
+  const [confirmReplace, setConfirmReplace] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const { data: history } = useQuery({
@@ -202,6 +203,7 @@ function InvitationsPanel({
       // its salted hash is persisted server-side from here on
       // (docs/10_INVITATION_AND_CONSENT.md).
       setJustIssued({ ...data, channel });
+      setConfirmReplace(false);
       invalidate();
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Failed to issue invitation."),
@@ -222,6 +224,9 @@ function InvitationsPanel({
 
   const entries = history?.results ?? [];
   const hasOpenToken = entries.some((e) => OPEN_TOKEN_STATUSES.includes(e.status));
+  // A link the organisation can still use. Replacing it asks first: until 2026-10-06 the usual way to email an
+  // organisation already invited on WhatsApp was a new invitation, which made the WhatsApp link they held stop working.
+  const working = entries.find((e) => OPEN_TOKEN_STATUSES.includes(e.status) && new Date(e.expires_at) > new Date());
 
   return (
     <Card className="space-y-3">
@@ -269,7 +274,11 @@ function InvitationsPanel({
               className="w-20 rounded-md border border-border px-2 py-1.5 text-sm"
             />
           </div>
-          <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
+          <Button
+            onClick={() => (working && !confirmReplace ? setConfirmReplace(true) : issue.mutate())}
+            // Not before the history has loaded: until then a working link is invisible and would be replaced unasked.
+            disabled={issue.isPending || confirmReplace || !history}
+          >
             {issue.isPending
               ? "Issuing…"
               : hasOpenToken
@@ -277,6 +286,28 @@ function InvitationsPanel({
                 : "Send invitation"}
           </Button>
         </div>
+        {working && confirmReplace && (
+          <div role="alertdialog" aria-label="Replace the current invitation?" className="mt-2 rounded-md border border-danger p-3 text-sm space-y-2">
+            <p>
+              This case already has a working invitation, sent {new Date(working.issued_at).toLocaleDateString()} by{" "}
+              {working.channel}. A new one makes that link stop working: the message the organisation already has will
+              say the invitation has expired.
+            </p>
+            <p className="text-text-muted text-xs">
+              To reach them on another channel too, there is no need for a new invitation if you still have this one open:
+              send it from every channel at the moment you issue it. Replace it only if the link was lost, went to the
+              wrong person or never arrived, and then send the new one on every channel they use.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => issue.mutate()} disabled={issue.isPending}>
+                {issue.isPending ? "Issuing…" : "Replace it"}
+              </Button>
+              <Button variant="outline" onClick={() => setConfirmReplace(false)}>
+                Keep the current one
+              </Button>
+            </div>
+          </div>
+        )}
         </WriteOnly>
       )}
 

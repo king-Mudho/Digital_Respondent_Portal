@@ -100,3 +100,29 @@ def test_roles_outside_contact_work_are_refused_and_the_supervisor_only_reads(or
     assert supervisor.get(QUEUE).status_code == 200
     assert supervisor.post(f"{QUEUE}{case.sample_id}/prepare/", {}, format="json").status_code == 403
     assert APIClient().get(QUEUE).status_code == 401
+
+
+def test_a_queued_invitation_can_also_be_emailed_with_the_same_link(organisation, stratum, coordinator, settings):
+    # 2026-10-06: the queue returned only the WhatsApp text, so emailing meant a second invitation on the case page,
+    # which made the WhatsApp link stop working (49 organisations on production).
+    from django.core import mail
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    case = _case(organisation, stratum)
+    Respondent.objects.filter(sample_case=case).update(email="rudo@farm.co.zw")
+    data = coordinator.post(f"{QUEUE}{case.sample_id}/prepare/", {}, format="json").data
+    assert data["email_to"] == "r***@farm.co.zw" and data["email_configured"] is True
+    assert data["link"] in unquote(data["whatsapp_url"])  # the one link, on both channels
+
+    sent = coordinator.post(f"/api/v1/invitations/{data['token_id']}/send-email/",
+                            {"link": data["link"], "manual_code": data["manual_code"]}, format="json")
+    assert sent.status_code == 200
+    [message] = mail.outbox
+    assert data["link"] in message.body
+    assert InvitationToken.objects.filter(sample_case=case).count() == 1
+    assert validate_token(data["link"].rsplit("/i/", 1)[1]).sample_case_id == case.pk
+
+
+def test_a_queued_case_without_an_address_offers_no_email(organisation, stratum, coordinator):
+    case = _case(organisation, stratum)
+    assert coordinator.post(f"{QUEUE}{case.sample_id}/prepare/", {}, format="json").data["email_to"] == ""

@@ -122,8 +122,13 @@ interface WhatsAppRow {
 
 interface PreparedInvitation {
   sample_id: string;
+  token_id: number;
   whatsapp_url: string;
   message: string;
+  link: string;
+  manual_code: string;
+  email_to: string;
+  email_configured: boolean;
 }
 
 /**
@@ -135,6 +140,7 @@ function WhatsAppQueuePanel() {
   const queryClient = useQueryClient();
   const [prepared, setPrepared] = useState<Record<string, PreparedInvitation>>({});
   const [copied, setCopied] = useState<string | null>(null);
+  const [emailed, setEmailed] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const { data } = useQuery({
     queryKey: ["whatsapp-queue"],
@@ -153,6 +159,19 @@ function WhatsAppQueuePanel() {
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Could not prepare that invitation."),
   });
+  // The same invitation by email: same link and code, checked against the invitation's fingerprint server-side.
+  const sendEmail = useMutation({
+    mutationFn: (item: PreparedInvitation) =>
+      adminFetch<{ sent_to: string }>(`/invitations/${item.token_id}/send-email/`, {
+        method: "POST",
+        body: JSON.stringify({ link: item.link, manual_code: item.manual_code }),
+      }).then((result) => ({ sampleId: item.sample_id, sentTo: result.sent_to })),
+    onSuccess: ({ sampleId, sentTo }) => {
+      setError(null);
+      setEmailed((e) => ({ ...e, [sampleId]: sentTo }));
+    },
+    onError: (err) => setError(err instanceof Error ? err.message : "The email could not be sent."),
+  });
   if (!data) return null;
   const copy = (item: PreparedInvitation) => {
     navigator.clipboard
@@ -167,7 +186,8 @@ function WhatsAppQueuePanel() {
       <p className="text-xs text-text-muted">
         {data.waiting} verified case{data.waiting === 1 ? "" : "s"} (S03 or S04) {data.waiting === 1 ? "has" : "have"} a WhatsApp or
         phone number and no open invitation. <strong>Prepare</strong> creates the case&rsquo;s personal link and marks it sent, so open
-        WhatsApp and send it straight away. If you can&rsquo;t, revoke it on the case page.
+        WhatsApp and send it straight away. If you can&rsquo;t, revoke it on the case page. Where the case also has an email
+        address, <strong>Email the same link</strong> sends it there too: one invitation, both channels.
       </p>
       {error && <p className="text-danger text-sm">{error}</p>}
       {data.results.length > 0 && (
@@ -196,6 +216,15 @@ function WhatsAppQueuePanel() {
                       <Button variant="outline" onClick={() => copy(ready)}>
                         {copied === row.sample_id ? "Copied" : "Copy message"}
                       </Button>
+                      {ready.email_to && ready.email_configured && (
+                        <Button
+                          variant="outline"
+                          disabled={sendEmail.isPending || !!emailed[row.sample_id]}
+                          onClick={() => sendEmail.mutate(ready)}
+                        >
+                          {emailed[row.sample_id] ? `Emailed to ${emailed[row.sample_id]}` : `Email the same link (${ready.email_to})`}
+                        </Button>
+                      )}
                     </span>
                   ) : (
                     <Button variant="outline" disabled={prepare.isPending} onClick={() => prepare.mutate(row.sample_id)}>
