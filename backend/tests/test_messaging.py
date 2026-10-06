@@ -219,3 +219,53 @@ def test_a_revoked_invitation_does_not_start_the_reminder_clock(main_case):
     token = _invited(main_case, days_ago=3)
     revoke_token(token, "Wrong contact")
     assert due_follow_ups() == []
+
+
+# --- A respondent who has booked a call is not chased (2026-10-06) ------------------------------------------------
+
+def _appointment(case, status="REQUESTED", mode="PHONE"):
+    from apps.contacts.models import Appointment
+
+    return Appointment.objects.create(
+        sample_case=case, scheduled_for=timezone.now() + timedelta(days=1), mode=mode, status=status,
+    )
+
+
+@pytest.mark.parametrize("status", ["REQUESTED", "CONFIRMED"])
+def test_a_case_with_an_open_appointment_gets_no_reminder(main_case, status):
+    _invited(main_case, days_ago=2)
+    assert [f["sample_id"] for f in due_follow_ups()] == [main_case.sample_id]
+    _appointment(main_case, status=status)
+    assert due_follow_ups() == []
+
+
+@pytest.mark.parametrize("status", ["COMPLETED", "MISSED", "CANCELLED"])
+def test_reminders_resume_once_the_appointment_is_over(main_case, status):
+    _invited(main_case, days_ago=2)
+    _appointment(main_case, status=status)
+    assert [f["sample_id"] for f in due_follow_ups()] == [main_case.sample_id]
+
+
+def test_a_case_with_a_booked_call_never_becomes_nonresponse(main_case):
+    # The worst case before the fix: both reminders marked sent, so the nightly rule replaced a respondent who had
+    # consented and asked for a call.
+    _invited(main_case, days_ago=8)
+    ra = _user(Role.CONTACT_RA, "fu_ra_appt")
+    record_manual_follow_up(sample_case=main_case, template_name="drp_reminder_day2", user=ra)
+    record_manual_follow_up(sample_case=main_case, template_name="drp_reminder_day7_final", user=ra)
+    _appointment(main_case, status="CONFIRMED")
+
+    assert exhaust_nonresponse_cases() == []
+    main_case.refresh_from_db()
+    assert main_case.workflow_status == WorkflowStatus.S05_INVITATION_SENT
+
+
+def test_appointment_status_changes_are_audited_with_who_and_from_what(main_case):
+    appointment = _appointment(main_case)
+    client = APIClient()
+    client.force_authenticate(_user(Role.FIELD_COORDINATOR, "fu_fc_appt"))
+    resp = client.post(f"/api/v1/appointments/{appointment.pk}/status/", {"status": "CONFIRMED"}, format="json")
+    assert resp.status_code == 200
+    event = AuditEvent.objects.get(action="appointment.status_changed")
+    assert event.metadata["from"] == "REQUESTED" and event.metadata["to"] == "CONFIRMED"
+    assert event.metadata["sample_id"] == main_case.sample_id and event.user.username == "fu_fc_appt"

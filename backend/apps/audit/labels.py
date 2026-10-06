@@ -17,6 +17,8 @@ ACTION_LABELS: dict[str, str] = {
     "clearance.file_downloaded_by_staff": "Clearance document file downloaded by staff",
     "clearance.file_removed": "Clearance document file removed",
     "clearance.file_uploaded": "Clearance document file uploaded",
+    "appointment.requested": "Appointment requested by a respondent",
+    "appointment.status_changed": "Appointment status changed",
     "clearance.file_viewed_by_respondent": "Clearance document viewed by a respondent",
     "clearance.visibility_changed": "Clearance document shown-to-respondents setting changed",
     "consent.recorded": "Consent recorded",

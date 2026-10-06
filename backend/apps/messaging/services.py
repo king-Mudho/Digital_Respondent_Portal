@@ -8,6 +8,7 @@ this automated path.
 
 from urllib.parse import quote
 
+from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from apps.audit.utils import log_action
@@ -66,8 +67,19 @@ class _Awaiting:
 
 
 def _awaiting(assigned_to=None) -> list[_Awaiting]:
+    """Invited cases still waiting for a response -- what the reminders, the Follow-ups screen and the Nonresponse
+    rule all work from. A case whose respondent has asked for a call (an appointment REQUESTED or CONFIRMED) is not
+    waiting: it is left out until the appointment is completed, missed or cancelled. Until 2026-10-06 it was not, so
+    a respondent who had consented and booked a call was sent "please use the link you were sent", and once both
+    reminders were marked sent the case could become Nonresponse and its Reserve be activated in its place."""
+    from apps.contacts.models import Appointment, AppointmentStatus
+
+    open_appointment = Appointment.objects.filter(
+        sample_case=OuterRef("pk"), status__in=[AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED],
+    )
     cases = (
         SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status__in=AWAITING_RESPONSE_STATUSES)
+        .exclude(Exists(open_appointment))
         .select_related("organisation")
         .prefetch_related("respondents")
     )

@@ -143,6 +143,7 @@ T.followUps = [
     "Come back and select **Mark as sent**. The card disappears and the reminder is recorded under your name.",
   ]],
   ["warn", "Mark as sent only after sending", "A case can become **S13 Nonresponse** (and be replaced by its Reserve) only after every reminder has been recorded as sent. Marking a reminder you did not send could lead to an organisation being replaced without being contacted."],
+  ["tip", "Booked a call? No reminders", "When a respondent asks for a call (an appointment that is **REQUESTED** or **CONFIRMED**), their case leaves Follow-ups and can never become Nonresponse while the appointment is open. The reminders come back only if the appointment is marked **MISSED** or **CANCELLED** (or **COMPLETED** without the questionnaire being started). So keep Appointments up to date: an appointment left open after its date keeps that case out of the reminders."],
 ];
 
 T.appointments = [
@@ -153,6 +154,7 @@ T.appointments = [
     "Contact the respondent to confirm, then select **CONFIRMED**.",
     "After the session select **COMPLETED**, or **MISSED** if they did not attend, or **CANCELLED**. Only valid next steps are shown; a finished appointment shows **No further action**.",
   ]],
+  ["p", "While an appointment is **REQUESTED** or **CONFIRMED**, its case gets no Day 2 or Day 7 reminder and cannot become Nonresponse: the respondent has already said how they want to take part. **MISSED** or **CANCELLED** puts the case back on Follow-ups. Every request and every status change is recorded in the audit log."],
 ];
 
 T.reassign = [

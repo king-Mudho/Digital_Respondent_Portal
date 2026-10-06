@@ -76,6 +76,10 @@ def test_public_create_cannot_set_status_directly(main_case):
     assert resp.status_code == 201
     appt = Appointment.objects.get(sample_case=main_case)
     assert appt.status == AppointmentStatus.REQUESTED  # default, not attacker-supplied COMPLETED
+    from apps.audit.models import AuditEvent
+
+    event = AuditEvent.objects.get(action="appointment.requested")  # audited since 2026-10-06, with no staff user
+    assert event.user_id is None and event.object_id == str(appt.pk) and event.metadata["sample_id"] == main_case.sample_id
 
 
 def test_public_create_requires_participation_consent(main_case):

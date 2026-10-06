@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
+from apps.audit.utils import log_action
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.consent.services import has_given_consent
 from apps.invitations.models import TokenStatus
@@ -154,7 +155,12 @@ class AppointmentListCreateView(generics.ListCreateAPIView):
             "mode": request.data.get("mode"),
         })
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        appointment = serializer.save()
+        # Asked for by the respondent: no staff user. It also pauses the reminders (messaging.services._awaiting).
+        log_action("appointment.requested", appointment, {
+            "sample_id": token.sample_case.sample_id, "mode": appointment.mode,
+            "scheduled_for": appointment.scheduled_for.isoformat(),
+        })
         return Response(serializer.data, status=201)
 
 
@@ -176,8 +182,15 @@ class AppointmentStatusView(APIView):
             return Response(
                 {"error": {"code": "invalid_status", "message": "Invalid status.", "field_errors": {}}}, status=400
             )
+        previous = appointment.status
         appointment.status = status_value
         appointment.save(update_fields=["status"])
+        # Audited since 2026-10-06: completing, missing or cancelling an appointment also restarts the reminders.
+        log_action("appointment.status_changed", appointment, {
+            "from": previous, "to": status_value, "user_id": request.user.id,
+            "sample_id": appointment.sample_case.sample_id if appointment.sample_case_id else None,
+            "kii_id": appointment.kii_record.kii_id if appointment.kii_record_id else None,
+        }, user=request.user)
         return Response(AppointmentSerializer(appointment).data)
 
 
