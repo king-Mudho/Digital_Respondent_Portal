@@ -785,7 +785,11 @@ panel put each channel's button behind its own tab; the WhatsApp queue returned 
 WhatsApp text. To email an organisation already sent a WhatsApp invitation, the team issued
 a second invitation, which (correctly) made the first link stop working: **49 organisations
 on production hold a WhatsApp invitation whose link now says "expired"** (their emailed link
-works). Separately, the email endpoint refused any invitation past SENT, so a respondent
+works). At the PI's request those links were switched back on the same day with
+`manage.py reopen_superseded_invitations --apply`: a replaced link still in its own dates is
+reopened when the case's newer invitation is still waiting, so both messages work; nothing
+reopens behind a revoked newer invitation or once the questionnaire has begun, and each
+reopened link has an `invitation.reopened` audit entry. Separately, the email endpoint refused any invitation past SENT, so a respondent
 tapping the WhatsApp link first blocked the email.
 
 Now the panel shows every channel's button at once and says to use them all; the queue has

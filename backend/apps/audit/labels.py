@@ -56,6 +56,7 @@ ACTION_LABELS: dict[str, str] = {
     "export.outreach_generated": "Respondents and outreach workbook downloaded",
     "invitation.emailed": "Invitation emailed",
     "invitation.issued": "Invitation issued",
+    "invitation.reopened": "Replaced invitation link reopened",
     "invitation.revoked": "Invitation revoked",
     "invitations.batch_completed": "Batch of emailed invitations finished",
     "invitations.batch_started": "Batch of emailed invitations started",

@@ -196,6 +196,49 @@ def validate_manual_code(raw_code: str) -> InvitationToken:
     raise TokenValidationError("token_invalid", "This invitation code is not valid.")
 
 
+# The newer invitation is still waiting for the respondent: they have not started the questionnaire on it.
+_STILL_WAITING = [TokenStatus.GENERATED, TokenStatus.SENT, TokenStatus.OPENED, TokenStatus.ELIGIBILITY_PASSED,
+                  TokenStatus.CONSENTED]
+
+
+def reopen_superseded_invitations(*, apply: bool = False) -> dict:
+    """Switch back on the links that were replaced by a newer invitation and are still within their own dates, so a
+    respondent can use whichever message they have (PI request, 2026-10-06).
+
+    Until that day the usual way to email an organisation already sent a WhatsApp invitation was a second
+    invitation, and issue_invitation() supersedes the first: 72 links already sent (WhatsApp, a few email) then
+    said the invitation had expired, while the team followed up expecting them to work. The screens now send one
+    invitation on every channel instead, so this repairs what had already happened.
+
+    A link is reopened only when its case's newest invitation is still waiting (not started, submitted, revoked or
+    expired) -- a revoked newer invitation was a deliberate decision, and once the questionnaire has begun a second
+    working link could only produce a second submission. It returns to SENT with its own original expiry date, and
+    each one gets an `invitation.reopened` audit entry. Issuing a new invitation later supersedes all of them again.
+    Dry run unless `apply`."""
+    now = timezone.now()
+    reopened, skipped = [], []
+    superseded = (
+        InvitationToken.objects.filter(status=TokenStatus.EXPIRED, expires_at__gt=now)
+        .select_related("sample_case").order_by("sample_case__sample_id", "issued_at")
+    )
+    for token in superseded:
+        newest = InvitationToken.objects.filter(sample_case=token.sample_case).order_by("-issued_at").first()
+        entry = {"sample_id": token.sample_case.sample_id, "token_id": token.pk, "channel": token.channel,
+                 "expires_at": token.expires_at, "newest_status": newest.status}
+        if newest.pk == token.pk or newest.status not in _STILL_WAITING or newest.expires_at <= now:
+            skipped.append(entry)
+            continue
+        reopened.append(entry)
+        if apply:
+            with transaction.atomic():
+                InvitationToken.objects.filter(pk=token.pk, status=TokenStatus.EXPIRED).update(status=TokenStatus.SENT)
+                log_action("invitation.reopened", token, {
+                    "sample_id": token.sample_case.sample_id, "channel": token.channel,
+                    "newer_invitation": newest.pk, "reason": "replaced by a second invitation sent on another channel",
+                })
+    return {"reopened": reopened, "skipped": skipped, "applied": apply}
+
+
 def revoke_token(token: InvitationToken, reason: str, *, revoked_by=None) -> InvitationToken:
     token.status = TokenStatus.REVOKED
     token.revoked_at = timezone.now()
