@@ -271,9 +271,9 @@ export function ContactFinderPanel({ sampleId, invitable }: { sampleId: string; 
       blocked={() => (invitable ? null : "This is a locked Reserve, so it is not searched for contact details.")}
       intro={
         <>
-          Searches public sources for this organisation&rsquo;s published phone, email, website and office location, and
-          senior staff the organisation itself names. Every detail comes with the page it was found on and the passage
-          that shows it. Nothing is saved until you accept it: an organisation phone or email goes to &ldquo;Organisation
+          Searches public sources for this organisation&rsquo;s published phone number and email, and for senior staff
+          the organisation names, but only with their published phone or email. Every detail comes with the page it was
+          found on and the passage that shows it. Nothing is saved until you accept it: an organisation phone or email goes to &ldquo;Organisation
           contact (to be identified)&rdquo;, and a named person becomes a new respondent. Only the organisation&rsquo;s
           name, province, district and value chain are sent to the AI provider.
         </>
@@ -297,10 +297,10 @@ export function KiiContactFinderPanel({ kiiId, onChange }: { kiiId: number; onCh
       blocked={(data) => (data.searchable === false ? "This informant has already been interviewed or declined." : null)}
       intro={
         <>
-          Searches public sources for the informant&rsquo;s organisation&rsquo;s published phone, email and website, and
+          Searches public sources for the informant&rsquo;s organisation&rsquo;s published phone number and email, and
           the informant&rsquo;s work email or phone where their own organisation publishes it (never a personal number,
           personal email or personal social media). For a record still marked &ldquo;contact not yet identified&rdquo;, it
-          looks for whoever currently holds the role. Every detail comes with the page and the passage that shows it.
+          looks for whoever currently holds the role, with their phone or email. Every detail comes with the page and the passage that shows it.
           Nothing is saved until you accept it: a phone or email fills the record (never over a different one), and a
           person found for an unidentified record becomes its informant. Only the organisation&rsquo;s name and type and
           the informant&rsquo;s name and role are sent to the AI provider.

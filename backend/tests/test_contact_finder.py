@@ -53,21 +53,32 @@ def _meta(settings):
 
 # --- The server never trusts the AI ------------------------------------------------------------------------------
 
-def test_a_contact_shown_in_its_quote_survives_and_phone_formats_are_matched():
+def test_a_phone_and_email_shown_in_their_quote_survive_and_phone_formats_are_matched():
     raw = {"contacts": [
         {"kind": "ORG_PHONE", "value": "+263 77 394 3709", "sources": _src("Call us on 0773 943 709 today")},
         {"kind": "ORG_EMAIL", "value": "info@testorg.co.zw", "sources": _src("Email us: info@testorg.co.zw")},
-        {"kind": "WEBSITE", "value": "https://www.testorg.co.zw", "sources": _src("Welcome to Test Organisation")},
     ]}
     proposals, dropped = cf.clean_contacts(raw, {URL})
-    assert [p["kind"] for p in proposals] == ["ORG_PHONE", "ORG_EMAIL", "WEBSITE"] and dropped == []
+    assert [p["kind"] for p in proposals] == ["ORG_PHONE", "ORG_EMAIL"] and dropped == []
 
 
-def test_a_website_written_without_https_is_kept_with_https_added():
-    # Muse wrote websites as "cottco.co.zw" for three real companies on 2026-10-03, and each was refused.
-    raw = {"contacts": [{"kind": "WEBSITE", "value": "www.testorg.co.zw", "sources": _src("Visit www.testorg.co.zw")}]}
+def test_only_phones_emails_and_people_with_contact_details_are_kept():
+    # PI decision 2026-10-06: websites and office locations are no longer searched for, and a named person is kept
+    # only with a published phone or email -- even if the model returns them anyway.
+    raw = {"contacts": [
+        {"kind": "WEBSITE", "value": "https://www.testorg.co.zw", "sources": _src("Welcome to www.testorg.co.zw")},
+        {"kind": "OFFICE_LOCATION", "value": "12 Samora Machel Ave, Harare", "sources": _src("12 Samora Machel Ave, Harare")},
+        {"kind": "PERSON", "person_name": "Tendai Moyo", "person_title": "Managing Director",
+         "sources": _src("Tendai Moyo, Managing Director")},
+        {"kind": "PERSON", "person_name": "Rudo Chari", "person_title": "Finance Manager", "person_email": "rchari@testorg.co.zw",
+         "sources": _src("Rudo Chari, Finance Manager, rchari@testorg.co.zw")},
+    ]}
     proposals, dropped = cf.clean_contacts(raw, {URL})
-    assert [p["value"] for p in proposals] == ["https://www.testorg.co.zw"] and dropped == []
+    assert [(p["kind"], p["person_name"]) for p in proposals] == [("PERSON", "Rudo Chari")]
+    reasons = [d["reason"] for d in dropped]
+    assert reasons.count("only phone numbers, emails and people with contact details are kept") == 2 and "a person needs a published phone or email" in reasons
+    assert cf.contact_tool()["input_schema"]["properties"]["contacts"]["items"]["properties"]["kind"]["enum"] == [
+        "ORG_PHONE", "ORG_EMAIL", "PERSON"]
 
 
 def test_a_contact_missing_from_its_quoted_passage_is_dropped_as_unsupported():
@@ -85,13 +96,11 @@ def test_a_source_the_search_never_returned_or_a_social_page_is_dropped():
     raw = {"contacts": [
         {"kind": "ORG_PHONE", "value": "0773943709", "sources": _src("0773943709", url="https://elsewhere.example/x")},
         {"kind": "ORG_EMAIL", "value": "info@testorg.co.zw", "sources": _src("info@testorg.co.zw", url=facebook)},
-        {"kind": "WEBSITE", "value": facebook, "sources": _src("facebook.com/testorg")},
     ]}
     proposals, dropped = cf.clean_contacts(raw, {URL, facebook, "https://elsewhere.example/other"})
     assert proposals == []
     reasons = [d["reason"] for d in dropped]
     assert "url was not returned by the search" in reasons and "social page not shown to be the organisation's own" in reasons
-    assert "not an organisation website" in reasons
 
 
 def test_the_organisations_own_social_page_can_support_its_contacts_but_never_a_named_person():
@@ -100,13 +109,12 @@ def test_the_organisations_own_social_page_can_support_its_contacts_but_never_a_
     own = [{"title": "Test Organisation | Facebook", "url": page, "quote": "Test Organisation. Call us on 0773 943 709"}]
     raw = {"contacts": [
         {"kind": "ORG_PHONE", "value": "0773943709", "confidence": "HIGH", "sources": own},
-        {"kind": "WEBSITE", "value": page, "sources": own},
-        {"kind": "PERSON", "person_name": "Tendai Moyo", "person_title": "Owner",
-         "sources": [{"title": "Test Organisation | Facebook", "url": page, "quote": "Tendai Moyo, Owner, Test Organisation"}]},
+        {"kind": "PERSON", "person_name": "Tendai Moyo", "person_title": "Owner", "person_phone": "0773943709",
+         "sources": [{"title": "Test Organisation | Facebook", "url": page, "quote": "Tendai Moyo, Owner, 0773 943 709"}]},
         {"kind": "ORG_EMAIL", "value": "info@testorg.co.zw", "sources": [{"title": "Profile", "url": profile, "quote": "info@testorg.co.zw"}]},
     ]}
     proposals, dropped = cf.clean_contacts(raw, {page, profile}, org_name="Test Organisation (Pvt) Ltd")
-    assert [p["kind"] for p in proposals] == ["ORG_PHONE", "WEBSITE"]
+    assert [p["kind"] for p in proposals] == ["ORG_PHONE"]
     assert proposals[0]["confidence"] == "MODERATE"  # a social page alone is at most moderate
     reasons = {d["reason"] for d in dropped}
     assert "social pages are not used for a named person" in reasons and "personal or social page refused" in reasons
@@ -132,8 +140,8 @@ def test_a_person_needs_a_title_and_a_name_in_the_quote_and_unshown_details_are_
 
 
 def test_anything_private_is_dropped():
-    raw = {"contacts": [{"kind": "OFFICE_LOCATION", "value": "Home address: 12 Smith Road",
-                         "sources": _src("Home address: 12 Smith Road")}]}
+    raw = {"contacts": [{"kind": "PERSON", "person_name": "Tendai Moyo", "person_title": "Owner (home address 12 Smith Road)",
+                         "person_phone": "0773943709", "sources": _src("Tendai Moyo, Owner, 0773 943 709")}]}
     proposals, dropped = cf.clean_contacts(raw, {URL})
     assert proposals == [] and dropped[0]["reason"] == "looked private"
 

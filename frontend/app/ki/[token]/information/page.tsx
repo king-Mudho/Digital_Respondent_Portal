@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
+import { ClearanceDocuments } from "@/components/respondent/ClearanceDocuments";
 import { StudyHeader } from "@/components/respondent/StudyHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -19,6 +20,8 @@ export default function KIIParticipantInformationPage() {
           <div className="text-text-muted text-sm whitespace-pre-line leading-relaxed">
             {KII_PARTICIPANT_INFORMATION_SHEET}
           </div>
+          {/* The same published approval letters a Main-400 respondent can check (since 2026-10-06). */}
+          <ClearanceDocuments token={params.token} />
           <Button className="w-full" onClick={() => router.push(`/ki/${params.token}/consent`)}>
             Continue to consent
           </Button>

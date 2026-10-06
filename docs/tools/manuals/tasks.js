@@ -256,7 +256,7 @@ T.proit = [
 
 T.contactFinder = [
   ["h2", "Finding contact details with AI"],
-  ["p", "Many cases have no phone, WhatsApp or email on file, so they cannot be invited. The contact finder searches public sources for an organisation's **published** phone, email, website and office location, and for senior staff the organisation itself names (for example on its own website or annual report). Like PROIT research, it only proposes: nothing is saved until you accept it."],
+  ["p", "Many cases have no phone, WhatsApp or email on file, so they cannot be invited. The contact finder searches public sources for an organisation's **published** phone number and email address, and for senior staff the organisation itself names (for example on its own website or annual report), but only with their published phone or email. It no longer looks for websites or office addresses, and a name found without a phone or email is not kept. Like PROIT research, it only proposes: nothing is saved until you accept it."],
   ["h3", "For one case"],
   ["steps", [
     "Open the case (**Main-400 Register → View**) and find **Find contact details with AI**.",
@@ -265,7 +265,7 @@ T.contactFinder = [
     { text: "Decide on each one:", sub: [
       "An organisation **phone** or **email**: **Accept** records it on a respondent called “Organisation contact (to be identified)”, ready for you to phone the organisation and find the right person. It never overwrites a different number or address already there; edit that under **Respondents and contact details** instead.",
       "A **named person**: choose their **Role** if the page shows it, then **Accept**. They become a new respondent, marked not yet screened. Screen them for eligibility before inviting.",
-      "A **website** or **office location** is kept with the organisation and shown at the top of the panel.",
+      "A **website** or **office location** found by an earlier search (before 6 October 2026) can still be accepted; it is kept with the organisation and shown at the top of the panel. New searches no longer propose them.",
       "**Reject** anything that belongs to a different organisation with a similar name, or that you cannot confirm on the page.",
     ] },
     "When the case has a confirmed eligible respondent and a number, verify it to **S03** and invite it as usual.",
@@ -418,7 +418,7 @@ T.kii = [
   ]],
   ["tip", "What the link carries", "Only the KII ID and your own username. It never carries the participant's name, role or organisation, so nothing identifying is left in a web address or your browser history."],
   ["h2", "Finding an informant's contact details with AI"],
-  ["p", "Most KII records have no phone or email yet. The contact finder searches public sources for the informant's organisation's published phone, email and website, and for the informant's own **work** email or phone where their organisation (or an official register) publishes it. For a record still called “… (contact not yet identified)”, it looks for whoever currently holds the role. It only proposes: nothing reaches the record until you accept it."],
+  ["p", "Most KII records have no phone or email yet. The contact finder searches public sources for the informant's organisation's published phone number and email, and for the informant's own **work** email or phone where their organisation (or an official register) publishes it. For a record still called “… (contact not yet identified)”, it looks for whoever currently holds the role, with their phone or email. A name found without a phone or email is not kept. It only proposes: nothing reaches the record until you accept it."],
   ["steps", [
     "Open the record (**KII Register → Manage**) and find **Find contact details with AI**, above **Invite (self-service link)**.",
     "Select **Find contact details**. Searches run one at a time, about a minute each; if others are ahead the button reads **Waiting in line…**. You can leave the page and come back.",
@@ -602,7 +602,7 @@ T.clearance = [
     "Select **Research Clearance**.",
     "Under **Add a document**, enter the **Title**, **Issuing body**, **Type**, the **Reference number** as printed on the letter (if any), the **Date on the letter**, and an optional plain-language **Description**, then select **Add document**.",
     "Select **Upload file** on the new row and choose the letter (PDF, JPG or PNG, up to 20MB).",
-    "Tick **Shown to respondents** when you are ready for respondents to see it. It appears immediately on the Participant Information step of every invitation link.",
+    "Tick **Shown to respondents** when you are ready for respondents to see it. It appears immediately on the Participant Information step of every invitation link, for Main-400 respondents and KII informants alike.",
     "**Active** can be switched off to retire a document without deleting it — for example a superseded letter you still want on record.",
   ]],
   ["tip", "Nothing is shown by accident", "A document needs a file and Shown to respondents **both** before any respondent sees it. Adding a document or uploading a file does not publish it on its own."],

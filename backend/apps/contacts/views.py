@@ -6,8 +6,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact
-from apps.audit.utils import log_action
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
+from apps.audit.utils import log_action
 from apps.consent.services import has_given_consent
 from apps.invitations.models import TokenStatus
 from apps.invitations.services import TokenValidationError, advance_token_status, validate_token

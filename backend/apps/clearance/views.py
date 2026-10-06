@@ -29,12 +29,22 @@ from .services import ClearanceFileError, open_file, remove_file, save_file
 
 
 def _resolve_token(request):
+    """A Main-400 invitation link or, since 2026-10-06, a KII informant's link: both respondents see the same
+    published letters before they consent. A Main-400 link that is expired or revoked keeps its own error; only a
+    link no Main-400 invitation recognises is tried as a KII one."""
+    from apps.kii.services import KIITokenValidationError, validate_kii_token
+
     raw_token = request.data.get("token") if request.method == "POST" else request.query_params.get("t")
     if not raw_token:
         return None, Response({"error": {"code": "token_missing", "message": "A token is required.", "field_errors": {}}}, status=400)
     try:
         return validate_token(raw_token), None
     except TokenValidationError as exc:
+        if exc.code != "token_invalid":
+            return None, Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=400)
+    try:
+        return validate_kii_token(raw_token), None
+    except KIITokenValidationError as exc:
         return None, Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=400)
 
 
@@ -171,7 +181,9 @@ class RespondentClearanceDocumentFileView(APIView):
             path, filename, content_type = open_file(doc)
         except ClearanceFileError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
-        log_action("clearance.file_viewed_by_respondent", doc, {"sample_case_id": token.sample_case_id})
+        log_action("clearance.file_viewed_by_respondent", doc, {
+            "sample_case_id": getattr(token, "sample_case_id", None), "kii_record_id": getattr(token, "kii_record_id", None),
+        })
         response = FileResponse(open(path, "rb"), content_type=content_type)
         response["Content-Disposition"] = f'inline; filename="{filename}"'
         response["Cache-Control"] = "no-store"

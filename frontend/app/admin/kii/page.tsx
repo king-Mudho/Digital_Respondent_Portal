@@ -75,7 +75,7 @@ function KiiContactBatchPanel() {
       <p className="text-xs text-text-muted">
         {info.without_contacts} informant{info.without_contacts === 1 ? "" : "s"} not yet interviewed ha
         {info.without_contacts === 1 ? "s" : "ve"} no phone, WhatsApp or email on file. The AI looks for their
-        organisation&rsquo;s published contacts and their own work contact where the organisation publishes it, and for
+        organisation&rsquo;s published phone and email and their own work phone or email where the organisation publishes it, and for
         whoever holds the role where the contact is not yet identified. Nothing is saved until it is accepted on the
         record&rsquo;s page. Roughly US${low.toFixed(2)}–{high.toFixed(2)} per record.
       </p>

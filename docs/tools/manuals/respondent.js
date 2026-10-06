@@ -140,7 +140,7 @@ module.exports = {
     ["h2", "Step 1 — Open your link"],
     ["p", "Tap the link you were sent. The study portal opens in your browser -- no app to install and no account to create."],
     ["h2", "Step 2 — Read the participant information"],
-    ["p", "Read about the study, why you have been invited, what taking part involves, and your rights. When you are ready, tap **Continue to consent**."],
+    ["p", "Read about the study, why you have been invited, what taking part involves, and your rights. A section called **How to verify this is a genuine study** lets you open the official approval letters. When you are ready, tap **Continue to consent**."],
     ["h2", "Step 3 — Give your decision"],
     ["bullets", [
       "Tap **I agree to take part** if you are happy to continue.",

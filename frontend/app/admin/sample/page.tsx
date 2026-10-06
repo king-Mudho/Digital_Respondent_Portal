@@ -426,8 +426,8 @@ function ContactFinderBatchPanel() {
       <h3 className="font-medium text-sm">Find contact details with AI</h3>
       <p className="text-xs text-text-muted">
         {info.without_contacts} case{info.without_contacts === 1 ? "" : "s"} not yet invited ha{info.without_contacts === 1 ? "s" : "ve"} no
-        phone, WhatsApp or email on file. The AI searches public sources for each organisation&rsquo;s published contact
-        details; nothing is saved until you accept it on the case page. Roughly US${low.toFixed(2)}–{high.toFixed(2)} per case.
+        phone, WhatsApp or email on file. The AI searches public sources for each organisation&rsquo;s published phone
+        number and email, and senior staff with their phone or email; nothing is saved until you accept it on the case page. Roughly US${low.toFixed(2)}–{high.toFixed(2)} per case.
       </p>
       {!info.configured && <p className="text-sm">AI research hasn&rsquo;t been set up yet. Ask the administrator.</p>}
 

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ABF-FST WhatsApp Profile</title>
+<!-- WhatsApp profile picture for the study number. Rendered to a 1080 x 1080 PNG by
+     docs/tools/build_whatsapp_profile.ps1. WhatsApp crops it to a circle and shows it small, so everything that
+     matters sits inside the central circle. No university logo: the study's own name and the CUT initials as text only. -->
+<style>
+  html, body { margin: 0; padding: 0; background: #1d2f4f; }
+  .tile {
+    width: 1080px; height: 1080px; position: relative; overflow: hidden;
+    background: radial-gradient(circle at 50% 42%, #2b4570 0%, #1d2f4f 58%, #16243d 100%);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  }
+  .ring { position: absolute; inset: 70px; border-radius: 50%; border: 10px solid #c9973a; }
+  .ring.inner { inset: 100px; border-width: 3px; border-color: rgba(201, 151, 58, 0.55); }
+  svg.motif { position: absolute; left: 50%; top: 128px; transform: translateX(-50%); }
+  .name {
+    position: absolute; left: 0; right: 0; top: 405px; text-align: center;
+    color: #ffffff; font-weight: 800; font-size: 210px; letter-spacing: -4px; line-height: 1;
+  }
+  .rule { position: absolute; left: 50%; top: 650px; width: 420px; height: 6px; margin-left: -210px; background: #c9973a; border-radius: 3px; }
+  .label {
+    position: absolute; left: 0; right: 0; top: 683px; text-align: center;
+    color: #e7c27a; font-weight: 600; font-size: 58px; letter-spacing: 12px; text-transform: uppercase;
+  }
+  .cut {
+    position: absolute; left: 0; right: 0; top: 776px; text-align: center;
+    color: #ffffff; font-weight: 700; font-size: 92px; letter-spacing: 18px; padding-left: 18px; line-height: 1;
+  }
+  .cut::before, .cut::after { content: ""; display: inline-block; width: 46px; height: 4px; background: #c9973a; vertical-align: middle; margin: 0 26px 14px; }
+</style>
+</head>
+<body>
+<div class="tile">
+  <div class="ring"></div>
+  <div class="ring inner"></div>
+  <!-- A wheat stalk rising over a growth line: agribusiness and its growth, readable even when tiny. -->
+  <svg class="motif" width="300" height="270" viewBox="0 0 300 270" aria-hidden="true">
+    <g fill="#c9973a">
+      <rect x="146" y="70" width="8" height="190" rx="4"/>
+      <ellipse cx="150" cy="52" rx="15" ry="34"/>
+      <g transform="translate(150 110) rotate(-38)"><ellipse cx="0" cy="-30" rx="14" ry="32"/></g>
+      <g transform="translate(150 110) rotate(38)"><ellipse cx="0" cy="-30" rx="14" ry="32"/></g>
+      <g transform="translate(150 158) rotate(-42)"><ellipse cx="0" cy="-30" rx="14" ry="32"/></g>
+      <g transform="translate(150 158) rotate(42)"><ellipse cx="0" cy="-30" rx="14" ry="32"/></g>
+      <g transform="translate(150 206) rotate(-46)"><ellipse cx="0" cy="-28" rx="13" ry="30"/></g>
+      <g transform="translate(150 206) rotate(46)"><ellipse cx="0" cy="-28" rx="13" ry="30"/></g>
+    </g>
+  </svg>
+  <div class="name">ABF-FST</div>
+  <div class="rule"></div>
+  <div class="label">Research Study</div>
+  <div class="cut">CUT</div>
+</div>
+</body>
+</html>

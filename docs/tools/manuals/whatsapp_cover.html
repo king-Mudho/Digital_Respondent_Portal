@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ABF-FST WhatsApp Cover</title>
+<!-- Cover photo for the study's WhatsApp Business profile, 1920 x 1080 (16:9; scales to the 1211 x 681 the app
+     displays). Text stays in the middle band so a crop or the overlapping profile photo never hides it. Same navy and
+     gold as the profile picture and the respondent guide. No university logo: the name as text only. -->
+<style>
+  html, body { margin: 0; padding: 0; background: #1d2f4f; }
+  .cover {
+    width: 1920px; height: 1080px; position: relative; overflow: hidden;
+    background: linear-gradient(115deg, #16243d 0%, #1d2f4f 45%, #2b4570 100%);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #fff;
+  }
+  /* A field of wheat stalks along the bottom, quiet enough to sit behind the profile photo. */
+  canvas { position: absolute; left: 0; bottom: 0; }
+  .band { position: absolute; left: 0; right: 0; top: 250px; text-align: center; }
+  .eyebrow { color: #e7c27a; font-size: 40px; font-weight: 600; letter-spacing: 14px; text-transform: uppercase; }
+  .title { font-size: 150px; font-weight: 800; letter-spacing: -3px; line-height: 1.05; margin-top: 18px; }
+  .title span { color: #e7c27a; font-weight: 700; }
+  .rule { width: 260px; height: 6px; background: #c9973a; border-radius: 3px; margin: 34px auto 30px; }
+  .full { font-size: 40px; font-weight: 500; color: #dfe6f0; max-width: 1100px; margin: 0 auto; line-height: 1.35; text-wrap: balance; }
+  .inst { font-size: 34px; font-weight: 600; color: #e7c27a; margin-top: 22px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<div class="cover">
+  <canvas id="field" width="1920" height="300"></canvas>
+  <div class="band">
+    <div class="eyebrow">Doctoral research study</div>
+    <div class="title">ABF-FST <span>Research</span></div>
+    <div class="rule"></div>
+    <div class="full">Agribusiness Bankability Framework for Food Systems Transformation in Zimbabwe</div>
+    <div class="inst">Chinhoyi University of Technology (CUT)</div>
+  </div>
+</div>
+<script>
+  // Deterministic field of wheat stalks (same picture every render).
+  const c = document.getElementById("field"), g = c.getContext("2d");
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 150; i++) {
+    const x = rand() * 1920, h = 120 + rand() * 170, lean = (rand() - 0.5) * 30, a = 0.10 + rand() * 0.16;
+    g.strokeStyle = g.fillStyle = `rgba(201, 151, 58, ${a})`;
+    g.lineWidth = 3;
+    g.beginPath(); g.moveTo(x, 300); g.quadraticCurveTo(x + lean / 2, 300 - h / 2, x + lean, 300 - h); g.stroke();
+    for (let k = 0; k < 5; k++) {
+      const t = 1 - k * 0.09, gx = x + lean * t, gy = 300 - h * t;
+      for (const side of [-1, 1]) {
+        g.save(); g.translate(gx, gy); g.rotate(side * 0.6 + lean / 200);
+        g.beginPath(); g.ellipse(0, -9, 4.5, 11, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      }
+    }
+    g.beginPath(); g.ellipse(x + lean, 300 - h - 12, 5, 13, lean / 120, 0, Math.PI * 2); g.fill();
+  }
+</script>
+</body>
+</html>

@@ -191,3 +191,41 @@ def test_an_archived_public_documents_file_is_refused_even_though_the_file_genui
     doc = ClearanceDocument.objects.create(title="Archived", issuing_body="x", document_type="OTHER", is_public=True, active=False, file_ref=ref, file_name="x.pdf")
     client = APIClient()
     assert client.get(f"/api/v1/respondent-clearance-documents/{doc.pk}/file/", {"t": token_for()}).status_code == 404
+
+
+# --- KII informants see the same letters (2026-10-06) --------------------------------------------------------------
+
+def _kii_link():
+    from apps.kii.services import create_kii_record, issue_kii_invitation
+
+    record = create_kii_record(participant_name="Tendai Moyo", participant_role="Head of Agribusiness",
+                               stakeholder_category="Bank, DFI & MFI")
+    raw_token, _, token = issue_kii_invitation(record)
+    return raw_token, token
+
+
+def test_a_kii_informants_link_lists_and_opens_the_same_public_letters(db, tmp_path, settings):
+    ref = _real_file(tmp_path, settings, "ethics.pdf")
+    doc = ClearanceDocument.objects.create(title="Ethics", issuing_body="CUT", document_type="ETHICS_CLEARANCE",
+                                           is_public=True, file_ref=ref, file_name="Ethics.pdf", file_content_type="application/pdf")
+    ClearanceDocument.objects.create(title="Private", issuing_body="CUT", document_type="OTHER", is_public=False, file_ref=ref, file_name="p.pdf")
+    raw, token = _kii_link()
+    client = APIClient()
+    listed = client.get("/api/v1/respondent-clearance-documents/", {"t": raw})
+    assert listed.status_code == 200 and [d["title"] for d in listed.data["results"]] == ["Ethics"]
+    opened = client.get(f"/api/v1/respondent-clearance-documents/{doc.pk}/file/", {"t": raw})
+    assert opened.status_code == 200 and b"".join(opened.streaming_content) == b"%PDF-1.4 real bytes on disk"
+    event = AuditEvent.objects.get(action="clearance.file_viewed_by_respondent")
+    assert event.metadata["kii_record_id"] == token.kii_record_id and event.metadata["sample_case_id"] is None
+
+
+def test_an_expired_main_link_keeps_its_own_error_rather_than_being_tried_as_a_kii_link(token_for, main_case):
+    from django.utils import timezone
+
+    from apps.invitations.models import InvitationToken
+
+    raw = token_for()
+    InvitationToken.objects.filter(sample_case=main_case).update(expires_at=timezone.now() - timezone.timedelta(days=1))
+    response = APIClient().get("/api/v1/respondent-clearance-documents/", {"t": raw})
+    assert response.status_code == 400 and response.data["error"]["code"] == "token_expired"
+    assert APIClient().get("/api/v1/respondent-clearance-documents/", {"t": "neither-kind-of-link"}).data["error"]["code"] == "token_invalid"

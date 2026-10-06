@@ -52,14 +52,18 @@ BARE_DOMAIN = re.compile(r"^(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(/\S*)?$", re.I)
 NOT_YET_INVITED = ["S00", "S01", "S02", "S03", "S04"]
 RESEARCH_AGAIN_AFTER = timedelta(days=30)
 COST_PER_CASE_USD = (0.05, 0.15)  # estimate at Muse prices; the audit trail records the real tokens
+# What a search looks for (PI decision 2026-10-06): a phone number, an email address, and named people only with a
+# published phone or email. Websites and office locations were proposed until then; findings already waiting can
+# still be decided, but a new search neither asks for them nor keeps them.
+SEARCH_KINDS = (ContactKind.ORG_PHONE, ContactKind.ORG_EMAIL, ContactKind.PERSON)
 
 SYSTEM_PROMPT = (
     "You find the PUBLISHED contact details of an organisation in Zimbabwe so that an academic study (ABF-FST, Chinhoyi "
     "University of Technology) can invite it to take part. Use web search.\n\n"
-    "Find, where the organisation or an official register publishes them: its main phone number, general email address, "
-    "website, office location (town and street of its offices, never a person's home), and senior staff the organisation "
-    "itself names (for example managing director, finance manager) with their job title and their published WORK email or "
-    "phone.\n\n"
+    "Find, where the organisation or an official register publishes them: its main phone number, its general email "
+    "address, and senior staff the organisation itself names (for example managing director, finance manager) with their "
+    "job title AND their published WORK email or phone. Record a person only if a phone number or email address for them "
+    "is published. Do not record websites or office addresses.\n\n"
     "Rules you must follow:\n"
     "- Confirm it is the RIGHT organisation (name plus province or district). If unsure, record nothing for it.\n"
     "- Prefer the organisation's own website, official registers, industry associations and business directories.\n"
@@ -95,8 +99,8 @@ def contact_tool() -> dict:
                     "items": {
                         "type": "object",
                         "properties": {
-                            "kind": {"type": "string", "enum": [k.value for k in ContactKind]},
-                            "value": {"type": "string", "description": "The phone, email, website or office location. Empty for PERSON."},
+                            "kind": {"type": "string", "enum": [k.value for k in SEARCH_KINDS]},
+                            "value": {"type": "string", "description": "The phone number or email address. Empty for PERSON."},
                             "person_name": {"type": "string"},
                             "person_title": {"type": "string", "description": "Job title as the organisation publishes it."},
                             "person_email": {"type": "string", "description": "Published work email, or empty."},
@@ -168,10 +172,12 @@ def clean_contacts(raw: dict, seen_urls: set[str], org_name: str = "") -> tuple[
     """(proposals, dropped). Only what a person can check against its source survives."""
     allowed = {pr._norm(u) for u in seen_urls}
     proposals, dropped, done = [], [], set()
-    kinds = {k.value for k in ContactKind}
+    kinds = {k.value for k in SEARCH_KINDS}
     for item in pr._as_list(raw.get("contacts")):
         kind = item.get("kind")
         if kind not in kinds:
+            if kind in {k.value for k in ContactKind}:  # a website or office location: no longer searched for
+                dropped.append({"kind": kind, "reason": "only phone numbers, emails and people with contact details are kept"})
             continue
         text = {k: (item.get(k) or "").strip() for k in ("value", "person_name", "person_title", "person_email", "person_phone")}
         label = text["person_name"] if kind == ContactKind.PERSON else text["value"]
@@ -215,6 +221,9 @@ def clean_contacts(raw: dict, seen_urls: set[str], org_name: str = "") -> tuple[
             if text["person_phone"] and not any(phone_shown(text["person_phone"], s["quote"]) for s in sources):
                 dropped.append({"kind": kind, "reason": "work phone not shown in the quoted text", "label": text["person_name"][:120]})
                 text["person_phone"] = ""
+            if not (text["person_email"] or text["person_phone"]):
+                dropped.append({"kind": kind, "reason": "a person needs a published phone or email", "label": text["person_name"][:120]})
+                continue
             key = (kind, text["person_name"].lower())
         else:
             if kind == ContactKind.WEBSITE and BARE_DOMAIN.match(text["value"]):
