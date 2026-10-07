@@ -61,13 +61,19 @@ class InvitationBatchStatus(models.TextChoices):
     FAILED = "FAILED", "Failed"
 
 
+def default_batch_channels() -> list[str]:
+    return ["EMAIL"]
+
+
 class InvitationBatch(models.Model):
-    """One batch of emailed invitations (apps/invitations/batch.py), started by the PI or Field Coordinator. Each
-    case goes through the same issue_invitation() and email_invitation() as the case-page Email button; this records
-    what the batch did, case by case, with masked addresses only."""
+    """One batch of invitations (apps/invitations/batch.py), started by the PI or Field Coordinator. Each case gets
+    one invitation through issue_invitation(), sent on every chosen channel it has a contact for -- email from the
+    study address, SMS and WhatsApp through Twilio (channels added 2026-10-07). This records what the batch did, case
+    by case, with masked addresses and numbers only."""
 
     created_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     requested = models.PositiveIntegerField()
+    channels = models.JSONField(default=default_batch_channels)
     status = models.CharField(max_length=8, choices=InvitationBatchStatus.choices, default=InvitationBatchStatus.RUNNING)
     sent = models.PositiveIntegerField(default=0)
     failed = models.PositiveIntegerField(default=0)

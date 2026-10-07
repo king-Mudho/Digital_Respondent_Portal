@@ -97,18 +97,12 @@ def _mask(address: str) -> str:
     return f"{local[:1]}***@{domain}" if domain else "***"
 
 
-def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
-    """Send a just-issued KII invitation from the study address. The link must
-    be this invitation's own (checked against the stored fingerprint), the
-    same ownership check as apps.invitations.messages.email_invitation."""
-    from apps.audit.utils import log_action
-    from apps.kobo.submission_copies import email_is_configured
-
+def _check_own_kii_link(token, link: str, manual_code: str) -> None:
+    """The KII equivalent of apps.invitations.messages._check_own_link: the link and code must be this invitation's
+    own and still working. Shared by email, SMS and WhatsApp."""
     from .models import KIIInvitationTokenStatus
     from .services import _verify_secret
 
-    if not email_is_configured():
-        raise KIIInvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
     # Any link that still works (2026-10-06): the same invitation on a second channel, as for Main-400.
     still_open = (KIIInvitationTokenStatus.GENERATED, KIIInvitationTokenStatus.SENT, KIIInvitationTokenStatus.OPENED,
                   KIIInvitationTokenStatus.CONSENTED, KIIInvitationTokenStatus.STARTED)
@@ -119,6 +113,52 @@ def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
         raise KIIInvitationSendError("link_mismatch", "That link doesn't belong to this invitation.", 400)
     if not _verify_secret(manual_code or "", token.manual_code_hash or ""):
         raise KIIInvitationSendError("link_mismatch", "That code doesn't belong to this invitation.", 400)
+
+
+def text_kii_invitation(token, *, channel: str, link: str, manual_code: str, user) -> dict:
+    """Send an issued KII invitation by SMS or WhatsApp through Twilio (2026-10-07). WhatsApp fills the KII template
+    with who it is for (the named informant and organisation, or the organisation alone while the contact is still a
+    placeholder), the link, expiry date and code."""
+    from apps.audit.utils import log_action
+    from apps.contacts.kii_finder import is_placeholder, organisation_name
+    from apps.messaging import outbound
+    from apps.messaging.models import MessageChannel, MessagePurpose
+
+    _check_own_kii_link(token, link, manual_code)
+    record = token.kii_record
+    who = kii_recipients(record)
+    number = who["sms_to"] if channel == MessageChannel.SMS else who["whatsapp_to"]
+    org = organisation_name(record)
+    addressee = org if is_placeholder(record) else (f"{record.participant_name} ({org})" if org else record.participant_name)
+    text = build_kii_messages(kii_record=record, link=link, manual_code=manual_code, expires_at=token.expires_at)
+    expires = timezone.localtime(token.expires_at).strftime("%d %B %Y").lstrip("0")
+    try:
+        message = outbound.send(
+            channel=channel, number=number, purpose=MessagePurpose.INVITATION, sms_body=text["sms"],
+            wa_content=settings.TWILIO_WA_CONTENT_KII_INVITATION.strip(),
+            wa_variables={1: addressee or "colleague", 2: link, 3: expires, 4: manual_code},
+            user=user, kii_record=record, kii_invitation_token=token,
+        )
+    except outbound.OutboundError as exc:
+        raise KIIInvitationSendError(exc.code, str(exc), exc.status) from exc
+    action = "kii_invitation.sms_sent" if channel == MessageChannel.SMS else "kii_invitation.whatsapp_sent"
+    log_action(action, token, {
+        "kii_id": record.kii_id, "recipient": message.to_masked, "provider_message": message.pk,
+        "user_id": getattr(user, "id", None),
+    }, user=user)
+    return {"sent_to": message.to_masked, "status": message.status}
+
+
+def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
+    """Send a just-issued KII invitation from the study address. The link must
+    be this invitation's own (checked against the stored fingerprint), the
+    same ownership check as apps.invitations.messages.email_invitation."""
+    from apps.audit.utils import log_action
+    from apps.kobo.submission_copies import email_is_configured
+
+    if not email_is_configured():
+        raise KIIInvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
+    _check_own_kii_link(token, link, manual_code)
 
     record = token.kii_record
     who = kii_recipients(record)

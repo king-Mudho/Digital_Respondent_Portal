@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
+import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
@@ -64,6 +64,7 @@ interface InvitationTokenEntry {
   expires_at: string;
   revoked_at: string | null;
   revoked_reason: string;
+  deliveries?: Delivery[];
 }
 
 // Mirrors backend/apps/sampling/services.py WORKFLOW_TRANSITIONS -- the
@@ -333,6 +334,7 @@ function InvitationsPanel({
                     {e.status === "REVOKED" && e.revoked_reason && (
                       <p className="text-text-muted text-xs">{e.revoked_reason}</p>
                     )}
+                    <DeliveryList deliveries={e.deliveries} />
                   </td>
                   <td className="py-1 pr-4">{new Date(e.issued_at).toLocaleDateString()}</td>
                   <td className="py-1">

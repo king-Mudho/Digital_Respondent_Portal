@@ -113,6 +113,53 @@ def _mask(address: str) -> str:
     return f"{local[:1]}***@{domain}" if domain else "***"
 
 
+def _check_own_link(token, link: str, manual_code: str) -> None:
+    """The link and code must be this invitation's own (checked against the stored fingerprints) and still working, so
+    a send endpoint can't be used to send anything else. Shared by email, SMS and WhatsApp."""
+    from .batch import OPEN_STATUSES
+    from .services import _verify_secret
+
+    if token.status not in OPEN_STATUSES or token.expires_at <= timezone.now():
+        raise InvitationSendError("invitation_not_open", "This invitation is no longer open. Send a new one.", 409)
+    raw = link.rstrip("/").rsplit("/i/", 1)[-1] if "/i/" in link else ""
+    if not raw or not _verify_secret(raw, token.token_hash) or portal_base(link) != link.split("/i/", 1)[0]:
+        raise InvitationSendError("link_mismatch", "That link doesn't belong to this invitation.", 400)
+    if not _verify_secret(manual_code or "", token.manual_code_hash or ""):
+        raise InvitationSendError("link_mismatch", "That code doesn't belong to this invitation.", 400)
+
+
+def text_invitation(token, *, channel: str, link: str, manual_code: str, user) -> dict:
+    """Send an issued invitation by SMS or WhatsApp through Twilio (2026-10-07): the same link and code as every other
+    channel, to the case's mobile (recipients() gives mobiles only). SMS carries build_messages()' SMS wording;
+    WhatsApp the Meta-approved template, filled with the organisation, link, expiry date and code."""
+    from apps.audit.utils import log_action
+    from apps.messaging import outbound
+    from apps.messaging.models import MessageChannel, MessagePurpose
+
+    _check_own_link(token, link, manual_code)
+    case = token.sample_case
+    who = recipients(case)
+    number = who["sms_to"] if channel == MessageChannel.SMS else who["whatsapp_to"]
+    text = build_messages(sample_case=case, link=link, manual_code=manual_code, expires_at=token.expires_at,
+                          to_name=who["whatsapp_to_name"])
+    expires = timezone.localtime(token.expires_at).strftime("%d %B %Y").lstrip("0")
+    try:
+        message = outbound.send(
+            channel=channel, number=number, purpose=MessagePurpose.INVITATION, sms_body=text["sms"],
+            wa_content=settings.TWILIO_WA_CONTENT_INVITATION.strip(),
+            wa_variables={1: case.organisation.name, 2: link, 3: expires, 4: manual_code},
+            user=user, sample_case=case, invitation_token=token,
+        )
+    except outbound.OutboundError as exc:
+        raise InvitationSendError(exc.code, str(exc), exc.status) from exc
+    action = "invitation.sms_sent" if channel == MessageChannel.SMS else "invitation.whatsapp_sent"
+    log_action(action, token, {
+        "sample_id": case.sample_id, "recipient": message.to_masked, "provider_message": message.pk,
+        "user_id": getattr(user, "id", None),
+    }, user=user)
+    return {"sent_to": message.to_masked, "status": message.status}
+
+
 def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
     """Send a just-issued invitation from the study address. The link must be
     this invitation's own (checked against the stored fingerprint), so the
@@ -124,18 +171,9 @@ def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
     from apps.audit.utils import log_action
     from apps.kobo.submission_copies import email_is_configured
 
-    from .batch import OPEN_STATUSES
-    from .services import _verify_secret
-
     if not email_is_configured():
         raise InvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
-    if token.status not in OPEN_STATUSES or token.expires_at <= timezone.now():
-        raise InvitationSendError("invitation_not_open", "This invitation is no longer open. Send a new one.", 409)
-    raw = link.rstrip("/").rsplit("/i/", 1)[-1] if "/i/" in link else ""
-    if not raw or not _verify_secret(raw, token.token_hash) or portal_base(link) != link.split("/i/", 1)[0]:
-        raise InvitationSendError("link_mismatch", "That link doesn't belong to this invitation.", 400)
-    if not _verify_secret(manual_code or "", token.manual_code_hash or ""):
-        raise InvitationSendError("link_mismatch", "That code doesn't belong to this invitation.", 400)
+    _check_own_link(token, link, manual_code)
 
     case = token.sample_case
     who = recipients(case)

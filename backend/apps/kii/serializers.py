@@ -72,7 +72,14 @@ class KIIInvitationTokenSerializer(serializers.ModelSerializer):
     """Status/lifecycle fields only -- token_hash/manual_code_hash never
     serialized, same reasoning as invitations.InvitationTokenSerializer."""
 
+    deliveries = serializers.SerializerMethodField()
+
     class Meta:
         model = KIIInvitationToken
-        fields = ["id", "status", "channel", "issued_at", "expires_at", "revoked_at", "revoked_reason"]
+        fields = ["id", "status", "channel", "issued_at", "expires_at", "revoked_at", "revoked_reason", "deliveries"]
         read_only_fields = fields
+
+    def get_deliveries(self, token):
+        from apps.invitations.serializers import deliveries
+
+        return deliveries(token.provider_messages.all())

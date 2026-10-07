@@ -80,3 +80,50 @@ class ReminderSequenceStep(models.Model):
 
     def __str__(self):
         return f"Day {self.day_offset}: {self.label or self.template.name}"
+
+
+class MessagePurpose(models.TextChoices):
+    INVITATION = "INVITATION", "Invitation"
+    REMINDER = "REMINDER", "Reminder"
+
+
+class ProviderStatus(models.TextChoices):
+    """Twilio's delivery states, as its status callback reports them."""
+
+    QUEUED = "QUEUED", "Queued"
+    SENT = "SENT", "Sent"
+    DELIVERED = "DELIVERED", "Delivered"
+    READ = "READ", "Read"
+    UNDELIVERED = "UNDELIVERED", "Not delivered"
+    FAILED = "FAILED", "Failed"
+
+
+class ProviderMessage(models.Model):
+    """One SMS or WhatsApp message the portal sent itself, through Twilio (apps/messaging/twilio_client.py,
+    2026-10-07), and what Twilio says happened to it. An invitation sent by hand from the study phone has no row here:
+    only the portal's own sends can be followed to the handset.
+
+    Only a masked number is kept: the full number stays on the Respondent / KII record it came from."""
+
+    sample_case = models.ForeignKey("sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="provider_messages")
+    kii_record = models.ForeignKey("kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE, related_name="provider_messages")
+    invitation_token = models.ForeignKey("invitations.InvitationToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="provider_messages")
+    kii_invitation_token = models.ForeignKey("kii.KIIInvitationToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="provider_messages")
+    message_log = models.OneToOneField(MessageLog, null=True, blank=True, on_delete=models.SET_NULL, related_name="provider_message")
+    channel = models.CharField(max_length=16, choices=MessageChannel.choices)
+    purpose = models.CharField(max_length=16, choices=MessagePurpose.choices)
+    provider_sid = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    to_masked = models.CharField(max_length=32)
+    status = models.CharField(max_length=16, choices=ProviderStatus.choices, default=ProviderStatus.QUEUED)
+    error_code = models.CharField(max_length=16, blank=True)
+    error_message = models.CharField(max_length=300, blank=True)
+    segments = models.PositiveSmallIntegerField(null=True, blank=True)
+    sent_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"ProviderMessage({self.channel} {self.purpose} {self.status})"

@@ -18,8 +18,14 @@ export interface IssuedInvitation {
   email_to: string;
   email_to_name: string;
   email_configured: boolean;
+  /** Twilio (backend apps/messaging/twilio_client.py): the portal can send the SMS / WhatsApp itself. */
+  sms_configured?: boolean;
+  whatsapp_configured?: boolean;
   messages: { whatsapp: string; sms: string; email_subject: string; email_body: string };
 }
+
+type TextChannel = "sms" | "whatsapp";
+const TEXT_LABEL: Record<TextChannel, string> = { sms: "SMS", whatsapp: "WhatsApp" };
 
 type Channel = "whatsapp" | "sms" | "email";
 
@@ -35,36 +41,64 @@ const linkClass = "inline-flex items-center rounded-md border border-border px-3
  * WhatsApp, SMS, email and the study-address email all say the same thing:
  * link, expiry, manual code and the study contact line.
  *
- * `sendEmailPath` defaults to the Main-400 endpoint; the KII invite panel
- * (2026-10-01) passes its own `/kii-invitations/{id}/send-email/` -- same
- * response shape (apps/kii/messages.py mirrors apps/invitations/messages.py),
- * so this one component serves both rather than a near-duplicate copy.
+ * `sendPathBase` defaults to the Main-400 endpoints (`/invitations/{id}`); the
+ * KII invite panel (2026-10-01) passes `/kii-invitations/{id}` -- same response
+ * shape (apps/kii/messages.py mirrors apps/invitations/messages.py), so this
+ * one component serves both rather than a near-duplicate copy.
+ *
+ * Once Twilio is set up (2026-10-07) the portal can also send the SMS and the
+ * WhatsApp itself, with delivery reported back on the invitation history.
  */
 export function InvitationSendPanel({
-  invitation, preferred, sendEmailPath,
+  invitation, preferred, sendPathBase,
 }: {
   invitation: IssuedInvitation;
   preferred?: string;
-  sendEmailPath?: string;
+  sendPathBase?: string;
 }) {
+  const base = sendPathBase ?? `/invitations/${invitation.token_id}`;
   // Open on the channel the RA chose when issuing it (EMAIL, SMS); WhatsApp otherwise.
   const [channel, setChannel] = useState<Channel>(
     preferred === "EMAIL" ? "email" : preferred === "SMS" ? "sms" : "whatsapp",
   );
   const [copied, setCopied] = useState(false);
   const [emailResult, setEmailResult] = useState<string | null>(null);
+  const [textResult, setTextResult] = useState<Partial<Record<TextChannel, string>>>({});
+  const [textSent, setTextSent] = useState<Partial<Record<TextChannel, boolean>>>({});
   const m = invitation.messages;
   const preview = channel === "email" ? `Subject: ${m.email_subject}\n\n${m.email_body}` : m[channel];
 
   const sendEmail = useMutation({
     mutationFn: () =>
-      adminFetch<{ sent_to: string }>(sendEmailPath ?? `/invitations/${invitation.token_id}/send-email/`, {
+      adminFetch<{ sent_to: string }>(`${base}/send-email/`, {
         method: "POST",
         body: JSON.stringify({ link: invitation.link, manual_code: invitation.raw_manual_code }),
       }),
     onSuccess: (data) => setEmailResult(`Invitation emailed to ${data.sent_to} from the study address.`),
     onError: (err) => setEmailResult(err instanceof ApiError ? err.message : "The email could not be sent."),
   });
+
+  const sendText = useMutation({
+    mutationFn: (via: TextChannel) =>
+      adminFetch<{ sent_to: string; status: string }>(`${base}/send-${via}/`, {
+        method: "POST",
+        body: JSON.stringify({ link: invitation.link, manual_code: invitation.raw_manual_code }),
+      }).then((data) => ({ via, data })),
+    onSuccess: ({ via, data }) => {
+      setTextSent((s) => ({ ...s, [via]: true }));
+      setTextResult((r) => ({
+        ...r,
+        [via]: `${TEXT_LABEL[via]} sent from the portal to ${data.sent_to}. Delivery shows on the invitation history once Twilio reports it.`,
+      }));
+    },
+    onError: (err, via) =>
+      setTextResult((r) => ({ ...r, [via]: err instanceof ApiError ? err.message : `The ${TEXT_LABEL[via]} could not be sent.` })),
+  });
+  const textOn: TextChannel[] = [
+    ...(invitation.sms_configured ? (["sms"] as const) : []),
+    ...(invitation.whatsapp_configured ? (["whatsapp"] as const) : []),
+  ];
+  const noMobile = (via: TextChannel) => !(via === "sms" ? invitation.sms_to : invitation.whatsapp_to);
 
   const wa = `https://wa.me/${invitation.whatsapp_to}?text=${encodeURIComponent(m.whatsapp)}`;
   const sms = `sms:${invitation.sms_to ? `+${invitation.sms_to}` : ""}?&body=${encodeURIComponent(m.sms)}`;
@@ -138,6 +172,28 @@ export function InvitationSendPanel({
         </Button>
       </div>
 
+      {textOn.length > 0 && (
+        <div className="space-y-1" aria-label="Send from the portal">
+          <p className="text-xs font-medium">Or let the portal send it (through Twilio), and see whether it was delivered:</p>
+          <div className="flex flex-wrap gap-2">
+            {textOn.map((via) => (
+              <Button
+                key={via}
+                variant="outline"
+                onClick={() => sendText.mutate(via)}
+                disabled={noMobile(via) || sendText.isPending || !!textSent[via]}
+              >
+                {textSent[via] ? `${TEXT_LABEL[via]} sent` : `Send ${TEXT_LABEL[via]} from the portal`}
+              </Button>
+            ))}
+          </div>
+          {textOn.some(noMobile) && (
+            <p className="text-text-muted text-xs">No mobile number on file, so the portal can&apos;t send SMS or WhatsApp.</p>
+          )}
+          {textOn.map((via) => textResult[via] && <p key={via} className="text-sm">{textResult[via]}</p>)}
+        </div>
+      )}
+
       <p className="text-text-muted text-xs space-y-1">
         <span className="block">
           WhatsApp:{" "}
@@ -157,5 +213,33 @@ export function InvitationSendPanel({
       {emailResult && <p className="text-sm">{emailResult}</p>}
       <p className="text-text-muted text-xs">After sending, log it under Contact timeline.</p>
     </div>
+  );
+}
+
+/** One message the portal sent for an invitation through Twilio, as the invitation history returns it. */
+export interface Delivery {
+  channel: "SMS" | "WHATSAPP";
+  status: "QUEUED" | "SENT" | "DELIVERED" | "READ" | "UNDELIVERED" | "FAILED";
+  to: string;
+  sent_at: string;
+  error: string;
+}
+
+const DELIVERY_WORDS: Record<Delivery["status"], string> = {
+  QUEUED: "sending", SENT: "sent", DELIVERED: "delivered", READ: "read", UNDELIVERED: "not delivered", FAILED: "failed",
+};
+
+/** Under an invitation's status: each SMS / WhatsApp the portal sent for it and what Twilio reported. */
+export function DeliveryList({ deliveries }: { deliveries?: Delivery[] }) {
+  if (!deliveries?.length) return null;
+  return (
+    <ul className="text-xs text-text-muted">
+      {deliveries.map((d, i) => (
+        <li key={i} className={d.status === "UNDELIVERED" || d.status === "FAILED" ? "text-danger" : undefined}>
+          {d.channel === "SMS" ? "SMS" : "WhatsApp"} to {d.to}: {DELIVERY_WORDS[d.status]}
+          {d.error ? ` (${d.error})` : ""}
+        </li>
+      ))}
+    </ul>
   );
 }

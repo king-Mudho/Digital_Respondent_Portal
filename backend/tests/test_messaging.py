@@ -280,13 +280,20 @@ def _expire(token, days_ago=1):
 
 
 @pytest.fixture
-def whatsapp_sent(monkeypatch):
-    """A connected WhatsApp account that records what it would send."""
-    from apps.messaging.whatsapp_client import WhatsAppClient
+def whatsapp_sent(monkeypatch, settings):
+    """Twilio set up for WhatsApp reminders, recording what it would send as (number, template)."""
+    from apps.messaging import twilio_client
 
+    settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN = "AC-test", "token"
+    settings.TWILIO_WHATSAPP_FROM = "+15550001111"
+    settings.TWILIO_WA_CONTENT_REMINDER_DAY2, settings.TWILIO_WA_CONTENT_REMINDER_DAY7 = "HXday2", "HXday7"
     sent = []
-    monkeypatch.setattr(WhatsAppClient, "send_template_message",
-                        lambda self, *, to_phone, template_name, params=None: sent.append((to_phone, template_name)) or {})
+
+    def post(data, **kwargs):
+        sent.append((data["To"].removeprefix("whatsapp:+"), {"HXday2": "drp_reminder_day2", "HXday7": "drp_reminder_day7_final"}[data["ContentSid"]]))
+        return {"sid": f"SM{len(sent)}", "status": "queued"}
+
+    monkeypatch.setattr(twilio_client, "_post", post)
     return sent
 
 

@@ -202,6 +202,7 @@ class KIIInvitationIssueView(APIView):
             "link": link,
             **who,
             "email_configured": email_is_configured(),
+            **_kii_text_channels(),
             "messages": build_kii_messages(kii_record=record, link=link, manual_code=raw_code, expires_at=token.expires_at),
         }, status=201)
 
@@ -220,6 +221,30 @@ class KIIInvitationEmailView(APIView):
             return _error(exc.code, str(exc), status=exc.status)
         except Exception as exc:  # SMTP refused, timed out, ...
             return _error("email_failed", f"The email could not be sent ({exc.__class__.__name__}).", status=502)
+        return Response(result)
+
+
+def _kii_text_channels() -> dict:
+    from apps.messaging import twilio_client as tw
+
+    return {"sms_configured": tw.sms_configured(), "whatsapp_configured": tw.whatsapp_configured(kii=True)}
+
+
+class KIIInvitationTextView(APIView):
+    """POST /api/v1/kii-invitations/{token_id}/send-sms/ or /send-whatsapp/ {link, manual_code} (2026-10-07)."""
+
+    permission_classes = [CanManageKII]
+    channel = "SMS"
+
+    def post(self, request, token_id):
+        from .messages import text_kii_invitation
+
+        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id)
+        try:
+            result = text_kii_invitation(token, channel=self.channel, link=str(request.data.get("link", "")),
+                                         manual_code=str(request.data.get("manual_code", "")), user=request.user)
+        except KIIInvitationSendError as exc:
+            return _error(exc.code, str(exc), status=exc.status)
         return Response(result)
 
 

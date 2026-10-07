@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.28 · 6 October 2026";
+const REVISION = "Version 1.29 · 7 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -90,7 +90,8 @@ const INTERNAL_TROUBLE = [
   ["Form PDFs says \"Not in sync with KoboToolbox yet\"", "The counts differ: a form was submitted or changed in KoboToolbox since the last sync (it runs every 15 minutes).", "Select **Sync now**. If it still differs, or says it couldn't reach KoboToolbox, try again in a few minutes and tell the PI if it persists."],
   ["A document says \"Already submitted\" and its answers are locked", "Its coding was already sent to KoboToolbox; changing it here would not change that record.", "To redo the coding, delete that record in KoboToolbox, then select **Sync now** on Form PDFs. The document unlocks."],
   ["A page keeps loading", "A slow or dropped connection.", "Refresh the page. Your saved work is not lost; unsaved typing may be."],
-  ["**Email invitations** says email isn't set up", "Outgoing email has not been configured on the server.", "Ask the administrator to run `configure-email.sh`. Until then, send invitations by WhatsApp."],
+  ["**Send invitations** says email isn't set up", "Outgoing email has not been configured on the server.", "Ask the administrator to run `configure-email.sh`. Until then, send invitations by WhatsApp."],
+  ["**Send invitations** says SMS or WhatsApp isn't set up", "Twilio has not been configured on the server, or (WhatsApp) Meta has not approved the sender and templates yet.", "Ask the administrator to run `configure-twilio.sh`. Until then, send by email, or by hand from the study WhatsApp number."],
   ["A WhatsApp invitation was prepared but never sent", "**Prepare** counts it as sent and moves the case to S05.", "Open the case and **Revoke** that invitation; send a new one from the case's Invitations panel when you can reach the person."],
   ["A case is missing from the WhatsApp or email queue", "It is not verified (S03 or S04), has no number or email on file, already has an open invitation, or is assigned to another Contact RA.", "Verify the case, add the contact detail, or check its invitation history."],
   ["The contact finder says it would overwrite a detail", "The organisation contact already has a different phone or email.", "Check which is right and correct it under **Respondents and contact details**."],

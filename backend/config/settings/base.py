@@ -315,10 +315,30 @@ EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="ABF-FST Research <noreply@research.agribizframework.com>")
 STUDY_REPLY_TO_EMAIL = env("STUDY_REPLY_TO_EMAIL", default="")
 
-# --- WhatsApp Business Platform (docs/12_CONTACT_CRM_AND_MESSAGING.md) -----
-WHATSAPP_API_BASE_URL = env("WHATSAPP_API_BASE_URL", default="")
-WHATSAPP_API_TOKEN = env("WHATSAPP_API_TOKEN", default="")
-WHATSAPP_BUSINESS_ACCOUNT_ID = env("WHATSAPP_BUSINESS_ACCOUNT_ID", default="")
+# --- SMS and WhatsApp through Twilio (apps/messaging/twilio_client.py, 2026-10-07) -----
+# Set with deploy/configure-twilio.sh. Each channel is offered only once its own values are set, so SMS can go live
+# while the WhatsApp sender and templates are still waiting for Meta. These replace the never-provisioned Meta Cloud
+# API settings (WHATSAPP_API_BASE_URL/TOKEN) the first reminder code was written against.
+TWILIO_ACCOUNT_SID = env("TWILIO_ACCOUNT_SID", default="")
+TWILIO_AUTH_TOKEN = env("TWILIO_AUTH_TOKEN", default="")
+# A registered sender name (e.g. CUT-ABFFST) or an international number in +E.164 form.
+TWILIO_SMS_FROM = env("TWILIO_SMS_FROM", default="")
+# The WhatsApp sender registered on Twilio, +E.164 (sent as whatsapp:+...).
+TWILIO_WHATSAPP_FROM = env("TWILIO_WHATSAPP_FROM", default="")
+# Meta-approved templates in Twilio's Content Template Builder (HX... ids). Invitation variables, in order:
+# {{1}} who it is for, {{2}} the personal link, {{3}} valid-until date, {{4}} the manual code. Reminders: none.
+TWILIO_WA_CONTENT_INVITATION = env("TWILIO_WA_CONTENT_INVITATION", default="")
+TWILIO_WA_CONTENT_KII_INVITATION = env("TWILIO_WA_CONTENT_KII_INVITATION", default="")
+TWILIO_WA_CONTENT_REMINDER_DAY2 = env("TWILIO_WA_CONTENT_REMINDER_DAY2", default="")
+TWILIO_WA_CONTENT_REMINDER_DAY7 = env("TWILIO_WA_CONTENT_REMINDER_DAY7", default="")
+# Most messages each channel may send in a day (invitations and automatic reminders together).
+TWILIO_SMS_DAILY_MAX = env.int("TWILIO_SMS_DAILY_MAX", default=150)
+TWILIO_WHATSAPP_DAILY_MAX = env.int("TWILIO_WHATSAPP_DAILY_MAX", default=250)
+# Twilio's price per SMS segment to Zimbabwe (checked 2026-10-07), for the cost estimate shown before a batch.
+TWILIO_SMS_SEGMENT_PRICE_USD = env.float("TWILIO_SMS_SEGMENT_PRICE_USD", default=0.3212)
+# Appended to every SMS when set. Two-way SMS is not available in Zimbabwe, so a respondent cannot reply STOP; the
+# wording is the PI's to approve (consent and ethics wording), e.g. "To stop messages, call 0773943709."
+TWILIO_SMS_OPT_OUT_LINE = env("TWILIO_SMS_OPT_OUT_LINE", default="")
 
 # --- Celery (reconciliation + reminder queue only -- docs/04_TECH_STACK.md) -
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")

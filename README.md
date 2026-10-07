@@ -50,8 +50,9 @@ PI's decision.
 - Do the one-time Google Drive sign-in for offsite backups.
 - Run a user-acceptance invitation on a real phone.
 
-WhatsApp Business Platform is optional: invitations and reminders go out by hand from
-the shared study WhatsApp number until it is set up. AI-assisted document coding
+SMS and WhatsApp through Twilio are optional (`deploy/configure-twilio.sh`): until they
+are set up, invitations go out by hand from the shared study WhatsApp number and the Day 2 /
+Day 7 reminders wait on Follow-ups. AI-assisted document coding
 (`deploy/configure-ai-coding.sh`) is also optional and needs the PI's own Anthropic API
 key (a paid, per-request cost) — the Documentary RA workflow works fully by hand without it.
 
@@ -605,7 +606,9 @@ celery -A config beat --loglevel=info
 | `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
-| `WHATSAPP_API_BASE_URL`, `WHATSAPP_API_TOKEN`, `WHATSAPP_BUSINESS_ACCOUNT_ID` | WhatsApp Business Platform (optional; until set, reminders go out by hand from Follow-ups) |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |
+| `TWILIO_WA_CONTENT_INVITATION`, `TWILIO_WA_CONTENT_KII_INVITATION`, `TWILIO_WA_CONTENT_REMINDER_DAY2`, `TWILIO_WA_CONTENT_REMINDER_DAY7` | Meta-approved WhatsApp templates (Twilio Content `HX…` ids); invitation variables `{{1}}` who it is for, `{{2}}` link, `{{3}}` valid-until date, `{{4}}` code |
+| `TWILIO_SMS_DAILY_MAX`, `TWILIO_WHATSAPP_DAILY_MAX`, `TWILIO_SMS_SEGMENT_PRICE_USD`, `TWILIO_SMS_OPT_OUT_LINE` | Daily caps (150 / 250, invitations and automatic reminders together), the price used for the batch cost estimate (US$0.3212 per segment to Zimbabwe, checked 2026-10-07), and an optional PI-approved line added to every SMS (two-way SMS is not available in Zimbabwe, so nobody can reply STOP) |
 | `CELERY_BROKER_URL` | Redis URL |
 | `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS` | Must match the deployed frontend origin exactly |
 | `BACKUP_RPO_HOURS`, `BACKUP_RTO_HOURS` | Documented targets for `deploy/backup.sh` |
@@ -706,6 +709,7 @@ secret, so nothing sensitive needs pasting into chat or a ticket:
 |---|---|
 | `deploy/configure-kobo.sh` | KoboToolbox token, the three asset UIDs, form URL, webhook and its secret |
 | `deploy/configure-email.sh` | Gmail SMTP for abffst.research@gmail.com (needs a Google App Password) |
+| `deploy/configure-twilio.sh` | SMS and WhatsApp through Twilio: Account SID and Auth Token (hidden prompt), the SMS sender and WhatsApp sender, the four WhatsApp template ids; sends a test SMS to a number you type. Re-run to add the WhatsApp values once Meta approves them |
 | `deploy/configure-ai-coding.sh` | AI-assisted document coding (needs an Anthropic API key with billing set up — a paid, per-request cost to the PI's own account) |
 | `deploy/configure-offsite-backup.sh` | Encrypted offsite backups to Google Drive (rclone crypt, `drive.file` scope); prints the encryption key once, to store in a password manager |
 
@@ -766,6 +770,29 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### SMS and WhatsApp through Twilio (7 Oct 2026)
+
+At the PI's request the portal can send invitations and the Day 2 / Day 7 reminders itself,
+by SMS and WhatsApp through Twilio (`apps/messaging/twilio_client.py`, `outbound.py`). One
+invitation per case, sent on every chosen channel, with Twilio's delivery reports shown on
+the invitation history (`POST /api/v1/twilio/status/`, refused without a valid
+`X-Twilio-Signature`). Batches (PI and FC) gain SMS and WhatsApp next to email; Contact RAs
+send one case at a time for their own cases. The morning reminder run sends due reminders
+by WhatsApp when its template is set up, otherwise SMS, to mobiles only; a reminder Twilio
+refuses or cannot deliver goes back to Follow-ups and is never re-sent automatically, and
+does not count toward Nonresponse.
+
+The reminder code had been written in 2026-09 against the Meta Cloud API, for which no
+account was ever provisioned, so no reminder had ever been sent automatically; that client
+(`whatsapp_client.py`) and its settings are removed.
+
+What Zimbabwe allows, checked with Twilio on 2026-10-07: an SMS sender must be a registered
+name or an international number; two-way SMS is not supported; about US$0.32 per segment
+(an invitation SMS is 2 to 3). WhatsApp needs Meta business verification, a number used only
+by the API, and Meta-approved templates, and WhatsApp's policy requires opt-in before a
+business-initiated message. Those, the data transfer to Twilio and the SMS opt-out wording
+are the PI's decisions before switching on.
 
 ### Meta busy for a moment no longer fails a search (6 Oct 2026)
 

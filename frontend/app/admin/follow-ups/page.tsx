@@ -23,6 +23,8 @@ interface FollowUp {
   can_whatsapp: boolean;
   whatsapp_link: string;
   expires_on: string;
+  auto_failed: boolean;
+  sends_automatically: boolean;
 }
 
 interface ExpiredInvitation {
@@ -37,12 +39,12 @@ interface ExpiredInvitation {
 }
 
 /**
- * Reminders that are due and not yet sent. Until the WhatsApp Business
- * Platform is connected nothing is sent automatically, so this is where the
- * approved Day 2 / Day 7 reminders actually go out: open WhatsApp with the
- * approved text, send it, then mark it sent. Marking it sent is what counts
- * the reminder toward the sequence -- a case only becomes Nonresponse once
- * every reminder has been sent.
+ * Reminders that are due and not yet sent. Once Twilio is set up the morning
+ * run (08:00) sends them by WhatsApp or SMS itself; this is where the rest go
+ * out by hand -- respondents without a mobile, and any automatic send that did
+ * not get through: open WhatsApp with the approved text, send it, then mark it
+ * sent. Marking it sent is what counts the reminder toward the sequence -- a
+ * case only becomes Nonresponse once every reminder has been sent.
  */
 export default function FollowUpsPage() {
   const queryClient = useQueryClient();
@@ -99,6 +101,14 @@ export default function FollowUpsPage() {
                     {item.phone ? ` · ${item.phone}` : " · no number on file"}
                     {` · link works until ${new Date(item.expires_on).toLocaleDateString()}`}
                   </p>
+                  {item.sends_automatically && (
+                    <p className="text-xs">The portal sends this one automatically at the next morning run (08:00).</p>
+                  )}
+                  {item.auto_failed && (
+                    <p className="text-xs text-danger">
+                      The automatic message did not get through. Send it yourself, or phone them.
+                    </p>
+                  )}
                   {item.phone && !item.can_whatsapp && (
                     <p className="text-xs text-danger">
                       This is a landline: WhatsApp can&apos;t reach it. Phone them instead, or find a mobile number.

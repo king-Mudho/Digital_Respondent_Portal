@@ -7,6 +7,7 @@ from .views import (
     KIIInvitationEmailView,
     KIIInvitationIssueView,
     KIIInvitationRevokeView,
+    KIIInvitationTextView,
     KIIInvitationValidateView,
     KIIKoboRedirectView,
     KIIRecordDetailView,
@@ -32,6 +33,8 @@ urlpatterns = [
     path("kii-invitations/validate/", KIIInvitationValidateView.as_view(), name="invitation-validate"),
     path("kii-invitations/<int:token_id>/revoke/", KIIInvitationRevokeView.as_view(), name="invitation-revoke"),
     path("kii-invitations/<int:token_id>/send-email/", KIIInvitationEmailView.as_view(), name="invitation-send-email"),
+    path("kii-invitations/<int:token_id>/send-sms/", KIIInvitationTextView.as_view(channel="SMS"), name="invitation-send-sms"),
+    path("kii-invitations/<int:token_id>/send-whatsapp/", KIIInvitationTextView.as_view(channel="WHATSAPP"), name="invitation-send-whatsapp"),
     path("kii-invitations/kobo-redirect-url/", KIIKoboRedirectView.as_view(), name="invitation-kobo-redirect-url"),
     path("kii-consent/", KIIConsentSubmitView.as_view(), name="kii-consent-submit"),
 ]

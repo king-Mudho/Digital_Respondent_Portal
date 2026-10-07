@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { KiiContactFinderPanel } from "@/components/admin/ContactFinderPanel";
-import { InvitationSendPanel, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
+import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
@@ -44,6 +44,7 @@ interface KIIInvitationTokenEntry {
   channel: string;
   issued_at: string;
   expires_at: string;
+  deliveries?: Delivery[];
 }
 
 const OPEN_KII_TOKEN_STATUSES = ["GENERATED", "SENT", "OPENED", "CONSENTED", "STARTED"];
@@ -540,7 +541,7 @@ function KIIInvitePanel({ kiiId }: { kiiId: string }) {
           key={justIssued.token_id}
           invitation={justIssued}
           preferred={justIssued.channel}
-          sendEmailPath={`/kii-invitations/${justIssued.token_id}/send-email/`}
+          sendPathBase={`/kii-invitations/${justIssued.token_id}`}
         />
       )}
 
@@ -579,7 +580,10 @@ function KIIInvitePanel({ kiiId }: { kiiId: string }) {
               {entries.map((e) => (
                 <tr key={e.id} className="border-t border-border">
                   <td className="py-1 pr-4">{e.channel}</td>
-                  <td className="py-1 pr-4">{e.status}</td>
+                  <td className="py-1 pr-4">
+                    {e.status}
+                    <DeliveryList deliveries={e.deliveries} />
+                  </td>
                   <td className="py-1 pr-4">{new Date(e.issued_at).toLocaleDateString()}</td>
                   <td className="py-1">
                     {OPEN_KII_TOKEN_STATUSES.includes(e.status) && (

@@ -98,6 +98,7 @@ T.invite = [
       "**Email from study address** sends the email from abffst.research@gmail.com to the respondent's email on file; replies go to the study inbox. The email is recorded in the audit log.",
       "**Open in email app** opens the same email in your own mail program, if you need to add something first.",
       "**Copy message** copies the message shown, for any other channel.",
+      "Once SMS or WhatsApp is set up, **Send SMS from the portal** and **Send WhatsApp from the portal** send the same invitation through Twilio, to the mobile on file; the invitation history then shows whether each was delivered.",
     ] },
     "If a button says no mobile number or email is on file, add it under **Respondents and contact details**. Only then send a new invitation, and send that one on every channel.",
     "The case moves to **S05 Invitation sent** automatically. Log the attempt in **Contact timeline** (see Logging a contact attempt).",
@@ -137,7 +138,7 @@ T.logContact = [
 
 T.followUps = [
   ["h2", "Sending follow-up reminders"],
-  ["p", "Approved reminders fall due on **Day 2** and **Day 7** after an invitation for respondents who have not yet submitted. Until automatic WhatsApp sending is connected, a person sends each one."],
+  ["p", "Approved reminders fall due on **Day 2** and **Day 7** after an invitation for respondents who have not yet submitted. Once SMS or WhatsApp is set up through Twilio, the portal sends them itself each morning at 08:00 and those cards say so; the rest (no mobile on file, or an automatic message that did not get through) a person sends."],
   ["steps", [
     { text: "Select **Follow-ups**. Each card shows the case, organisation, which reminder is due, when the invitation went out, the respondent and their number, and the exact approved message.", img: "cra_follow_ups.jpg", caption: "Follow-ups due. Contact RAs see only their own cases." },
     "Select **Open in WhatsApp**. WhatsApp opens with the message ready for that number; send it. If the card says **no number on file**, or that the number **is a landline**, the button reads **Open WhatsApp (choose contact)**: WhatsApp can't reach a landline, so phone them instead, or pick the chat yourself if you have their mobile, and add the mobile to the case afterwards.",
@@ -302,20 +303,23 @@ T.contactFinder = [
 ];
 
 T.emailBatch = [
-  ["h2", "Emailing invitations in batches"],
-  ["p", "Instead of sending invitations one case at a time, the coordinator or PI can have the portal email them. It sends exactly what the case-page **Email from study address** button sends: the approved invitation email from abffst.research@gmail.com, with each case's own link (valid 14 days) and manual code. Only **verified** cases are included: status **S03** or **S04**, a respondent email on file, and no open invitation."],
+  ["h2", "Sending invitations in batches (email, SMS, WhatsApp)"],
+  ["p", "Instead of sending invitations one case at a time, the coordinator or PI can have the portal send them: by email from abffst.research@gmail.com, and by SMS and WhatsApp through Twilio once those are set up. Each case gets **one** invitation with its own link (valid 14 days) and manual code, sent on every way you choose that it has a contact for, so the email and the text carry the same working link. Only **verified** cases are included: status **S03** or **S04**, a contact on file, and no open invitation. SMS and WhatsApp go to mobile numbers only."],
   ["steps", [
-    "Open **Main-400 Register** and find **Email invitations**. It says how many verified cases are ready and how many emails are left today. Open **Next in line** to see the first cases, their organisations and the (partly hidden) addresses.",
+    "Open **Main-400 Register** and find **Send invitations**.",
+    "Under **Send by**, tick **Email**, **SMS** and/or **WhatsApp**. Each shows how many cases it can reach and what is left of today's limit, or “not set up yet”.",
+    "Open **Next in line** to see the first cases, the ways each can be reached and the (partly hidden) addresses and numbers. With SMS ticked, the panel shows the cost per invitation (about US$0.65 to 0.95).",
     "Type a number in **How many** (up to 100 in one batch) and select **Review and send**.",
-    "Read the confirmation, then select **Send N invitations**, or **Cancel**.",
-    "The panel shows progress while it sends, then the result: sent, failed and skipped. Open **Case by case** to see each Sample ID and the reason for any failure. Each case that was sent moves to **S05 Invitation sent**.",
+    "Read the confirmation, which includes the SMS cost, then select **Send N invitations**, or **Cancel**.",
+    "The panel shows progress while it sends, then the result: sent, failed and skipped. Open **Case by case** to see each Sample ID, how it was sent and the reason for any failure. Each case that was sent moves to **S05 Invitation sent**.",
   ]],
   ["warn", "Before the first batch", [
-    "Email must be set up on the server first (`configure-email.sh`, see the System Manual). Until then the panel says so and the button stays disabled.",
-    "At most 300 emails a day, to stay inside the study mailbox's sending limit. The panel shows what is left.",
-    "If an email fails, nothing is kept for that case: no link is issued, it stays at S03 or S04, and the next batch tries it again.",
-    "Day 2 and Day 7 reminders are not emailed. They appear on **Follow-ups** like any other invitation, to send by hand.",
+    "Each way must be set up on the server first: email with `configure-email.sh`, SMS and WhatsApp with `configure-twilio.sh` (see the System Manual). Until then the panel says so and the button stays disabled.",
+    "Daily limits: 300 emails, 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
+    "If nothing gets through for a case, nothing is kept for it: no link is issued, it stays at S03 or S04, and the next batch tries it again. If one way works and another fails, the case is sent and **Case by case** says what failed.",
   ]],
+  ["h3", "Reminders sent automatically"],
+  ["p", "Once SMS or WhatsApp is set up, the portal sends the Day 2 and Day 7 reminders itself every morning at 08:00: by WhatsApp when its approved template is set up, otherwise by SMS, to the respondent's mobile. **Follow-ups** says “The portal sends this one automatically” for those. Reminders for anyone without a mobile, and any automatic message that did not get through, stay on Follow-ups to send by hand, marked “The automatic message did not get through”. A failed reminder is never re-sent automatically, and it does not count toward Nonresponse until a person sends it."],
 ];
 
 T.whatsappQueue = [

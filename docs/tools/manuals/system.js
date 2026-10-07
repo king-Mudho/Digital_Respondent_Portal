@@ -154,7 +154,7 @@ module.exports = {
     ["p", "Each triggered rule opens a **QA exception** that someone is assigned to, works and closes with a note. A **Re-query** moves the case to S09; an **Accept** to S10."],
 
     ["h2", "3.10 Reminders and nonresponse"],
-    ["p", "For invited cases with no submission, the approved **Day 2 reminder** and **Day 7 final routine attempt** fall due and appear on **Follow-ups**, with the message and a one-tap WhatsApp link. A person sends each one and marks it sent. A case can become **S13 Nonresponse** only after every reminder has actually been recorded as sent; until then it is never treated as exhausted. Automatic sending through the WhatsApp Business Platform can be added later without changing this process."],
+    ["p", "For invited cases with no submission, the approved **Day 2 reminder** and **Day 7 final routine attempt** fall due and appear on **Follow-ups**, with the message and a one-tap WhatsApp link. A person sends each one and marks it sent. A case can become **S13 Nonresponse** only after every reminder has actually been recorded as sent; until then it is never treated as exhausted. Once SMS or WhatsApp is set up through Twilio, the portal sends due reminders itself every morning at 08:00 (WhatsApp when its approved template is set up, otherwise SMS, to mobiles only) and records them as sent; a reminder Twilio refuses or cannot deliver goes back to Follow-ups for a person and is never re-sent automatically."],
 
     ["h2", "3.11 Withdrawal"],
     ["p", "A single **Record withdrawal** action records the WITHDRAWN consent, revokes the invitation, stops reminders, moves the case to S12 where allowed, erases the phone, WhatsApp, email and gatekeeper contact, and audits the action. Answers already submitted are kept for the audit trail but never analysed (PI decision, 15 September 2026): they are left out of the analysis export and marked as withdrawn in the operational export and the PI's KoboToolbox downloads."],
@@ -372,6 +372,7 @@ module.exports = {
       ["Send PROIT research and the contact finder to Muse (add `--revert` to switch back)", "`sudo bash /srv/agribiz-drp/deploy/configure-ai-provider.sh --proit`"],
       ["Turn on AI drafting with Anthropic (the original set-up)", "`sudo bash /srv/agribiz-drp/deploy/configure-ai-coding.sh`"],
       ["Set up outgoing email (Gmail App Password)", "`sudo bash /srv/agribiz-drp/deploy/configure-email.sh`"],
+      ["Set up SMS and WhatsApp (Twilio)", "`sudo bash /srv/agribiz-drp/deploy/configure-twilio.sh` (re-run to add the WhatsApp values once Meta approves them)"],
       ["Enable encrypted Google Drive backups", "`sudo bash /srv/agribiz-drp/deploy/configure-offsite-backup.sh`"],
       ["Check services", "`systemctl status drp-backend drp-frontend drp-celery-worker drp-celery-research drp-celery-beat nginx` (drp-celery-research runs the AI contact searches, one at a time, so they never hold up the KoboToolbox sync)"],
     ], [0.38, 0.62]],

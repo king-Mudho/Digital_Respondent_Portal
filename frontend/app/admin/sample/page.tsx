@@ -244,6 +244,7 @@ function WhatsAppQueuePanel() {
 interface InvitationBatch {
   id: number;
   requested: number;
+  channels?: BatchChannel[];
   status: "RUNNING" | "DONE" | "FAILED";
   sent: number;
   failed: number;
@@ -252,34 +253,47 @@ interface InvitationBatch {
   error: string;
 }
 
-interface EmailBatchInfo {
-  email_configured: boolean;
-  candidates: number;
-  preview: { sample_id: string; organisation: string; email: string }[];
-  max_per_batch: number;
-  daily_max: number;
+type BatchChannel = "EMAIL" | "SMS" | "WHATSAPP";
+const BATCH_CHANNELS: BatchChannel[] = ["EMAIL", "SMS", "WHATSAPP"];
+const BATCH_LABEL: Record<BatchChannel, string> = { EMAIL: "Email", SMS: "SMS", WHATSAPP: "WhatsApp" };
+
+interface ChannelInfo {
+  configured: boolean;
+  ready: number;
   left_today: number;
+  daily_max: number;
+  cost_usd_all?: number;
+}
+
+interface SendBatchInfo {
+  candidates: number;
+  preview: { sample_id: string; organisation: string; email: string; mobile: string; channels: BatchChannel[] }[];
+  channels: Record<BatchChannel, ChannelInfo>;
+  max_per_batch: number;
   latest: InvitationBatch | null;
 }
 
 /**
- * Emails invitations to verified cases (S03/S04) with an email and no open invitation, through the same issue and
- * email steps as the case-page Email button (backend/apps/invitations/batch.py). Sending needs a second, explicit
- * click: the viewer has no confirm() dialog, so the confirmation is part of the page.
+ * Sends invitations to verified cases (S03/S04) with no open invitation, by email and -- once Twilio is set up --
+ * SMS and WhatsApp (backend/apps/invitations/batch.py). Each case gets ONE invitation, sent on every chosen channel
+ * it has a contact for, so every message carries the same working link. Sending needs a second, explicit click: the
+ * viewer has no confirm() dialog, so the confirmation is part of the page.
  */
-function EmailInvitationsPanel() {
+function SendInvitationsPanel() {
   const queryClient = useQueryClient();
+  const [chosen, setChosen] = useState<BatchChannel[]>(["EMAIL"]);
   const [count, setCount] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { data: info } = useQuery({
-    queryKey: ["invitation-batch"],
-    queryFn: () => adminFetch<EmailBatchInfo>("/invitations/batch/"),
+    queryKey: ["invitation-batch", chosen],
+    queryFn: () => adminFetch<SendBatchInfo>(`/invitations/batch/?channels=${chosen.join(",") || "EMAIL"}`),
+    placeholderData: keepPreviousData,
     refetchInterval: (query) => (query.state.data?.latest?.status === "RUNNING" ? 3000 : false),
   });
   const send = useMutation({
     mutationFn: (limit: number) =>
-      adminFetch<InvitationBatch>("/invitations/batch/", { method: "POST", body: JSON.stringify({ limit }) }),
+      adminFetch<InvitationBatch>("/invitations/batch/", { method: "POST", body: JSON.stringify({ limit, channels: chosen }) }),
     onSuccess: () => {
       setError(null);
       setConfirming(false);
@@ -295,27 +309,57 @@ function EmailInvitationsPanel() {
   if (!info) return null;
   const latest = info.latest;
   const sending = latest?.status === "RUNNING";
-  const allowed = Math.min(info.max_per_batch, info.left_today, info.candidates);
+  const toggle = (channel: BatchChannel) =>
+    setChosen((current) => (current.includes(channel) ? current.filter((c) => c !== channel) : [...current, channel]));
+  const notSetUp = chosen.filter((c) => !info.channels[c].configured);
+  const allowed = Math.min(info.max_per_batch, info.candidates, ...chosen.map((c) => info.channels[c].left_today));
   const limit = Number(count || 0);
-  const valid = limit >= 1 && limit <= allowed;
+  const valid = chosen.length > 0 && notSetUp.length === 0 && limit >= 1 && limit <= allowed;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const sms = info.channels.SMS;
+  const smsCost = chosen.includes("SMS") && sms.ready > 0 && sms.cost_usd_all
+    ? (sms.cost_usd_all / sms.ready) * Math.min(limit || 0, sms.ready)
+    : 0;
+  const ways = chosen.map((c) => BATCH_LABEL[c]).join(" and ");
 
   return (
-    <Card className="mb-4 space-y-2">
-      <h3 className="font-medium text-sm">Email invitations</h3>
+    <Card className="mb-4 space-y-2" aria-label="Send invitations">
+      <h3 className="font-medium text-sm">Send invitations</h3>
       <p className="text-xs text-text-muted">
-        {plural(info.candidates, "verified case")} (S03 or S04) {info.candidates === 1 ? "has" : "have"} a respondent email and no
-        open invitation. Each gets the approved invitation email from the study address with its own link (valid 14 days)
-        and phone code, and moves to &ldquo;Invitation sent&rdquo;. {info.left_today} of {info.daily_max} emails left today. Day 2 and
-        Day 7 reminders appear on Follow-ups to send by hand.
+        Verified cases (S03 or S04) with no open invitation. Each gets <strong>one</strong> invitation with its own link
+        (valid 14 days) and phone code, sent on every way you choose that it has a contact for, and moves to
+        &ldquo;Invitation sent&rdquo;. SMS and WhatsApp go to mobiles only and are sent by the portal through Twilio.
       </p>
+
+      <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <legend className="text-xs text-text-muted mb-1">Send by</legend>
+        {BATCH_CHANNELS.map((channel) => {
+          const c = info.channels[channel];
+          return (
+            <label key={channel} className="inline-flex items-center gap-1.5">
+              <input type="checkbox" checked={chosen.includes(channel)} onChange={() => toggle(channel)} />
+              {BATCH_LABEL[channel]}
+              <span className="text-xs text-text-muted">
+                {c.configured ? `(${c.ready} ready · ${c.left_today} of ${c.daily_max} left today)` : "(not set up yet)"}
+              </span>
+            </label>
+          );
+        })}
+      </fieldset>
+
       {error && <p className="text-danger text-sm">{error}</p>}
-      {!info.email_configured && (
+      {notSetUp.length > 0 && (
         <p className="text-sm">
-          Email isn&rsquo;t set up on the server yet. The administrator runs <code>deploy/configure-email.sh</code> with the
-          study&rsquo;s email account first.
+          {notSetUp.map((c) => BATCH_LABEL[c]).join(" and ")} {notSetUp.length === 1 ? "isn\u2019t" : "aren\u2019t"} set up on the server
+          yet. The administrator runs{" "}
+          <code>{notSetUp.includes("EMAIL") ? "deploy/configure-email.sh" : "deploy/configure-twilio.sh"}</code>
+          {notSetUp.includes("EMAIL") && notSetUp.length > 1 ? <> and <code>deploy/configure-twilio.sh</code></> : null} first.
         </p>
       )}
+      <p className="text-xs text-text-muted">
+        {plural(info.candidates, "case")} can be reached by {ways || "the ways chosen"}.
+        {chosen.includes("SMS") && sms.ready > 0 && ` SMS costs about US$${(sms.cost_usd_all! / sms.ready).toFixed(2)} per invitation.`}
+      </p>
 
       {info.preview.length > 0 && (
         <details className="text-xs">
@@ -323,7 +367,10 @@ function EmailInvitationsPanel() {
           <ul className="mt-1 space-y-0.5">
             {info.preview.map((row) => (
               <li key={row.sample_id} className="break-words">
-                <span className="font-mono">{row.sample_id}</span> · {row.organisation} · {row.email}
+                <span className="font-mono">{row.sample_id}</span> · {row.organisation}
+                {row.channels.length > 0 && ` · ${row.channels.map((c) => BATCH_LABEL[c]).join(", ")}`}
+                {row.email && ` · ${row.email}`}
+                {row.mobile && ` · ${row.mobile}`}
               </li>
             ))}
           </ul>
@@ -343,15 +390,16 @@ function EmailInvitationsPanel() {
               className="block mt-1 w-28 rounded-md border border-border px-3 py-2 bg-surface text-sm"
             />
           </label>
-          <Button variant="outline" disabled={!info.email_configured || sending || !valid} onClick={() => setConfirming(true)}>
+          <Button variant="outline" disabled={sending || !valid} onClick={() => setConfirming(true)}>
             Review and send
           </Button>
         </div>
       ) : (
         <div className="rounded-md border border-border p-3 space-y-2">
           <p className="text-sm">
-            Email {plural(limit, "invitation")} now, to the respondents on file, in Sample ID order? This can&rsquo;t be undone, but any
-            single invitation can be revoked from its case page.
+            Send {plural(limit, "invitation")} now by {ways}, to the respondents on file, in Sample ID order?
+            {smsCost > 0 && ` The SMS will cost about US$${smsCost.toFixed(2)}.`} This can&rsquo;t be undone, but any single
+            invitation can be revoked from its case page.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => send.mutate(limit)} disabled={send.isPending}>
@@ -364,11 +412,17 @@ function EmailInvitationsPanel() {
         </div>
       )}
 
+      <p className="text-xs text-text-muted">
+        Day 2 and Day 7 reminders go out automatically each morning by WhatsApp or SMS once Twilio is set up; until then,
+        and for anyone without a mobile, they wait on Follow-ups.
+      </p>
+
       {latest && (
         <div className="text-sm space-y-1">
           <p>
             {sending ? "Sending…" : latest.status === "FAILED" ? "The last batch stopped early." : "Last batch:"} {latest.sent} sent,{" "}
-            {latest.failed} failed, {latest.skipped} skipped of {latest.requested}.
+            {latest.failed} failed, {latest.skipped} skipped of {latest.requested}
+            {latest.channels?.length ? ` (by ${latest.channels.map((c) => BATCH_LABEL[c]).join(", ")})` : ""}.
           </p>
           {latest.error && <p className="text-danger text-xs">{latest.error}</p>}
           {latest.results.length > 0 && (
@@ -681,7 +735,7 @@ export default function SampleRegisterPage() {
           <BulkVerificationPanel />
           <BulkAssignmentPanel />
           <ContactFinderBatchPanel />
-          <EmailInvitationsPanel />
+          <SendInvitationsPanel />
         </IfRole>
       )}
       {sampleType === "MAIN" && (

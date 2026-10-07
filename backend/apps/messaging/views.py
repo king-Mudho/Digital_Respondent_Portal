@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import FormParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -43,3 +45,25 @@ class FollowUpMarkSentView(APIView):
             )
         log = record_manual_follow_up(sample_case=sample_case, template_name=template, user=request.user)
         return Response({"id": log.id, "status": log.status, "sent_at": log.sent_at}, status=201)
+
+
+class TwilioStatusView(APIView):
+    """POST /api/v1/twilio/status/ -- Twilio's delivery reports for the messages the portal sent (2026-10-07).
+
+    Public, like the Kobo webhook, so the only credential is Twilio's X-Twilio-Signature over the callback URL and
+    the posted fields, keyed with the account's Auth Token. Anything without a valid signature is refused before it
+    touches a record."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    parser_classes = [FormParser]
+
+    def post(self, request):
+        from . import outbound, twilio_client
+
+        params = {key: request.POST.get(key) for key in request.POST}
+        signature = request.headers.get("X-Twilio-Signature", "")
+        if not twilio_client.valid_signature(twilio_client.status_callback_url(), params, signature):
+            return Response({"error": {"code": "invalid_signature", "message": "Invalid signature.", "field_errors": {}}}, status=403)
+        outbound.record_status(params)
+        return Response(status=204)

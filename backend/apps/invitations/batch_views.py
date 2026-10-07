@@ -1,5 +1,5 @@
-"""Batch email invitations (apps/invitations/batch.py): the PI's and Field Coordinator's tool. Contact RAs keep
-sending one invitation at a time from the case page; Supervisor may read."""
+"""Batch invitations by email, SMS and WhatsApp (apps/invitations/batch.py): the PI's and Field Coordinator's tool.
+Contact RAs send one invitation at a time from the case page; Supervisor may read."""
 
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
@@ -18,22 +18,33 @@ from .tasks import send_invitation_batch
 class InvitationBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvitationBatch
-        fields = ["id", "requested", "status", "sent", "failed", "skipped", "results", "error", "started_at", "finished_at"]
+        fields = ["id", "requested", "channels", "status", "sent", "failed", "skipped", "results", "error", "started_at",
+                  "finished_at"]
+
+
+def _channels(raw) -> list[str]:
+    if isinstance(raw, str):
+        raw = raw.split(",")
+    return [str(channel).strip().upper() for channel in (raw or ["EMAIL"]) if str(channel).strip()]
 
 
 class InvitationBatchView(APIView):
-    """GET /api/v1/invitations/batch/ -- what a batch would do now. POST {limit} -- start one (202)."""
+    """GET /api/v1/invitations/batch/?channels=EMAIL,SMS -- what a batch on those channels would do now, and per
+    channel whether it is set up, how many cases it could reach and what is left of today's cap.
+    POST {limit, channels} -- start one (202)."""
 
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
     def get(self, request):
         from apps.kobo.submission_copies import email_is_configured
 
+        channels = [c for c in _channels(request.query_params.get("channels")) if c in b.CHANNELS] or ["EMAIL"]
         latest = InvitationBatch.objects.first()
         return Response({
             "email_configured": email_is_configured(),
-            "candidates": b.batch_candidates().count(),
-            "preview": b.preview(),
+            "candidates": b.batch_candidates(channels).count(),
+            "preview": b.preview(channels=channels),
+            "channels": b.channel_summary(),
             "max_per_batch": b.per_batch_max(),
             "daily_max": b.daily_max(),
             "left_today": b.left_today(),
@@ -46,7 +57,7 @@ class InvitationBatchView(APIView):
         except (TypeError, ValueError):
             limit = 0
         try:
-            batch = b.start_batch(limit, user=request.user)
+            batch = b.start_batch(limit, user=request.user, channels=_channels(request.data.get("channels")))
         except b.BatchError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         send_invitation_batch.delay(batch.pk)

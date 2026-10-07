@@ -7,7 +7,14 @@ from api.permissions import CanManageContact
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.kobo.submission_copies import email_is_configured
 
-from .messages import InvitationSendError, build_messages, email_invitation, portal_base, recipients
+from .messages import (
+    InvitationSendError,
+    build_messages,
+    email_invitation,
+    portal_base,
+    recipients,
+    text_invitation,
+)
 from .models import InvitationToken
 from .serializers import InvitationTokenSerializer
 from .services import (
@@ -126,6 +133,7 @@ class InvitationIssueView(APIView):
             "link": link,
             **who,
             "email_configured": email_is_configured(),
+            **_text_channels(),
             "messages": build_messages(sample_case=sample_case, link=link, manual_code=raw_code,
                                        expires_at=token.expires_at,
                                        to_name=who["email_to_name"] or who["whatsapp_to_name"]),
@@ -153,6 +161,35 @@ class InvitationEmailView(APIView):
         except Exception as exc:  # SMTP refused, timed out, ...
             return Response({"error": {"code": "email_failed", "message": f"The email could not be sent ({exc.__class__.__name__}).",
                                        "field_errors": {}}}, status=502)
+        return Response(result)
+
+
+def _text_channels(kii: bool = False) -> dict:
+    """Which Twilio channels the panel may offer (apps/messaging/twilio_client.py)."""
+    from apps.messaging import twilio_client as tw
+
+    return {"sms_configured": tw.sms_configured(), "whatsapp_configured": tw.whatsapp_configured(kii=kii)}
+
+
+class InvitationTextView(APIView):
+    """POST /api/v1/invitations/{token_id}/send-sms/ or /send-whatsapp/ {link, manual_code} -- send a just-issued
+    invitation through Twilio (2026-10-07). Same rules as send-email: the invitation's own link and code, and a
+    Contact RA only for their assigned cases."""
+
+    permission_classes = [CanManageContact]
+    channel = "SMS"
+
+    def post(self, request, token_id):
+        try:
+            token = InvitationToken.objects.select_related("sample_case__organisation").get(pk=token_id)
+        except InvitationToken.DoesNotExist:
+            return Response({"error": {"code": "not_found", "message": "No such invitation.", "field_errors": {}}}, status=404)
+        _require_assigned(request.user, token.sample_case)
+        try:
+            result = text_invitation(token, channel=self.channel, link=str(request.data.get("link", "")),
+                                     manual_code=str(request.data.get("manual_code", "")), user=request.user)
+        except InvitationSendError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         return Response(result)
 
 
