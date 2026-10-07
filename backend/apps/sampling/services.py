@@ -45,11 +45,15 @@ WORKFLOW_TRANSITIONS: dict[str, set[str]] = {
         WorkflowStatus.S14_INELIGIBLE,
         WorkflowStatus.S15_DUPLICATE_INACTIVE,
     },
+    # S12 from S03/S04 (PI decision, 2026-10-07): an organisation that answers NO to the "ask first" introduction
+    # (apps/messaging/outreach.py) has refused before any invitation was sent. Until then a refusal had no status
+    # before S05.
     WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED: {
         WorkflowStatus.S04_INVITATION_PREPARED,
+        WorkflowStatus.S12_REFUSED,
         WorkflowStatus.S14_INELIGIBLE,
     },
-    WorkflowStatus.S04_INVITATION_PREPARED: {WorkflowStatus.S05_INVITATION_SENT},
+    WorkflowStatus.S04_INVITATION_PREPARED: {WorkflowStatus.S05_INVITATION_SENT, WorkflowStatus.S12_REFUSED},
     WorkflowStatus.S05_INVITATION_SENT: {
         WorkflowStatus.S06_INVITATION_OPENED,
         WorkflowStatus.S12_REFUSED,

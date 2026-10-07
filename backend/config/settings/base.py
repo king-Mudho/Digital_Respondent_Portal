@@ -339,6 +339,19 @@ TWILIO_SMS_SEGMENT_PRICE_USD = env.float("TWILIO_SMS_SEGMENT_PRICE_USD", default
 # Appended to every SMS when set. Two-way SMS is not available in Zimbabwe, so a respondent cannot reply STOP; the
 # wording is the PI's to approve (consent and ethics wording), e.g. "To stop messages, call 0773943709."
 TWILIO_SMS_OPT_OUT_LINE = env("TWILIO_SMS_OPT_OUT_LINE", default="")
+# "Ask first" introductions (apps/messaging/outreach.py, 2026-10-07): a WhatsApp template asking the organisation to take
+# part, with Yes / No quick-reply buttons ({{1}} the organisation), and its reminder. Replies arrive on the WhatsApp
+# sender's incoming-message webhook, https://<APP_DOMAIN>/api/v1/twilio/inbound/.
+TWILIO_WA_CONTENT_INTRO = env("TWILIO_WA_CONTENT_INTRO", default="")
+TWILIO_WA_CONTENT_INTRO_REMINDER = env("TWILIO_WA_CONTENT_INTRO_REMINDER", default="")
+# Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
+OUTREACH_REMINDER_DAYS = env.int("OUTREACH_REMINDER_DAYS", default=3)
+OUTREACH_GIVE_UP_DAYS = env.int("OUTREACH_GIVE_UP_DAYS", default=4)
+# A reply counts as YES or NO only when the whole message (or the quick-reply button) is one of these words, so
+# "no problem" or "yes, but who is this?" go to an RA instead. English, Shona and Ndebele.
+OUTREACH_YES_WORDS = env.list("OUTREACH_YES_WORDS", default=["YES", "Y", "HONGU", "EHE", "YEBO", "OK", "OKAY"])
+OUTREACH_NO_WORDS = env.list("OUTREACH_NO_WORDS", default=["NO", "N", "STOP", "HAPANA", "AIWA", "AIHWA", "CHA", "HATSHI",
+                                                            "UNSUBSCRIBE"])
 
 # --- Celery (reconciliation + reminder queue only -- docs/04_TECH_STACK.md) -
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")

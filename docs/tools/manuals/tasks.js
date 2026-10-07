@@ -318,6 +318,16 @@ T.emailBatch = [
     "Daily limits: 300 emails, 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
     "If nothing gets through for a case, nothing is kept for it: no link is issued, it stays at S03 or S04, and the next batch tries it again. If one way works and another fails, the case is sent and **Case by case** says what failed.",
   ]],
+  ["h3", "Ask first: introduce the study, then invite automatically"],
+  ["p", "Instead of sending the link straight away, **Send invitations** can **Ask first (introduction)**. Each verified case with a mobile and no invitation yet gets a short WhatsApp message about the study asking whether it will take part, with **Yes** and **No** buttons. Where WhatsApp isn't set up or the message can't be delivered, it goes by SMS with a link that opens the study's WhatsApp chat with “YES” typed in: SMS replies can't be received in Zimbabwe, so every answer arrives on WhatsApp."],
+  ["steps", [
+    "On **Send invitations**, choose **Ask first (introduction)**, type **How many**, select **Review and send**, then **Send N introductions**. For one case, use **Send introduction** under **Ask first** on the case page.",
+    "**They reply YES** (or Hongu, Yebo, OK): the portal issues their invitation and sends the personal link and code back in the same WhatsApp chat straight away. The case moves to **S05 Invitation sent** and the usual Day 2 and Day 7 reminders follow.",
+    "**They reply NO** (or STOP, Hapana, Aihwa, Cha): the refusal is recorded, the case moves to **S12 Refused**, and they get one message saying they won't be contacted again. Activating its Reserve is still a separate, recorded decision on **Reserve Activation**.",
+    "**They write anything else** (a question, “who is this?”, “no problem”): they get one automatic answer with the study contact, and the message appears on **Conversations** for you to answer.",
+    "**No reply**: one reminder after 3 days; after 4 more days with no answer, the case is listed on **Follow-ups** under **Asked, no reply yet: phone them**.",
+  ]],
+  ["tip", "Answering on Conversations", "The study's Twilio WhatsApp number isn't on any phone, so answer people on **Conversations**: write the reply and select **Send reply**. WhatsApp only accepts a reply within 24 hours of their last message; after that, phone them. **Mark handled** when it's dealt with. A Contact RA sees only their own cases' messages; messages from numbers the study has no record of go to the PI and Field Coordinator."],
   ["h3", "Reminders sent automatically"],
   ["p", "Once SMS or WhatsApp is set up, the portal sends the Day 2 and Day 7 reminders itself every morning at 08:00: by WhatsApp when its approved template is set up, otherwise by SMS, to the respondent's mobile. **Follow-ups** says “The portal sends this one automatically” for those. Reminders for anyone without a mobile, and any automatic message that did not get through, stay on Follow-ups to send by hand, marked “The automatic message did not get through”. A failed reminder is never re-sent automatically, and it does not count toward Nonresponse until a person sends it."],
 ];

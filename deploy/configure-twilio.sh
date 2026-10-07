@@ -12,8 +12,12 @@
 #                                Meta has approved it.
 #   WhatsApp templates           the HX... ids of the Meta-approved templates in Twilio's Content Template Builder:
 #                                Main-400 invitation and KII invitation ({{1}} who it is for, {{2}} link,
-#                                {{3}} valid-until date, {{4}} code), Day 2 and Day 7 reminders (no variables).
-# Also switch on Zimbabwe under Messaging > Settings > Geo permissions.
+#                                {{3}} valid-until date, {{4}} code), Day 2 and Day 7 reminders (no variables), and
+#                                for "ask first" the introduction and its reminder ({{1}} the organisation; quick-reply
+#                                buttons with payloads YES and NO).
+# Also switch on Zimbabwe under Messaging > Settings > Geo permissions, and on the WhatsApp sender set the webhook for
+# incoming messages to https://research.agribizframework.com/api/v1/twilio/inbound/ (HTTP POST) -- that is how YES/NO
+# replies reach the portal.
 #
 # Every value already set is offered as the default, so you can re-run this to add the WhatsApp values later; press
 # Enter at the Auth Token prompt to keep the saved one. Writes backend/.env (backed up first), blanks Twilio in
@@ -27,7 +31,8 @@ BACKEND="/srv/agribiz-drp/backend"
 ENV_FILE="$BACKEND/.env"
 STAGING_ENV="$BACKEND/.env.staging"
 TWILIO_KEYS=(TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_SMS_FROM TWILIO_WHATSAPP_FROM TWILIO_WA_CONTENT_INVITATION
-             TWILIO_WA_CONTENT_KII_INVITATION TWILIO_WA_CONTENT_REMINDER_DAY2 TWILIO_WA_CONTENT_REMINDER_DAY7)
+             TWILIO_WA_CONTENT_KII_INVITATION TWILIO_WA_CONTENT_REMINDER_DAY2 TWILIO_WA_CONTENT_REMINDER_DAY7
+             TWILIO_WA_CONTENT_INTRO TWILIO_WA_CONTENT_INTRO_REMINDER)
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -50,6 +55,8 @@ ask TWILIO_WA_CONTENT_INVITATION "WhatsApp template id: Main-400 invitation (HX.
 ask TWILIO_WA_CONTENT_KII_INVITATION "WhatsApp template id: KII invitation (HX...)"
 ask TWILIO_WA_CONTENT_REMINDER_DAY2 "WhatsApp template id: Day 2 reminder (HX...)"
 ask TWILIO_WA_CONTENT_REMINDER_DAY7 "WhatsApp template id: Day 7 reminder (HX...)"
+ask TWILIO_WA_CONTENT_INTRO "WhatsApp template id: introduction, ask first (HX...)"
+ask TWILIO_WA_CONTENT_INTRO_REMINDER "WhatsApp template id: introduction reminder (HX...)"
 read -rp "Send a test SMS to (your own mobile, e.g. 0771234567): " TEST_TO
 
 [[ "$TWILIO_ACCOUNT_SID" == AC* ]] || die "the Account SID starts with AC"
@@ -102,3 +109,7 @@ fi
 echo "Done. Switched on: SMS ${TWILIO_SMS_FROM:+yes}${TWILIO_SMS_FROM:-no}; WhatsApp invitations"\
 " ${TWILIO_WA_CONTENT_INVITATION:+yes}${TWILIO_WA_CONTENT_INVITATION:-no}."
 echo "The morning reminder run (08:00) now sends due Day 2 / Day 7 reminders automatically on the channels switched on."
+if [[ -n "$TWILIO_WHATSAPP_FROM" ]]; then
+    echo "For ask-first replies: on the WhatsApp sender in the Twilio console, set the incoming-message webhook to"
+    echo "  https://research.agribizframework.com/api/v1/twilio/inbound/  (HTTP POST)"
+fi

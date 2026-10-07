@@ -93,7 +93,7 @@ module.exports = [
       ["Executive, Sampling, Contact, QA, KII/Doc dashboards", "Monitor progress against targets."],
       ["Reports", "Analytics and charts for supervision meetings and progress reports."],
       ["Main-400 Register, Organisations", "The sample: cases, bulk verification, new organisations."],
-      ["Appointments, Follow-ups", "Oversee contact and reminders."],
+      ["Appointments, Follow-ups, Conversations", "Oversee contact, reminders and WhatsApp replies."],
       ["Form PDFs", "Completed forms for all three KoboToolbox forms; sync status and Sync now; the Excel workbook and PDF ZIP for each form."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands; upload a document and the AI drafts its coding form."],
@@ -173,7 +173,7 @@ module.exports = [
       ["Dashboards and Reports", "Track progress, coverage and bottlenecks."],
       ["Main-400 Register", "Cases, bulk verification, the contact finder, email invitations and the WhatsApp queue."],
       ["Organisations", "Late additions and replacements."],
-      ["Appointments, Follow-ups", "Keep contact on schedule."],
+      ["Appointments, Follow-ups, Conversations", "Keep contact on schedule; answer WhatsApp replies."],
       ["Form PDFs", "Completed forms for all three forms, and whether the portal matches KoboToolbox (Sync now)."],
       ["QA Queue, QA Exceptions", "Support and cover the QA RA."],
       ["KII Register, Documents", "Oversee the other strands."],
@@ -454,7 +454,7 @@ module.exports = [
     audience: "Academic supervisors and others overseeing the study",
     purpose: "You oversee the study with read-only access to almost every screen: progress, the sample, contact activity, QA, the KII and documentary strands, and costs. You can open case pages and completed-form PDFs, but you cannot change anything.",
     can: [
-      "Open 17 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
+      "Open 18 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Conversations, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
       "Download PDFs of completed forms for all three forms.",
     ],
     cannot: [
@@ -465,7 +465,7 @@ module.exports = [
     screens: [
       ["Dashboards and Reports", "Progress, coverage, quality."],
       ["Main-400 Register and case pages", "How individual cases are being handled."],
-      ["Appointments, Follow-ups", "Whether contact is on schedule."],
+      ["Appointments, Follow-ups, Conversations", "Whether contact is on schedule."],
       ["Form PDFs", "Completed questionnaires, KII Guides and document coding forms, and whether the portal matches KoboToolbox (read-only)."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands."],

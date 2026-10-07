@@ -245,6 +245,7 @@ interface InvitationBatch {
   id: number;
   requested: number;
   channels?: BatchChannel[];
+  mode?: "INVITE" | "INTRO";
   status: "RUNNING" | "DONE" | "FAILED";
   sent: number;
   failed: number;
@@ -269,6 +270,7 @@ interface SendBatchInfo {
   candidates: number;
   preview: { sample_id: string; organisation: string; email: string; mobile: string; channels: BatchChannel[] }[];
   channels: Record<BatchChannel, ChannelInfo>;
+  introductions: { configured: boolean; channel: "" | "WHATSAPP" | "SMS"; ready: number; left_today: number };
   max_per_batch: number;
   latest: InvitationBatch | null;
 }
@@ -276,11 +278,13 @@ interface SendBatchInfo {
 /**
  * Sends invitations to verified cases (S03/S04) with no open invitation, by email and -- once Twilio is set up --
  * SMS and WhatsApp (backend/apps/invitations/batch.py). Each case gets ONE invitation, sent on every chosen channel
- * it has a contact for, so every message carries the same working link. Sending needs a second, explicit click: the
- * viewer has no confirm() dialog, so the confirmation is part of the page.
+ * it has a contact for, so every message carries the same working link. Or, "ask first": a short introduction asking
+ * whether they will take part, the link following automatically on a YES (backend/apps/messaging/outreach.py).
+ * Sending needs a second, explicit click: the viewer has no confirm() dialog, so the confirmation is part of the page.
  */
 function SendInvitationsPanel() {
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<"INTRO" | "INVITE" | null>(null);
   const [chosen, setChosen] = useState<BatchChannel[]>(["EMAIL"]);
   const [count, setCount] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -292,8 +296,11 @@ function SendInvitationsPanel() {
     refetchInterval: (query) => (query.state.data?.latest?.status === "RUNNING" ? 3000 : false),
   });
   const send = useMutation({
-    mutationFn: (limit: number) =>
-      adminFetch<InvitationBatch>("/invitations/batch/", { method: "POST", body: JSON.stringify({ limit, channels: chosen }) }),
+    mutationFn: ({ limit, asFirst }: { limit: number; asFirst: boolean }) =>
+      adminFetch<InvitationBatch>("/invitations/batch/", {
+        method: "POST",
+        body: JSON.stringify(asFirst ? { limit, mode: "INTRO" } : { limit, channels: chosen }),
+      }),
     onSuccess: () => {
       setError(null);
       setConfirming(false);
@@ -311,10 +318,14 @@ function SendInvitationsPanel() {
   const sending = latest?.status === "RUNNING";
   const toggle = (channel: BatchChannel) =>
     setChosen((current) => (current.includes(channel) ? current.filter((c) => c !== channel) : [...current, channel]));
-  const notSetUp = chosen.filter((c) => !info.channels[c].configured);
-  const allowed = Math.min(info.max_per_batch, info.candidates, ...chosen.map((c) => info.channels[c].left_today));
+  const intro = info.introductions;
+  const askFirst = (mode ?? (intro.configured ? "INTRO" : "INVITE")) === "INTRO";
+  const notSetUp = askFirst ? [] : chosen.filter((c) => !info.channels[c].configured);
+  const allowed = askFirst
+    ? Math.min(info.max_per_batch, intro.ready, intro.left_today)
+    : Math.min(info.max_per_batch, info.candidates, ...chosen.map((c) => info.channels[c].left_today));
   const limit = Number(count || 0);
-  const valid = chosen.length > 0 && notSetUp.length === 0 && limit >= 1 && limit <= allowed;
+  const valid = (askFirst ? intro.configured : chosen.length > 0 && notSetUp.length === 0) && limit >= 1 && limit <= allowed;
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const sms = info.channels.SMS;
   const smsCost = chosen.includes("SMS") && sms.ready > 0 && sms.cost_usd_all
@@ -325,6 +336,31 @@ function SendInvitationsPanel() {
   return (
     <Card className="mb-4 space-y-2" aria-label="Send invitations">
       <h3 className="font-medium text-sm">Send invitations</h3>
+      <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <legend className="text-xs text-text-muted mb-1">How</legend>
+        <label className="inline-flex items-center gap-1.5">
+          <input type="radio" name="batch-mode" checked={askFirst} onChange={() => { setMode("INTRO"); setConfirming(false); }} />
+          Ask first (introduction)
+          <span className="text-xs text-text-muted">
+            {intro.configured ? `(${intro.ready} ready · ${intro.left_today} left today)` : "(not set up yet)"}
+          </span>
+        </label>
+        <label className="inline-flex items-center gap-1.5">
+          <input type="radio" name="batch-mode" checked={!askFirst} onChange={() => { setMode("INVITE"); setConfirming(false); }} />
+          Send the invitation now
+        </label>
+      </fieldset>
+      {askFirst ? (
+        <p className="text-xs text-text-muted">
+          Each verified case (S03 or S04) with a mobile and no invitation yet gets a short message about the study asking
+          whether it will take part{intro.channel === "SMS" ? ", by SMS with a link to answer on WhatsApp" : ", on WhatsApp"}.
+          A YES reply sends the personal invitation link automatically; NO records the refusal (S12); anything else
+          goes to <Link href="/admin/conversations" className="underline">Conversations</Link>. No reply after 3 days
+          gets one reminder, then the case is listed on Follow-ups to phone.
+          {!intro.configured && " Not set up yet: it needs the study\u2019s WhatsApp number on Twilio (deploy/configure-twilio.sh)."}
+        </p>
+      ) : (
+      <>
       <p className="text-xs text-text-muted">
         Verified cases (S03 or S04) with no open invitation. Each gets <strong>one</strong> invitation with its own link
         (valid 14 days) and phone code, sent on every way you choose that it has a contact for, and moves to
@@ -347,7 +383,6 @@ function SendInvitationsPanel() {
         })}
       </fieldset>
 
-      {error && <p className="text-danger text-sm">{error}</p>}
       {notSetUp.length > 0 && (
         <p className="text-sm">
           {notSetUp.map((c) => BATCH_LABEL[c]).join(" and ")} {notSetUp.length === 1 ? "isn\u2019t" : "aren\u2019t"} set up on the server
@@ -376,6 +411,9 @@ function SendInvitationsPanel() {
           </ul>
         </details>
       )}
+      </>
+      )}
+      {error && <p className="text-danger text-sm">{error}</p>}
 
       {!confirming ? (
         <div className="flex flex-wrap items-end gap-2">
@@ -397,13 +435,15 @@ function SendInvitationsPanel() {
       ) : (
         <div className="rounded-md border border-border p-3 space-y-2">
           <p className="text-sm">
-            Send {plural(limit, "invitation")} now by {ways}, to the respondents on file, in Sample ID order?
-            {smsCost > 0 && ` The SMS will cost about US$${smsCost.toFixed(2)}.`} This can&rsquo;t be undone, but any single
-            invitation can be revoked from its case page.
+            {askFirst
+              ? `Send the introduction to ${plural(limit, "organisation")} now, in Sample ID order? Their invitation links go out only when they reply YES.`
+              : `Send ${plural(limit, "invitation")} now by ${ways}, to the respondents on file, in Sample ID order?`}
+            {!askFirst && smsCost > 0 && ` The SMS will cost about US$${smsCost.toFixed(2)}.`} This can&rsquo;t be undone
+            {askFirst ? "." : ", but any single invitation can be revoked from its case page."}
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => send.mutate(limit)} disabled={send.isPending}>
-              {send.isPending ? "Starting…" : `Send ${plural(limit, "invitation")}`}
+            <Button onClick={() => send.mutate({ limit, asFirst: askFirst })} disabled={send.isPending}>
+              {send.isPending ? "Starting…" : askFirst ? `Send ${plural(limit, "introduction")}` : `Send ${plural(limit, "invitation")}`}
             </Button>
             <Button variant="outline" onClick={() => setConfirming(false)} disabled={send.isPending}>
               Cancel
@@ -422,6 +462,7 @@ function SendInvitationsPanel() {
           <p>
             {sending ? "Sending…" : latest.status === "FAILED" ? "The last batch stopped early." : "Last batch:"} {latest.sent} sent,{" "}
             {latest.failed} failed, {latest.skipped} skipped of {latest.requested}
+            {latest.mode === "INTRO" ? " introductions" : ""}
             {latest.channels?.length ? ` (by ${latest.channels.map((c) => BATCH_LABEL[c]).join(", ")})` : ""}.
           </p>
           {latest.error && <p className="text-danger text-xs">{latest.error}</p>}

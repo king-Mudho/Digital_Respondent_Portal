@@ -180,7 +180,20 @@ def clean_channels(channels) -> list[str]:
     return chosen
 
 
-def start_batch(limit: int, *, user, channels=("EMAIL",)) -> InvitationBatch:
+def introduction_summary() -> dict:
+    """For the "ask first" choice: set up or not, how it would go out, and how many cases could be introduced."""
+    from apps.messaging import outbound, outreach
+    from apps.sampling.services import is_invitable
+
+    channel = outreach.intro_channel()
+    ready = [case for case in outreach.introduction_candidates() if is_invitable(case) and reachable_channels(case, ("WHATSAPP",))]
+    return {"configured": channel is not None, "channel": channel or "", "ready": len(ready),
+            "left_today": outbound.left_today(channel) if channel else 0}
+
+
+def start_batch(limit: int, *, user, channels=("EMAIL",), mode: str = "INVITE") -> InvitationBatch:
+    if mode == "INTRO":
+        return _start_intro_batch(limit, user=user)
     channels = clean_channels(channels)
     for channel in channels:
         if not channel_configured(channel):
@@ -198,6 +211,52 @@ def start_batch(limit: int, *, user, channels=("EMAIL",)) -> InvitationBatch:
     log_action("invitations.batch_started", batch, {"requested": limit, "channels": channels,
                                                     "user_id": getattr(user, "id", None)}, user=user)
     return batch
+
+
+def _start_intro_batch(limit: int, *, user) -> InvitationBatch:
+    info = introduction_summary()
+    if not info["configured"]:
+        raise BatchError("intro_not_configured", "Introductions aren't set up yet: they need the study's WhatsApp number on "
+                                                 "Twilio. Run deploy/configure-twilio.sh first.", 503)
+    allowed = min(per_batch_max(), info["left_today"])
+    if allowed < 1:
+        raise BatchError("daily_limit_reached", "Today's sending limit has been reached. Try again tomorrow.", 409)
+    if not 1 <= limit <= allowed:
+        raise BatchError("bad_limit", f"Choose between 1 and {allowed} introductions.")
+    if InvitationBatch.objects.filter(status=InvitationBatchStatus.RUNNING, started_at__gte=timezone.now() - timedelta(hours=1)).exists():
+        raise BatchError("already_running", "A batch is already sending. Wait for it to finish.", 409)
+    batch = InvitationBatch.objects.create(created_by=user, requested=limit, channels=[info["channel"]], mode="INTRO")
+    log_action("invitations.batch_started", batch, {"requested": limit, "mode": "INTRO", "user_id": getattr(user, "id", None)}, user=user)
+    return batch
+
+
+def _run_intro_batch(batch) -> list[dict]:
+    """Send the introduction to `batch.requested` cases. One case failing never stops the rest."""
+    from apps.messaging import outreach
+
+    results: list[dict] = []
+    pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
+    for case in list(outreach.introduction_candidates()[: batch.requested * 2]):
+        if batch.sent + batch.failed >= batch.requested:
+            break
+        try:
+            sent = outreach.send_introduction(case, user=batch.created_by)
+            batch.sent += 1
+            results.append({"sample_id": case.sample_id, "outcome": "sent", "detail": f"{sent.channel} {sent.number_masked}"})
+        except outreach.OutreachError as exc:
+            if exc.code == "daily_limit_reached":
+                batch.skipped += 1
+                results.append({"sample_id": case.sample_id, "outcome": "skipped", "detail": str(exc)[:200]})
+                break
+            failed = exc.code in ("twilio_refused",)
+            batch.failed += failed
+            batch.skipped += not failed
+            results.append({"sample_id": case.sample_id, "outcome": "failed" if failed else "skipped", "detail": str(exc)[:300]})
+        batch.results = results
+        batch.save(update_fields=["sent", "failed", "skipped", "results"])
+        if pause:
+            time.sleep(pause)
+    return results
 
 
 class NothingSent(Exception):
@@ -240,7 +299,9 @@ def run_batch(batch_id: int) -> None:
     chosen = list(batch.channels or ["EMAIL"])
     results: list[dict] = []
     try:
-        for case in list(batch_candidates(chosen)[: batch.requested * 2]):
+        if batch.mode == "INTRO":
+            results = _run_intro_batch(batch)
+        for case in ([] if batch.mode == "INTRO" else list(batch_candidates(chosen)[: batch.requested * 2])):
             if batch.sent + batch.failed >= batch.requested:
                 break
             channels = [channel for channel in chosen if channel_left_today(channel) > 0]

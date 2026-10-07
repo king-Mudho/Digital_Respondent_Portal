@@ -27,6 +27,15 @@ interface FollowUp {
   sends_automatically: boolean;
 }
 
+interface UnansweredIntroduction {
+  sample_id: string;
+  organisation_name: string;
+  status: "NO_REPLY" | "NOT_DELIVERED";
+  status_label: string;
+  asked_on: string;
+  number: string;
+}
+
 interface ExpiredInvitation {
   sample_id: string;
   organisation_name: string;
@@ -51,7 +60,10 @@ export default function FollowUpsPage() {
   const [error, setError] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["follow-ups"],
-    queryFn: () => adminFetch<{ results: FollowUp[]; expired: ExpiredInvitation[] }>("/follow-ups/"),
+    queryFn: () =>
+      adminFetch<{ results: FollowUp[]; expired: ExpiredInvitation[]; unanswered_introductions: UnansweredIntroduction[] }>(
+        "/follow-ups/",
+      ),
   });
 
   const markSent = useMutation({
@@ -69,6 +81,7 @@ export default function FollowUpsPage() {
 
   const items = data?.results ?? [];
   const expired = data?.expired ?? [];
+  const unanswered = data?.unanswered_introductions ?? [];
 
   return (
     <AdminShell backHref="/admin/sample" backLabel="Main-400 Register">
@@ -139,6 +152,33 @@ export default function FollowUpsPage() {
             </article>
           ))}
         </div>
+      )}
+
+      {/* "Ask first" introductions with no answer after the reminder, or that never arrived (outreach.unanswered). */}
+      {unanswered.length > 0 && (
+        <section aria-label="Asked, no reply yet" className="mt-8">
+          <h3 className="font-semibold text-lg mb-1">Asked, no reply yet: phone them ({unanswered.length})</h3>
+          <p className="text-text-muted text-sm mb-3">
+            These organisations were sent the introduction and a reminder (or the message could not be delivered) and
+            haven&apos;t answered. Phone them; if they agree, send the invitation from the case page.
+          </p>
+          <Card className="divide-y divide-border p-0">
+            {unanswered.map((item) => (
+              <div key={item.sample_id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
+                <div>
+                  <Link href={`/admin/sample/${item.sample_id}`} className="font-mono text-sm underline">
+                    {item.sample_id}
+                  </Link>{" "}
+                  <span className="text-sm">{item.organisation_name}</span>
+                  <p className="text-xs text-text-muted">
+                    Asked {new Date(item.asked_on).toLocaleDateString()} · {item.number}
+                  </p>
+                </div>
+                <span className="rounded-full bg-bg border border-border px-2 py-0.5 text-xs">{item.status_label}</span>
+              </div>
+            ))}
+          </Card>
+        </section>
       )}
 
       {/* Waiting cases whose link no longer works (messaging.services.expired_invitations): a reminder

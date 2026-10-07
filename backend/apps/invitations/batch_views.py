@@ -18,8 +18,8 @@ from .tasks import send_invitation_batch
 class InvitationBatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvitationBatch
-        fields = ["id", "requested", "channels", "status", "sent", "failed", "skipped", "results", "error", "started_at",
-                  "finished_at"]
+        fields = ["id", "requested", "channels", "mode", "status", "sent", "failed", "skipped", "results", "error",
+                  "started_at", "finished_at"]
 
 
 def _channels(raw) -> list[str]:
@@ -45,6 +45,7 @@ class InvitationBatchView(APIView):
             "candidates": b.batch_candidates(channels).count(),
             "preview": b.preview(channels=channels),
             "channels": b.channel_summary(),
+            "introductions": b.introduction_summary(),
             "max_per_batch": b.per_batch_max(),
             "daily_max": b.daily_max(),
             "left_today": b.left_today(),
@@ -57,7 +58,8 @@ class InvitationBatchView(APIView):
         except (TypeError, ValueError):
             limit = 0
         try:
-            batch = b.start_batch(limit, user=request.user, channels=_channels(request.data.get("channels")))
+            mode = "INTRO" if str(request.data.get("mode", "")).upper() == "INTRO" else "INVITE"
+            batch = b.start_batch(limit, user=request.user, channels=_channels(request.data.get("channels")), mode=mode)
         except b.BatchError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         send_invitation_batch.delay(batch.pk)

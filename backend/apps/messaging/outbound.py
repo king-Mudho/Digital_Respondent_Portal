@@ -11,7 +11,7 @@ from django.utils import timezone
 from apps.audit.utils import log_action
 
 from . import twilio_client as tw
-from .models import MessageChannel, MessageStatus, ProviderMessage, ProviderStatus
+from .models import MessageChannel, MessagePurpose, MessageStatus, ProviderMessage, ProviderStatus
 
 TWILIO_STATUS = {
     "accepted": ProviderStatus.QUEUED, "scheduled": ProviderStatus.QUEUED, "queued": ProviderStatus.QUEUED,
@@ -48,13 +48,15 @@ def configured(channel: str, *, kii: bool = False) -> bool:
 
 
 def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_content: str = "", wa_variables=None,
-         user=None, **links) -> ProviderMessage:
+         wa_text: str = "", user=None, **links) -> ProviderMessage:
     """Sends one message and records it. `links` names what it belongs to: sample_case or kii_record, and
-    invitation_token, kii_invitation_token or message_log. Raises OutboundError with words a coordinator can act on."""
+    invitation_token, kii_invitation_token or message_log. WhatsApp is an approved template (`wa_content`) unless
+    `wa_text` is given: a free-text reply inside a conversation the person started. Raises OutboundError with words a
+    coordinator can act on."""
     label = "SMS" if channel == MessageChannel.SMS else "WhatsApp"
     if channel == MessageChannel.SMS and not tw.sms_configured():
         raise OutboundError("sms_not_configured", "SMS isn't set up on the server yet (deploy/configure-twilio.sh).", 503)
-    if channel == MessageChannel.WHATSAPP and not (wa_content and tw.credentials_set() and settings.TWILIO_WHATSAPP_FROM.strip()):
+    if channel == MessageChannel.WHATSAPP and not ((wa_content or wa_text) and tw.credentials_set() and settings.TWILIO_WHATSAPP_FROM.strip()):
         raise OutboundError("whatsapp_not_configured",
                             "WhatsApp sending isn't set up yet: it needs the Meta-approved sender and template (deploy/configure-twilio.sh).", 503)
     if not number:
@@ -64,6 +66,8 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
     try:
         if channel == MessageChannel.SMS:
             result = tw.send_sms(number, sms_body)
+        elif wa_text:
+            result = tw.send_whatsapp_text(number, wa_text)
         else:
             result = tw.send_whatsapp(number, wa_content, wa_variables)
     except tw.TwilioError as exc:
@@ -93,6 +97,10 @@ def record_status(params: dict) -> bool:
     message.error_message = str(params.get("ErrorMessage") or "")[:300]
     message.save(update_fields=["status", "error_code", "error_message", "updated_at"])
     if new in NOT_DELIVERED:
+        if message.purpose == MessagePurpose.INTRODUCTION:
+            from .outreach import intro_not_delivered
+
+            intro_not_delivered(message)
         if message.message_log_id:
             message.message_log.status = MessageStatus.FAILED
             message.message_log.save(update_fields=["status"])

@@ -1,12 +1,12 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.29 · 7 October 2026";
+const REVISION = "Version 1.30 · 7 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
   ["PI / System Admin", "All 20 screens, including the Audit Log, Research Clearance and every export", "Executive Dashboard"],
   ["Field / Digital Coordinator", "18 screens — everything except the Audit Log and Research Clearance. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
-  ["Contact RA", "Main-400 Register, Appointments, Follow-ups — only the cases assigned to you", "Main-400 Register"],
+  ["Contact RA", "Main-400 Register, Appointments, Follow-ups, Conversations — only the cases assigned to you", "Main-400 Register"],
   ["QUAN/Kobo QA RA", "QA Dashboard, Form PDFs (questionnaire), QA Queue, QA Exceptions", "QA Dashboard"],
   ["KII RA", "KII/Doc Dashboard, Form PDFs (KII Guide), KII Register", "KII/Doc Dashboard"],
   ["Documentary RA", "KII/Doc Dashboard, Form PDFs (Document Analysis Tool), Documents", "KII/Doc Dashboard"],

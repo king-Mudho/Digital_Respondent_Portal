@@ -608,6 +608,7 @@ celery -A config beat --loglevel=info
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |
 | `TWILIO_WA_CONTENT_INVITATION`, `TWILIO_WA_CONTENT_KII_INVITATION`, `TWILIO_WA_CONTENT_REMINDER_DAY2`, `TWILIO_WA_CONTENT_REMINDER_DAY7` | Meta-approved WhatsApp templates (Twilio Content `HX…` ids); invitation variables `{{1}}` who it is for, `{{2}}` link, `{{3}}` valid-until date, `{{4}}` code |
+| `TWILIO_WA_CONTENT_INTRO`, `TWILIO_WA_CONTENT_INTRO_REMINDER`, `OUTREACH_REMINDER_DAYS`, `OUTREACH_GIVE_UP_DAYS`, `OUTREACH_YES_WORDS`, `OUTREACH_NO_WORDS` | "Ask first" introductions: the Meta-approved introduction and reminder templates (`{{1}}` organisation, quick-reply payloads YES / NO), days before the one reminder (3) and before listing for a phone call (4), and the whole-message words read as YES or NO. Replies reach `POST /api/v1/twilio/inbound/`, set as the WhatsApp sender's incoming-message webhook |
 | `TWILIO_SMS_DAILY_MAX`, `TWILIO_WHATSAPP_DAILY_MAX`, `TWILIO_SMS_SEGMENT_PRICE_USD`, `TWILIO_SMS_OPT_OUT_LINE` | Daily caps (150 / 250, invitations and automatic reminders together), the price used for the batch cost estimate (US$0.3212 per segment to Zimbabwe, checked 2026-10-07), and an optional PI-approved line added to every SMS (two-way SMS is not available in Zimbabwe, so nobody can reply STOP) |
 | `CELERY_BROKER_URL` | Redis URL |
 | `CORS_ALLOWED_ORIGINS`, `CSRF_TRUSTED_ORIGINS` | Must match the deployed frontend origin exactly |
@@ -770,6 +771,24 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### Ask first, then invite (7 Oct 2026)
+
+At the PI's request the portal can send an organisation a short introduction to the study
+asking whether it will take part, before any link (`apps/messaging/outreach.py`). Replies
+arrive on the study's Twilio WhatsApp number (`POST /api/v1/twilio/inbound/`, refused
+without a valid signature, Twilio's retries ignored by message SID). A **YES** issues the
+invitation and sends its approved text, with link and code, back in the chat: WhatsApp
+allows free text for 24 hours after the person's own message, and they asked for it, which
+is what WhatsApp's opt-in rule wants. A **NO** moves the case to **S12 Refused** (PI decision;
+`WORKFLOW_TRANSITIONS` now allows S03/S04 → S12, which before had no status for a refusal
+ahead of an invitation) and revokes any open invitation. Anything else, "no problem"
+included (only whole-message words count), gets one automatic answer a day and waits on the
+new **Conversations** screen, where RAs reply, since the Twilio number is on no phone. No
+reply: one reminder after 3 days, then the case is listed on Follow-ups to phone. An
+undelivered WhatsApp introduction is re-sent once by SMS with a tap-to-reply WhatsApp link
+(Twilio can't receive SMS in Zimbabwe). Numbers are kept as a keyed hash on the outreach
+record; what people wrote is erased on withdrawal.
 
 ### SMS and WhatsApp through Twilio (7 Oct 2026)
 

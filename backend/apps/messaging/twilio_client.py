@@ -83,6 +83,12 @@ def whatsapp_reminder_template(template_name: str) -> str:
     return content if ready else ""
 
 
+def inbound_url() -> str:
+    """Where Twilio posts messages people send to the study's WhatsApp number (set on the WhatsApp sender in the Twilio
+    console). Like status_callback_url(), the signature is checked against exactly this string."""
+    return f"https://{settings.APP_DOMAIN}/api/v1/twilio/inbound/"
+
+
 def status_callback_url() -> str:
     """Where Twilio reports delivery. Built from APP_DOMAIN (AGENTS.md rule 9); the same string is what the signature
     is checked against, so it must never be rebuilt from the incoming request (behind nginx that reads http://)."""
@@ -167,6 +173,23 @@ def send_whatsapp(to_digits: str, content_sid: str, variables: dict | None = Non
     if variables:
         data["ContentVariables"] = json.dumps({str(k): str(v) for k, v in variables.items()})
     return _post(data, **kwargs)
+
+
+def send_whatsapp_text(to_digits: str, body: str, **kwargs) -> dict:
+    """A free-text WhatsApp reply. WhatsApp allows one only within 24 hours of the person's own last message to the
+    study (outreach.reply_window_open() checks that first); outside it Twilio refuses with 63016."""
+    return _post({
+        "To": f"whatsapp:+{to_digits}", "From": f"whatsapp:{settings.TWILIO_WHATSAPP_FROM.strip()}", "Body": body,
+        "StatusCallback": status_callback_url(),
+    }, **kwargs)
+
+
+def study_whatsapp_link(text: str = "YES") -> str:
+    """The tap-to-reply link an SMS carries: opens a chat with the study's WhatsApp number with `text` typed in."""
+    from urllib.parse import quote
+
+    digits = "".join(ch for ch in settings.TWILIO_WHATSAPP_FROM or "" if ch.isdigit())
+    return f"https://wa.me/{digits}?text={quote(text)}" if digits else ""
 
 
 def valid_signature(url: str, params: dict, signature: str) -> bool:

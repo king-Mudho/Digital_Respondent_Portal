@@ -74,6 +74,9 @@ class InvitationBatch(models.Model):
     created_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     requested = models.PositiveIntegerField()
     channels = models.JSONField(default=default_batch_channels)
+    # INVITE sends the invitation; INTRO sends the "ask first" introduction (apps/messaging/outreach.py, 2026-10-07)
+    # and the invitation follows only when the organisation replies YES.
+    mode = models.CharField(max_length=8, default="INVITE")
     status = models.CharField(max_length=8, choices=InvitationBatchStatus.choices, default=InvitationBatchStatus.RUNNING)
     sent = models.PositiveIntegerField(default=0)
     failed = models.PositiveIntegerField(default=0)

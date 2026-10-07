@@ -76,6 +76,11 @@ def record_withdrawal(sample_case: SampleCase, *, reason: str, method: str = Con
         transition_workflow_status(sample_case, WorkflowStatus.S12_REFUSED, user=recorded_by)
         moved_to = WorkflowStatus.S12_REFUSED
 
+    # What they wrote to the study's WhatsApp number is erased with their contact details (2026-10-07).
+    from apps.messaging.models import InboundMessage
+
+    InboundMessage.objects.filter(sample_case=sample_case).update(body="", from_number="")
+
     erased = 0
     for respondent in sample_case.respondents.all():
         changed = [field for field in CONTACT_FIELDS if getattr(respondent, field)]

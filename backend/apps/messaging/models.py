@@ -85,6 +85,8 @@ class ReminderSequenceStep(models.Model):
 class MessagePurpose(models.TextChoices):
     INVITATION = "INVITATION", "Invitation"
     REMINDER = "REMINDER", "Reminder"
+    INTRODUCTION = "INTRODUCTION", "Introduction (ask first)"
+    REPLY = "REPLY", "Reply in a conversation"
 
 
 class ProviderStatus(models.TextChoices):
@@ -127,3 +129,78 @@ class ProviderMessage(models.Model):
 
     def __str__(self):
         return f"ProviderMessage({self.channel} {self.purpose} {self.status})"
+
+
+class OutreachStatus(models.TextChoices):
+    INTRO_SENT = "INTRO_SENT", "Asked"
+    REMINDED = "REMINDED", "Asked again"
+    ACCEPTED = "ACCEPTED", "Said yes: link sent"
+    DECLINED = "DECLINED", "Said no"
+    NO_REPLY = "NO_REPLY", "No reply"
+    NOT_DELIVERED = "NOT_DELIVERED", "Could not be delivered"
+
+
+OPEN_OUTREACH = [OutreachStatus.INTRO_SENT, OutreachStatus.REMINDED]
+
+
+class Outreach(models.Model):
+    """One "ask first" introduction to a case (apps/messaging/outreach.py, 2026-10-07): a message about the study asking
+    the organisation to take part. A YES reply on WhatsApp issues the invitation and sends its link back in the same
+    chat; a NO records the refusal.
+
+    The number is kept as a keyed hash (to recognise replies) and a masked copy (to show): the number itself stays
+    only on the Respondent record it came from."""
+
+    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="outreaches")
+    respondent = models.ForeignKey("contacts.Respondent", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    invitation_token = models.ForeignKey("invitations.InvitationToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    status = models.CharField(max_length=16, choices=OutreachStatus.choices, default=OutreachStatus.INTRO_SENT)
+    channel = models.CharField(max_length=16, choices=MessageChannel.choices)
+    number_hash = models.CharField(max_length=64, db_index=True)
+    number_masked = models.CharField(max_length=32)
+    intro_sent_at = models.DateTimeField()
+    reminded_at = models.DateTimeField(null=True, blank=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
+    sms_fallback_sent = models.BooleanField(default=False)
+    created_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-intro_sent_at"]
+
+    def __str__(self):
+        return f"Outreach({self.sample_case_id} {self.status})"
+
+
+class ReplyKind(models.TextChoices):
+    YES = "YES", "Yes"
+    NO = "NO", "No"
+    OTHER = "OTHER", "Other"
+
+
+class InboundMessage(models.Model):
+    """A WhatsApp message someone sent to the study's Twilio number. YES and NO replies to an introduction are acted on
+    automatically; everything else waits in Conversations for a person. Twilio may deliver the same message twice, so
+    its SID is unique. The text is erased if the participant withdraws (consent.withdrawal)."""
+
+    provider_sid = models.CharField(max_length=64, unique=True)
+    outreach = models.ForeignKey(Outreach, null=True, blank=True, on_delete=models.SET_NULL, related_name="messages")
+    sample_case = models.ForeignKey("sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="inbound_messages")
+    number_hash = models.CharField(max_length=64, db_index=True)
+    from_masked = models.CharField(max_length=32)
+    # Kept only for a number the study has no record of, so a person can answer or phone them; a matched case's number
+    # stays on its Respondent record.
+    from_number = models.CharField(max_length=20, blank=True)
+    body = models.TextField(blank=True)
+    kind = models.CharField(max_length=8, choices=ReplyKind.choices, default=ReplyKind.OTHER)
+    auto_reply = models.TextField(blank=True)
+    needs_person = models.BooleanField(default=False)
+    handled_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    handled_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at"]
+
+    def __str__(self):
+        return f"InboundMessage({self.from_masked} {self.kind})"
