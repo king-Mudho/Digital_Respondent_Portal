@@ -772,6 +772,21 @@ works):
 
 ## Notable fixes
 
+### KII research imported from ChatGPT, for review (11 Oct 2026)
+
+The PI researches KII organisations in ChatGPT with a "KII research pack" workbook (the
+organisations, the KII Guide marked question by question, the 32 PROIT catalogue fields
+and their codes) and brings back its three filled sheets. `POST /api/v1/proit/kii-import/`
+(PI and FC; the KII Register's import panel) loads them into the review flows that already
+exist: Fill A becomes contact suggestions on the record's contact-finder panel, Fill B
+becomes PROIT `AIProposal`s to Accept / Edit / Reject, and Fill C goes into the KII gap-engine
+notes, marked as imported (`apps/proit/kii_import.py`). Nothing reaches a record or a
+pre-profile field until a person accepts it. Only catalogue fields are taken, a fact
+without a source link is refused, a locked profile is never changed, importing the same
+file twice adds nothing, and a preview runs the same code inside a rolled-back transaction.
+The pack tells ChatGPT never to answer the KII Guide's own questions: those are the
+informant's evidence.
+
 ### Ask first, then invite (7 Oct 2026)
 
 At the PI's request the portal can send an organisation a short introduction to the study

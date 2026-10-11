@@ -10,6 +10,7 @@ from .views import (
     FieldVerifyView,
     InterviewCompleteView,
     InterviewSheetView,
+    KIIResearchImportView,
     PreProfileDetailView,
     PreProfileFieldListCreateView,
     PreProfileListCreateView,
@@ -36,6 +37,7 @@ urlpatterns = [
     path("fields/<int:pk>/reconcile/", FieldReconcileView.as_view(), name="field-reconcile"),
     path("pre-profiles/<int:pk>/interview-complete/", InterviewCompleteView.as_view(), name="interview-complete"),
     path("pre-profiles/<int:pk>/deviation/", ProtocolDeviationView.as_view(), name="protocol-deviation"),
+    path("kii-import/", KIIResearchImportView.as_view(), name="kii-import"),
     path("respondent-profile/", RespondentPreProfileView.as_view(), name="respondent-profile"),
     path("respondent-verify/", RespondentVerifyView.as_view(), name="respondent-verify"),
 ]

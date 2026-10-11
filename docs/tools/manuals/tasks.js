@@ -449,6 +449,15 @@ T.kii = [
     "For many records at once, use **Find contact details with AI** on the **KII Register**: choose **How many records** (up to 25) and **Find contacts**. It shows the batch's progress and lists every record with **Findings to review**, each with a link to its page. One KII batch runs at a time.",
     "When a record has a phone, WhatsApp number or email, send the informant their link (next section).",
   ]],
+  ["h3", "Importing background research done in ChatGPT"],
+  ["p", "If you researched organisations in ChatGPT with the KII research pack (its Fill A Contacts, Fill B PROIT facts and Fill C Interview prep sheets), the PI or Field Coordinator can load the returned Excel file in one go. Nothing goes onto a record directly: it lands in the same review lists as the portal's own AI."],
+  ["steps", [
+    "On the **KII Register**, find **Import background research (ChatGPT workbook)**, choose the Excel file and select **Check file**. The portal lists, per KII ID, how many contact suggestions, PROIT findings and interview notes the file would add, with any warnings (an unknown KII ID, a field the portal doesn't pre-fill, a fact without a source link). Nothing is saved yet.",
+    "Select **Import N records**.",
+    "Open each record: contacts are under **Find contact details with AI → To review**, facts under **Pre-Interview Profile (PROIT) → AI research → To review**. Open each source, then **Accept**, edit and accept, or **Reject**. The interview notes are in the KII adaptive gap engine, marked “Imported … check”.",
+    "When the profile is right, lock it and send the invitation.",
+  ]],
+  ["tip", "Safe to repeat", "Importing the same file again adds nothing new, example rows are ignored, and a locked PROIT profile is never changed."],
   ["warn", "Work contacts only", [
     "Only the organisation's name and type and the informant's name and role are sent to the AI provider, never a contact detail already on file.",
     "A personal mobile, a personal email or a personal social-media profile is never proposed, and anything that does not appear in the passage quoted from its page is removed automatically. For a named informant, findings about anyone else are removed too.",

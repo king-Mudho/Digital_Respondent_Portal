@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { WriteOnly } from "@/components/admin/RoleGate";
+import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { KiiResearchImportPanel } from "@/components/admin/KiiResearchImportPanel";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -176,6 +177,10 @@ export default function KIIRegisterPage() {
         </div>
       </div>
       <KiiContactBatchPanel />
+      {/* PROIT is the PI's and Field Coordinator's tool; the import endpoint refuses everyone else. */}
+      <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+        <KiiResearchImportPanel />
+      </IfRole>
       <Card>
         {isLoading || !data ? (
           <p className="text-text-muted">Loading…</p>

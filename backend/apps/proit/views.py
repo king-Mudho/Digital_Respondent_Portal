@@ -455,6 +455,29 @@ class InterviewCompleteView(APIView):
         return Response(reconciliation_state(profile))
 
 
+class KIIResearchImportView(APIView):
+    """POST /api/v1/proit/kii-import/ (multipart: file, dry_run) -- load a ChatGPT research workbook (Fill A/B/C) into
+    the KII contact and PROIT review flows (kii_import.py, 2026-10-11). dry_run=true previews without keeping anything.
+    PI and Field Coordinator, like the rest of PROIT."""
+
+    permission_classes = [IsFieldCoordinatorOrAdmin]
+
+    def post(self, request):
+        from .kii_import import ImportError_, import_workbook
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return _error("no_file", "Choose the Excel file ChatGPT returned.")
+        if not upload.name.lower().endswith(".xlsx"):
+            return _error("not_xlsx", "Upload the Excel (.xlsx) file, not a CSV or PDF.")
+        dry_run = str(request.data.get("dry_run", "true")).lower() != "false"
+        try:
+            result = import_workbook(upload.read(), filename=upload.name, user=request.user, dry_run=dry_run)
+        except ImportError_ as exc:
+            return _error("unreadable", str(exc))
+        return Response(result, status=200 if dry_run else 201)
+
+
 class ProtocolDeviationView(APIView):
     """POST /api/v1/proit/pre-profiles/{id}/deviation/ {note} -- when reconciliation truly cannot be finished, the
     coordinator releases the case by recording why; it stays flagged. Coordinator/PI only."""
