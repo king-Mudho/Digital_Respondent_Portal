@@ -38,6 +38,8 @@ urlpatterns = [
     path("pre-profiles/<int:pk>/interview-complete/", InterviewCompleteView.as_view(), name="interview-complete"),
     path("pre-profiles/<int:pk>/deviation/", ProtocolDeviationView.as_view(), name="protocol-deviation"),
     path("kii-import/", KIIResearchImportView.as_view(), name="kii-import"),
+    # Same importer for Main-400 cases (Sample ID column; no interview-prep sheet).
+    path("main-import/", KIIResearchImportView.as_view(target="main"), name="main-import"),
     path("respondent-profile/", RespondentPreProfileView.as_view(), name="respondent-profile"),
     path("respondent-verify/", RespondentVerifyView.as_view(), name="respondent-verify"),
 ]

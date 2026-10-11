@@ -82,6 +82,7 @@ ACTION_LABELS: dict[str, str] = {
     "conversation.replied": "Reply sent in a WhatsApp conversation",
     "outreach.accept_not_sent": "Said yes, but no link could be sent",
     "proit.kii_research_imported": "KII background research imported for review (ChatGPT workbook)",
+    "proit.main_research_imported": "Main-400 background research imported for review (ChatGPT workbook)",
     "outreach.accepted": "Said yes to the introduction: link sent",
     "outreach.declined": "Said no to the introduction",
     "outreach.introduced": "Introduction sent (ask first)",

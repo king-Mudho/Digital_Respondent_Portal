@@ -772,7 +772,14 @@ works):
 
 ## Notable fixes
 
-### KII research imported from ChatGPT, for review (11 Oct 2026)
+### KII and Main-400 research imported from ChatGPT, for review (11 Oct 2026)
+
+Main-400 has the same import (`POST /api/v1/proit/main-import/`, the Main-400 Register's import
+panel) from a Main-400 research pack built on the live questionnaire: Section 2 profile
+items (P1-P10) map to PROIT fields, and Sections 3-10 (the measured scales and the
+respondent's own views) are marked "Do not answer". Contacts become suggestions on the
+case, facts become PROIT proposals; there is no interview-prep sheet, and a locked Reserve
+is never researched. One importer serves both (`apps/proit/research_import.py`).
 
 The PI researches KII organisations in ChatGPT with a "KII research pack" workbook (the
 organisations, the KII Guide marked question by question, the 32 PROIT catalogue fields

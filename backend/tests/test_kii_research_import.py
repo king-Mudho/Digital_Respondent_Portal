@@ -1,4 +1,4 @@
-"""Importing KII background research from a ChatGPT workbook (apps/proit/kii_import.py, 2026-10-11). The workbook has
+"""Importing KII background research from a ChatGPT workbook (apps/proit/research_import.py, 2026-10-11). The workbook has
 the research pack's three Fill sheets. Under test: a preview keeps nothing; an import creates suggestions in the
 existing review flows (contact suggestions and PROIT proposals), never facts on the record itself; example rows,
 unknown records, non-catalogue fields and facts without a source are left out; a locked profile is untouched;

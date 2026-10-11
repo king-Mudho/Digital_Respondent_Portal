@@ -1,18 +1,19 @@
-"""Import KII background research done outside the portal (ChatGPT, 2026-10-11).
+"""Import background research done outside the portal (ChatGPT): KII records (2026-10-11) and Main-400 cases
+(2026-10-11).
 
-The PI researches KII organisations in ChatGPT with the "KII research pack" workbook and brings back its three filled
-sheets: Fill A Contacts, Fill B PROIT facts, Fill C Interview prep. This loads them into the review flows that already
-exist, so nothing ChatGPT found reaches a record until a person accepts it:
+The PI researches organisations in ChatGPT with a research pack workbook (one for KII, one for Main-400) and brings back
+its filled sheets: Fill A Contacts, Fill B PROIT facts and, for KII only, Fill C Interview prep. This loads them into the
+review flows that already exist, so nothing ChatGPT found reaches a record until a person accepts it:
 
-- Fill A becomes contact suggestions (ContactSearchRun + ContactProposal), reviewed on the KII record's "Find contact
-  details" panel exactly like the portal's own AI contact finder.
+- Fill A becomes contact suggestions (ContactSearchRun + ContactProposal), reviewed on the record's or case's "Find
+  contact details" panel exactly like the portal's own AI contact finder.
 - Fill B becomes PROIT proposals (AIResearchRun + AIProposal), reviewed with Accept / Edit / Reject on the record's
   PROIT panel, exactly like the portal's own AI desk research. Only catalogue fields (PROIT_FIELD_CATALOG) are taken,
   and a fact without a source link is refused: accept_proposal() would refuse it anyway.
 - Fill C goes into the KII gap-engine notes on the pre-profile (interviewer preparation, never shown to the informant),
-  filled where empty and otherwise appended, marked as imported.
+  filled where empty and otherwise appended, marked as imported. Main-400 pre-profiles have no gap engine.
 
-A locked pre-profile is never changed. A dry run does everything inside a transaction and rolls it back, so the preview
+A locked pre-profile is never changed, and a locked Reserve case is never researched (as for the contact finder). A dry run does everything inside a transaction and rolls it back, so the preview
 shows exactly what an import would do.
 """
 
@@ -44,21 +45,23 @@ PROIT_ROLES = {"FINANCE_LENDER", "FARMER_AGRIBUSINESS", "GOVERNMENT_POLICY", "RD
 URL = re.compile(r"https?://[^\s,;)\]]+")
 EMAIL = re.compile(r"^[\w.+-]+@[\w-]+(\.[\w-]+)+$")
 
-# Sheet -> {our key: how the header starts, lower-case}. Matched on the start so small wording changes still work.
+# Sheet -> {our key: how the header starts (or a tuple of alternatives), lower-case}. Matched on the start so small
+# wording changes still work. "kii_id" is the record column: "KII ID" in the KII pack, "Sample ID" in the Main-400 one.
 SHEETS = {
     "contacts": ("fill a", {
-        "kii_id": "kii id", "organisation": "organisation", "website": "website", "main_phone": "main phone",
-        "general_email": "general email", "address": "head office address", "person": "person in the role",
+        "kii_id": ("kii id", "sample id"), "organisation": "organisation", "website": "website", "main_phone": "main phone",
+        "general_email": "general email", "address": ("head office address", "physical address"),
+        "person": ("person in the role", "owner / manager", "owner/manager"),
         "title": "their title", "person_phone": "their published work phone", "person_email": "their published work email",
         "links": "source links", "confidence": "confidence", "notes": "notes",
     }),
     "facts": ("fill b", {
-        "kii_id": "kii id", "organisation": "organisation", "field_id": "field_id", "value": "value found",
+        "kii_id": ("kii id", "sample id"), "organisation": "organisation", "field_id": "field_id", "value": "value found",
         "confidence": "confidence", "title": "source title", "publisher": "publisher", "date": "source date",
         "link": "link", "tier": "source tier", "conflict": "conflicting source", "notes": "notes",
     }),
     "prep": ("fill c", {
-        "kii_id": "kii id", "organisation": "organisation", "known": "known evidence", "gaps": "unresolved gaps",
+        "kii_id": ("kii id", "sample id"), "organisation": "organisation", "known": "known evidence", "gaps": "unresolved gaps",
         "contradictions": "contradictions", "probes": "priority probe", "kobo_module": "suggested kii guide module",
         "proit_role": "suggested proit role", "executive": "executive short form", "documents": "public documents",
         "notes": "notes",
@@ -107,7 +110,7 @@ def read_workbook(data: bytes) -> dict:
         index = {}
         for ours, starts in columns.items():
             for i, h in enumerate(header):
-                if h.startswith(starts) and i not in index.values():
+                if h.startswith(starts if isinstance(starts, tuple) else (starts,)) and i not in index.values():
                     index[ours] = i
                     break
         records = []
@@ -123,12 +126,21 @@ def read_workbook(data: bytes) -> dict:
 
 
 def _is_example(item: dict) -> bool:
-    return item.get("kii_id", "").upper() in ("", "KII-0000") or "EXAMPLE" in item.get("organisation", "").upper()
+    record_id = item.get("kii_id", "").upper()
+    return record_id in ("", "KII-0000", "SID-0000") or record_id.endswith("-000000") or "EXAMPLE" in item.get("organisation", "").upper()
 
 
 def _kii_id(raw: str) -> str:
     digits = re.sub(r"\D", "", raw)
     return f"KII-{int(digits):04d}" if digits else raw.upper()
+
+
+def _sample_id(raw: str) -> str:
+    """SID-2026-000123 however it was typed (sid 2026 123, SID-2026-123)."""
+    parts = re.findall(r"\d+", raw)
+    if len(parts) >= 2:
+        return f"SID-{parts[0]}-{int(parts[1]):06d}"
+    return raw.strip().upper()
 
 
 def _confidence(raw: str) -> str:
@@ -149,20 +161,21 @@ def _sources(links: str, *, title: str = "", publisher: str = "", published: str
              "quote": "", "authority": authority} for url in URL.findall(links or "")]
 
 
-def _profile(record):
-    profile = PreProfile.objects.filter(kii_record=record).order_by("id").first()
+def _profile(link: dict):
+    profile = PreProfile.objects.filter(**link).order_by("id").first()
     if profile is None:
         from .services import create_pre_profile
 
-        profile = create_pre_profile(kii_record=record)
+        profile = create_pre_profile(**link)
     return profile
 
 
-def _contacts(record, rows: list[dict], *, user, filename: str) -> tuple[int, list[str]]:
+def _contacts(target, link: dict, rows: list[dict], *, user, filename: str) -> tuple[int, list[str]]:
+    """`target` is the KIIRecord or SampleCase; `link` is {"kii_record": ...} or {"sample_case": ...}."""
     from apps.contacts.contact_finder import WEBMAIL
     from apps.contacts.models import ContactKind, ContactProposal, ContactSearchRun, ContactSearchStatus
 
-    existing = {(p.kind, p.value.lower(), p.person_name.lower()) for p in record.contact_proposals.all()}
+    existing = {(p.kind, p.value.lower(), p.person_name.lower()) for p in target.contact_proposals.all()}
     proposals, warnings = [], []
     for row in rows:
         sources = _sources(row.get("links", ""))
@@ -204,12 +217,12 @@ def _contacts(record, rows: list[dict], *, user, filename: str) -> tuple[int, li
     if not proposals:
         return 0, warnings
     run = ContactSearchRun.objects.create(
-        kii_record=record, status=ContactSearchStatus.DONE, requested_by=user, provider="import", model=IMPORT_MODEL,
+        **link, status=ContactSearchStatus.DONE, requested_by=user, provider="import", model=IMPORT_MODEL,
         running_since=timezone.now(), finished_at=timezone.now(),
         summary=f"Imported from {filename} by {getattr(user, 'username', 'unknown')}: found outside the portal (ChatGPT). Check each source before accepting.",
     )
     for p in proposals:
-        ContactProposal.objects.create(run=run, kii_record=record, **p)
+        ContactProposal.objects.create(run=run, **link, **p)
     return len(proposals), warnings
 
 
@@ -296,11 +309,31 @@ def _prep(profile, rows: list[dict], *, filename: str) -> list[str]:
     return changed
 
 
-def import_workbook(data: bytes, *, filename: str, user, dry_run: bool) -> dict:
-    """Read the workbook and load it record by record. With dry_run nothing is kept."""
-    from apps.kii.models import KIIRecord
+def _find(target: str, record_id: str):
+    """(object, link kwargs, display name, problem) for one KII ID or Sample ID."""
+    if target == "kii":
+        from apps.contacts.kii_finder import organisation_name
+        from apps.kii.models import KIIRecord
 
+        record = KIIRecord.objects.filter(kii_id=record_id).first()
+        if record is None:
+            return None, {}, "", f"No KII record {record_id} in the portal"
+        return record, {"kii_record": record}, organisation_name(record), ""
+    from apps.sampling.models import SampleCase
+    from apps.sampling.services import is_invitable
+
+    case = SampleCase.objects.filter(sample_id=record_id).select_related("organisation").first()
+    if case is None:
+        return None, {}, "", f"No case {record_id} in the portal"
+    if not is_invitable(case):
+        return None, {}, case.organisation.name, "A locked Reserve case is not researched for contact"
+    return case, {"sample_case": case}, case.organisation.name, ""
+
+
+def import_workbook(data: bytes, *, filename: str, user, dry_run: bool, target: str = "kii") -> dict:
+    """Read the workbook and load it record by record (target "kii" or "main"). With dry_run nothing is kept."""
     sheets = read_workbook(data)
+    normalise = _kii_id if target == "kii" else _sample_id
     by_record: dict[str, dict] = {}
     skipped_examples = 0
     for key in ("contacts", "facts", "prep"):
@@ -308,27 +341,29 @@ def import_workbook(data: bytes, *, filename: str, user, dry_run: bool) -> dict:
             if _is_example(item):
                 skipped_examples += 1
                 continue
-            entry = by_record.setdefault(_kii_id(item["kii_id"]), {"contacts": [], "facts": [], "prep": [], "organisation": ""})
+            entry = by_record.setdefault(normalise(item["kii_id"]), {"contacts": [], "facts": [], "prep": [], "organisation": ""})
             entry[key].append(item)
             entry["organisation"] = entry["organisation"] or item.get("organisation", "")
 
     results = []
     with transaction.atomic():
         for kii_id, entry in sorted(by_record.items()):
-            result = {"kii_id": kii_id, "record_id": None, "organisation": entry["organisation"], "status": "ready", "contacts": 0,
+            result = {"kii_id": kii_id, "record": kii_id, "record_id": None, "organisation": entry["organisation"], "status": "ready", "contacts": 0,
                       "facts": 0, "not_found": 0, "prep": [], "warnings": []}
-            record = KIIRecord.objects.filter(kii_id=kii_id).first()
+            record, link, name, problem = _find(target, kii_id)
             if record is None:
-                result.update(status="skipped", warnings=[f"No KII record {kii_id} in the portal"])
+                result.update(status="skipped", warnings=[problem], organisation=name or entry["organisation"])
                 results.append(result)
                 continue
-            from apps.contacts.kii_finder import organisation_name
-
-            result["organisation"], result["record_id"] = organisation_name(record) or entry["organisation"], record.id
-            result["contacts"], warnings = _contacts(record, entry["contacts"], user=user, filename=filename)
+            result["organisation"] = name or entry["organisation"]
+            result["record_id"] = record.id if target == "kii" else record.sample_id
+            result["contacts"], warnings = _contacts(record, link, entry["contacts"], user=user, filename=filename)
             result["warnings"] += warnings
+            if target == "main" and entry["prep"]:
+                result["warnings"].append("Interview-prep notes are for KII records only, so they were not imported")
+                entry["prep"] = []
             if entry["facts"] or entry["prep"]:
-                profile = _profile(record)
+                profile = _profile(link)
                 if profile.prepopulation_locked_at is not None:
                     result["warnings"].append("PROIT profile is locked, so facts and interview notes were not imported")
                 else:
@@ -339,8 +374,8 @@ def import_workbook(data: bytes, *, filename: str, user, dry_run: bool) -> dict:
                 result["status"] = "nothing new"
             elif not dry_run:
                 result["status"] = "imported"
-                log_action("proit.kii_research_imported", record, {
-                    "kii_id": kii_id, "file": filename[:120], "contacts": result["contacts"], "facts": result["facts"],
+                log_action("proit.kii_research_imported" if target == "kii" else "proit.main_research_imported", record, {
+                    "record": kii_id, "file": filename[:120], "contacts": result["contacts"], "facts": result["facts"],
                     "not_found": result["not_found"], "prep": result["prep"], "user_id": getattr(user, "id", None),
                 }, user=user)
             results.append(result)
@@ -349,5 +384,6 @@ def import_workbook(data: bytes, *, filename: str, user, dry_run: bool) -> dict:
 
     totals = {key: sum(r[key] for r in results) for key in ("contacts", "facts", "not_found")}
     totals["records"] = sum(1 for r in results if r["status"] in ("ready", "imported"))
+    missing = [m for m in sheets["missing"] if not (target == "main" and m == "Fill C")]  # Main-400 has no Fill C
     return {"dry_run": dry_run, "file": filename, "records": results, "totals": totals,
-            "examples_skipped": skipped_examples, "missing_sheets": sheets["missing"]}
+            "examples_skipped": skipped_examples, "missing_sheets": missing}

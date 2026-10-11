@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ResearchImportPanel } from "@/components/admin/ResearchImportPanel";
 import { IfRole, IfScreen, WriteOnly } from "@/components/admin/RoleGate";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
@@ -776,6 +777,7 @@ export default function SampleRegisterPage() {
           <BulkVerificationPanel />
           <BulkAssignmentPanel />
           <ContactFinderBatchPanel />
+          <ResearchImportPanel target="main" />
           <SendInvitationsPanel />
         </IfRole>
       )}
