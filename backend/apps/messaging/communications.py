@@ -132,7 +132,8 @@ def split_quoted(text: str) -> tuple[str, str]:
     """(what they wrote, the earlier message their email quotes). The quote starts at "On ... wrote:", a line of
     "-----Original Message-----" / "From:" after a blank line, or the first run of ">" lines."""
     text = text or ""
-    patterns = [r"\n\s*On .{5,200}?wrote:\s*\n", r"\n-{2,}\s*Original Message\s*-{2,}", r"\n\s*From:\s.+\n\s*(Sent|Date):\s",
+    # Gmail wraps a long "On <date>, <name> <address> wrote:" over two or three lines, and it can end the email.
+    patterns = [r"\n\s*On [^\n]{5,200}?(?:\n[^\n]{0,200}?){0,2}wrote:\s*(?:\n|$)", r"\n-{2,}\s*Original Message\s*-{2,}", r"\n\s*From:\s.+\n\s*(Sent|Date):\s",
                 r"\n\s*_{10,}\s*\n", r"\n(?:>.*\n?){2,}"]
     cut = len(text)
     for pattern in patterns:

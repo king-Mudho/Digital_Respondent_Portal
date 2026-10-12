@@ -289,6 +289,20 @@ def test_a_reply_dated_without_a_time_zone_is_kept_with_its_own_date(imap_on, pe
     assert InboundMessage.objects.get().sent_at.isoformat() == "2026-10-03T12:55:57+00:00"
 
 
+@pytest.mark.parametrize("body", [
+    "Thank you, I got it.\n\nOn Tue, 22 Sep 2026, 10:51 am Happyson Saina <abffst.research@gmail.com>\nwrote:",
+    "Thank you, I got it.\n\nOn Tue, 22 Sep 2026 at 10:51, Happyson Saina <abffst.research@gmail.com> wrote:\n> Hello",
+])
+def test_the_quoted_line_is_folded_away_even_when_gmail_wraps_it(body):
+    text, quoted = comms.split_quoted(body)
+    assert text == "Thank you, I got it." and quoted.startswith("On Tue")
+
+
+def test_a_line_that_merely_starts_with_on_is_not_taken_for_a_quote():
+    body = "Thanks.\nOn Thursday we can meet at 10.\nRegards"
+    assert comms.split_quoted(body) == (body, "")
+
+
 def test_the_mailbox_is_left_alone_when_not_set_up(settings, person):
     settings.EMAIL_IMAP_HOST = ""
     assert "skipped" in mailbox.sync_mailbox(connect=lambda: pytest.fail("must not connect"))
