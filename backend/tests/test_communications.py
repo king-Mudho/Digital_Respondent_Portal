@@ -258,6 +258,22 @@ def test_the_sent_folder_adds_what_the_team_wrote_in_gmail_but_skips_the_portals
     assert "A" * 43 not in written.body and "QWER1234" not in written.body and "[personal link]" in written.body
 
 
+def test_an_old_invitation_email_found_in_the_sent_folder_is_shown_once_as_the_invitation(imap_on, pi, person, main_case):
+    from apps.audit.utils import log_action
+
+    raw, _, token = issue_invitation(main_case, channel="EMAIL", issued_by=pi)
+    log_action("invitation.emailed", token, {"sample_id": main_case.sample_id})  # as sent before 12 Oct: no record kept
+    copy = _email(sender="abffst.research@gmail.com", to=PERSON_EMAIL, subject="Invitation: ABF-FST research study",
+                  body=f"Your personal link: https://research.agribizframework.com/i/{raw}")
+    copy = copy.replace(b"Mon, 12 Oct 2026 10:00:00 +0200", timezone.now().strftime("%a, %d %b %Y %H:%M:%S +0000").encode())
+    mailbox.sync_mailbox(connect=lambda: FakeIMAP({"INBOX": [], "[Gmail]/Sent Mail": [(1, copy)]}))
+    items = _client(pi).get(f"{THREADS}main/{main_case.pk}/").json()["items"]
+    sent = [i for i in items if i["type"] == "out"]
+    assert [i["purpose_label"] for i in sent] == ["Invitation (copy from the study mailbox)"]
+    assert not [i for i in items if i["type"] == "event" and "emailed from the study address" in i["text"]]
+    assert raw not in sent[0]["body"]
+
+
 def test_a_quoted_invitation_in_a_reply_loses_its_link(imap_on, person):
     body = "Yes please.\n\nOn Mon, 5 Oct 2026, ABF-FST wrote:\n> Open https://research.agribizframework.com/i/" + "b" * 43
     mailbox.sync_mailbox(connect=lambda: FakeIMAP({"INBOX": [(1, _email(sender=PERSON_EMAIL, body=body))]}))

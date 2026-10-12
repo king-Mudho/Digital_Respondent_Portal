@@ -261,13 +261,28 @@ def thread_list(user, *, show: str = "all", register: str = "", channel: str = "
 # --- One conversation ----------------------------------------------------------------------------------------------
 
 def _out_item(m: ProviderMessage) -> dict:
+    # A copy found in the mailbox's sent folder: written in Gmail, or sent by the portal before 12 Oct 2026 without a
+    # Message-ID it kept. Which one is not known, so it is not called "written in Gmail".
+    from_mailbox = m.provider == MessageProvider.GMAIL_SENT
     return {
         "type": "out", "id": f"out-{m.pk}", "at": m.created_at, "channel": m.channel, "purpose": m.purpose,
-        "purpose_label": m.get_purpose_display(), "provider": m.provider, "status": m.status,
+        "purpose_label": "Email from the study mailbox" if from_mailbox else m.get_purpose_display(),
+        "provider": m.provider, "status": m.status,
         "status_label": m.get_status_display(), "problem": delivery_problem(m), "subject": m.subject, "body": m.body,
-        "to": m.to_masked, "by": m.sent_by.username if m.sent_by_id else ("" if m.provider == MessageProvider.GMAIL_SENT else "automatic"),
-        "written_in_gmail": m.provider == MessageProvider.GMAIL_SENT,
+        "to": m.to_masked, "by": m.sent_by.username if m.sent_by_id else ("" if from_mailbox else "automatic"),
+        "from_mailbox": from_mailbox,
     }
+
+
+# How close a sent-folder copy must be to an "invitation emailed" audit entry to be that invitation email.
+MAILBOX_COPY_WINDOW = timedelta(minutes=15)
+
+
+def _mailbox_copy(items: list[dict], sent_at):
+    for item in items:
+        if item["type"] == "out" and item["from_mailbox"] and abs(item["at"] - sent_at) <= MAILBOX_COPY_WINDOW:
+            return item
+    return None
 
 
 def _in_item(m: InboundMessage) -> dict:
@@ -288,16 +303,22 @@ def _event(at, text: str, *, tone: str = "info", detail: str = "") -> dict:
 CHANNEL_WORD = {"WHATSAPP": "WhatsApp", "EMAIL": "email", "SMS": "SMS", "PRINTED_CODE": "printed code", "QR": "QR code"}
 
 
-def _token_events(tokens, emailed_ids: set, *, kii: bool) -> list[dict]:
+def _token_events(tokens, emailed: dict, items: list[dict]) -> list[dict]:
+    """`emailed` is {token id: when the invitation was emailed}, from the audit trail. When the email's copy came in
+    from the mailbox's sent folder, that copy is labelled as the invitation and no second line is added for it."""
     events = []
     for token in tokens:
         channel = CHANNEL_WORD.get(token.channel, token.channel)
         events.append(_event(token.issued_at, f"Invitation link created ({channel}), expires "
                              f"{timezone.localtime(token.expires_at):%d %b %Y}"))
         if not token.provider_messages.exists():
-            if token.pk in emailed_ids:
-                events.append(_event(token.issued_at, "Invitation emailed from the study address",
-                                     detail="Sent before messages were kept in the portal, so its text is not shown here."))
+            if token.pk in emailed:
+                copy = _mailbox_copy(items, emailed[token.pk])
+                if copy is not None:
+                    copy["purpose_label"] = "Invitation (copy from the study mailbox)"
+                else:
+                    events.append(_event(emailed[token.pk], "Invitation emailed from the study address",
+                                         detail="Sent before messages were kept in the portal, so its text is not shown here."))
             elif token.channel in ("WHATSAPP", "SMS"):
                 events.append(_event(token.issued_at, f"Invitation sent by hand on {channel} from the study phone",
                                      tone="muted", detail="No delivery report: only messages the portal sends itself can "
@@ -315,6 +336,16 @@ def _token_events(tokens, emailed_ids: set, *, kii: bool) -> list[dict]:
     return events
 
 
+def _emailed(audit_model, action: str, object_type: str, tokens) -> dict:
+    """{token id: when it was emailed} -- the first time, if it was emailed more than once."""
+    out = {}
+    rows = audit_model.objects.filter(action=action, object_type=object_type, object_id__in=[str(t.pk) for t in tokens])
+    for object_id, created_at in rows.order_by("created_at").values_list("object_id", "created_at"):
+        if str(object_id).isdigit():
+            out.setdefault(int(object_id), created_at)
+    return out
+
+
 def thread(user, kind: str, pk) -> dict:
     from apps.audit.models import AuditEvent
     from apps.consent.models import ConsentRecord
@@ -329,10 +360,7 @@ def thread(user, kind: str, pk) -> dict:
         from apps.kobo.models import QUANSubmission
 
         tokens = list(subject.invitation_tokens.all())
-        emailed = {int(e) for e in AuditEvent.objects.filter(action="invitation.emailed", object_type="InvitationToken",
-                                                              object_id__in=[str(t.pk) for t in tokens])
-                   .values_list("object_id", flat=True) if str(e).isdigit()}
-        items += _token_events(tokens, emailed, kii=False)
+        items += _token_events(tokens, _emailed(AuditEvent, "invitation.emailed", "InvitationToken", tokens), items)
         for log in MessageLog.objects.filter(sample_case=subject).select_related("template", "triggered_by"):
             if getattr(log, "provider_message", None) is None and log.sent_at:
                 step = log.template.name.replace("drp_", "").replace("_", " ")
@@ -346,10 +374,7 @@ def thread(user, kind: str, pk) -> dict:
             items.append(_event(submission.submitted_at, "Questionnaire submitted", tone="good"))
     else:
         tokens = list(subject.invitation_tokens.all())
-        emailed = {int(e) for e in AuditEvent.objects.filter(action="kii_invitation.emailed", object_type="KIIInvitationToken",
-                                                              object_id__in=[str(t.pk) for t in tokens])
-                   .values_list("object_id", flat=True) if str(e).isdigit()}
-        items += _token_events(tokens, emailed, kii=True)
+        items += _token_events(tokens, _emailed(AuditEvent, "kii_invitation.emailed", "KIIInvitationToken", tokens), items)
 
     for consent in ConsentRecord.objects.filter(**{link: subject}).order_by("timestamp"):
         tone = "good" if consent.decision == "GIVEN" else "warn"

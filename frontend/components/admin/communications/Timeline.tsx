@@ -45,7 +45,7 @@ function Outgoing({ item }: { item: OutItem }) {
         >
           <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
             <ChannelBadge channel={item.channel} />
-            <span>{item.written_in_gmail ? "Written in Gmail" : item.purpose_label}</span>
+            <span>{item.purpose_label}</span>
             <span>· to {item.to}</span>
           </div>
           {item.subject && <p className="font-medium">{item.subject}</p>}

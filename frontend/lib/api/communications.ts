@@ -42,7 +42,7 @@ export interface OutItem {
   body: string;
   to: string;
   by: string;
-  written_in_gmail: boolean;
+  from_mailbox: boolean;
 }
 
 export interface InItem {

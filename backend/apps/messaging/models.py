@@ -94,7 +94,7 @@ class MessagePurpose(models.TextChoices):
 class MessageProvider(models.TextChoices):
     TWILIO = "twilio", "Twilio"
     SMTP = "smtp", "Study email (sent by the portal)"
-    GMAIL_SENT = "gmail_sent", "Study email (written in Gmail)"
+    GMAIL_SENT = "gmail_sent", "Study email (copy from the mailbox's sent folder)"
 
 
 class ProviderStatus(models.TextChoices):
@@ -112,7 +112,8 @@ class ProviderStatus(models.TextChoices):
 class ProviderMessage(models.Model):
     """One message sent to a respondent or key informant and what happened to it: SMS and WhatsApp through Twilio
     (apps/messaging/twilio_client.py, 2026-10-07), email through the study's mail server, and -- since 2026-10-12 --
-    emails the team wrote in Gmail to an address on a case (apps/messaging/mailbox.py). An invitation sent by hand from
+    copies of emails to an address on a case found in the mailbox's sent folder (apps/messaging/mailbox.py): written
+    in Gmail, or sent by the portal before it kept their Message-ID. An invitation sent by hand from
     the study phone has no row here: only these can be followed.
 
     Only a masked number/address and a keyed hash of it (to match a bounce or a reply) are kept: the full number stays
