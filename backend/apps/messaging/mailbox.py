@@ -21,6 +21,7 @@ import imaplib
 import logging
 import re
 from datetime import timedelta
+from datetime import timezone as dt_timezone
 from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 
 from django.conf import settings
@@ -88,13 +89,17 @@ def _ids(value) -> list[str]:
 
 
 def _date(value):
+    """The email's Date header as an aware time. "-0000" (what Django's own emails carry: time zone not stated) parses
+    to a naive time, read as UTC. Until 2026-10-12 21:00 this used timezone.utc, which Django 5 no longer has: every
+    such email raised, so the portal's own earlier invitations came in from the sent folder dated at sync time, and an
+    inbox reply carrying that form of date was skipped."""
     try:
         when = parsedate_to_datetime(str(value))
     except (TypeError, ValueError, IndexError):
         return None
     if when is None:
         return None
-    return when if timezone.is_aware(when) else timezone.make_aware(when, timezone.utc)
+    return when if timezone.is_aware(when) else when.replace(tzinfo=dt_timezone.utc)
 
 
 def text_of(message) -> tuple[str, bool]:

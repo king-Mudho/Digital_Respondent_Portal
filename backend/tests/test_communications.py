@@ -137,11 +137,11 @@ def test_a_refused_email_is_recorded_as_failed_and_still_raised(person, main_cas
 # --- The study mailbox ---------------------------------------------------------------------------------------------
 
 def _email(*, sender, to="abffst.research@gmail.com", subject="Re: ABF-FST research study", body="Thanks, happy to help.",
-           message_id=None, in_reply_to="", headers=None) -> bytes:
+           message_id=None, in_reply_to="", headers=None, date="Mon, 12 Oct 2026 10:00:00 +0200") -> bytes:
     msg = email.message.EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = sender, to, subject
     msg["Message-ID"] = message_id or f"<{abs(hash((sender, subject, body)))}@mail.example>"
-    msg["Date"] = "Mon, 12 Oct 2026 10:00:00 +0200"
+    msg["Date"] = date
     if in_reply_to:
         msg["In-Reply-To"] = in_reply_to
     for key, value in (headers or {}).items():
@@ -263,9 +263,12 @@ def test_an_old_invitation_email_found_in_the_sent_folder_is_shown_once_as_the_i
 
     raw, _, token = issue_invitation(main_case, channel="EMAIL", issued_by=pi)
     log_action("invitation.emailed", token, {"sample_id": main_case.sample_id})  # as sent before 12 Oct: no record kept
+    sent_at = timezone.now() - timedelta(days=3)  # long before the sync reads it
+    AuditEvent.objects.filter(action="invitation.emailed").update(created_at=sent_at)
+    # Django's own emails date themselves "-0000" (no time zone): exactly what the portal's old invitations carry.
     copy = _email(sender="abffst.research@gmail.com", to=PERSON_EMAIL, subject="Invitation: ABF-FST research study",
-                  body=f"Your personal link: https://research.agribizframework.com/i/{raw}")
-    copy = copy.replace(b"Mon, 12 Oct 2026 10:00:00 +0200", timezone.now().strftime("%a, %d %b %Y %H:%M:%S +0000").encode())
+                  body=f"Your personal link: https://research.agribizframework.com/i/{raw}",
+                  date=sent_at.strftime("%a, %d %b %Y %H:%M:%S -0000"))
     mailbox.sync_mailbox(connect=lambda: FakeIMAP({"INBOX": [], "[Gmail]/Sent Mail": [(1, copy)]}))
     items = _client(pi).get(f"{THREADS}main/{main_case.pk}/").json()["items"]
     sent = [i for i in items if i["type"] == "out"]
@@ -278,6 +281,12 @@ def test_a_quoted_invitation_in_a_reply_loses_its_link(imap_on, person):
     body = "Yes please.\n\nOn Mon, 5 Oct 2026, ABF-FST wrote:\n> Open https://research.agribizframework.com/i/" + "b" * 43
     mailbox.sync_mailbox(connect=lambda: FakeIMAP({"INBOX": [(1, _email(sender=PERSON_EMAIL, body=body))]}))
     assert "b" * 43 not in InboundMessage.objects.get().body
+
+
+def test_a_reply_dated_without_a_time_zone_is_kept_with_its_own_date(imap_on, person):
+    reply = _email(sender=PERSON_EMAIL, date="Sat, 03 Oct 2026 12:55:57 -0000")
+    mailbox.sync_mailbox(connect=lambda: FakeIMAP({"INBOX": [(1, reply)]}))
+    assert InboundMessage.objects.get().sent_at.isoformat() == "2026-10-03T12:55:57+00:00"
 
 
 def test_the_mailbox_is_left_alone_when_not_set_up(settings, person):
