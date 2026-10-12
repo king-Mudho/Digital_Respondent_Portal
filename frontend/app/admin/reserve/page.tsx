@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AutoReplacementPanel } from "@/components/admin/AutoReplacementPanel";
 import { ReadOnly, WriteOnly } from "@/components/admin/RoleGate";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,8 @@ export default function ReserveActivationPage() {
           placeholder="Search ID or organisation"
         />
       </div>
+      <AutoReplacementPanel />
+      <h3 className="font-semibold mb-2">Activate a Reserve by hand</h3>
       {/* Said once here rather than repeated on all 400 reserve cards. */}
       <ReadOnly>
         <p className="text-text-muted text-sm mb-4">

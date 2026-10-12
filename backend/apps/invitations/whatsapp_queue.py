@@ -10,7 +10,7 @@ and prepares only the cases assigned to them.
 from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
-from .batch import OPEN_STATUSES, VERIFIED
+from .batch import OPEN_STATUSES
 from .messages import build_messages, portal_base, recipients
 from .models import Channel, InvitationToken
 from .services import issue_invitation
@@ -28,15 +28,15 @@ def _is_contact_ra(user) -> bool:
 
 def queue_cases(user):
     from apps.contacts.models import Respondent
-    from apps.sampling.models import ReserveStatus, SampleCase, SampleType
 
     has_number = Respondent.objects.filter(sample_case=OuterRef("pk")).filter(~Q(whatsapp_number="") | ~Q(phone=""))
     open_invitation = InvitationToken.objects.filter(
         sample_case=OuterRef("pk"), status__in=OPEN_STATUSES, expires_at__gt=timezone.now(),
     )
+    from apps.sampling.services import contactable_cases
+
     cases = (
-        SampleCase.objects.filter(Q(sample_type=SampleType.MAIN) | Q(sample_type=SampleType.RESERVE, status=ReserveStatus.ACTIVATED))
-        .filter(workflow_status__in=VERIFIED)
+        contactable_cases()
         .filter(Exists(has_number)).exclude(Exists(open_invitation))
         .select_related("organisation").prefetch_related("respondents").order_by("sample_id")
     )

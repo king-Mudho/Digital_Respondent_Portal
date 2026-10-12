@@ -333,3 +333,98 @@ class RecordWithdrawalView(APIView):
         except ValueError as exc:
             return Response({"error": {"code": "invalid_input", "message": str(exc), "field_errors": {}}}, status=400)
         return Response(summary, status=201)
+
+
+# --- Automatic Reserve replacement (apps/sampling/replacement.py, 2026-10-12) ---------------------------------------
+
+def _replacement_state(reserve) -> dict:
+    """Where contact with an automatically activated Reserve stands, in words for the Reserve screen."""
+    from apps.messaging.models import OutreachStatus
+
+    from .replacement import META_KEY
+
+    labels = {
+        OutreachStatus.INTRO_SENT: "Introduced on WhatsApp, waiting for a reply",
+        OutreachStatus.REMINDED: "Introduced and reminded, waiting for a reply",
+        OutreachStatus.ACCEPTED: "Said yes: invitation link sent",
+        OutreachStatus.DECLINED: "Said no",
+        OutreachStatus.NO_REPLY: "No reply: phone them",
+        OutreachStatus.NOT_DELIVERED: "Introduction could not be delivered",
+    }
+    outreach = reserve.outreaches.order_by("-intro_sent_at").first()
+    note = (reserve.metadata or {}).get(META_KEY, {}).get("contact_note", "")
+    if outreach:
+        return {"state": outreach.status, "label": labels.get(outreach.status, outreach.get_status_display()), "note": ""}
+    if note.startswith("No mobile"):
+        return {"state": "NEEDS_CONTACT", "label": "Needs contact details", "note": note}
+    return {"state": "WAITING", "label": "Waiting to be introduced", "note": note}
+
+
+class ReplacementView(APIView):
+    """GET /api/v1/reserve-replacement/ -- the automatic replacement policy, how many Main cases it would replace now,
+    and the Reserves it activated. PI, Field Coordinator; Supervisor reads.
+    PUT {enabled, triggers, daily_max} -- PI only. Switching it on records the PI as the standing authoriser named on
+    every automatic activation (AGENTS.md rule 4); every change is audited."""
+
+    def get_permissions(self):
+        from api.permissions import IsAdminOnly
+
+        return [IsAdminOnly()] if self.request.method == "PUT" else [IsFieldCoordinatorOrAdmin()]
+
+    def _payload(self):
+        from .models import ReplacementPolicy, ReplacementTrigger, ReserveStatus
+        from .replacement import META_KEY, due
+
+        policy = ReplacementPolicy.current()
+        reserves = (SampleCase.objects.filter(sample_type=SampleType.RESERVE, status=ReserveStatus.ACTIVATED, metadata__has_key=META_KEY)
+                    .select_related("organisation", "activated_by").order_by("-activated_at")[:300])
+        by = policy.enabled_by
+        return {
+            "policy": {
+                "enabled": policy.enabled, "triggers": policy.triggers, "daily_max": policy.daily_max,
+                "enabled_by": (by.get_full_name() or by.username) if by else "", "enabled_at": policy.enabled_at,
+            },
+            "trigger_choices": [{"value": v, "label": label} for v, label in ReplacementTrigger.choices],
+            # What the next morning run would replace if these triggers were on -- shown even while off.
+            "due_now": len(due(policy)) if policy.triggers else 0,
+            "replacements": [{
+                "reserve": r.sample_id, "organisation": r.organisation.name, "replaces": r.metadata[META_KEY].get("replaces", ""),
+                "trigger": r.metadata[META_KEY].get("trigger", ""), "reason": r.get_activation_reason_display(),
+                "activated_at": r.activated_at, "evidence": r.activation_evidence_note, **_replacement_state(r),
+            } for r in reserves],
+        }
+
+    def get(self, request):
+        return Response(self._payload())
+
+    def put(self, request):
+        from django.utils import timezone
+
+        from apps.audit.utils import log_action
+
+        from .models import ReplacementPolicy, ReplacementTrigger
+
+        policy = ReplacementPolicy.current()
+        triggers = request.data.get("triggers", policy.triggers)
+        if not isinstance(triggers, list) or any(t not in ReplacementTrigger.values for t in triggers):
+            return Response({"error": {"code": "bad_triggers", "message": "Choose triggers from the list.", "field_errors": {}}}, status=400)
+        try:
+            daily_max = int(request.data.get("daily_max", policy.daily_max))
+        except (TypeError, ValueError):
+            daily_max = -1
+        if not 1 <= daily_max <= 100:
+            return Response({"error": {"code": "bad_daily_max", "message": "The daily limit must be between 1 and 100.", "field_errors": {}}}, status=400)
+        enabled = bool(request.data.get("enabled", policy.enabled))
+        if enabled and not triggers:
+            return Response({"error": {"code": "no_triggers", "message": "Tick at least one outcome before switching it on.", "field_errors": {}}}, status=400)
+        before = {"enabled": policy.enabled, "triggers": policy.triggers, "daily_max": policy.daily_max,
+                  "enabled_by_id": policy.enabled_by_id}
+        if enabled and not policy.enabled:
+            policy.enabled_by, policy.enabled_at = request.user, timezone.now()
+        policy.enabled, policy.triggers, policy.daily_max = enabled, sorted(set(triggers)), daily_max
+        policy.save()
+        log_action("reserve.auto_policy_changed", policy, {
+            "before": before, "after": {"enabled": policy.enabled, "triggers": policy.triggers, "daily_max": policy.daily_max,
+                                        "enabled_by_id": policy.enabled_by_id},
+        }, user=request.user)
+        return Response(self._payload())

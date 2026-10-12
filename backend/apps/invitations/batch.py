@@ -78,7 +78,6 @@ def batch_candidates(channels=("EMAIL",)):
     Whether a phone number is a mobile is decided per case by recipients(), so SMS/WhatsApp candidates are those with
     any number on file."""
     from apps.contacts.models import Respondent
-    from apps.sampling.models import ReserveStatus, SampleCase, SampleType
 
     people = Respondent.objects.filter(sample_case=OuterRef("pk"))
     reachable = Q(pk__in=[])
@@ -89,9 +88,10 @@ def batch_candidates(channels=("EMAIL",)):
     open_invitation = InvitationToken.objects.filter(
         sample_case=OuterRef("pk"), status__in=OPEN_STATUSES, expires_at__gt=timezone.now(),
     )
+    from apps.sampling.services import contactable_cases
+
     return (
-        SampleCase.objects.filter(Q(sample_type=SampleType.MAIN) | Q(sample_type=SampleType.RESERVE, status=ReserveStatus.ACTIVATED))
-        .filter(workflow_status__in=VERIFIED)
+        contactable_cases()
         .filter(reachable).exclude(Exists(open_invitation))
         .select_related("organisation").prefetch_related("respondents").order_by("sample_id")
     )

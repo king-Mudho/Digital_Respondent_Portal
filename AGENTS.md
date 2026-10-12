@@ -50,7 +50,12 @@ any agent (human or AI) that modifies this codebase.
    convention.** A `SampleCase` with `sample_type = RESERVE` and `status = LOCKED` must be
    unreachable by every invitation-issuing code path, not merely hidden by the frontend.
    Reserve activation always requires a recorded reason, an authorising user, and an
-   `AuditEvent` — see `docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md`. Main↔Reserve pairing
+   `AuditEvent` — see `docs/09_IDENTIFIER_AND_SAMPLING_CONTROL.md`. Automatic replacement
+   (`apps/sampling/replacement.py`, PI decision 2026-10-12) keeps all three: it runs only
+   while the PI has switched `ReplacementPolicy` on, names that PI as the authoriser of every
+   activation (the standing authorisation), records the authorised reason and an evidence
+   note per case, and only ever activates a Main case's own paired, still-LOCKED Reserve.
+   Never let it activate without a named `enabled_by`. Main↔Reserve pairing
    goes through `sampling.services.set_matched_case()`, which refuses the pairings that
    break the lock — above all one Reserve claimed by two Main cases, which would make a
    single activation appear to cover both.

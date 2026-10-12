@@ -108,6 +108,8 @@ ACTION_LABELS: dict[str, str] = {
     "qa.threshold_changed": "QA threshold changed",
     "qa.thresholds_approved": "QA thresholds approved",
     "reserve.activated": "Reserve case activated",
+    "reserve.auto_policy_changed": "Automatic Reserve replacement switched on, off or changed",
+    "reserve.auto_replacement_run": "Automatic Reserve replacement: Reserves activated this morning",
     "sample_case.deleted": "Sample case deleted",
     "sample_case.match_cleared": "Reserve match cleared",
     "sample_case.matched": "Reserve case matched",

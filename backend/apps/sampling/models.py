@@ -282,3 +282,37 @@ class SampleCase(models.Model):
 
     def __str__(self):
         return self.sample_id
+
+
+class ReplacementTrigger(models.TextChoices):
+    """What makes a Main case "did not take part" for automatic replacement, and the authorised reason it records."""
+
+    REFUSED = "REFUSED", "Refused (S12)"
+    NONRESPONSE = "NONRESPONSE", "Nonresponse exhausted (S13)"
+    NO_REPLY = "NO_REPLY", "No reply to the introduction"
+    INELIGIBLE = "INELIGIBLE", "Ineligible (S14)"
+    DUPLICATE_INACTIVE = "DUPLICATE_INACTIVE", "Duplicate/inactive (S15)"
+
+
+class ReplacementPolicy(models.Model):
+    """Automatic Reserve replacement (PI decision, 2026-10-12): when switched on, the morning run activates the paired
+    Reserve of each Main case that did not take part and introduces it on WhatsApp (apps/sampling/replacement.py).
+
+    A single row, off until the PI switches it on in the portal. Switching it on is the standing authorisation AGENTS.md
+    rule 4 asks for: `enabled_by` is named as the authoriser of every automatic activation, with the reason and an
+    evidence note per case, and each change to this row is audited. Switching it off stops activations at once."""
+
+    enabled = models.BooleanField(default=False)
+    triggers = models.JSONField(default=list, blank=True)
+    daily_max = models.PositiveIntegerField(default=20)
+    enabled_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    enabled_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"ReplacementPolicy({'on' if self.enabled else 'off'})"
+
+    @classmethod
+    def current(cls) -> "ReplacementPolicy":
+        policy, _ = cls.objects.get_or_create(pk=1)
+        return policy

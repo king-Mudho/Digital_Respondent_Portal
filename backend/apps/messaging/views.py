@@ -291,8 +291,8 @@ class CommunicationUnknownView(APIView):
 
     def get(self, request):
         from .communications import unknown_senders
-        from .outreach import reply_window_open
         from .models import InboundMessage
+        from .outreach import reply_window_open
 
         rows = unknown_senders(request.user)
         for row in rows:

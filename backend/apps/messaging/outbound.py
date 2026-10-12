@@ -19,7 +19,14 @@ from apps.audit.utils import log_action
 
 from . import twilio_client as tw
 from .hashing import email_hash, mask_email, number_hash
-from .models import MessageChannel, MessagePurpose, MessageProvider, MessageStatus, ProviderMessage, ProviderStatus
+from .models import (
+    MessageChannel,
+    MessageProvider,
+    MessagePurpose,
+    MessageStatus,
+    ProviderMessage,
+    ProviderStatus,
+)
 
 LINK_PLACEHOLDER = "[personal link]"
 CODE_PLACEHOLDER = "[code]"

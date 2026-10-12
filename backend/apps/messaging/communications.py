@@ -373,6 +373,16 @@ def thread(user, kind: str, pk) -> dict:
                                 detail=" · ".join(x for x in (event.notes, f"by {event.ra.username}") if x)))
         for submission in QUANSubmission.objects.filter(sample_case=subject):
             items.append(_event(submission.submitted_at, "Questionnaire submitted", tone="good"))
+        # Reserve replacement (2026-10-12): shown on both sides of the pair.
+        reserve = subject.matched_case if subject.sample_type == "MAIN" else None
+        if reserve is not None and reserve.status == "ACTIVATED" and reserve.activated_at:
+            items.append(_event(reserve.activated_at, f"Replaced by Reserve {reserve.sample_id} "
+                                f"({reserve.get_activation_reason_display()})", tone="muted",
+                                detail=reserve.activation_evidence_note))
+        if subject.sample_type == "RESERVE" and subject.activated_at:
+            replaced = subject.matched_by.filter(sample_type="MAIN").first()
+            items.append(_event(subject.activated_at, f"Reserve activated{f' to replace {replaced.sample_id}' if replaced else ''} "
+                                f"({subject.get_activation_reason_display()})", detail=subject.activation_evidence_note))
     else:
         tokens = list(subject.invitation_tokens.all())
         items += _token_events(tokens, _emailed(AuditEvent, "kii_invitation.emailed", "KIIInvitationToken", tokens), items)

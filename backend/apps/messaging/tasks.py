@@ -5,12 +5,17 @@ from .services import dispatch_due_reminders, exhaust_nonresponse_cases
 
 @shared_task
 def run_reminder_dispatch():
+    from apps.sampling.replacement import run_auto_replacement
+
     from .outreach import run_followups
 
     dispatched = dispatch_due_reminders()
     exhausted = exhaust_nonresponse_cases()
     followups = run_followups()
-    return {"dispatched": len(dispatched), "exhausted_to_nonresponse": len(exhausted), "introductions": followups}
+    # Last, so a case that became Nonresponse or "no reply" this morning is replaced the same day (2026-10-12).
+    replaced = run_auto_replacement()
+    return {"dispatched": len(dispatched), "exhausted_to_nonresponse": len(exhausted), "introductions": followups,
+            "replacement": replaced}
 
 
 @shared_task

@@ -234,8 +234,11 @@ const screens = [
   {
     id: "reserve", group: "The sample and contact", title: "Reserve Activation", path: "/admin/reserve",
     roles: [R.PI, R.FC, R.SUP],
-    purpose: "Where a locked Reserve case is activated to replace a Main case that has dropped out.",
+    purpose: "Where a locked Reserve case is activated to replace a Main case that has dropped out: automatically every morning once the PI switches it on, or by hand.",
     rows: [
+      ["Automatic replacement: outcomes", "Tick which outcomes replace a Main case: Refused, Nonresponse exhausted, No reply to the introduction, Ineligible, Duplicate/inactive.", "These are the authorised reasons; nothing else ever activates a Reserve.", "Shows how many Main cases those outcomes would replace at the next 08:00 run. Only the PI can change it.", w],
+      ["Switch on automatic replacement (PI)", "Every morning at 08:00 each such Main case has its own paired Reserve activated and introduced on WhatsApp; a YES sends the invitation link.", "Replaces drop-outs without waiting for someone to do it by hand, while every activation is still recorded under the PI's standing authorisation, with its reason and what happened.", "The panel shows On and who switched it on. At most the daily limit (20 unless changed) are activated a day. Switch off stops it at once.", w],
+      ["Replaced automatically", "Each replacement: when, the Main case, the reason, the Reserve, and how contact stands.", "So you can see which Reserves said yes, said no, did not reply, or need contact details found.", "Select a Sample ID to open the case. “Needs contact details” means no mobile was on record: add one, then send the introduction or an invitation."],
       ["Search ID or organisation", "Finds a locked Reserve case.", "There are 400 locked cases.", "Only matching cases are listed."],
       ["Select authorised reason", "Chooses why: Ineligible, Inactive, Duplicate, Refusal or Nonresponse exhausted.", "A Reserve case is a scarce, matched replacement. Only these reasons are allowed so replacement cannot be used to swap in a friendlier organisation.", "Nothing yet; you also need an evidence note.", w],
       ["Evidence note (required)", "Write what shows the reason is true.", "Every activation must be defensible later, in the dissertation or an audit.", "Nothing yet; select Activate.", w],

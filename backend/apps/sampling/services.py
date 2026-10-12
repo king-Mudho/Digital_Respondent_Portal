@@ -48,12 +48,19 @@ WORKFLOW_TRANSITIONS: dict[str, set[str]] = {
     # S12 from S03/S04 (PI decision, 2026-10-07): an organisation that answers NO to the "ask first" introduction
     # (apps/messaging/outreach.py) has refused before any invitation was sent. Until then a refusal had no status
     # before S05.
+    # S13 from S03/S04 (PI decision, 2026-10-12): asked first, reminded, and no reply at all
+    # (apps/sampling/replacement.py) -- nonresponse before any invitation was sent.
     WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED: {
         WorkflowStatus.S04_INVITATION_PREPARED,
         WorkflowStatus.S12_REFUSED,
+        WorkflowStatus.S13_NONRESPONSE,
         WorkflowStatus.S14_INELIGIBLE,
     },
-    WorkflowStatus.S04_INVITATION_PREPARED: {WorkflowStatus.S05_INVITATION_SENT, WorkflowStatus.S12_REFUSED},
+    WorkflowStatus.S04_INVITATION_PREPARED: {
+        WorkflowStatus.S05_INVITATION_SENT,
+        WorkflowStatus.S12_REFUSED,
+        WorkflowStatus.S13_NONRESPONSE,
+    },
     WorkflowStatus.S05_INVITATION_SENT: {
         WorkflowStatus.S06_INVITATION_OPENED,
         WorkflowStatus.S12_REFUSED,
@@ -202,7 +209,8 @@ def advance_case_on_qa_outcome(sample_case: SampleCase, *, passed: bool) -> Samp
 
 
 @transaction.atomic
-def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evidence_note: str = "") -> SampleCase:
+def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evidence_note: str = "",
+                     audit_extra: dict | None = None) -> SampleCase:
     """Reserve activation always requires an authorised reason, records the
     authoriser, and writes an AuditEvent in the same transaction -- never as
     separate, potentially-skipped steps (docs/09_IDENTIFIER_AND_SAMPLING_
@@ -226,7 +234,8 @@ def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evi
     log_action(
         "reserve.activated",
         reserve_case,
-        {"reason": reason, "activated_by_id": getattr(activated_by, "id", None), "sample_id": reserve_case.sample_id},
+        {"reason": reason, "activated_by_id": getattr(activated_by, "id", None), "sample_id": reserve_case.sample_id,
+         **(audit_extra or {})},
     )
     return reserve_case
 
@@ -341,6 +350,34 @@ def is_invitable(sample_case: SampleCase) -> bool:
     if sample_case.sample_type == SampleType.RESERVE:
         return sample_case.status == ReserveStatus.ACTIVATED
     return True
+
+
+# Main cases contact may begin with: verified, an eligible respondent identified (S03) or an invitation prepared (S04).
+CONTACT_READY_STATUSES = [WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED, WorkflowStatus.S04_INVITATION_PREPARED]
+
+
+def contactable_cases():
+    """Cases contact may begin with (2026-10-12): Main cases at S03/S04, and activated Reserves not yet invited and not
+    having said no. The single place batches, the WhatsApp queue and "ask first" introductions choose from.
+
+    A Reserve has no workflow status (SampleCase.clean() forbids one), so until 2026-10-12 every one of these filtered on
+    S03/S04 and an activated Reserve could never be batched or introduced -- only invited one at a time from its case
+    page. A Main case leaves S03/S04 when invited or when it refuses; a Reserve has no status to leave, so "already
+    invited" (any invitation ever issued) and "said no" (a declined introduction) stand in for it. A LOCKED Reserve is
+    never included (AGENTS.md rule 4)."""
+    from django.db.models import Exists, OuterRef
+
+    from apps.invitations.models import InvitationToken
+    from apps.messaging.models import Outreach, OutreachStatus
+
+    invited = InvitationToken.objects.filter(sample_case=OuterRef("pk"))
+    declined = Outreach.objects.filter(sample_case=OuterRef("pk"), status=OutreachStatus.DECLINED)
+    reserve = Q(sample_type=SampleType.RESERVE, status=ReserveStatus.ACTIVATED) & ~Q(Exists(invited)) & ~Q(Exists(declined))
+    return SampleCase.objects.filter(Q(sample_type=SampleType.MAIN, workflow_status__in=CONTACT_READY_STATUSES) | reserve)
+
+
+def is_contactable(sample_case: SampleCase) -> bool:
+    return is_invitable(sample_case) and contactable_cases().filter(pk=sample_case.pk).exists()
 
 
 @transaction.atomic

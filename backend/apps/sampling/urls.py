@@ -7,6 +7,7 @@ from .views import (
     OrganisationDetailView,
     OrganisationListCreateView,
     RecordWithdrawalView,
+    ReplacementView,
     ReserveActivateView,
     SampleCaseDetailView,
     SampleCaseListCreateView,
@@ -26,4 +27,5 @@ urlpatterns = [
     path("sample-cases/<str:sample_id>/activate-reserve/", ReserveActivateView.as_view(), name="activate-reserve"),
     path("sample-cases/<str:sample_id>/transition/", WorkflowTransitionView.as_view(), name="transition"),
     path("sample-cases/<str:sample_id>/withdraw/", RecordWithdrawalView.as_view(), name="withdraw"),
+    path("reserve-replacement/", ReplacementView.as_view(), name="reserve-replacement"),
 ]

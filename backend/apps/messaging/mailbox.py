@@ -29,7 +29,6 @@ from django.db import IntegrityError
 from django.utils import timezone
 
 from .hashing import email_hash, mask_email
-from .outbound import scrub
 from .matching import find_by_email, known_email_addresses
 from .models import (
     InboundMessage,
@@ -41,6 +40,7 @@ from .models import (
     ProviderStatus,
     ReplyKind,
 )
+from .outbound import scrub
 
 logger = logging.getLogger(__name__)
 

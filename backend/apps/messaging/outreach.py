@@ -226,12 +226,12 @@ def handle_inbound(message_id: int, digits: str) -> None:
 
 
 def _ready_to_invite(case) -> bool:
-    from apps.invitations.batch import OPEN_STATUSES, VERIFIED
+    from apps.invitations.batch import OPEN_STATUSES
     from apps.invitations.models import InvitationToken
-    from apps.sampling.services import is_invitable
+    from apps.sampling.services import is_contactable
 
     open_invitation = InvitationToken.objects.filter(sample_case=case, status__in=OPEN_STATUSES, expires_at__gt=timezone.now())
-    return is_invitable(case) and case.workflow_status in VERIFIED and not open_invitation.exists()
+    return is_contactable(case) and not open_invitation.exists()
 
 
 def _accept(outreach: Outreach, message: InboundMessage, digits: str) -> None:

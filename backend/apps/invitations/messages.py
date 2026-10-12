@@ -12,7 +12,7 @@ included in your invitation message").
 from urllib.parse import urlsplit
 
 from django.conf import settings
-from django.core.mail import EmailMessage
+from django.core.mail import EmailMessage  # noqa: F401 -- tests patch EmailMessage.send through this module
 from django.utils import timezone
 
 CONTACT_LINE = "Questions: Happyson Saina, 0773943709, abffst.research@gmail.com"

@@ -782,6 +782,36 @@ works):
 
 ## Notable fixes
 
+### Automatic Reserve replacement, and Reserves that can be contacted (12 Oct 2026)
+
+At the PI's request a Main case that does not take part can be replaced automatically
+(`apps/sampling/replacement.py`). While the PI has it switched on (Reserve Activation →
+Automatic replacement), the 08:00 run does the following for each Main case whose outcome
+the PI ticked:
+
+- **Outcomes and reasons:** Refused (Refusal), Nonresponse exhausted, no reply to the "ask
+  first" introduction (the case moves S03/S04 → S13 first, a new transition), Ineligible,
+  or Duplicate/inactive (recorded as Inactive).
+- **Activation:** the run activates that case's own paired, still-locked Reserve and gives it
+  the same Contact RA.
+- **Contact:** it introduces the Reserve on WhatsApp; a YES sends its link.
+- **Rule 4 still holds.** Every activation goes through `activate_reserve()` with its
+  authorised reason, an evidence note saying what happened, and the PI who switched it on
+  named as authoriser. That is the standing authorisation. The audit entry is marked
+  `automatic`.
+- **Limits:** a daily limit (default 20) stops a backlog activating at once.
+- **The replaced Main** keeps its outcome, so refusal and nonresponse rates stay right, and
+  its open link is revoked.
+- **A Reserve that can't be introduced** (templates pending, no mobile) is retried each
+  morning, or listed as needing contact details.
+
+**Fixed along the way:** an activated Reserve could never be batched or introduced. Reserves
+have no workflow status, and every candidate list filtered on S03/S04, so an activated
+Reserve could only be invited one at a time from its case page.
+`sampling.services.contactable_cases()` is now the single place batches, the WhatsApp queue
+and introductions choose from. It covers Main cases at S03/S04, plus activated Reserves not
+yet invited and not having said no. Locked Reserves are never included.
+
 ### Communications: every message, every channel, one screen (12 Oct 2026)
 
 At the PI's request, `/admin/communications` replaces Conversations
