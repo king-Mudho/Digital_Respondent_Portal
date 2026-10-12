@@ -152,6 +152,8 @@ class KIIInvitationToken(models.Model):
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
     revoked_reason = models.CharField(max_length=255, blank=True)
+    # When the respondent first opened the link (2026-10-12; earlier opens have no time).
+    first_opened_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

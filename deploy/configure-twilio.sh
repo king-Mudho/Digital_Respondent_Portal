@@ -106,8 +106,9 @@ if [[ -n "$TWILIO_WHATSAPP_FROM" && -n "$TWILIO_WA_CONTENT_INVITATION" && -n "$T
     fi
 fi
 
-echo "Done. Switched on: SMS ${TWILIO_SMS_FROM:+yes}${TWILIO_SMS_FROM:-no}; WhatsApp invitations"\
-" ${TWILIO_WA_CONTENT_INVITATION:+yes}${TWILIO_WA_CONTENT_INVITATION:-no}."
+# ${X:-no} expands to X itself when X is set, so "yes" and "no" are chosen explicitly.
+onoff() { if [[ -n "$1" ]]; then echo yes; else echo no; fi; }
+echo "Done. Switched on: SMS $(onoff "$TWILIO_SMS_FROM"); WhatsApp invitations $(onoff "$TWILIO_WA_CONTENT_INVITATION")."
 echo "The morning reminder run (08:00) now sends due Day 2 / Day 7 reminders automatically on the channels switched on."
 if [[ -n "$TWILIO_WHATSAPP_FROM" ]]; then
     echo "For ask-first replies: on the WhatsApp sender in the Twilio console, set the incoming-message webhook to"

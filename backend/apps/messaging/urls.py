@@ -2,6 +2,12 @@ from django.urls import path
 
 from .views import (
     CaseOutreachView,
+    CommunicationHandledView,
+    CommunicationSendView,
+    CommunicationSummaryView,
+    CommunicationThreadListView,
+    CommunicationThreadView,
+    CommunicationUnknownView,
     ConversationHandledView,
     ConversationListView,
     ConversationReplyView,
@@ -22,4 +28,10 @@ urlpatterns = [
     path("conversations/<int:pk>/handled/", ConversationHandledView.as_view(), name="conversation-handled"),
     path("conversations/<int:pk>/reply/", ConversationReplyView.as_view(), name="conversation-reply"),
     path("outreach/", CaseOutreachView.as_view(), name="outreach"),
+    path("communications/summary/", CommunicationSummaryView.as_view(), name="communications-summary"),
+    path("communications/threads/", CommunicationThreadListView.as_view(), name="communications-threads"),
+    path("communications/threads/<str:kind>/<int:pk>/", CommunicationThreadView.as_view(), name="communications-thread"),
+    path("communications/threads/<str:kind>/<int:pk>/send/", CommunicationSendView.as_view(), name="communications-send"),
+    path("communications/threads/<str:kind>/<int:pk>/handled/", CommunicationHandledView.as_view(), name="communications-handled"),
+    path("communications/unknown/", CommunicationUnknownView.as_view(), name="communications-unknown"),
 ]

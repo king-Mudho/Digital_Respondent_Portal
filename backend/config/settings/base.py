@@ -315,6 +315,27 @@ EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="ABF-FST Research <noreply@research.agribizframework.com>")
 STUDY_REPLY_TO_EMAIL = env("STUDY_REPLY_TO_EMAIL", default="")
 
+# --- Reading replies from the study mailbox (apps/messaging/mailbox.py, 2026-10-12) -----------------
+# Blank EMAIL_IMAP_HOST = off. Uses EMAIL_HOST_USER / EMAIL_HOST_PASSWORD (for Gmail, the same app password as sending).
+# Only emails from or to an address on a case or KII record are copied in; nothing in the mailbox is changed.
+EMAIL_IMAP_HOST = env("EMAIL_IMAP_HOST", default="")
+EMAIL_IMAP_PORT = env.int("EMAIL_IMAP_PORT", default=993)
+EMAIL_INBOX_FOLDER = env("EMAIL_INBOX_FOLDER", default="INBOX")
+# The account's sent folder, for emails the team wrote in Gmail itself. Blank = not read.
+EMAIL_SENT_FOLDER = env("EMAIL_SENT_FOLDER", default="[Gmail]/Sent Mail")
+EMAIL_INBOX_POLL_MINUTES = env.int("EMAIL_INBOX_POLL_MINUTES", default=3)
+# How far back the first read of a folder looks.
+EMAIL_INBOX_BACKFILL_DAYS = env.int("EMAIL_INBOX_BACKFILL_DAYS", default=30)
+EMAIL_INBOX_MAX_PER_RUN = env.int("EMAIL_INBOX_MAX_PER_RUN", default=300)
+
+# --- Messages written by the team in Communications (apps/messaging/communications.py, 2026-10-12) -----
+# AGENTS.md rule 2: words a respondent must never see from this study. A message containing one (as a word or the start
+# of one, so "guarantee" also catches "guaranteed") is refused.
+COMMUNICATION_BLOCKED_PHRASES = env.list("COMMUNICATION_BLOCKED_PHRASES", default=[
+    "approved", "loan approval", "credit rating", "bankability score", "guarantee",
+])
+COMMUNICATION_MAX_LENGTH = env.int("COMMUNICATION_MAX_LENGTH", default=3000)
+
 # --- SMS and WhatsApp through Twilio (apps/messaging/twilio_client.py, 2026-10-07) -----
 # Set with deploy/configure-twilio.sh. Each channel is offered only once its own values are set, so SMS can go live
 # while the WhatsApp sender and templates are still waiting for Meta. These replace the never-provisioned Meta Cloud

@@ -20,3 +20,11 @@ def handle_inbound_message(message_id: int, digits: str):
     from .outreach import handle_inbound
 
     handle_inbound(message_id, digits)
+
+
+@shared_task
+def sync_study_mailbox():
+    """Copies replies from the study mailbox into Communications (apps/messaging/mailbox.py, 2026-10-12)."""
+    from .mailbox import sync_mailbox
+
+    return sync_mailbox()

@@ -77,7 +77,7 @@ module.exports = [
     audience: "The Principal Investigator (full access)",
     purpose: "As PI you own the study and the system. You see every screen, approve how fieldwork runs, create accounts, decide replacements and withdrawals, review the audit trail, and are the only person who can download the full operational data and the complete KoboToolbox data for cleaning and analysis.",
     can: [
-      "Open all 20 screens, including the Audit Log, Research Clearance and every export.",
+      "Open all 21 screens, including the Audit Log, Research Clearance and every export.",
       "Create, change and deactivate staff accounts and roles.",
       "Do everything the Field Coordinator can: register organisations, assign Contact RAs, verify cases in bulk, invite, activate Reserves, record withdrawals, take QA decisions, manage KII and document records, log costs.",
       "Download the full operational export, each KoboToolbox form as an Excel workbook and a PDF ZIP, and the SmartPLS 4 and ATLAS.ti analysis packs.",
@@ -93,7 +93,7 @@ module.exports = [
       ["Executive, Sampling, Contact, QA, KII/Doc dashboards", "Monitor progress against targets."],
       ["Reports", "Analytics and charts for supervision meetings and progress reports."],
       ["Main-400 Register, Organisations", "The sample: cases, bulk verification, new organisations."],
-      ["Appointments, Follow-ups, Conversations", "Oversee contact, reminders and WhatsApp replies."],
+      ["Appointments, Follow-ups, Communications", "Oversee contact, reminders, and every message sent and received."],
       ["Form PDFs", "Completed forms for all three KoboToolbox forms; sync status and Sync now; the Excel workbook and PDF ZIP for each form."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands; upload a document and the AI drafts its coding form."],
@@ -155,7 +155,7 @@ module.exports = [
     audience: "Field and digital coordinators running day-to-day fieldwork",
     purpose: "You run fieldwork day to day: keep the sample moving through verification, make sure every case has a Contact RA and contact details, keep follow-ups and appointments on schedule, make replacement and withdrawal decisions with the PI, and oversee QA, KII and documentary work.",
     can: [
-      "Open 18 screens — everything except the Audit Log and Research Clearance.",
+      "Open 19 screens — everything except the Audit Log and Research Clearance.",
       "Register organisations, pair Reserves, assign Contact RAs and verify cases in bulk.",
       "Record respondents, invite, log contacts, send follow-ups, manage appointments.",
       "Find missing contact details with AI, email invitations in batches, and prepare WhatsApp invitations from the queue.",
@@ -173,7 +173,7 @@ module.exports = [
       ["Dashboards and Reports", "Track progress, coverage and bottlenecks."],
       ["Main-400 Register", "Cases, bulk verification, the contact finder, email invitations and the WhatsApp queue."],
       ["Organisations", "Late additions and replacements."],
-      ["Appointments, Follow-ups, Conversations", "Keep contact on schedule; answer WhatsApp replies."],
+      ["Appointments, Follow-ups, Communications", "Keep contact on schedule; answer messages and email replies."],
       ["Form PDFs", "Completed forms for all three forms, and whether the portal matches KoboToolbox (Sync now)."],
       ["QA Queue, QA Exceptions", "Support and cover the QA RA."],
       ["KII Register, Documents", "Oversee the other strands."],
@@ -326,6 +326,7 @@ module.exports = [
       ["KII/Doc Dashboard", "KIIs completed against the target of 60; KIIs by status."],
       ["Form PDFs", "Completed KII Guide forms."],
       ["KII Register", "All KII records; create and manage."],
+      ["Communications", "Messages and email replies with key informants, and whether each message arrived."],
     ],
     routine: [
       ["Weekly planning", "KII Register filtered mentally by status: PROSPECT and INVITED need contact; SCHEDULED need preparation."],
@@ -454,7 +455,7 @@ module.exports = [
     audience: "Academic supervisors and others overseeing the study",
     purpose: "You oversee the study with read-only access to almost every screen: progress, the sample, contact activity, QA, the KII and documentary strands, and costs. You can open case pages and completed-form PDFs, but you cannot change anything.",
     can: [
-      "Open 18 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Conversations, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
+      "Open 18 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Communications, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
       "Download PDFs of completed forms for all three forms.",
     ],
     cannot: [
@@ -465,7 +466,7 @@ module.exports = [
     screens: [
       ["Dashboards and Reports", "Progress, coverage, quality."],
       ["Main-400 Register and case pages", "How individual cases are being handled."],
-      ["Appointments, Follow-ups, Conversations", "Whether contact is on schedule."],
+      ["Appointments, Follow-ups, Communications", "Whether contact is on schedule and what reached people."],
       ["Form PDFs", "Completed questionnaires, KII Guides and document coding forms, and whether the portal matches KoboToolbox (read-only)."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands."],

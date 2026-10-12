@@ -149,6 +149,7 @@ def text_invitation(token, *, channel: str, link: str, manual_code: str, user) -
             wa_content=settings.TWILIO_WA_CONTENT_INVITATION.strip(),
             wa_variables={1: case.organisation.name, 2: link, 3: expires, 4: manual_code},
             user=user, sample_case=case, invitation_token=token,
+            record_text=text["whatsapp"], redact_link=link, redact_code=manual_code,
         )
     except outbound.OutboundError as exc:
         raise InvitationSendError(exc.code, str(exc), exc.status) from exc
@@ -170,6 +171,8 @@ def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
     refuse with "no longer open", and the only way on was a new invitation, which killed the WhatsApp link."""
     from apps.audit.utils import log_action
     from apps.kobo.submission_copies import email_is_configured
+    from apps.messaging import outbound
+    from apps.messaging.models import MessagePurpose
 
     if not email_is_configured():
         raise InvitationSendError("email_not_configured", "Email isn't set up on the server yet. Use \"Open in email app\" instead.", 503)
@@ -181,10 +184,10 @@ def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
         raise InvitationSendError("no_email", "No email address is recorded for this case. Add one under Respondents and contact details.")
     text = build_messages(sample_case=case, link=link, manual_code=manual_code, expires_at=token.expires_at,
                           to_name=who["email_to_name"])
-    EmailMessage(
-        subject=text["email_subject"], body=text["email_body"], from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[who["email_to"]], reply_to=[settings.STUDY_REPLY_TO_EMAIL] if settings.STUDY_REPLY_TO_EMAIL else None,
-    ).send(fail_silently=False)
+    outbound.send_email(
+        to=who["email_to"], subject=text["email_subject"], body=text["email_body"], purpose=MessagePurpose.INVITATION,
+        user=user, sample_case=case, invitation_token=token, redact_link=link, redact_code=manual_code,
+    )
     log_action("invitation.emailed", token, {
         "sample_id": case.sample_id, "recipient": _mask(who["email_to"]), "user_id": getattr(user, "id", None),
     })

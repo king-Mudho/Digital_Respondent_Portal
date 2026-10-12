@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import CanManageContact
+from api.permissions import CanManageContact, CanUseCommunications
 from apps.sampling.models import SampleCase
 
 from .models import ReminderSequenceStep
@@ -201,3 +201,101 @@ class CaseOutreachView(APIView):
         except OutreachError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         return Response({"id": outreach.id, "status": outreach.status, "channel": outreach.channel, "number": outreach.number_masked}, status=201)
+
+
+# --- Communications (apps/messaging/communications.py, 2026-10-12) ---------------------------------------------------
+
+def _communication_error(exc):
+    return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+
+
+class CommunicationSummaryView(APIView):
+    """GET /api/v1/communications/summary/ -- each channel's state (set up, today's allowance, WhatsApp template
+    approvals, mailbox sync) and the last seven days' messages by status, within what this user may see."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request):
+        from .communications import summary
+
+        return Response(summary(request.user))
+
+
+class CommunicationThreadListView(APIView):
+    """GET /api/v1/communications/threads/?show=all|waiting|failed&register=main|kii&channel=&q=&page= -- one row per
+    case or KII record with any communication, waiting first, then most recent."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request):
+        from .communications import thread_list
+
+        p = request.query_params
+        page = p.get("page", "1")
+        return Response(thread_list(request.user, show=p.get("show", "all"), register=p.get("register", ""),
+                                    channel=p.get("channel", ""), q=p.get("q", ""), page=int(page) if page.isdigit() else 1))
+
+
+class CommunicationThreadView(APIView):
+    """GET /api/v1/communications/threads/<main|kii>/<id>/ -- the whole conversation, the contact card and what can be
+    sent now."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request, kind, pk):
+        from .communications import CommunicationError, thread
+
+        try:
+            return Response(thread(request.user, kind, pk))
+        except CommunicationError as exc:
+            return _communication_error(exc)
+
+
+class CommunicationSendView(APIView):
+    """POST /api/v1/communications/threads/<main|kii>/<id>/send/ {channel, recipient, text, subject} -- a message
+    written by a person, to one of the numbers or addresses recorded for them."""
+
+    permission_classes = [CanUseCommunications]
+
+    def post(self, request, kind, pk):
+        from .communications import CommunicationError, send_message
+
+        d = request.data
+        try:
+            sent = send_message(request.user, kind, pk, channel=str(d.get("channel", "")), recipient=str(d.get("recipient", "")),
+                                text=str(d.get("text", "")), subject_line=str(d.get("subject", "")))
+        except CommunicationError as exc:
+            return _communication_error(exc)
+        return Response({"id": sent.pk, "status": sent.status, "to": sent.to_masked}, status=201)
+
+
+class CommunicationHandledView(APIView):
+    """POST /api/v1/communications/threads/<main|kii>/<id>/handled/ -- what they wrote has been dealt with."""
+
+    permission_classes = [CanUseCommunications]
+
+    def post(self, request, kind, pk):
+        from .communications import CommunicationError, mark_handled
+
+        try:
+            return Response({"handled": mark_handled(request.user, kind, pk)})
+        except CommunicationError as exc:
+            return _communication_error(exc)
+
+
+class CommunicationUnknownView(APIView):
+    """GET /api/v1/communications/unknown/ -- WhatsApp messages from numbers on no case or KII record. PI and Field
+    Coordinator (and Supervisor, reading); everyone else gets an empty list. Answered through conversations/<id>/reply/."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request):
+        from .communications import unknown_senders
+        from .outreach import reply_window_open
+        from .models import InboundMessage
+
+        rows = unknown_senders(request.user)
+        for row in rows:
+            message = InboundMessage.objects.get(pk=row["message_id"])
+            row["can_reply"] = reply_window_open(message.number_hash)
+        return Response({"results": rows})

@@ -356,7 +356,7 @@ function SendInvitationsPanel() {
           Each verified case (S03 or S04) with a mobile and no invitation yet gets a short message about the study asking
           whether it will take part{intro.channel === "SMS" ? ", by SMS with a link to answer on WhatsApp" : ", on WhatsApp"}.
           A YES reply sends the personal invitation link automatically; NO records the refusal (S12); anything else
-          goes to <Link href="/admin/conversations" className="underline">Conversations</Link>. No reply after 3 days
+          goes to <Link href="/admin/communications" className="underline">Communications</Link>. No reply after 3 days
           gets one reminder, then the case is listed on Follow-ups to phone.
           {!intro.configured && " Not set up yet: it needs the study\u2019s WhatsApp number on Twilio (deploy/configure-twilio.sh)."}
         </p>

@@ -6,7 +6,6 @@ set of Respondent rows to pick the best contact from.
 """
 
 from django.conf import settings
-from django.core.mail import EmailMessage
 from django.utils import timezone
 
 from apps.invitations.messages import CONTACT_LINE, STUDY_TITLE, portal_base
@@ -138,6 +137,7 @@ def text_kii_invitation(token, *, channel: str, link: str, manual_code: str, use
             wa_content=settings.TWILIO_WA_CONTENT_KII_INVITATION.strip(),
             wa_variables={1: addressee or "colleague", 2: link, 3: expires, 4: manual_code},
             user=user, kii_record=record, kii_invitation_token=token,
+            record_text=text["whatsapp"], redact_link=link, redact_code=manual_code,
         )
     except outbound.OutboundError as exc:
         raise KIIInvitationSendError(exc.code, str(exc), exc.status) from exc
@@ -165,10 +165,13 @@ def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
     if not who["email_to"]:
         raise KIIInvitationSendError("no_email", "No email address is recorded for this informant. Add one on the KII record.")
     text = build_kii_messages(kii_record=record, link=link, manual_code=manual_code, expires_at=token.expires_at)
-    EmailMessage(
-        subject=text["email_subject"], body=text["email_body"], from_email=settings.DEFAULT_FROM_EMAIL,
-        to=[who["email_to"]], reply_to=[settings.STUDY_REPLY_TO_EMAIL] if settings.STUDY_REPLY_TO_EMAIL else None,
-    ).send(fail_silently=False)
+    from apps.messaging import outbound
+    from apps.messaging.models import MessagePurpose
+
+    outbound.send_email(
+        to=who["email_to"], subject=text["email_subject"], body=text["email_body"], purpose=MessagePurpose.INVITATION,
+        user=user, kii_record=record, kii_invitation_token=token, redact_link=link, redact_code=manual_code,
+    )
     log_action("kii_invitation.emailed", token, {
         "kii_id": record.kii_id, "recipient": _mask(who["email_to"]), "user_id": getattr(user, "id", None),
     })

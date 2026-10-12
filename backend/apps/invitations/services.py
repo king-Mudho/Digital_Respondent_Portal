@@ -289,5 +289,9 @@ def advance_token_status(token: InvitationToken, new_status: str) -> InvitationT
     if current_index is not None and new_index is not None and new_index <= current_index:
         return token
     token.status = new_status
-    token.save(update_fields=["status"])
+    fields = ["status"]
+    if token.first_opened_at is None and new_index is not None and new_index >= _TOKEN_STATUS_ORDER.index(TokenStatus.OPENED):
+        token.first_opened_at = timezone.now()
+        fields.append("first_opened_at")
+    token.save(update_fields=fields)
     return token

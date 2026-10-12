@@ -76,10 +76,12 @@ def record_withdrawal(sample_case: SampleCase, *, reason: str, method: str = Con
         transition_workflow_status(sample_case, WorkflowStatus.S12_REFUSED, user=recorded_by)
         moved_to = WorkflowStatus.S12_REFUSED
 
-    # What they wrote to the study's WhatsApp number is erased with their contact details (2026-10-07).
-    from apps.messaging.models import InboundMessage
+    # What they wrote to the study (WhatsApp 2026-10-07, email 2026-10-12) and the text of what the study sent them are
+    # erased with their contact details. The rows stay, so the record still shows that contact happened and when.
+    from apps.messaging.models import InboundMessage, ProviderMessage
 
-    InboundMessage.objects.filter(sample_case=sample_case).update(body="", from_number="")
+    InboundMessage.objects.filter(sample_case=sample_case).update(body="", subject="", from_number="", auto_reply="")
+    ProviderMessage.objects.filter(sample_case=sample_case).update(body="", subject="")
 
     erased = 0
     for respondent in sample_case.respondents.all():

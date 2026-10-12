@@ -16,6 +16,7 @@
 # Prompts for every value (the password without echo), writes them to
 # backend/.env (backed up first), blanks email in .env.staging, restarts the
 # backend and the Celery worker, and sends one test message to an address you choose.
+# To also read replies into Communications, run configure-email-inbox.sh afterwards.
 
 set -euo pipefail
 

@@ -77,11 +77,12 @@ SCREENS = {
         "/admin/follow-ups", "Follow-ups",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
     ),
-    # WhatsApp messages received on the study's Twilio number (messaging.views.ConversationListView,
-    # CanManageContact; a Contact RA sees only their own cases).
+    # Every message to and from participants on WhatsApp, SMS and email, with delivery status (messaging.views
+    # Communication*View, CanUseCommunications, 2026-10-12; replaced "Conversations"). A Contact RA sees only their
+    # own Main-400 cases, a KII RA only KII records -- scoped in apps/messaging/communications.py.
     "conversations": (
-        "/admin/conversations", "Conversations",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
+        "/admin/communications", "Communications",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.SUPERVISOR_READONLY},
     ),
     # PDF copies of completed Kobo forms; each role sees only its own form
     # (kobo.submission_copies.FORMS), enforced server-side per request.

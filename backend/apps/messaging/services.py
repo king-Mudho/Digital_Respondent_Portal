@@ -205,7 +205,7 @@ def dispatch_due_reminders(reference_date=None) -> list[MessageLog]:
             message = outbound.send(
                 channel=channel, number=to_phone, purpose=MessagePurpose.REMINDER,
                 sms_body=sms_reminder_text(step.template), wa_content=tw.whatsapp_reminder_template(step.template.name),
-                user=None, sample_case=item.case,
+                record_text=sms_reminder_text(step.template), user=None, sample_case=item.case,
             )
         except outbound.OutboundError as exc:
             if exc.code == "daily_limit_reached":

@@ -18,8 +18,6 @@ A YES or NO is read only from the quick-reply button or a whole message that is 
 (OUTREACH_YES_WORDS / OUTREACH_NO_WORDS), so "no problem" is never taken as a refusal.
 """
 
-import hashlib
-import hmac
 import logging
 import re
 from datetime import timedelta
@@ -33,6 +31,7 @@ from apps.audit.utils import log_action
 
 from . import outbound
 from . import twilio_client as tw
+from .hashing import number_hash
 from .models import (
     OPEN_OUTREACH,
     InboundMessage,
@@ -57,11 +56,6 @@ class OutreachError(Exception):
         self.code, self.status = code, status
         super().__init__(message)
 
-
-def number_hash(digits: str) -> str:
-    """A keyed hash of the number, to recognise a reply without keeping the number itself."""
-    digits = "".join(ch for ch in digits or "" if ch.isdigit())
-    return hmac.new(settings.SECRET_KEY.encode(), digits.encode(), hashlib.sha256).hexdigest()
 
 
 def wording(name: str, org: str = "") -> str:
@@ -161,10 +155,17 @@ def record_inbound(params: dict) -> tuple[InboundMessage | None, str]:
     digits = "".join(ch for ch in params.get("From", "") if ch.isdigit())
     hashed = number_hash(digits)
     outreach = Outreach.objects.filter(number_hash=hashed).select_related("sample_case").order_by("-intro_sent_at").first()
+    case, record = (outreach.sample_case, None) if outreach else (None, None)
+    if outreach is None:
+        # Not an answer to an introduction, but it may still be someone on a case or KII record (2026-10-12): their
+        # message then belongs in that conversation rather than among unknown numbers.
+        from .matching import find_by_number
+
+        case, record = find_by_number(digits)
     body = (params.get("Body") or "")[:2000]
     message = InboundMessage.objects.create(
-        provider_sid=sid, outreach=outreach, sample_case=outreach.sample_case if outreach else None, number_hash=hashed,
-        from_masked=tw.mask(digits), from_number="" if outreach else digits, body=body,
+        channel=MessageChannel.WHATSAPP, provider_sid=sid, outreach=outreach, sample_case=case, kii_record=record,
+        number_hash=hashed, from_masked=tw.mask(digits), from_number="" if (case or record) else digits, body=body,
         kind=classify(body, params.get("ButtonPayload", "")),
     )
     return message, digits
@@ -172,12 +173,13 @@ def record_inbound(params: dict) -> tuple[InboundMessage | None, str]:
 
 def reply_window_open(hashed: str) -> bool:
     """WhatsApp allows a free-text message only within 24 hours of the person's own last message."""
-    return InboundMessage.objects.filter(number_hash=hashed, received_at__gte=timezone.now() - timedelta(hours=24)).exists()
+    return InboundMessage.objects.filter(channel=MessageChannel.WHATSAPP, number_hash=hashed,
+                                         received_at__gte=timezone.now() - timedelta(hours=24)).exists()
 
 
 def _answered_today(message: InboundMessage) -> bool:
     return InboundMessage.objects.filter(
-        number_hash=message.number_hash, received_at__gte=timezone.now() - timedelta(hours=24),
+        channel=MessageChannel.WHATSAPP, number_hash=message.number_hash, received_at__gte=timezone.now() - timedelta(hours=24),
     ).exclude(pk=message.pk).exclude(auto_reply="").exists()
 
 
@@ -186,7 +188,7 @@ def _reply(message: InboundMessage, digits: str, text: str, *, purpose=MessagePu
         return False
     try:
         outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=purpose, wa_text=text, user=user,
-                      sample_case=message.sample_case, **links)
+                      sample_case=message.sample_case, kii_record=message.kii_record, **links)
     except outbound.OutboundError as exc:
         logger.warning("Reply to %s not sent: %s", message.from_masked, exc)
         message.needs_person = True
@@ -253,7 +255,7 @@ def _accept(outreach: Outreach, message: InboundMessage, digits: str) -> None:
             link = f"{portal_base(None)}/i/{raw_token}"
             text = build_messages(sample_case=case, link=link, manual_code=raw_code, expires_at=token.expires_at)["whatsapp"]
             outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.INVITATION, wa_text=text,
-                          sample_case=case, invitation_token=token)
+                          sample_case=case, invitation_token=token, redact_link=link, redact_code=raw_code)
             outreach.status, outreach.invitation_token = OutreachStatus.ACCEPTED, token
             outreach.save(update_fields=["status", "invitation_token", "replied_at"])
     except (outbound.OutboundError, TokenNotInvitable) as exc:
@@ -305,11 +307,15 @@ def reply_from_inbox(message: InboundMessage, text: str, *, user) -> None:
     if not digits and message.outreach_id:
         number, _ = _mobile(message.outreach.sample_case)
         digits = number if number and number_hash(number) == message.number_hash else ""
+    if not digits and (message.sample_case_id or message.kii_record_id):
+        from .matching import number_matching
+
+        digits = number_matching(message.number_hash, message.sample_case, message.kii_record)
     if not digits:
         raise OutreachError("no_number", "This number is no longer on file, so the portal can't reply. Phone them instead.", 409)
     try:
         sent = outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.REPLY, wa_text=text,
-                             user=user, sample_case=message.sample_case)
+                             user=user, sample_case=message.sample_case, kii_record=message.kii_record)
     except outbound.OutboundError as exc:
         raise OutreachError(exc.code, str(exc), exc.status) from exc
     message.handled_by, message.handled_at, message.needs_person = user, timezone.now(), False

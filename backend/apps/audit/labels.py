@@ -80,6 +80,7 @@ ACTION_LABELS: dict[str, str] = {
     "messaging.follow_up_sent": "Follow-up message sent",
     "messaging.wording_approved": "Message wording approved",
     "conversation.replied": "Reply sent in a WhatsApp conversation",
+    "communication.sent": "Message written in Communications and sent (WhatsApp, SMS or email)",
     "outreach.accept_not_sent": "Said yes, but no link could be sent",
     "proit.kii_research_imported": "KII background research imported for review (ChatGPT workbook)",
     "proit.main_research_imported": "Main-400 background research imported for review (ChatGPT workbook)",

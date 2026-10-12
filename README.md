@@ -460,6 +460,14 @@ letters) so a respondent can check the study is real before answering anything.
   Until WhatsApp Business Platform is set up, a person sends each one with a
   pre-written WhatsApp link and marks it sent, and who sent it is recorded. A case can
   only become **S13 Nonresponse** once every reminder was actually delivered.
+- **Communications** (`/admin/communications`, 12 Oct 2026). Every message to and from
+  participants in one place: WhatsApp, SMS and email the portal sent, with delivery ticks
+  (sent, delivered, read, not delivered with the reason in plain words); WhatsApp messages
+  received; email replies read from the study mailbox; and the events around them
+  (invitations, those sent by hand from the study phone, the link opened, consent, the
+  questionnaire submitted, follow-ups and calls). People write back from the same screen on
+  any channel the rules allow. A Contact RA sees their own cases, a KII RA the KII records,
+  the Supervisor reads. Replaced the WhatsApp-only Conversations screen.
 - **Withdrawal** (case page). One action records a WITHDRAWN consent and revokes live
   invitations, which stops reminders. Where the workflow allows, it moves the case to
   S12, erases the respondent's contact fields and writes an audit entry. Answers already
@@ -605,6 +613,8 @@ celery -A config beat --loglevel=info
 | `DOCUMENT_MAX_UPLOAD_MB` | Size limit for an uploaded document source file (default 20) |
 | `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
+| `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
+| `COMMUNICATION_BLOCKED_PHRASES`, `COMMUNICATION_MAX_LENGTH` | Words a message written in Communications may never contain (AGENTS.md rule 2), and its maximum length |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |
 | `TWILIO_WA_CONTENT_INVITATION`, `TWILIO_WA_CONTENT_KII_INVITATION`, `TWILIO_WA_CONTENT_REMINDER_DAY2`, `TWILIO_WA_CONTENT_REMINDER_DAY7` | Meta-approved WhatsApp templates (Twilio Content `HX…` ids); invitation variables `{{1}}` who it is for, `{{2}}` link, `{{3}}` valid-until date, `{{4}}` code |
@@ -772,6 +782,37 @@ works):
 
 ## Notable fixes
 
+### Communications: every message, every channel, one screen (12 Oct 2026)
+
+At the PI's request, `/admin/communications` replaces Conversations
+(`apps/messaging/communications.py`). Until now the portal could not show what it had
+said to anyone: Twilio messages were recorded without their text, and the 87 invitation
+emails left only an audit entry, with replies sitting unread in Gmail. Now:
+
+- **Sent messages keep their text** (`ProviderMessage.body`), with the personal link and
+  manual code replaced by "[personal link]" / "[code]", since a link works like a password
+  and only its hash is stored (`outbound.redact` / `scrub`). Email goes through
+  `outbound.send_email`, which gives each email its own Message-ID, so replies and bounces
+  can be matched back to it.
+- **Email replies come in** from the study mailbox every few minutes
+  (`apps/messaging/mailbox.py`, PI decision). The mailbox is opened read-only (EXAMINE and
+  BODY.PEEK, never STORE). Only email from or to an address on a case or KII record, or
+  answering a portal email, is copied in. For anything else only the headers are looked at,
+  and nothing is kept. Bounces mark the sent email "not delivered"; emails the team wrote in
+  Gmail appear as sent items; links quoted in replies are taken out.
+- **WhatsApp from a recorded number** now lands on its case or KII record even without an
+  "ask first" introduction. Before, it went to unknown numbers.
+- **The thread shows what was never followed.** Invitations sent by hand from the study
+  phone appear with "no delivery report". The time the link was first opened is kept from
+  now on (`first_opened_at`).
+- **Writing a message** is refused when it contains a word a respondent must never see
+  (rule 2), when the case is a locked Reserve (rule 4), when the participant withdrew, when
+  it is WhatsApp free text outside the 24 hours after their own last message, or when the
+  number or address is not on the record.
+- **Withdrawal** now erases the text both ways.
+- **Who sees what:** `CanUseCommunications` (PI, FC, Contact RA, KII RA; Supervisor reads),
+  scoped in one place. The KII RA gains the screen for KII records.
+
 ### KII and Main-400 research imported from ChatGPT, for review (11 Oct 2026)
 
 Main-400 has the same import (`POST /api/v1/proit/main-import/`, the Main-400 Register's import
@@ -806,7 +847,7 @@ is what WhatsApp's opt-in rule wants. A **NO** moves the case to **S12 Refused**
 `WORKFLOW_TRANSITIONS` now allows S03/S04 → S12, which before had no status for a refusal
 ahead of an invitation) and revokes any open invitation. Anything else, "no problem"
 included (only whole-message words count), gets one automatic answer a day and waits on the
-new **Conversations** screen, where RAs reply, since the Twilio number is on no phone. No
+**Conversations** screen (now Communications), where RAs reply, since the Twilio number is on no phone. No
 reply: one reminder after 3 days, then the case is listed on Follow-ups to phone. An
 undelivered WhatsApp introduction is re-sent once by SMS with a tap-to-reply WhatsApp link
 (Twilio can't receive SMS in Zimbabwe). Numbers are kept as a keyed hash on the outreach

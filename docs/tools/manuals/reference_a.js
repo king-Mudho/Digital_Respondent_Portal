@@ -218,13 +218,17 @@ const screens = [
     ],
   },
   {
-    id: "conversations", group: "The sample and contact", title: "Conversations", path: "/admin/conversations",
-    roles: [R.PI, R.FC, R.CRA, R.SUP],
-    purpose: "WhatsApp messages people sent to the study's Twilio number that need a person: questions, other words, and messages from numbers the study has no record of. YES and NO replies to an introduction are handled automatically and don't wait here.",
+    id: "communications", group: "The sample and contact", title: "Communications", path: "/admin/communications",
+    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP],
+    purpose: "Every message to and from participants in one place: WhatsApp, SMS and email the portal sent, with what happened to each one; WhatsApp messages and email replies received; and the events around them (invitations, the link opened, consent, the questionnaire submitted, follow-ups and calls). A Contact RA sees their own cases, a KII RA the KII records. It replaced Conversations.",
     rows: [
-      ["Waiting for a person / All messages", "Switches between messages still to deal with and every message received.", "So nothing waiting gets lost among the ones already handled.", "The list changes."],
-      ["Send reply", "Sends your reply in the WhatsApp chat, from the study's number.", "The study's Twilio number is on no phone, so this is the only way to answer in the chat.", "The reply is sent and recorded under your name. Only within 24 hours of their last message; after that the box says to phone them.", w],
-      ["Mark handled", "Records that the message has been dealt with.", "So colleagues don't answer it twice.", "It leaves the waiting list, with your name and the time.", w],
+      ["Channel cards (WhatsApp, SMS, Email)", "Whether each channel is switched on, what is holding it back, and the last seven days' messages.", "WhatsApp shows how many templates Meta has approved: until they are, WhatsApp messages the study sends first are refused.", "Select “N of 6 templates approved” for each template's status; select Not delivered to list the conversations whose last message failed."],
+      ["Waiting / Not delivered / All", "Filters the conversation list.", "Waiting lists people who wrote and need an answer; Not delivered lists conversations whose last message did not arrive.", "The list changes. Search, register and channel narrow it further."],
+      ["Delivery ticks", "One grey tick: sent. Two grey ticks: delivered to the phone. Two blue ticks: read. Red “!”: not delivered, with the reason underneath.", "So you know whether a message actually reached them before you chase.", "Email only shows sent, or not delivered when it bounces."],
+      ["Sent by hand from the study phone", "Invitations and reminders sent with Open in WhatsApp.", "The portal can't see those reach the phone, so they say “no delivery report”.", "Nothing to do: it is a record."],
+      ["WhatsApp / Email / SMS (writing)", "Write to them on a channel and select Send.", "Answer from the screen itself; the study's WhatsApp number is on no phone.", "Sent and recorded under your name. WhatsApp only within 24 hours of their own last WhatsApp message (otherwise send the introduction or an invitation); SMS once a sender is registered; email to an address on the record. Words like “approved” or “guarantee” are refused.", w],
+      ["Mark handled", "Records that what they wrote has been dealt with.", "So colleagues don't answer it twice. Replying does this for you.", "It leaves Waiting, with your name and the time.", w],
+      ["Numbers not on any record", "WhatsApp messages from numbers on no case or KII record (PI, Field Coordinator, Supervisor).", "Someone may have a new phone; add the number to their case and later messages join their conversation.", "Reply within 24 hours, or mark handled.", w],
     ],
   },
   {

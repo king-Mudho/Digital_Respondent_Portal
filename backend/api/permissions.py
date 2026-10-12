@@ -130,6 +130,20 @@ class CanManageKII(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanUseCommunications(BasePermission):
+    """Communications (apps/messaging/communications.py, 2026-10-12): the people who contact participants -- PI, Field
+    Coordinator, Contact RA (their assigned Main-400 cases) and KII RA (KII records); Supervisor reads. Which
+    conversations each one sees is scoped in communications.visible_cases / visible_records, not here."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
 class CanManageDocuments(BasePermission):
     """Documentary-evidence register/detail, authenticity assessment and QA
     status -- docs/18: "Documentary RA: Assigned document records"."""

@@ -201,3 +201,44 @@ def valid_signature(url: str, params: dict, signature: str) -> bool:
     payload = url + "".join(f"{key}{params[key]}" for key in sorted(params))
     expected = base64.b64encode(hmac.new(token.encode(), payload.encode(), hashlib.sha1).digest()).decode()
     return hmac.compare_digest(expected, signature)
+
+
+# The six WhatsApp templates, in the order configure-twilio.sh asks for them, with the name each has in Twilio.
+TEMPLATE_SETTINGS = [
+    ("TWILIO_WA_CONTENT_INVITATION", "Main-400 invitation"),
+    ("TWILIO_WA_CONTENT_KII_INVITATION", "KII invitation"),
+    ("TWILIO_WA_CONTENT_REMINDER_DAY2", "Day 2 reminder"),
+    ("TWILIO_WA_CONTENT_REMINDER_DAY7", "Day 7 reminder"),
+    ("TWILIO_WA_CONTENT_INTRO", "Introduction (ask first)"),
+    ("TWILIO_WA_CONTENT_INTRO_REMINDER", "Introduction reminder"),
+]
+APPROVALS_CACHE_SECONDS = 600
+
+
+def template_approvals(*, get=None) -> list[dict]:
+    """Meta's decision on each configured WhatsApp template, read from Twilio's Content API (2026-10-12) and cached for
+    ten minutes -- Communications shows it so nobody sends while templates are still pending. Read-only."""
+    from django.core.cache import cache
+
+    configured = [(setting, label, (getattr(settings, setting, "") or "").strip()) for setting, label in TEMPLATE_SETTINGS]
+    if not credentials_set() or not any(sid for _, _, sid in configured):
+        return []
+    key = "twilio-template-approvals:" + ",".join(sid for _, _, sid in configured)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    get = get or requests.get
+    out = []
+    for setting, label, sid in configured:
+        row = {"label": label, "sid": sid, "name": "", "status": "not set", "category": "", "rejection_reason": ""}
+        if sid:
+            try:
+                response = get(f"https://content.twilio.com/v1/Content/{sid}/ApprovalRequests", auth=_account(), timeout=15)
+                data = ((response.json() or {}).get("whatsapp") or {}) if response.ok else {}
+                row.update(name=data.get("name", ""), status=(data.get("status") or "unknown").lower(),
+                           category=(data.get("category") or "").lower(), rejection_reason=data.get("rejection_reason") or "")
+            except (requests.RequestException, ValueError):
+                row["status"] = "unknown"
+        out.append(row)
+    cache.set(key, out, APPROVALS_CACHE_SECONDS)
+    return out
