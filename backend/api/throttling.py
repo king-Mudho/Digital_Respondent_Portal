@@ -58,3 +58,15 @@ class PerTokenThrottle(SimpleRateThrottle):
             # endpoint) -- nothing for this throttle to key on.
             return None
         return self.cache_format % {"scope": self.scope, "ident": token}
+
+
+class TwilioWebhookThrottle(AnonRateThrottle):
+    """Per-IP throttle for Twilio's delivery reports and incoming messages (apps/messaging/views.py, 2026-10-13).
+
+    Until now these fell under the generic `anon` scope at 30/minute. Twilio posts from a small set of addresses and
+    sends up to four delivery reports per message (queued, sent, delivered, read), so a 250-message WhatsApp batch would
+    have had most of its reports refused with 429 -- and Twilio does not resend a refused status callback -- while
+    replies arriving in the same minutes could be refused too. Every post is still checked against
+    X-Twilio-Signature before anything is stored; this scope only keeps the volume generous."""
+
+    scope = "twilio_webhook"

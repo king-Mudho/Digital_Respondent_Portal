@@ -23,7 +23,9 @@ export function ClearanceDocuments({ token }: { token: string }) {
     <section className="border border-border rounded-md p-4 space-y-3" aria-label="Verify this study">
       <h3 className="font-medium text-sm">How to verify this is a genuine study</h3>
       <p className="text-xs text-text-muted">
-        This research has been formally approved. You can open the official letters below to check for
+        {/* Never "approved" where a respondent can read it (AGENTS.md rule 2): until 2026-10-13 this said "formally
+            approved", next to a financing study where the word reads as a loan decision. */}
+        This research has formal research clearance. You can open the official letters below to check for
         yourself before you decide whether to take part.
       </p>
       <ul className="space-y-2">

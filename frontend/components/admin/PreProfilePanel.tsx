@@ -482,7 +482,9 @@ export function PreProfilePanel({ sampleCaseId, kiiRecordId }: PreProfilePanelPr
             <select
               value={newFieldId}
               onChange={(e) => setNewFieldId(e.target.value)}
-              className="rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
+              // A native select sizes itself to its longest option (378px); on a phone that made the KII record page
+              // scroll sideways (found by e2e/all-screens-audit, 2026-10-13).
+              className="w-full max-w-full min-w-0 sm:w-auto rounded-md border border-border px-2 py-1.5 text-sm bg-surface"
             >
               <option value="">Select a field…</option>
               {availableCatalog.map(([id, meta]) => (

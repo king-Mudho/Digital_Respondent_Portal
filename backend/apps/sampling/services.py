@@ -116,6 +116,8 @@ def transition_workflow_status(sample_case: SampleCase, new_status: str, *, user
     sample_case.status = new_status
     sample_case.full_clean()
     sample_case.save(update_fields=["workflow_status", "status", "updated_at"])
+    if new_status == WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED:
+        catch_up_respondent_path(sample_case, user=user)
     return sample_case
 
 
@@ -164,6 +166,7 @@ class _BulkStub:
 # The stretch of the workflow a respondent moves through themselves, in order.
 # Every consecutive pair is a legal transition in WORKFLOW_TRANSITIONS.
 RESPONDENT_PATH = [
+    WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED,
     WorkflowStatus.S04_INVITATION_PREPARED,
     WorkflowStatus.S05_INVITATION_SENT,
     WorkflowStatus.S06_INVITATION_OPENED,
@@ -192,6 +195,45 @@ def advance_case_on_respondent_event(sample_case: SampleCase, target: str) -> Sa
         return sample_case
     for status in RESPONDENT_PATH[RESPONDENT_PATH.index(current) + 1: RESPONDENT_PATH.index(target) + 1]:
         transition_workflow_status(sample_case, status)
+    return sample_case
+
+
+# How far an invitation link shows the respondent got. A revoked link proves nothing; an expired one was still sent.
+_TOKEN_REACHED = {
+    "GENERATED": WorkflowStatus.S05_INVITATION_SENT, "SENT": WorkflowStatus.S05_INVITATION_SENT,
+    "EXPIRED": WorkflowStatus.S05_INVITATION_SENT, "OPENED": WorkflowStatus.S06_INVITATION_OPENED,
+    "ELIGIBILITY_PASSED": WorkflowStatus.S06_INVITATION_OPENED, "CONSENTED": WorkflowStatus.S06_INVITATION_OPENED,
+    "SURVEY_STARTED": WorkflowStatus.S07_SURVEY_STARTED, "SUBMITTED": WorkflowStatus.S08_SURVEY_SUBMITTED,
+    "QA_PASSED": WorkflowStatus.S08_SURVEY_SUBMITTED,
+}
+
+
+def catch_up_respondent_path(sample_case: SampleCase, *, user=None) -> SampleCase:
+    """Bring a verified Main case (S03 onwards) up to what its respondent has already done (2026-10-12).
+
+    A case invited before it was verified stays where it is -- verification is a researcher's decision, never inferred
+    (test_verification_is_never_inferred_from_respondent_activity). But once a researcher does verify it, its status
+    must follow its invitation links. Until now it did not: hand-registered organisations invited at S00 and then moved
+    to S03 by bulk verification sat at S03 holding sent, opened and even QA-passed links -- miscounted, and offered
+    again to batches and "ask first" introductions as if never contacted. Only the respondent path is walked (S03-S08,
+    then S10 when QA passed); never backwards, never out of S12-S16."""
+    from apps.invitations.models import InvitationToken
+
+    if sample_case.sample_type != SampleType.MAIN or sample_case.workflow_status not in RESPONDENT_PATH:
+        return sample_case
+    reached = [_TOKEN_REACHED[s] for s in InvitationToken.objects.filter(sample_case=sample_case)
+               .exclude(status="REVOKED").values_list("status", flat=True) if s in _TOKEN_REACHED]
+    if not reached:
+        return sample_case
+    before = sample_case.workflow_status
+    advance_case_on_respondent_event(sample_case, max(reached, key=RESPONDENT_PATH.index))
+    if InvitationToken.objects.filter(sample_case=sample_case, status="QA_PASSED").exists():
+        advance_case_on_qa_outcome(sample_case, passed=True)
+    if sample_case.workflow_status != before:
+        log_action("sampling.status_caught_up", sample_case, {
+            "sample_id": sample_case.sample_id, "from": before, "to": sample_case.workflow_status,
+            "user_id": getattr(user, "id", None),
+        }, user=user)
     return sample_case
 
 
@@ -372,8 +414,11 @@ def contactable_cases():
 
     invited = InvitationToken.objects.filter(sample_case=OuterRef("pk"))
     declined = Outreach.objects.filter(sample_case=OuterRef("pk"), status=OutreachStatus.DECLINED)
+    completed = InvitationToken.objects.filter(sample_case=OuterRef("pk"), status__in=["SUBMITTED", "QA_PASSED"])
     reserve = Q(sample_type=SampleType.RESERVE, status=ReserveStatus.ACTIVATED) & ~Q(Exists(invited)) & ~Q(Exists(declined))
-    return SampleCase.objects.filter(Q(sample_type=SampleType.MAIN, workflow_status__in=CONTACT_READY_STATUSES) | reserve)
+    # A respondent who has submitted is never offered for contact again, whatever the case status says.
+    return (SampleCase.objects.filter(Q(sample_type=SampleType.MAIN, workflow_status__in=CONTACT_READY_STATUSES) | reserve)
+            .exclude(Exists(completed)))
 
 
 def is_contactable(sample_case: SampleCase) -> bool:

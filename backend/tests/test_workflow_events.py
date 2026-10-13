@@ -182,3 +182,88 @@ def test_bulk_changes_stop_at_s03_and_need_a_coordinator(main_case):
     assert fc.post("/api/v1/sample-cases/bulk-transition/", {"from_status": "S03"}, format="json").status_code == 400
     ra = _client(Role.CONTACT_RA, "bulk_ra")
     assert ra.post("/api/v1/sample-cases/bulk-transition/", {"from_status": "S00"}, format="json").status_code == 403
+
+
+# --- Verified later: the status catches up (2026-10-12) ---------------------------------------------------------------
+# On production 23 hand-registered cases were invited at S00, then bulk-verified to S03, and sat at S03 holding sent,
+# opened and QA-passed links: miscounted, and offered to batches and introductions again.
+
+def _respond(case, *, upto):
+    raw_token, _, token = issue_invitation(case)
+    validate_token(raw_token)
+    InvitationToken.objects.filter(pk=token.pk).update(status=upto)
+    return token
+
+
+@pytest.mark.django_db
+def test_verifying_an_already_invited_case_brings_its_status_up_to_its_respondent(main_case):
+    _respond(main_case, upto=TokenStatus.SURVEY_STARTED)
+    assert _status(main_case) == WorkflowStatus.S00_SELECTED_MAIN  # still never inferred before verification
+    _verified(main_case)
+    assert _status(main_case) == WorkflowStatus.S07_SURVEY_STARTED
+    from apps.audit.models import AuditEvent
+
+    event = AuditEvent.objects.get(action="sampling.status_caught_up")
+    assert (event.metadata["from"], event.metadata["to"]) == ("S03", "S07")
+
+
+@pytest.mark.django_db
+def test_a_qa_passed_respondent_lands_on_qa_passed_when_verified(main_case):
+    _respond(main_case, upto=TokenStatus.QA_PASSED)
+    _verified(main_case)
+    assert _status(main_case) == WorkflowStatus.S10_QA_PASSED
+
+
+@pytest.mark.django_db
+def test_bulk_verification_catches_up_too(main_case):
+    from apps.sampling.services import bulk_transition_workflow_status
+
+    _respond(main_case, upto=TokenStatus.SENT)
+    for status in ("S00", "S01", "S02"):
+        bulk_transition_workflow_status(from_status=status)
+    assert _status(main_case) == WorkflowStatus.S05_INVITATION_SENT
+
+
+@pytest.mark.django_db
+def test_a_revoked_link_alone_moves_nothing(main_case):
+    _respond(main_case, upto=TokenStatus.REVOKED)
+    _verified(main_case)
+    assert _status(main_case) == WorkflowStatus.S03_ELIGIBLE_RESPONDENT_IDENTIFIED
+
+
+@pytest.mark.django_db
+def test_a_respondent_who_submitted_is_never_offered_for_contact_again(main_case):
+    from apps.contacts.models import Respondent
+    from apps.invitations.batch import batch_candidates
+    from apps.sampling.models import SampleCase
+    from apps.sampling.services import contactable_cases
+
+    _verified(main_case)
+    Respondent.objects.create(sample_case=main_case, full_name="Jane", phone="0771234567", email="j@x.example")
+    token = _respond(main_case, upto=TokenStatus.SUBMITTED)
+    # Whatever put the status back at S03, a completed respondent stays out of every contact list.
+    SampleCase.objects.filter(pk=main_case.pk).update(workflow_status="S03", status="S03")
+    assert token.sample_case_id == main_case.pk
+    assert not contactable_cases().filter(pk=main_case.pk).exists()
+    assert not batch_candidates(("EMAIL", "WHATSAPP")).filter(pk=main_case.pk).exists()
+
+
+@pytest.mark.django_db
+def test_the_repair_command_lists_then_applies_and_leaves_unverified_cases_alone(main_case, organisation, stratum):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    from apps.sampling.models import SampleCase
+    from apps.sampling.services import create_sample_case
+
+    _respond(main_case, upto=TokenStatus.OPENED)
+    SampleCase.objects.filter(pk=main_case.pk).update(workflow_status="S03", status="S03")  # as found on production
+    unverified = create_sample_case(organisation=organisation, stratum=stratum, sample_type="MAIN", year=2026)
+    _respond(unverified, upto=TokenStatus.QA_PASSED)
+    out = StringIO()
+    call_command("catch_up_case_status", stdout=out)
+    assert "S03 -> S06" in out.getvalue() and _status(main_case) == "S03"  # a dry run changes nothing
+    assert unverified.sample_id in out.getvalue()
+    call_command("catch_up_case_status", "--apply", stdout=StringIO())
+    assert _status(main_case) == "S06" and _status(unverified) == "S00"

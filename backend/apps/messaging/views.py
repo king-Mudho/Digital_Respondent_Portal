@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact, CanUseCommunications
+from api.throttling import TwilioWebhookThrottle
 from apps.sampling.models import SampleCase
 
 from .models import ReminderSequenceStep
@@ -59,6 +60,7 @@ class TwilioStatusView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [TwilioWebhookThrottle]
     parser_classes = [FormParser]
 
     def post(self, request):
@@ -79,6 +81,7 @@ class TwilioInboundView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = [TwilioWebhookThrottle]
     parser_classes = [FormParser]
 
     def post(self, request):

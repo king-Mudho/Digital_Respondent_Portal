@@ -116,6 +116,7 @@ ACTION_LABELS: dict[str, str] = {
     "sampling.bulk_assignment": "Cases bulk-assigned to a Contact RA",
     "sampling.bulk_workflow_transition": "Cases moved forward in bulk",
     "sampling.invalid_workflow_transition": "Invalid workflow transition attempted",
+    "sampling.status_caught_up": "Case status brought up to what its respondent had already done",
     "sampling.status_reset_after_test_cleanup": "Case status reset (test cleanup)",
 }
 

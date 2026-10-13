@@ -164,6 +164,9 @@ REST_FRAMEWORK = {
         # Higher than `anon` because respondents on mobile networks share
         # carrier-grade NAT addresses; the per-token limit above still applies.
         "respondent": env("RESPONDENT_THROTTLE_RATE", default="120/minute"),
+        # Twilio's delivery reports and incoming messages (api/throttling.TwilioWebhookThrottle): several reports per
+        # message sent, from a few Twilio addresses, each signature-checked.
+        "twilio_webhook": env("TWILIO_WEBHOOK_THROTTLE_RATE", default="1200/minute"),
     },
     "EXCEPTION_HANDLER": "api.exceptions.drp_exception_handler",
 }
@@ -377,6 +380,9 @@ OUTREACH_NO_WORDS = env.list("OUTREACH_NO_WORDS", default=["NO", "N", "STOP", "H
 # --- Celery (reconciliation + reminder queue only -- docs/04_TECH_STACK.md) -
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+# Keep retrying the Redis connection while a worker starts (the current behaviour, made explicit: Celery 6 stops
+# doing it by default, and every worker start warned about it).
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_ALWAYS_EAGER = env.bool("CELERY_TASK_ALWAYS_EAGER", default=False)
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]

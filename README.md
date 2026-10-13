@@ -782,6 +782,43 @@ works):
 
 ## Notable fixes
 
+### Full system check: status catch-up, Twilio throttle, a banned word, a phone layout (13 Oct 2026)
+
+A whole-system pass found the following.
+
+**Production checks, read-only:**
+- No 5xx in 25,000 requests since early October; the only API 404s were bots probing `/.env`
+  and the like.
+- All services up, backups every 4 hours, certificate valid to 10 Dec.
+- 948 backend tests and the 63-test browser suite pass.
+
+**Defects fixed:**
+- **Verified cases now catch up to their respondent.** Hand-registered organisations invited
+  at S00 and later bulk-verified to S03 sat at S03 holding sent, opened and even QA-passed
+  links (23 cases on production).
+  - They were miscounted.
+  - They were offered to batches and introductions again, so a respondent who had already
+    completed the questionnaire could have been invited a second time.
+  - Marking a case S03 now walks it along the respondent path to what its links show
+    (`sampling.services.catch_up_respondent_path`, audited as `sampling.status_caught_up`).
+  - Verification itself is still never inferred: a case invited at S00 stays at S00 until a
+    researcher verifies it.
+  - `contactable_cases()` also never offers a respondent who has submitted.
+  - `manage.py catch_up_case_status [--apply]` repaired the existing cases.
+- **Twilio's delivery reports and incoming messages** shared the respondents' 30/minute per-IP
+  allowance, so one WhatsApp batch's reports (up to four per message, from a few Twilio
+  addresses) would mostly have been refused, and Twilio does not resend them. They now have
+  their own scope (`TWILIO_WEBHOOK_THROTTLE_RATE`, 1200/minute), still signature-checked.
+- **The respondent's "verify this study" panel** said the research was "formally approved"
+  (rule 2). It now says "formal research clearance".
+- **The KII record page scrolled sideways on a phone:** the pre-interview profile's field
+  picker sized itself to its longest option.
+- **Celery's start-up warning:** `CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP` is set
+  explicitly.
+
+**Browser tests that had gone stale since 6–12 Oct:** the replace-invitation question, the
+Communications screen in each role's navigation, and the PI's 21 screens.
+
 ### Automatic Reserve replacement, and Reserves that can be contacted (12 Oct 2026)
 
 At the PI's request a Main case that does not take part can be replaced automatically

@@ -36,7 +36,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_contact_ra",
     landing: "/admin/sample",
-    nav: ["Main-400 Register", "Appointments", "Follow-ups"],
+    nav: ["Main-400 Register", "Appointments", "Follow-ups", "Communications"],
     refused: "/admin/audit",
   },
   {
@@ -48,7 +48,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_kii_ra",
     landing: "/admin/dashboard/kii-documents",
-    nav: ["KII/Doc Dashboard", "Form PDFs", "KII Register"],
+    nav: ["KII/Doc Dashboard", "Communications", "Form PDFs", "KII Register"],
     // The over-grant this pass fixed: IsQAOrAdmin let a KII RA edit
     // documents and take QA decisions.
     refused: "/admin/documents",
@@ -86,7 +86,8 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Export");
   expect(labels).toContain("Reserve Activation");
   expect(labels).toContain("Research Clearance"); // the PI-only screen added 2026-09-30, which made it 20
-  expect(labels.length).toBe(20);
+  expect(labels).toContain("Communications"); // Conversations (2026-10-07), renamed Communications, which made it 21
+  expect(labels.length).toBe(21);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

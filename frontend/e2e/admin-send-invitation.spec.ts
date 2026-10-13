@@ -19,12 +19,17 @@ test("sending an invitation from the case detail page produces a working respond
   const sendButton = invitationsPanel.getByRole("button", { name: /Send.*invitation/ });
   await expect(sendButton).toBeVisible();
 
-  const [issueResponse] = await Promise.all([
-    page.waitForResponse(
-      (resp) => resp.url().endsWith("/invitations") && resp.request().method() === "POST" && resp.status() === 201,
-    ),
-    sendButton.click(),
-  ]);
+  // The shared seed case already holds an invitation from earlier runs, and since 2026-10-06 replacing one asks first
+  // ("Replace the current invitation?"). Until 2026-10-12 this spec never answered that question and timed out.
+  const issued201 = page.waitForResponse(
+    (resp) => resp.url().endsWith("/invitations") && resp.request().method() === "POST" && resp.status() === 201,
+  );
+  await sendButton.click();
+  const replaceDialog = page.getByRole("alertdialog", { name: "Replace the current invitation?" });
+  if (await replaceDialog.waitFor({ state: "visible", timeout: 3000 }).then(() => true, () => false)) {
+    await replaceDialog.getByRole("button", { name: "Replace it" }).click();
+  }
+  const issueResponse = await issued201;
   const issued = await issueResponse.json();
   expect(issued.raw_token).toBeTruthy();
   expect(issued.raw_manual_code).toHaveLength(8);
