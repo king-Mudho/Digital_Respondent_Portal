@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .batch_views import KIIInvitationBatchDetailView, KIIInvitationBatchView
 from .views import (
     KIICodingStatusView,
     KIIConsentSubmitView,
@@ -30,6 +31,8 @@ urlpatterns = [
     # invitations/ (see apps/kii/services.py for why it's a separate model
     # and token lifecycle rather than reusing InvitationToken).
     path("kii-invitations/", KIIInvitationIssueView.as_view(), name="invitation-issue"),
+    path("kii-invitations/batch/", KIIInvitationBatchView.as_view(), name="invitation-batch"),
+    path("kii-invitations/batch/<int:pk>/", KIIInvitationBatchDetailView.as_view(), name="invitation-batch-detail"),
     path("kii-invitations/validate/", KIIInvitationValidateView.as_view(), name="invitation-validate"),
     path("kii-invitations/<int:token_id>/revoke/", KIIInvitationRevokeView.as_view(), name="invitation-revoke"),
     path("kii-invitations/<int:token_id>/send-email/", KIIInvitationEmailView.as_view(), name="invitation-send-email"),

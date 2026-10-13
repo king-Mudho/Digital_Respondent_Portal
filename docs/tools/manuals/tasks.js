@@ -317,7 +317,8 @@ T.emailBatch = [
   ]],
   ["warn", "Before the first batch", [
     "Each way must be set up on the server first: email with `configure-email.sh`, SMS and WhatsApp with `configure-twilio.sh` (see the System Manual). Until then the panel says so and the button stays disabled.",
-    "Daily limits: 300 emails, 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
+    "Daily limits: 300 emails (Main-400 and KII invitations together), 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
+    "WhatsApp stays unavailable until Meta approves the invitation template: the panel shows the template as pending and the batch refuses WhatsApp, because a message on an unapproved template is accepted and then silently not delivered.",
     "If nothing gets through for a case, nothing is kept for it: no link is issued, it stays at S03 or S04, and the next batch tries it again. If one way works and another fails, the case is sent and **Case by case** says what failed.",
   ]],
   ["h3", "Ask first: introduce the study, then invite automatically"],
@@ -474,6 +475,15 @@ T.kii = [
   ]],
   ["p", "The informant opens the link, reads a short Key Informant Interview information sheet, agrees to take part, and is taken straight to the KII Guide with the KII ID already filled in -- no account, no app, nothing identifying in the link. Once they consent, **Record participation consent** on this page updates to **GIVEN** on its own, and **Continue this interview** above becomes available too, exactly as if an RA had recorded it."],
   ["tip", "Sending a new link replaces the old one", "Issuing another link for the same informant (for example after 14 days, or if they ask for a resend) immediately retires the previous one -- only one link is ever live per KII record, the same rule as Main-400 invitations."],
+  ["h3", "Sending KII invitations in batches (PI and Field Coordinator)"],
+  ["p", "Instead of opening each record, the PI or Field Coordinator can have the portal send the links. Only records **never invited** (PROSPECT) with a contact and no open link are included, Core-60 first, then Reserve-30, then the additional organisations, each in KII ID order. Each gets **one** link (valid 14 days) and code, sent on every way chosen that it has a contact for, and moves to **INVITED**. From then on the informant's consent, fact check, KII Guide and coding are recorded by themselves."],
+  ["steps", [
+    "Open **KII Register** and find **Send KII invitations**.",
+    "Under **From**, tick the groups to invite: **Core-60**, **Reserve-30** and/or **Additional organisations**, each with how many are ready. Tick **Named informants only** to leave out records still marked “contact not yet identified” (those go to the organisation and ask for the role).",
+    "Under **Send by**, tick **Email**, and **SMS** or **WhatsApp** once they are set up and Meta has approved the KII invitation template.",
+    "Open **Next in line** to check the first records, with partly hidden addresses and numbers. Type **How many** (up to 100) and select **Review and send**, then **Send N invitations**.",
+    "The panel shows progress, then sent, failed and skipped. Open **Record by record** for each KII ID and the reason for any failure. A record where nothing got through keeps no link, stays PROSPECT, and is tried again by the next batch.",
+  ]],
   ["warn", "Still a self-administered interview, not a recorded one", "Nobody is present on a self-service session, so there is nothing to record and no recording consent is asked for on this path. If the informant would rather be interviewed live and recorded, arrange that by phone, WhatsApp or video call instead, and record both consents the usual way (above)."],
 ];
 

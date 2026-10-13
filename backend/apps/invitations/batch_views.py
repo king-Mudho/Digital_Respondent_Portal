@@ -39,7 +39,7 @@ class InvitationBatchView(APIView):
         from apps.kobo.submission_copies import email_is_configured
 
         channels = [c for c in _channels(request.query_params.get("channels")) if c in b.CHANNELS] or ["EMAIL"]
-        latest = InvitationBatch.objects.first()
+        latest = InvitationBatch.objects.exclude(mode="KII").first()
         return Response({
             "email_configured": email_is_configured(),
             "candidates": b.batch_candidates(channels).count(),
@@ -72,7 +72,7 @@ class InvitationBatchDetailView(APIView):
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
     def get(self, request, pk):
-        return Response(InvitationBatchSerializer(get_object_or_404(InvitationBatch, pk=pk)).data)
+        return Response(InvitationBatchSerializer(get_object_or_404(InvitationBatch.objects.exclude(mode="KII"), pk=pk)).data)
 
 
 class WhatsAppQueueView(APIView):

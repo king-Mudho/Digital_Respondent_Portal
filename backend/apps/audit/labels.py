@@ -66,6 +66,8 @@ ACTION_LABELS: dict[str, str] = {
     "invitations.issue_denied_not_invitable": "Invitation attempt refused (case not invitable)",
     "kii.coding_completed_from_kobo": "KII coding marked complete from KoboToolbox",
     "kii_invitation.emailed": "KII self-service invitation emailed",
+    "kii_invitations.batch_started": "KII invitation batch started",
+    "kii_invitations.batch_completed": "KII invitation batch finished",
     "kii_invitation.issued": "KII self-service invitation issued",
     "kii_invitation.revoked": "KII self-service invitation revoked",
     "kii_invitation.sms_sent": "KII invitation sent by SMS (Twilio)",

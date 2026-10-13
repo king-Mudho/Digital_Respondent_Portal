@@ -79,6 +79,8 @@ class InvitationBatch(models.Model):
     # INVITE sends the invitation; INTRO sends the "ask first" introduction (apps/messaging/outreach.py, 2026-10-07)
     # and the invitation follows only when the organisation replies YES.
     mode = models.CharField(max_length=8, default="INVITE")
+    # A KII batch (mode "KII", apps/kii/batch.py, 2026-10-13) keeps its choices here: {"groups": [...], "named_only": bool}.
+    options = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=8, choices=InvitationBatchStatus.choices, default=InvitationBatchStatus.RUNNING)
     sent = models.PositiveIntegerField(default=0)
     failed = models.PositiveIntegerField(default=0)

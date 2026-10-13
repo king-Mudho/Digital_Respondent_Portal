@@ -242,3 +242,15 @@ def template_approvals(*, get=None) -> list[dict]:
         out.append(row)
     cache.set(key, out, APPROVALS_CACHE_SECONDS)
     return out
+
+
+def template_waiting(setting: str, *, approvals=None) -> str:
+    """Meta's status for the template in `setting` when it is known and not yet approved ("pending", "rejected"...),
+    else "". A batch refuses WhatsApp while its template waits (2026-10-13): Twilio accepts a message on an unapproved
+    template and it fails later (error 63016), so the batch would have reported it sent. "unknown" -- Twilio could
+    not be asked -- does not block."""
+    sid = (getattr(settings, setting, "") or "").strip()
+    for row in template_approvals() if approvals is None else approvals:
+        if row["sid"] == sid and row["status"] not in ("approved", "unknown"):
+            return row["status"]
+    return ""

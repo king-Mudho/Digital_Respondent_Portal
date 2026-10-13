@@ -782,6 +782,26 @@ works):
 
 ## Notable fixes
 
+### Batch KII invitations (13 Oct 2026)
+
+At the PI's request, the KII Register has **Send KII invitations**, the counterpart of the Main-400 batch
+(`apps/kii/batch.py`; `GET/POST /api/v1/kii-invitations/batch/`, PI and Field Coordinator, Supervisor read-only):
+
+- **Who:** KII records never invited (PROSPECT) with a contact for a chosen channel and no open link, from the groups
+  ticked (Core-60, Reserve-30, Additional organisations; a hand-made record with no `metadata.pool` counts as
+  additional), Core-60 first then KII ID order. *Named informants only* leaves out "(contact not yet identified)"
+  records, which otherwise go to the organisation asking for the role.
+- **How:** each record goes through `issue_kii_invitation()` then `email_kii_invitation()` / `text_kii_invitation()`,
+  as the record's own buttons do, in one transaction: if no channel gets through, the link and the move to INVITED
+  are undone. A record invited by hand while the batch runs is skipped.
+- **Limits:** batches are `InvitationBatch` rows with `mode="KII"` (choices in the new `options` field), so one batch
+  runs at a time across Main-400 and KII, and the daily email cap now counts KII invitation emails as well as
+  Main-400 ones -- the cap protects the one study mailbox.
+- **WhatsApp waits for Meta:** a batch (KII or Main-400, invitations or introductions) refuses WhatsApp while its
+  template is pending or rejected at Meta (`twilio_client.template_waiting`). Before this, the Main-400 batch would
+  have accepted WhatsApp, Twilio would have queued every message, each would have failed later with error 63016,
+  and the batch would have reported them sent.
+
 ### KII self-service records itself (13 Oct 2026)
 
 At the PI's request, an informant who uses their own KII link is now recorded end to end without anyone touching the

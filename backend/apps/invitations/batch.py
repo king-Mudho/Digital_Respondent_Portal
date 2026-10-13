@@ -63,10 +63,20 @@ def daily_max() -> int:
 
 
 def emailed_today() -> int:
+    """Main-400 and KII invitation emails together: the cap protects the one study mailbox (KII batches, 2026-10-13)."""
     from apps.audit.models import AuditEvent
 
     start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
-    return AuditEvent.objects.filter(action="invitation.emailed", created_at__gte=start).count()
+    return AuditEvent.objects.filter(action__in=["invitation.emailed", "kii_invitation.emailed"], created_at__gte=start).count()
+
+
+def refuse_unapproved_whatsapp(setting: str, what: str) -> None:
+    from apps.messaging import twilio_client as tw
+
+    waiting = tw.template_waiting(setting)
+    if waiting:
+        raise BatchError("whatsapp_template_not_approved", f"WhatsApp can't be used yet: Meta hasn't approved the {what} "
+                                                           f"template (it is {waiting}). Send by email for now.", 409)
 
 
 def left_today() -> int:
@@ -200,6 +210,8 @@ def start_batch(limit: int, *, user, channels=("EMAIL",), mode: str = "INVITE") 
             how = "deploy/configure-email.sh" if channel == "EMAIL" else "deploy/configure-twilio.sh"
             label = CHANNEL_LABEL[channel][:1].upper() + CHANNEL_LABEL[channel][1:]
             raise BatchError(f"{channel.lower()}_not_configured", f"{label} isn't set up on the server yet. Run {how} first.", 503)
+    if "WHATSAPP" in channels:
+        refuse_unapproved_whatsapp("TWILIO_WA_CONTENT_INVITATION", "invitation")
     allowed = min([per_batch_max()] + [channel_left_today(channel) for channel in channels])
     if allowed < 1:
         raise BatchError("daily_limit_reached", "Today's sending limit has been reached for a chosen channel. Try again tomorrow.", 409)
@@ -218,6 +230,8 @@ def _start_intro_batch(limit: int, *, user) -> InvitationBatch:
     if not info["configured"]:
         raise BatchError("intro_not_configured", "Introductions aren't set up yet: they need the study's WhatsApp number on "
                                                  "Twilio. Run deploy/configure-twilio.sh first.", 503)
+    if info["channel"] == "WHATSAPP":
+        refuse_unapproved_whatsapp("TWILIO_WA_CONTENT_INTRO", "introduction")
     allowed = min(per_batch_max(), info["left_today"])
     if allowed < 1:
         raise BatchError("daily_limit_reached", "Today's sending limit has been reached. Try again tomorrow.", 409)
@@ -294,6 +308,10 @@ def run_batch(batch_id: int) -> None:
     from apps.sampling.services import is_invitable
 
     batch = InvitationBatch.objects.select_related("created_by").get(pk=batch_id)
+    if batch.mode == "KII":
+        from apps.kii.batch import run_batch as run_kii_batch
+
+        return run_kii_batch(batch)
     user, link_base = batch.created_by, portal_base(None)
     pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
     chosen = list(batch.channels or ["EMAIL"])

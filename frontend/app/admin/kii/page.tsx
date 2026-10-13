@@ -5,6 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { KiiInvitationBatchPanel } from "@/components/admin/KiiInvitationBatchPanel";
 import { ReconciliationQueuePanel } from "@/components/admin/ReconciliationQueuePanel";
 import { ResearchImportPanel } from "@/components/admin/ResearchImportPanel";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
@@ -179,6 +180,10 @@ export default function KIIRegisterPage() {
       </div>
       <ReconciliationQueuePanel />
       <KiiContactBatchPanel />
+      {/* Batch invitations are the PI's and Field Coordinator's tool, as on the Sample screen; the endpoint refuses everyone else. */}
+      <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
+        <KiiInvitationBatchPanel />
+      </IfRole>
       {/* PROIT is the PI's and Field Coordinator's tool; the import endpoint refuses everyone else. */}
       <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
         <ResearchImportPanel target="kii" />
