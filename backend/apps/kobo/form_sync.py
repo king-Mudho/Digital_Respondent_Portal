@@ -135,16 +135,16 @@ def _link_records(key: str, payloads: list[dict]) -> None:
 
 
 def _complete_kii_coding(payloads: list[dict]) -> None:
+    """A KII Guide in KoboToolbox means the interview happened: the record becomes COMPLETED (if its informant gave
+    participation consent -- kii.services.advance_on_self_service) and its coding completes once its pre-interview
+    facts are settled. Until 2026-10-13 only the coding moved, and only when no profile was locked."""
     from apps.kii.models import CodingStatus, KIIRecord
-    from apps.kii.services import InvalidKIITransition, advance_coding_status
+    from apps.kii.services import SELF_SERVICE_SUBMITTED, advance_on_self_service, complete_coding_if_settled
 
     ids = {copies.record_label("kii", p) for p in payloads}
     for record in KIIRecord.objects.filter(kii_id__in=ids).exclude(coding_status=CodingStatus.COMPLETE):
-        try:
-            advance_coding_status(record, CodingStatus.COMPLETE)
-        except InvalidKIITransition:
-            continue
-        log_action("kii.coding_completed_from_kobo", record, {"kii_id": record.kii_id})
+        advance_on_self_service(record, SELF_SERVICE_SUBMITTED)
+        complete_coding_if_settled(record)
 
 
 def _unlock_deleted_document_codings(payloads: list[dict]) -> None:

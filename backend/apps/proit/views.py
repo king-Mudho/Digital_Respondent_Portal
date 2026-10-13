@@ -440,6 +440,10 @@ class FieldReconcileView(APIView):
         reconcile_field(field, reconciled_value=value)
         refresh_reconciliation(field.pre_profile)
         log_action("proit.field_reconciled", field.pre_profile, {"field_id": field.field_id, "user_id": request.user.id})
+        if field.pre_profile.kii_record_id:  # the last reconciled fact completes a self-service KII's coding
+            from apps.kii.services import complete_coding_if_settled
+
+            complete_coding_if_settled(field.pre_profile.kii_record)
         return Response({"id": field.id, "reconciled_value": field.reconciled_value, "settled": field_is_settled(field)})
 
 
@@ -499,3 +503,118 @@ class ProtocolDeviationView(APIView):
         except PreProfileError as exc:
             return _error("deviation_failed", str(exc), 400)
         return Response(reconciliation_state(profile))
+
+
+# --- KII self-service: the informant checks their own facts (PI decision, 2026-10-13) ------------------------------
+
+# What an informant may answer for a fact they were asked as an open question (its low-confidence source value is
+# never shown): their own value, or that they don't know, would rather not say, or it doesn't apply.
+QUESTION_ANSWERS = {"NO_CORRECT_VALUE_PROVIDED", "DO_NOT_KNOW", "PREFER_NOT_TO_SAY", "NOT_APPLICABLE"}
+
+
+def _kii_profile_for_token(raw_token):
+    """(KII record, its locked profile or None, a Response to return instead or None). Only for a KII link whose
+    informant has given participation consent: facts are shown only after consent (AGENTS.md rule 6)."""
+    from apps.consent.models import ConsentType
+    from apps.consent.services import has_given_consent
+    from apps.kii.services import KIITokenValidationError, validate_kii_token
+
+    try:
+        token = validate_kii_token(raw_token)
+    except KIITokenValidationError as exc:
+        return None, None, _error(exc.code, str(exc))
+    record = token.kii_record
+    if not has_given_consent(record, ConsentType.PARTICIPATION):
+        return record, None, _error("consent_required", "Please give your consent first.", 403)
+    profile = PreProfile.objects.filter(kii_record=record, prepopulation_locked_at__isnull=False).first()
+    return record, profile, None
+
+
+class KIIRespondentPreProfileView(APIView):
+    """GET /api/v1/proit/kii-respondent-profile/?t=<KII token> -- the informant's own locked profile, after consent:
+    facts to confirm (never a low-confidence value -- field_is_displayable) and, for facts whose source was too weak
+    to show, open questions with no value. null when there is nothing to check, so the page skips itself."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
+
+    def get(self, request):
+        if not settings.PROIT_ENABLED_FOR_RESPONDENTS:
+            return Response(None)
+        record, profile, problem = _kii_profile_for_token(request.query_params.get("t", ""))
+        if problem is not None:
+            return problem
+        if profile is None:
+            return Response(None)
+        fields = list(profile.fields.all())
+        facts = [f for f in fields if field_is_displayable(f)]
+        questions = [{"id": f.id, "field_id": f.field_id, "label": f.label} for f in fields if not field_is_displayable(f)]
+        if not facts and not questions:
+            return Response(None)
+        return Response({"pre_profile_id": profile.id, "fields": RespondentPreProfileFieldSerializer(facts, many=True).data,
+                         "questions": questions})
+
+
+class KIIRespondentVerifyView(APIView):
+    """POST /api/v1/proit/kii-respondent-verify/ {token, field_id, status, respondent_value} -- one fact or question,
+    only on the informant's own profile. A plain confirmation settles the fact; anything else waits for a researcher's
+    reconciled value (proit.services.field_is_settled)."""
+
+    permission_classes = [AllowAny]
+    throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
+
+    def post(self, request):
+        if not settings.PROIT_ENABLED_FOR_RESPONDENTS:
+            return _error("proit_disabled", "Not available.", 403)
+        record, profile, problem = _kii_profile_for_token(request.data.get("token", ""))
+        if problem is not None:
+            return problem
+        if profile is None:
+            return _error("not_found", "There is nothing to check.", 404)
+        field = get_object_or_404(PreProfileField, pk=request.data.get("field_id"), pre_profile=profile)
+        status_code = request.data.get("status")
+        value = str(request.data.get("respondent_value", "")).strip()[:500]
+        asked_as_question = not field_is_displayable(field)
+        if asked_as_question and status_code not in QUESTION_ANSWERS:
+            return _error("invalid_input", "Give your own answer, or say you don't know.")
+        if status_code in ("NO_CORRECT_VALUE_PROVIDED", "PARTLY_CORRECT") and not value:
+            return _error("invalid_input", "Please say what it should be.")
+        comment = "Answered by the informant online" + (" (asked as an open question)" if asked_as_question else "")
+        try:
+            record_verification(field, status=status_code, respondent_value=value, comment=comment)
+        except PreProfileError as exc:
+            return _error("verification_failed", str(exc))
+        refresh_reconciliation(profile)
+        from apps.kii.services import complete_coding_if_settled
+
+        complete_coding_if_settled(record)
+        return Response({"id": field.id, "verification_status": field.verification_status})
+
+
+class ReconciliationQueueView(APIView):
+    """GET /api/v1/proit/reconciliation-queue/ -- KII interviews that are in but whose pre-interview facts are not all
+    settled: corrections and open answers waiting for a researcher's reconciled value, and facts never checked (the
+    informant skipped the step). Reconciled on each record's Interview sheet; a protocol deviation releases one that
+    truly cannot be finished. Nothing that needs a person can wait unseen."""
+
+    permission_classes = [CanRunInterviewVerification]
+
+    def get(self, request):
+        from apps.kii.models import KIIStatus
+
+        rows = []
+        profiles = (PreProfile.objects.filter(prepopulation_locked_at__isnull=False, kii_record__status=KIIStatus.COMPLETED)
+                    .exclude(reconciliation_status__in=["RECONCILED", "UNRESOLVED"]).select_related("kii_record"))
+        for profile in profiles:
+            state = reconciliation_state(profile)
+            if not state["total"] or state["complete"]:
+                continue
+            record = profile.kii_record
+            rows.append({
+                "pre_profile_id": profile.id, "kii_record_id": record.id, "kii_id": record.kii_id,
+                "organisation": (record.metadata or {}).get("organisation_name") or record.participant_name,
+                "to_reconcile": len(state["pending_reconciliation"]), "not_verified": len(state["pending_verification"]),
+                "total": state["total"],
+            })
+        rows.sort(key=lambda r: r["kii_id"])
+        return Response({"count": len(rows), "results": rows})

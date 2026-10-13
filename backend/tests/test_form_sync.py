@@ -95,8 +95,8 @@ def test_an_unconnected_form_is_skipped_not_an_error(configured, settings):
 
 @pytest.mark.django_db
 def test_a_completed_kii_guide_marks_that_interviews_coding_complete(configured):
-    match = create_kii_record(stakeholder_category="Financial institution representative", participant_name="A",
-                              participant_role="r", preferred_mode="PHONE")
+    match = _consented(create_kii_record(stakeholder_category="Financial institution representative", participant_name="A",
+                                         participant_role="r", preferred_mode="PHONE"))
     other = create_kii_record(stakeholder_category="Financial institution representative", participant_name="B",
                               participant_role="r", preferred_mode="PHONE")
     with _pull([_kii_row(5, match.kii_id), _kii_row(6, "KII-9999")]):
@@ -104,9 +104,29 @@ def test_a_completed_kii_guide_marks_that_interviews_coding_complete(configured)
         sync_form("kii")  # idempotent
     match.refresh_from_db()
     other.refresh_from_db()
-    assert match.coding_status == CodingStatus.COMPLETE
+    assert match.coding_status == CodingStatus.COMPLETE and match.status == "COMPLETED"  # the interview counts as done
     assert other.coding_status == CodingStatus.NOT_STARTED
     assert AuditEvent.objects.filter(action="kii.coding_completed_from_kobo", object_id=str(match.pk)).count() == 1
+
+
+@pytest.mark.django_db
+def test_a_kii_guide_for_an_informant_with_no_consent_is_never_counted(configured):
+    record = create_kii_record(stakeholder_category="Financial institution representative", participant_name="A",
+                               participant_role="r", preferred_mode="PHONE", status="INVITED")
+    with _pull([_kii_row(7, record.kii_id)]):
+        sync_form("kii")
+    record.refresh_from_db()
+    assert (record.status, record.coding_status) == ("INVITED", CodingStatus.NOT_STARTED)
+    assert AuditEvent.objects.filter(action="kii.submission_without_consent", object_id=str(record.pk)).exists()
+
+
+def _consented(record):
+    """Participation consent, as the interviewer or the informant records it before the KII Guide can open."""
+    from apps.consent.services import record_consent
+
+    record_consent(kii_record=record, consent_type="PARTICIPATION", decision="GIVEN", information_sheet_version="1",
+                   method="VERBAL_RA_RECORDED")
+    return record
 
 
 @pytest.mark.django_db

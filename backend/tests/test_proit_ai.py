@@ -479,8 +479,12 @@ def test_a_case_with_no_profile_or_an_empty_one_is_never_held_up(main_case):
 
 
 def test_a_kii_coding_cannot_complete_until_reconciled_and_the_sync_completes_it_afterwards(db):
+    from apps.consent.services import record_consent
+
     record = create_kii_record(stakeholder_category="Financial institution representative", participant_name="A", participant_role="r",
                                preferred_mode="PHONE")
+    record_consent(kii_record=record, consent_type="PARTICIPATION", decision="GIVEN", information_sheet_version="1",
+                   method="VERBAL_RA_RECORDED")
     profile = create_pre_profile(kii_record=record)
     field = add_field(profile, "legal_name", documentary_value="Test Bank")
     add_evidence(field, source_title="Annual report", source_confidence="HIGH", source_authority="TIER_1_STATUTORY")

@@ -782,6 +782,27 @@ works):
 
 ## Notable fixes
 
+### KII self-service records itself (13 Oct 2026)
+
+At the PI's request, an informant who uses their own KII link is now recorded end to end without anyone touching the
+platform (`kii.services.advance_on_self_service`, audited `kii.status_changed` with `automatic: true`):
+
+- **Status:** issuing the link moves PROSPECT → INVITED; declining online → DECLINED; the KII Guide arriving from
+  KoboToolbox (the 15-minute form sync) → COMPLETED.
+- **Consent decides:** the latest decision counts, so someone who declined, then consented and completed, is
+  COMPLETED. A KII Guide whose informant never gave participation consent is not counted, and is audited as
+  `kii.submission_without_consent` (rule 6).
+- **Facts check (new `/ki/[token]/verify`):** the informant checks their own locked pre-interview facts after
+  consent, as Main-400 respondents do. Low-confidence facts are asked as open questions, their value never shown.
+- **Coding:** completes by itself when everything is confirmed. Corrections, open answers and skipped checks wait on
+  the KII Register's **Needs reconciling** list (`GET /api/v1/proit/reconciliation-queue/`), and the researcher's last
+  reconciled value completes it.
+
+The gap this closed: KII links had no facts step, and coding cannot complete until a locked profile's facts are
+verified. So once all 90 KII profiles were locked on 13 Oct, no self-service informant could ever have completed
+without a person, and statuses had never followed self-service at all (KII-0002 was invited, consented and submitted
+on 1 Oct and stayed PROSPECT).
+
 ### Full system check: status catch-up, Twilio throttle, a banned word, a phone layout (13 Oct 2026)
 
 A whole-system pass found the following.

@@ -295,6 +295,10 @@ class KIIConsentSubmitView(APIView):
             from .services import KIIInvitationTokenStatus, _advance_kii_token_status
 
             _advance_kii_token_status(token, KIIInvitationTokenStatus.CONSENTED)
+        elif decision == ConsentDecision.DECLINED:
+            from .services import SELF_SERVICE_DECLINED, advance_on_self_service
+
+            advance_on_self_service(record, SELF_SERVICE_DECLINED)
 
         return Response({"id": consent_record.id, "consent_type": consent_record.consent_type, "decision": consent_record.decision})
 

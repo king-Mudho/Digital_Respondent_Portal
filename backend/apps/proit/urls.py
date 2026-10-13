@@ -11,12 +11,15 @@ from .views import (
     InterviewCompleteView,
     InterviewSheetView,
     KIIResearchImportView,
+    KIIRespondentPreProfileView,
+    KIIRespondentVerifyView,
     PreProfileDetailView,
     PreProfileFieldListCreateView,
     PreProfileListCreateView,
     PreProfileLockView,
     ProbeTemplateView,
     ProtocolDeviationView,
+    ReconciliationQueueView,
     RespondentPreProfileView,
     RespondentVerifyView,
 )
@@ -42,4 +45,7 @@ urlpatterns = [
     path("main-import/", KIIResearchImportView.as_view(target="main"), name="main-import"),
     path("respondent-profile/", RespondentPreProfileView.as_view(), name="respondent-profile"),
     path("respondent-verify/", RespondentVerifyView.as_view(), name="respondent-verify"),
+    path("kii-respondent-profile/", KIIRespondentPreProfileView.as_view(), name="kii-respondent-profile"),
+    path("kii-respondent-verify/", KIIRespondentVerifyView.as_view(), name="kii-respondent-verify"),
+    path("reconciliation-queue/", ReconciliationQueueView.as_view(), name="reconciliation-queue"),
 ]

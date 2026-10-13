@@ -73,6 +73,7 @@ ACTION_LABELS: dict[str, str] = {
     "kii.participant_name_corrected": "KII participant name corrected",
     "kii.record_registered": "KII record registered from a registration list",
     "kii.status_changed": "KII status changed",
+    "kii.submission_without_consent": "KII Guide received for an informant with no consent recorded (not counted)",
     "kii.status_reset_after_test_cleanup": "KII status reset (test cleanup)",
     "kobo.data_exported": "Submissions exported from KoboToolbox",
     "kobo.reconciliation_sample_id_mismatch": "Reconciliation found a Sample ID mismatch",

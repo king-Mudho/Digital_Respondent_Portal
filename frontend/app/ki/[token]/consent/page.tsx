@@ -27,7 +27,8 @@ export default function KIIConsentPage() {
         informationSheetVersion: KII_PARTICIPANT_INFORMATION_SHEET_VERSION,
       });
       if (decision === "GIVEN") {
-        router.push(`/ki/${params.token}/kobo-redirect`);
+        // The informant checks their facts first; the page skips itself when there is nothing to check (2026-10-13).
+        router.push(`/ki/${params.token}/verify`);
       } else {
         setDeclined(true);
       }

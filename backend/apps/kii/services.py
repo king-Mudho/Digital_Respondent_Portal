@@ -95,6 +95,56 @@ def mark_completed(record: KIIRecord, *, with_recording: bool) -> KIIRecord:
     return transition_kii_status(record, KIIStatus.COMPLETED)
 
 
+# --- Self-service: the record follows the informant (PI request, 2026-10-13) --------------------------------------
+# An informant using their own link was recorded only as far as the link itself: the record stayed PROSPECT when
+# invited, kept its status when they declined online, and never became COMPLETED when their KII Guide arrived from
+# KoboToolbox. With 154 records, someone had to remember each one by hand.
+
+SELF_SERVICE_INVITED, SELF_SERVICE_DECLINED, SELF_SERVICE_SUBMITTED = "invited", "declined", "submitted"
+
+
+def advance_on_self_service(record: KIIRecord, event: str) -> KIIRecord:
+    """Moves a KII record forward when its informant acts: invited -> INVITED (from PROSPECT), declined online ->
+    DECLINED (from PROSPECT or INVITED), KII Guide received -> COMPLETED. A COMPLETED record never moves again. The
+    latest consent decides: an informant who declined, then changed their mind, consented and sent the KII Guide is
+    COMPLETED -- that interview happened. A KII Guide whose informant has not given participation consent is not
+    counted (AGENTS.md rule 6); it is audited for a person to look at."""
+    from .models import KIIStatus
+
+    before = record.status
+    if event == SELF_SERVICE_INVITED and record.status == KIIStatus.PROSPECT:
+        record.status = KIIStatus.INVITED
+    elif event == SELF_SERVICE_DECLINED and record.status in (KIIStatus.PROSPECT, KIIStatus.INVITED):
+        record.status = KIIStatus.DECLINED
+    elif event == SELF_SERVICE_SUBMITTED:
+        if not has_given_consent(record, ConsentType.PARTICIPATION):
+            log_action("kii.submission_without_consent", record, {"kii_id": record.kii_id, "status": record.status})
+            return record
+        if record.status == KIIStatus.NO_SHOW:
+            return record
+        record.status = KIIStatus.COMPLETED
+    if record.status == before:
+        return record
+    record.save(update_fields=["status"])
+    log_action("kii.status_changed", record, {"new_status": record.status, "from": before, "automatic": True, "because": event})
+    return record
+
+
+def complete_coding_if_settled(record: KIIRecord) -> bool:
+    """Coding completes by itself once the informant's interview is in and every verified fact is settled (a plain
+    confirmation needs nobody; a correction waits for a researcher's reconciled value). Returns True if it moved."""
+    from .models import CodingStatus, KIIStatus
+
+    if record.coding_status == CodingStatus.COMPLETE or record.status != KIIStatus.COMPLETED:
+        return False
+    try:
+        advance_coding_status(record, CodingStatus.COMPLETE)
+    except InvalidKIITransition:
+        return False
+    log_action("kii.coding_completed_from_kobo", record, {"kii_id": record.kii_id, "automatic": True})
+    return True
+
+
 def advance_transcript_status(record: KIIRecord, new_status: str) -> KIIRecord:
     order = [TranscriptStatus.NOT_STARTED, TranscriptStatus.IN_PROGRESS, TranscriptStatus.VERIFIED, TranscriptStatus.ANONYMISED]
     if order.index(new_status) < order.index(record.transcript_status):
@@ -246,6 +296,7 @@ def issue_kii_invitation(
         {"kii_id": kii_record.kii_id, "channel": channel, "issued_by_id": getattr(issued_by, "id", None)},
         user=issued_by,
     )
+    advance_on_self_service(kii_record, SELF_SERVICE_INVITED)
     return raw_token, raw_manual_code, token
 
 

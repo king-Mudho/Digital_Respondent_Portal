@@ -5,6 +5,7 @@ import { useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { ReconciliationQueuePanel } from "@/components/admin/ReconciliationQueuePanel";
 import { ResearchImportPanel } from "@/components/admin/ResearchImportPanel";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
@@ -176,6 +177,7 @@ export default function KIIRegisterPage() {
           </WriteOnly>
         </div>
       </div>
+      <ReconciliationQueuePanel />
       <KiiContactBatchPanel />
       {/* PROIT is the PI's and Field Coordinator's tool; the import endpoint refuses everyone else. */}
       <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
