@@ -14,6 +14,7 @@ ACTION_LABELS: dict[str, str] = {
     "accounts.staff_accounts_created": "Staff accounts created",
     "clearance.document_created": "Clearance document added",
     "clearance.document_deleted": "Clearance document deleted",
+    "clearance.document_updated": "Clearance document wording changed",
     "clearance.file_downloaded_by_staff": "Clearance document file downloaded by staff",
     "clearance.file_removed": "Clearance document file removed",
     "clearance.file_uploaded": "Clearance document file uploaded",
