@@ -69,8 +69,8 @@ def intro_channel() -> str | None:
     WhatsApp link. Without the study's WhatsApp number no reply could ever arrive, so nothing is offered."""
     if not (tw.credentials_set() and (settings.TWILIO_WHATSAPP_FROM or "").strip()):
         return None
-    if (settings.TWILIO_WA_CONTENT_INTRO or "").strip():
-        return MessageChannel.WHATSAPP
+    if (settings.TWILIO_WA_CONTENT_INTRO or "").strip() and not tw.template_waiting("TWILIO_WA_CONTENT_INTRO"):
+        return MessageChannel.WHATSAPP  # only once Meta has approved it; until then the SMS with the reply link
     return MessageChannel.SMS if tw.sms_configured() else None
 
 
@@ -97,7 +97,8 @@ def _mobile(case) -> tuple[str, object]:
 def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
     org = case.organisation.name
     if channel == MessageChannel.WHATSAPP:
-        content = (settings.TWILIO_WA_CONTENT_INTRO_REMINDER if reminder else "") or settings.TWILIO_WA_CONTENT_INTRO
+        reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_INTRO_REMINDER")
+        content = (settings.TWILIO_WA_CONTENT_INTRO_REMINDER if reminder_ready else "") or settings.TWILIO_WA_CONTENT_INTRO
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
                              wa_variables={1: org}, user=user, sample_case=case)
     name = "outreach_intro_reminder_sms" if reminder else "outreach_intro_sms"

@@ -340,6 +340,42 @@ def test_reminders_go_by_whatsapp_when_its_template_is_set_up(twilio, settings, 
     assert log.channel == "WHATSAPP" and twilio.sent[0]["data"]["ContentSid"] == "HXday2"
 
 
+def test_reminders_never_go_by_whatsapp_while_meta_has_the_template_pending(twilio, settings, main_case, monkeypatch):
+    """13 Oct 2026: the 08:00 run sent 148 WhatsApp reminders on pending templates; 120 came back undelivered (63016)."""
+    _whatsapp(settings)
+    approvals = [{"sid": "HXday2", "status": "pending"}]
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: approvals)
+    settings.TWILIO_SMS_FROM = ""
+    _invited(main_case, days_ago=2)
+    assert dispatch_due_reminders() == [] and twilio.sent == []
+    assert not MessageLog.objects.exists()  # not a failure: it simply waits on Follow-ups for a person
+    assert due_follow_ups()[0]["sends_automatically"] is False
+    settings.TWILIO_SMS_FROM = "CUT-ABFFST"
+    assert due_follow_ups()[0]["sends_automatically"] is True
+    [log] = dispatch_due_reminders()
+    assert log.channel == "SMS" and "Body" in twilio.sent[0]["data"]
+
+
+def test_a_reminder_goes_by_whatsapp_once_meta_approves_its_template(twilio, settings, main_case, monkeypatch):
+    _whatsapp(settings)
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXday2", "status": "approved"}])
+    _invited(main_case, days_ago=2)
+    [log] = dispatch_due_reminders()
+    assert log.channel == "WHATSAPP" and twilio.sent[0]["data"]["ContentSid"] == "HXday2"
+
+
+def test_no_whatsapp_template_meta_has_not_approved_is_sent_from_anywhere(twilio, settings, monkeypatch, db):
+    _whatsapp(settings)
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXinvite", "status": "rejected"}])
+    with pytest.raises(outbound.OutboundError) as exc:
+        outbound.send(channel="WHATSAPP", number="263771234567", purpose="INVITATION", wa_content="HXinvite", wa_variables={1: "x"})
+    assert exc.value.code == "whatsapp_template_not_approved" and "rejected" in str(exc.value)
+    assert twilio.sent == [] and not ProviderMessage.objects.exists()
+    # A free-text reply inside a conversation the person started needs no template, and still goes.
+    outbound.send(channel="WHATSAPP", number="263771234567", purpose="REPLY", wa_text="Thank you")
+    assert len(twilio.sent) == 1
+
+
 def test_no_automatic_reminder_to_a_landline_an_expired_link_or_a_booked_call(twilio, main_case, organisation, stratum):
     from apps.contacts.models import Appointment
     from apps.sampling.services import create_sample_case

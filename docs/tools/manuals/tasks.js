@@ -318,7 +318,7 @@ T.emailBatch = [
   ["warn", "Before the first batch", [
     "Each way must be set up on the server first: email with `configure-email.sh`, SMS and WhatsApp with `configure-twilio.sh` (see the System Manual). Until then the panel says so and the button stays disabled.",
     "Daily limits: 300 emails (Main-400 and KII invitations together), 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
-    "WhatsApp stays unavailable until Meta approves the invitation template: the panel shows the template as pending and the batch refuses WhatsApp, because a message on an unapproved template is accepted and then silently not delivered.",
+    "WhatsApp stays unavailable until Meta approves the invitation template: the panel shows the template as pending and the batch refuses WhatsApp, because a message on an unapproved template is accepted and then silently not delivered. The same applies everywhere the portal sends WhatsApp (a single invitation, an introduction, a reminder): it says Meta hasn't approved the template yet, and introductions go by SMS with the reply link instead.",
     "If nothing gets through for a case, nothing is kept for it: no link is issued, it stays at S03 or S04, and the next batch tries it again. If one way works and another fails, the case is sent and **Case by case** says what failed.",
   ]],
   ["h3", "Ask first: introduce the study, then invite automatically"],
@@ -332,7 +332,7 @@ T.emailBatch = [
   ]],
   ["tip", "Answering on Communications", "The study's Twilio WhatsApp number isn't on any phone, so answer people on **Communications**: open the conversation, write under **WhatsApp** and select **Send WhatsApp**. WhatsApp only accepts a written message within 24 hours of their last message; after that, email or phone them. Email replies to the study address appear there too, and you can answer them under **Email**. **Mark handled** when it's dealt with. A Contact RA sees only their own cases; messages from numbers the study has no record of go to the PI and Field Coordinator."],
   ["h3", "Reminders sent automatically"],
-  ["p", "Once SMS or WhatsApp is set up, the portal sends the Day 2 and Day 7 reminders itself every morning at 08:00: by WhatsApp when its approved template is set up, otherwise by SMS, to the respondent's mobile. **Follow-ups** says “The portal sends this one automatically” for those. Reminders for anyone without a mobile, and any automatic message that did not get through, stay on Follow-ups to send by hand, marked “The automatic message did not get through”. A failed reminder is never re-sent automatically, and it does not count toward Nonresponse until a person sends it."],
+  ["p", "Once SMS or WhatsApp is set up, the portal sends the Day 2 and Day 7 reminders itself every morning at 08:00: by WhatsApp once Meta has approved its template, otherwise by SMS, to the respondent's mobile. While Meta still has a template pending, that reminder is not sent by WhatsApp at all: it goes by SMS if SMS is set up, or waits on Follow-ups. **Follow-ups** says “The portal sends this one automatically” for those. Reminders for anyone without a mobile, and any automatic message that did not get through, stay on Follow-ups to send by hand, marked “The automatic message did not get through”. A failed reminder is never re-sent automatically, and it does not count toward Nonresponse until a person sends it."],
 ];
 
 T.whatsappQueue = [

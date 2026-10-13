@@ -12,6 +12,15 @@ from apps.sampling.services import create_organisation, create_sample_case
 
 
 @pytest.fixture(autouse=True)
+def _no_meta_lookup(monkeypatch):
+    """Sending WhatsApp asks Twilio whether Meta has approved the template (twilio_client.template_approvals). Tests
+    never reach Twilio: no template is known, so none is refused. A test about approval sets its own answer."""
+    from apps.messaging import twilio_client as tw
+
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [])
+
+
+@pytest.fixture(autouse=True)
 def _empty_cache():
     """Cached values (KoboToolbox form content, report figures) must not leak
     between tests: test_data_export only passed when it ran before

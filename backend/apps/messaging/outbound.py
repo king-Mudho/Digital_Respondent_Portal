@@ -103,6 +103,12 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
     if channel == MessageChannel.WHATSAPP and not ((wa_content or wa_text) and tw.credentials_set() and settings.TWILIO_WHATSAPP_FROM.strip()):
         raise OutboundError("whatsapp_not_configured",
                             "WhatsApp sending isn't set up yet: it needs the Meta-approved sender and template (deploy/configure-twilio.sh).", 503)
+    if channel == MessageChannel.WHATSAPP and wa_content and not wa_text:
+        waiting = tw.content_waiting(wa_content)
+        if waiting:  # Twilio would accept it and fail it later (63016), so it would look sent (2026-10-13)
+            raise OutboundError("whatsapp_template_not_approved",
+                                f"WhatsApp can't be used for this yet: Meta hasn't approved its template (it is {waiting}). "
+                                "Send by email or SMS for now.", 409)
     if not number:
         raise OutboundError("no_mobile", "No mobile number is on file (a landline can't receive SMS or WhatsApp). Add one under contact details.")
     if left_today(channel) < 1:

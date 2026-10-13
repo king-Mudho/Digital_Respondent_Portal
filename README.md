@@ -782,6 +782,25 @@ works):
 
 ## Notable fixes
 
+### No WhatsApp on a template Meta hasn't approved (13 Oct 2026)
+
+At 08:00 on 13 Oct the automatic reminder run sent 148 WhatsApp reminders to Main-400 cases while all six templates
+were still pending at Meta: 120 came back undelivered with Twilio error 63016 (template not approved) and 25 with
+63024. Nobody received an unwanted message, and the failed reminders went back to Follow-ups as designed, but the run
+used 148 of the day's 250 WhatsApp messages and would have repeated every morning. It went unnoticed because "set up"
+meant "a template SID is configured": nothing asked Meta's decision, and Twilio accepts a message on a pending
+template and fails it only later, in a delivery report.
+
+- **Reminders:** `twilio_client.whatsapp_reminder_template()` returns nothing while the template is pending or
+  rejected, so the reminder goes by SMS if that is set up, or waits on Follow-ups -- not recorded as a failure.
+- **Introductions:** `outreach.intro_channel()` uses the SMS with the tap-to-reply WhatsApp link until the
+  introduction template is approved; the introduction reminder uses the introduction template while its own waits.
+- **Everywhere else:** `outbound.send()` refuses a WhatsApp template Meta has not approved
+  (`whatsapp_template_not_approved`), so a single invitation sent from a case or KII record says so at once instead
+  of looking sent. A free-text reply inside a conversation the person started needs no template and still goes.
+- Meta's decision comes from `twilio_client.template_approvals()` (cached ten minutes); when Twilio cannot be asked
+  ("unknown") nothing is blocked. Tests never reach Twilio: `tests/conftest.py` answers "no template known".
+
 ### Batch KII invitations (13 Oct 2026)
 
 At the PI's request, the KII Register has **Send KII invitations**, the counterpart of the Main-400 batch

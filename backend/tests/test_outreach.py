@@ -251,6 +251,21 @@ def test_one_reminder_after_three_days_then_listed_for_rras(introduced, twilio, 
     assert main_case.workflow_status == "S03"
 
 
+def test_while_meta_has_the_introduction_pending_it_goes_by_sms(twilio, main_case, monkeypatch):
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXintro", "status": "pending"}])
+    _verified(main_case)
+    sent = outreach.send_introduction(main_case, user=None)
+    assert sent.channel == "SMS" and twilio[0]["To"] == f"+{MOBILE}" and "wa.me/15550001111" in twilio[0]["Body"]
+
+
+def test_the_introduction_reminder_uses_the_introduction_while_its_own_template_is_pending(introduced, twilio, monkeypatch):
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXintroReminder", "status": "pending"},
+                                                                 {"sid": "HXintro", "status": "approved"}])
+    Outreach.objects.filter(pk=introduced.pk).update(intro_sent_at=timezone.now() - timedelta(days=3))
+    assert outreach.run_followups()["reminded"] == 1
+    assert twilio[-1]["ContentSid"] == "HXintro"
+
+
 def test_a_late_yes_still_sends_the_link(introduced, main_case):
     Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NO_REPLY)
     _reply("YES")

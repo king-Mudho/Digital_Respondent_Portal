@@ -76,11 +76,14 @@ REMINDER_TEMPLATES = {
 
 
 def whatsapp_reminder_template(template_name: str) -> str:
-    """The approved Twilio template for this reminder, or "" when WhatsApp reminders are not set up for it."""
+    """The approved Twilio template for this reminder, or "" when WhatsApp reminders are not set up for it -- including
+    while Meta has the template pending or rejected (2026-10-13: on 13 Oct the 08:00 run sent 148 WhatsApp reminders on
+    pending templates and 120 came back undelivered with error 63016). The reminder then goes by SMS, or waits on
+    Follow-ups."""
     setting = REMINDER_TEMPLATES.get(template_name)
     content = (getattr(settings, setting, "") or "").strip() if setting else ""
     ready = credentials_set() and bool((settings.TWILIO_WHATSAPP_FROM or "").strip())
-    return content if ready else ""
+    return content if ready and content and not content_waiting(content) else ""
 
 
 def inbound_url() -> str:
@@ -249,7 +252,13 @@ def template_waiting(setting: str, *, approvals=None) -> str:
     else "". A batch refuses WhatsApp while its template waits (2026-10-13): Twilio accepts a message on an unapproved
     template and it fails later (error 63016), so the batch would have reported it sent. "unknown" -- Twilio could
     not be asked -- does not block."""
-    sid = (getattr(settings, setting, "") or "").strip()
+    return content_waiting((getattr(settings, setting, "") or "").strip(), approvals=approvals)
+
+
+def content_waiting(sid: str, *, approvals=None) -> str:
+    """template_waiting() for a Content SID rather than the setting that holds it."""
+    if not sid:
+        return ""
     for row in template_approvals() if approvals is None else approvals:
         if row["sid"] == sid and row["status"] not in ("approved", "unknown"):
             return row["status"]
