@@ -103,6 +103,7 @@ ACTION_LABELS: dict[str, str] = {
     "proit.field_verified": "PROIT fact verified with respondent",
     "proit.interview_completed": "PROIT interview marked complete",
     "proit.kobo_submission_created": "PROIT profile sent to KoboToolbox",
+    "proit.profile_locked": "Pre-interview profile locked",
     "proit.protocol_deviation_recorded": "Protocol deviation recorded",
     "qa.decision": "QA decision recorded",
     "qa.exception_assigned": "QA exception assigned",

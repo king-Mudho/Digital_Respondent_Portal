@@ -124,6 +124,13 @@ class PreProfileLockView(APIView):
         except PreProfileError as exc:
             return Response({"error": {"code": "lock_failed", "message": str(exc), "field_errors": {}}}, status=400)
         compute_burden_metrics(pre_profile)
+        # Locking decides what the respondent is shown and asked; until 2026-10-13 nothing recorded who did it when.
+        from apps.audit.utils import log_action
+
+        log_action("proit.profile_locked", pre_profile, {
+            "fields": pre_profile.fields.count(), "reviewer_id": request.user.id,
+            "case_or_record": getattr(pre_profile.sample_case, "sample_id", None) or getattr(pre_profile.kii_record, "kii_id", None),
+        }, user=request.user)
         pre_profile.refresh_from_db()
         return Response(PreProfileSerializer(pre_profile).data)
 

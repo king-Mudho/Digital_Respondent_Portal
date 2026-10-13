@@ -287,6 +287,9 @@ def test_field_coordinator_can_create_and_lock_a_pre_profile(admin_client, main_
     lock_resp = admin_client.post(f"/api/v1/proit/pre-profiles/{pre_profile_id}/lock/")
     assert lock_resp.status_code == 200, lock_resp.data
     assert lock_resp.data["prepopulation_locked_at"] is not None
+    from apps.audit.models import AuditEvent
+
+    assert AuditEvent.objects.get(action="proit.profile_locked").object_id == str(pre_profile_id)
 
 
 def test_field_catalog_endpoint_never_lists_a_core_construct_item(admin_client):
