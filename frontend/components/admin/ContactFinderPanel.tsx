@@ -9,6 +9,14 @@ import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 import { ApiError } from "@/lib/api/client";
 
+// Accepted public details kept on the record beside its phone and email; "other_emails" holds additional addresses
+// accepted as extra contacts (2026-10-13).
+const PUBLIC_CONTACT_LABEL: Record<string, string> = {
+  website: "Website",
+  office_location: "Office location",
+  other_emails: "Other emails",
+};
+
 interface Source {
   title: string;
   url: string;
@@ -173,7 +181,7 @@ function ContactFinderCard({ stateUrl, decideBase, queryKey: key, alsoRefresh, i
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
           {publicContacts.map(([name, item]) => (
             <div key={name} className="contents">
-              <dt className="text-text-muted">{name === "website" ? "Website" : "Office location"}</dt>
+              <dt className="text-text-muted">{PUBLIC_CONTACT_LABEL[name] ?? name}</dt>
               <dd className="min-w-0 break-words">
                 {name === "website" ? (
                   <a href={item.value} target="_blank" rel="noopener noreferrer" className="underline text-header">

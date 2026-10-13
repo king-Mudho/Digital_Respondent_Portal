@@ -263,3 +263,42 @@ def test_the_kii_batch_endpoint_is_open_to_the_kii_ra_and_reads_for_the_supervis
     with patch(BATCH_DELAY) as delay, django_capture_on_commit_callbacks(execute=True):
         started = _client("KII_RA", "kcf_ra_b").post(batch, {"limit": 1}, format="json")
     assert started.status_code == 202 and started.data["queued"] == 1 and delay.call_count == 1
+
+
+# --- A second number or address, kept as an additional contact (2026-10-13) --------------------------------------
+
+def test_a_second_phone_is_added_after_the_first_and_nothing_is_lost(named):
+    kf.accept_proposal(_finding(named, value="0242 700 000"), user=_user())
+    second = _finding(named, value="0242 700 111")
+    with pytest.raises(cf.ContactFinderError):
+        kf.accept_proposal(second, user=_user(username="kcf_ra2"))  # the normal accept still never overwrites
+    kf.accept_as_additional(second, user=_user(username="kcf_ra3"))
+    named.refresh_from_db()
+    second.refresh_from_db()
+    assert named.phone == "0242 700 000; 0242 700 111" and second.status == ContactProposalStatus.ACCEPTED
+    assert AuditEvent.objects.filter(action="contacts.kii_proposal_accepted", metadata__as_additional=True).count() == 1
+
+
+def test_a_second_email_is_kept_as_another_address_and_replies_from_it_are_recognised(named):
+    from apps.messaging.matching import find_by_email, known_email_addresses
+
+    kf.accept_proposal(_finding(named, kind="ORG_EMAIL", value="info@cbz.co.zw"), user=_user())
+    kf.accept_as_additional(_finding(named, kind="ORG_EMAIL", value="agri@cbz.co.zw"), user=_user(username="kcf_ra2"))
+    named.refresh_from_db()
+    assert named.email == "info@cbz.co.zw" and kf.other_emails(named) == ["agri@cbz.co.zw"]
+    assert "agri@cbz.co.zw" in known_email_addresses()
+    assert find_by_email("Agri@cbz.co.zw") == (None, named)
+
+
+def test_a_number_already_on_the_record_is_not_added_twice(named):
+    kf.accept_proposal(_finding(named, value="+263 242 700 000"), user=_user())
+    kf.accept_as_additional(_finding(named, value="0242 700 000"), user=_user(username="kcf_ra2"))
+    named.refresh_from_db()
+    assert named.phone == "+263 242 700 000"
+
+
+def test_a_website_or_a_decided_finding_cannot_be_added_as_a_contact(named):
+    with pytest.raises(cf.ContactFinderError):
+        kf.accept_as_additional(_finding(named, kind="WEBSITE", value="https://cbz.co.zw"), user=_user())
+    with pytest.raises(cf.ContactFinderError):
+        kf.accept_as_additional(_finding(named, value="0242 1", status=ContactProposalStatus.REJECTED), user=_user(username="kcf_ra2"))

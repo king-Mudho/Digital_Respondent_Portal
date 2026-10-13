@@ -78,7 +78,16 @@ def find_by_email(address: str):
         return None, None
     cases = {p.sample_case_id: p.sample_case for p in Respondent.objects.filter(email__iexact=address).select_related("sample_case")}
     records = list(KIIRecord.objects.filter(email__iexact=address))
+    # ...and a KII record's additional addresses (kii_finder.accept_as_additional, 2026-10-13).
+    records += [r for r in KIIRecord.objects.filter(metadata__public_contacts__other_emails__value__icontains=address)
+                if address.lower() in {e.lower() for e in _other_emails(r)} and r not in records]
     return _pick(list(cases.values()), records)
+
+
+def _other_emails(record) -> list[str]:
+    from apps.contacts.kii_finder import other_emails
+
+    return other_emails(record)
 
 
 def known_email_addresses() -> set[str]:
@@ -88,6 +97,8 @@ def known_email_addresses() -> set[str]:
 
     found = {e.strip().lower() for e in Respondent.objects.exclude(email="").values_list("email", flat=True)}
     found |= {e.strip().lower() for e in KIIRecord.objects.exclude(email="").values_list("email", flat=True)}
+    for record in KIIRecord.objects.filter(metadata__public_contacts__has_key="other_emails"):
+        found |= {e.lower() for e in _other_emails(record)}
     return {e for e in found if "@" in e}
 
 
@@ -113,7 +124,7 @@ def number_matching(hashed: str, case=None, record=None) -> str:
 def address_matching(hashed: str, case=None, record=None) -> str:
     candidates = [p.email for p in case.respondents.all()] if case is not None else []
     if record is not None:
-        candidates.append(record.email)
+        candidates += [record.email, *_other_emails(record)]
     for address in candidates:
         if address and email_hash(address) == hashed:
             return address

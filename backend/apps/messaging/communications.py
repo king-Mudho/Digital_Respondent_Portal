@@ -420,7 +420,9 @@ def contact_card(subject, kind: str) -> dict:
 # --- Sending -------------------------------------------------------------------------------------------------------
 
 def _emails(subject, kind: str) -> list[str]:
-    found = [p.email for p in subject.respondents.all()] if kind == "main" else [subject.email]
+    from apps.contacts.kii_finder import other_emails
+
+    found = [p.email for p in subject.respondents.all()] if kind == "main" else [subject.email, *other_emails(subject)]
     return list(dict.fromkeys(e.strip() for e in found if e and "@" in e))
 
 

@@ -282,6 +282,60 @@ def accept_proposal(proposal: ContactProposal, *, user) -> ContactProposal:
     return proposal
 
 
+@transaction.atomic
+def accept_as_additional(proposal: ContactProposal, *, user) -> ContactProposal:
+    """Accepts a second phone number or email for a record that already holds a different one (PI request,
+    2026-10-13), without losing either: accept_proposal() refuses rather than overwrite, which left an organisation's
+    other line or general address pending for ever. A phone is added after the existing ones ("0242 700 000;
+    0242 700 001" -- whatsapp_digits() and matching.numbers_in() already read several numbers from one field); an email
+    goes into the record's public contacts as "other emails" (the email field holds one valid address), where the
+    contact panel shows it and apps/messaging/matching recognises replies from it. Nothing already there changes."""
+    from apps.kii.models import KIIRecord
+
+    proposal = ContactProposal.objects.select_for_update().get(pk=proposal.pk)
+    if proposal.status != ContactProposalStatus.PROPOSED:
+        raise cf.ContactFinderError("already_decided", "This finding has already been accepted or rejected.", 409)
+    if proposal.kind not in (ContactKind.ORG_PHONE, ContactKind.ORG_EMAIL, ContactKind.PERSON):
+        raise cf.ContactFinderError("not_a_contact", "Only a phone number or email can be added as an additional contact.")
+    record = KIIRecord.objects.select_for_update().get(pk=proposal.kii_record_id)
+    phone = proposal.value if proposal.kind == ContactKind.ORG_PHONE else proposal.person_phone if proposal.kind == ContactKind.PERSON else ""
+    email = proposal.value if proposal.kind == ContactKind.ORG_EMAIL else proposal.person_email if proposal.kind == ContactKind.PERSON else ""
+    added = []
+    if phone and not cf.phone_shown(phone, record.phone or ""):
+        combined = f"{record.phone}; {phone}" if record.phone else phone
+        if len(combined) > KIIRecord._meta.get_field("phone").max_length:
+            raise cf.ContactFinderError("too_many_numbers", "This record's phone field is full. Edit it under Record details.", 409)
+        record.phone = combined
+        added.append("phone")
+    known = {e.strip().lower() for e in [record.email, *other_emails(record)] if e}
+    if email and email.strip().lower() not in known:
+        meta = dict(record.metadata or {})
+        public = dict(meta.get("public_contacts") or {})
+        current = public.get("other_emails", {}).get("value", "")
+        public["other_emails"] = {
+            "value": f"{current}; {email.strip()}" if current else email.strip(),
+            "source": proposal.sources[0]["url"] if proposal.sources else "", "accepted_by": getattr(user, "id", None),
+            "accepted_at": timezone.now().isoformat(),
+        }
+        meta["public_contacts"] = public
+        record.metadata = meta
+        added.append("other_emails")
+    record.save()
+    proposal.status, proposal.reviewed_by, proposal.reviewed_at = ContactProposalStatus.ACCEPTED, user, timezone.now()
+    proposal.save(update_fields=["status", "reviewed_by", "reviewed_at"])
+    log_action("contacts.kii_proposal_accepted", record, {  # which fields, never the values
+        "proposal": proposal.pk, "kind": proposal.kind, "filled": added, "as_additional": True,
+        "user_id": getattr(user, "id", None),
+    }, user=user)
+    return proposal
+
+
+def other_emails(record) -> list[str]:
+    """Additional email addresses accepted for a KII record (accept_as_additional)."""
+    value = (((record.metadata or {}).get("public_contacts") or {}).get("other_emails") or {}).get("value", "")
+    return [e.strip() for e in value.split(";") if "@" in e]
+
+
 def reject_proposal(proposal: ContactProposal, *, user, reason: str = "") -> ContactProposal:
     if proposal.status != ContactProposalStatus.PROPOSED:
         raise cf.ContactFinderError("already_decided", "This finding has already been accepted or rejected.", 409)
