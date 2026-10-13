@@ -4,7 +4,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import CanManageContact, CanUseCommunications
+from api.permissions import CanManageContact, CanManageKII, CanUseCommunications
 from api.throttling import TwilioWebhookThrottle
 from apps.sampling.models import SampleCase
 
@@ -167,6 +167,59 @@ class ConversationReplyView(APIView):
         return Response(_conversation_row(message, request.user))
 
 
+def _outreach_rows(outreaches) -> list[dict]:
+    return [{
+        "id": o.id, "status": o.status, "status_label": o.get_status_display(), "channel": o.channel,
+        "number": o.number_masked, "intro_sent_at": o.intro_sent_at, "reminded_at": o.reminded_at,
+        "replied_at": o.replied_at, "sms_fallback_sent": o.sms_fallback_sent,
+        "messages": [{"received_at": m.received_at, "body": m.body, "kind": m.kind, "auto_reply": m.auto_reply}
+                     for m in o.messages.order_by("received_at")],
+    } for o in outreaches]
+
+
+class KIIOutreachView(APIView):
+    """GET /api/v1/kii-outreach/?kii_id= -- a KII record's introductions and the replies received.
+    POST /api/v1/kii-outreach/ {kii_id} -- send the KII "ask first" introduction (2026-10-14). The same roles that may
+    send a KII link: PI, Field Coordinator and KII RA (CanManageKII)."""
+
+    permission_classes = [CanManageKII]
+
+    def get(self, request):
+        from apps.kii.models import KIIRecord
+
+        from .models import Outreach
+        from .outreach import intro_channel
+
+        record = get_object_or_404(KIIRecord, kii_id=request.query_params.get("kii_id"))
+        outreaches = Outreach.objects.filter(kii_record=record).prefetch_related("messages")
+        return Response({"intro_channel": intro_channel(kii=True), "results": _outreach_rows(outreaches)})
+
+    def post(self, request):
+        from apps.kii.models import KIIRecord
+
+        from .outreach import OutreachError, send_kii_introduction
+
+        record = get_object_or_404(KIIRecord, kii_id=request.data.get("kii_id"))
+        try:
+            outreach = send_kii_introduction(record, user=request.user)
+        except OutreachError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+        return Response({"id": outreach.id, "status": outreach.status, "channel": outreach.channel, "number": outreach.number_masked}, status=201)
+
+
+class KIIOutreachUnansweredView(APIView):
+    """GET /api/v1/kii-outreach/unanswered/ -- KII informants asked first who never answered (after the reminder) or
+    whose introduction never arrived: the KII Register's list of people to phone."""
+
+    permission_classes = [CanManageKII]
+
+    def get(self, request):
+        from .outreach import kii_unanswered
+
+        rows = kii_unanswered()
+        return Response({"count": len(rows), "results": rows})
+
+
 class CaseOutreachView(APIView):
     """GET /api/v1/outreach/?sample_id= -- a case's introductions and the replies received.
     POST /api/v1/outreach/ {sample_id} -- send the "ask first" introduction (2026-10-07). A Contact RA only for their
@@ -182,16 +235,7 @@ class CaseOutreachView(APIView):
         if getattr(request.user.role, "name", None) == "CONTACT_RA" and case.assigned_ra_id != request.user.id:
             return Response({"error": {"code": "forbidden", "message": "This case is not assigned to you.", "field_errors": {}}}, status=403)
         outreaches = Outreach.objects.filter(sample_case=case).prefetch_related("messages")
-        return Response({
-            "intro_channel": intro_channel(),
-            "results": [{
-                "id": o.id, "status": o.status, "status_label": o.get_status_display(), "channel": o.channel,
-                "number": o.number_masked, "intro_sent_at": o.intro_sent_at, "reminded_at": o.reminded_at,
-                "replied_at": o.replied_at, "sms_fallback_sent": o.sms_fallback_sent,
-                "messages": [{"received_at": m.received_at, "body": m.body, "kind": m.kind, "auto_reply": m.auto_reply}
-                             for m in o.messages.order_by("received_at")],
-            } for o in outreaches],
-        })
+        return Response({"intro_channel": intro_channel(), "results": _outreach_rows(outreaches)})
 
     def post(self, request):
         from .outreach import OutreachError, send_introduction

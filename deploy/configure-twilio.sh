@@ -32,7 +32,8 @@ ENV_FILE="$BACKEND/.env"
 STAGING_ENV="$BACKEND/.env.staging"
 TWILIO_KEYS=(TWILIO_ACCOUNT_SID TWILIO_AUTH_TOKEN TWILIO_SMS_FROM TWILIO_WHATSAPP_FROM TWILIO_WA_CONTENT_INVITATION
              TWILIO_WA_CONTENT_KII_INVITATION TWILIO_WA_CONTENT_REMINDER_DAY2 TWILIO_WA_CONTENT_REMINDER_DAY7
-             TWILIO_WA_CONTENT_INTRO TWILIO_WA_CONTENT_INTRO_REMINDER)
+             TWILIO_WA_CONTENT_INTRO TWILIO_WA_CONTENT_INTRO_REMINDER TWILIO_WA_CONTENT_KII_INTRO
+             TWILIO_WA_CONTENT_KII_INTRO_REMINDER)
 
 die() { echo "ERROR: $*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
@@ -57,6 +58,8 @@ ask TWILIO_WA_CONTENT_REMINDER_DAY2 "WhatsApp template id: Day 2 reminder (HX...
 ask TWILIO_WA_CONTENT_REMINDER_DAY7 "WhatsApp template id: Day 7 reminder (HX...)"
 ask TWILIO_WA_CONTENT_INTRO "WhatsApp template id: introduction, ask first (HX...)"
 ask TWILIO_WA_CONTENT_INTRO_REMINDER "WhatsApp template id: introduction reminder (HX...)"
+ask TWILIO_WA_CONTENT_KII_INTRO "WhatsApp template id: KII introduction, ask first (HX...)"
+ask TWILIO_WA_CONTENT_KII_INTRO_REMINDER "WhatsApp template id: KII introduction reminder (HX...)"
 read -rp "Send a test SMS to (your own mobile, e.g. 0771234567): " TEST_TO
 
 [[ "$TWILIO_ACCOUNT_SID" == AC* ]] || die "the Account SID starts with AC"

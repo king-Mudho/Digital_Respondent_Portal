@@ -13,6 +13,8 @@ from .views import (
     ConversationReplyView,
     FollowUpListView,
     FollowUpMarkSentView,
+    KIIOutreachUnansweredView,
+    KIIOutreachView,
     TwilioInboundView,
     TwilioStatusView,
 )
@@ -28,6 +30,8 @@ urlpatterns = [
     path("conversations/<int:pk>/handled/", ConversationHandledView.as_view(), name="conversation-handled"),
     path("conversations/<int:pk>/reply/", ConversationReplyView.as_view(), name="conversation-reply"),
     path("outreach/", CaseOutreachView.as_view(), name="outreach"),
+    path("kii-outreach/", KIIOutreachView.as_view(), name="kii-outreach"),
+    path("kii-outreach/unanswered/", KIIOutreachUnansweredView.as_view(), name="kii-outreach-unanswered"),
     path("communications/summary/", CommunicationSummaryView.as_view(), name="communications-summary"),
     path("communications/threads/", CommunicationThreadListView.as_view(), name="communications-threads"),
     path("communications/threads/<str:kind>/<int:pk>/", CommunicationThreadView.as_view(), name="communications-thread"),

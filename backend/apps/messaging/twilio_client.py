@@ -206,7 +206,7 @@ def valid_signature(url: str, params: dict, signature: str) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
-# The six WhatsApp templates, in the order configure-twilio.sh asks for them, with the name each has in Twilio.
+# The WhatsApp templates, in the order configure-twilio.sh asks for them, with the name each has in Twilio.
 TEMPLATE_SETTINGS = [
     ("TWILIO_WA_CONTENT_INVITATION", "Main-400 invitation"),
     ("TWILIO_WA_CONTENT_KII_INVITATION", "KII invitation"),
@@ -214,6 +214,8 @@ TEMPLATE_SETTINGS = [
     ("TWILIO_WA_CONTENT_REMINDER_DAY7", "Day 7 reminder"),
     ("TWILIO_WA_CONTENT_INTRO", "Introduction (ask first)"),
     ("TWILIO_WA_CONTENT_INTRO_REMINDER", "Introduction reminder"),
+    ("TWILIO_WA_CONTENT_KII_INTRO", "KII introduction (ask first)"),
+    ("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", "KII introduction reminder"),
 ]
 APPROVALS_CACHE_SECONDS = 600
 

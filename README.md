@@ -782,6 +782,28 @@ works):
 
 ## Notable fixes
 
+### Ask first for KII informants (14 Oct 2026)
+
+At the PI's request, KII informants can be asked first, as Main-400 organisations are: a short WhatsApp introduction
+in the PI's own voice about a confidential key informant interview of about 30 minutes, with Yes / No buttons. The
+reply decides the rest, with nobody touching the platform:
+
+- **YES:** `issue_kii_invitation()` issues the link (PROSPECT -> INVITED) and its wording goes back in the same chat,
+  in one transaction -- if it cannot be sent, no link is kept and a person follows up.
+- **NO / STOP:** the record becomes DECLINED (as a decline on their own link does), any open link is revoked, one
+  acknowledgement.
+- **Anything else:** one automatic answer a day, and the message waits on Communications.
+- **No reply:** one reminder after `OUTREACH_REMINDER_DAYS`, then the record is listed on the KII Register under
+  "Asked, no reply: phone them" (`GET /api/v1/kii-outreach/unanswered/`). An undelivered WhatsApp introduction is
+  re-sent once by SMS with the tap-to-reply link.
+
+How: `Outreach` now belongs to exactly one Main case **or** one KII record (a database check constraint), and the
+existing reply handling branches on which (`apps/messaging/outreach.py`). The KII introduction has its own templates
+(`TWILIO_WA_CONTENT_KII_INTRO`, `_REMINDER`, created and submitted to Meta on 14 Oct; wording also in Message templates
+for the SMS fallback). One record at a time from the record page (`/api/v1/kii-outreach/`, PI / FC / KII RA), or as
+the "Ask first" mode of **Send KII invitations** (PI / FC). A reply from a number asked twice -- a Main case and a KII
+record -- goes to the latest introduction.
+
 ### Search the registers by phone number (13 Oct 2026)
 
 At the PI's request, the search boxes on the Main-400 Register, Reserve Activation, Organisations and the KII Register

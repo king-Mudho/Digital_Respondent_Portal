@@ -167,9 +167,14 @@ class Outreach(models.Model):
     chat; a NO records the refusal.
 
     The number is kept as a keyed hash (to recognise replies) and a masked copy (to show): the number itself stays
-    only on the Respondent record it came from."""
+    only on the Respondent record it came from.
 
-    sample_case = models.ForeignKey("sampling.SampleCase", on_delete=models.CASCADE, related_name="outreaches")
+    Since 2026-10-14 an introduction can also go to a KII record (PI request): exactly one of sample_case and
+    kii_record is set, which the database enforces, and a YES issues the KII self-service link instead."""
+
+    sample_case = models.ForeignKey("sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="outreaches")
+    kii_record = models.ForeignKey("kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE, related_name="outreaches")
+    kii_invitation_token = models.ForeignKey("kii.KIIInvitationToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     respondent = models.ForeignKey("contacts.Respondent", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     invitation_token = models.ForeignKey("invitations.InvitationToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     status = models.CharField(max_length=16, choices=OutreachStatus.choices, default=OutreachStatus.INTRO_SENT)
@@ -185,9 +190,20 @@ class Outreach(models.Model):
 
     class Meta:
         ordering = ["-intro_sent_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sample_case__isnull=False, kii_record__isnull=True)
+                | models.Q(sample_case__isnull=True, kii_record__isnull=False),
+                name="outreach_one_target",
+            ),
+        ]
+
+    @property
+    def target(self):
+        return self.sample_case or self.kii_record
 
     def __str__(self):
-        return f"Outreach({self.sample_case_id} {self.status})"
+        return f"Outreach({self.sample_case_id or self.kii_record_id} {self.status})"
 
 
 class ReplyKind(models.TextChoices):

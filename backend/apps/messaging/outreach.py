@@ -16,6 +16,11 @@ WhatsApp is not set up or does not deliver) carries a tap-to-reply link to the s
 
 A YES or NO is read only from the quick-reply button or a whole message that is one of the configured words
 (OUTREACH_YES_WORDS / OUTREACH_NO_WORDS), so "no problem" is never taken as a refusal.
+
+KII informants are asked first the same way (PI request, 2026-10-14), with their own introduction addressed to the named
+informant and organisation: a YES issues the KII self-service link (issue_kii_invitation(): PROSPECT -> INVITED) and
+sends it back in the chat, a NO records the record as DECLINED and revokes any open link. Reminders, the SMS fallback
+and the "phone them" list work as for Main-400 cases. An Outreach belongs to exactly one case or KII record.
 """
 
 import logging
@@ -64,12 +69,14 @@ def wording(name: str, org: str = "") -> str:
     return body.replace("{org}", org).replace("{wa_link}", tw.study_whatsapp_link())
 
 
-def intro_channel() -> str | None:
+def intro_channel(*, kii: bool = False) -> str | None:
     """How an introduction goes out today: the approved WhatsApp template, else an SMS carrying the tap-to-reply
-    WhatsApp link. Without the study's WhatsApp number no reply could ever arrive, so nothing is offered."""
+    WhatsApp link. Without the study's WhatsApp number no reply could ever arrive, so nothing is offered. KII
+    informants have their own template."""
     if not (tw.credentials_set() and (settings.TWILIO_WHATSAPP_FROM or "").strip()):
         return None
-    if (settings.TWILIO_WA_CONTENT_INTRO or "").strip() and not tw.template_waiting("TWILIO_WA_CONTENT_INTRO"):
+    setting = "TWILIO_WA_CONTENT_KII_INTRO" if kii else "TWILIO_WA_CONTENT_INTRO"
+    if (getattr(settings, setting, "") or "").strip() and not tw.template_waiting(setting):
         return MessageChannel.WHATSAPP  # only once Meta has approved it; until then the SMS with the reply link
     return MessageChannel.SMS if tw.sms_configured() else None
 
@@ -104,6 +111,72 @@ def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
     name = "outreach_intro_reminder_sms" if reminder else "outreach_intro_sms"
     return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, sms_body=wording(name, org),
                          user=user, sample_case=case)
+
+
+def kii_introduction_candidates(groups=None, *, named_only: bool = False):
+    """KII records never invited, in the chosen groups, with a number on file, no open link and no introduction yet."""
+    from apps.kii.batch import GROUPS, candidates
+
+    introduced = Outreach.objects.filter(kii_record=OuterRef("pk"), status__in=INTRODUCED)
+    return candidates(("SMS", "WHATSAPP"), groups or GROUPS, named_only=named_only).exclude(Exists(introduced))
+
+
+def _kii_mobile(record) -> str:
+    from apps.kii.messages import kii_recipients
+
+    return kii_recipients(record)["whatsapp_to"]
+
+
+def _kii_addressee(record) -> str:
+    """Who the introduction greets: the named informant with their organisation, or the organisation alone while no
+    informant is named -- as the KII invitation does."""
+    from apps.contacts.kii_finder import is_placeholder, organisation_name
+
+    org = organisation_name(record)
+    if is_placeholder(record):
+        return org or "Sir/Madam"
+    return f"{record.participant_name} ({org})" if org else record.participant_name
+
+
+def _send_kii_intro(record, number: str, channel: str, *, reminder: bool, user):
+    who = _kii_addressee(record)
+    if channel == MessageChannel.WHATSAPP:
+        reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_KII_INTRO_REMINDER")
+        content = (settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER if reminder_ready else "") or settings.TWILIO_WA_CONTENT_KII_INTRO
+        name = "kii_outreach_intro_reminder_whatsapp" if reminder_ready else "kii_outreach_intro_whatsapp"
+        return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
+                             wa_variables={1: who}, record_text=wording(name).replace("{{1}}", who), user=user,
+                             kii_record=record)
+    name = "kii_outreach_intro_reminder_sms" if reminder else "kii_outreach_intro_sms"
+    return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, sms_body=wording(name, who),
+                         user=user, kii_record=record)
+
+
+def send_kii_introduction(record, *, user) -> Outreach:
+    """Introduce the study to one KII informant and ask whether they will take part (2026-10-14)."""
+    channel = intro_channel(kii=True)
+    if channel is None:
+        raise OutreachError("not_configured",
+                            "Introductions aren't set up yet: they need the study's WhatsApp number on Twilio (deploy/configure-twilio.sh).", 503)
+    if not kii_introduction_candidates().filter(pk=record.pk).exists():
+        raise OutreachError("not_ready", "This record can't be introduced: it must not be invited yet (Prospect), with a number "
+                                         "on file, no open link and no earlier introduction.", 409)
+    number = _kii_mobile(record)
+    if not number:
+        raise OutreachError("no_mobile", "No mobile number is on file (a landline can't receive WhatsApp or SMS).")
+    try:
+        message = _send_kii_intro(record, number, channel, reminder=False, user=user)
+    except outbound.OutboundError as exc:
+        raise OutreachError(exc.code, str(exc), exc.status) from exc
+    outreach = Outreach.objects.create(
+        kii_record=record, channel=channel, number_hash=number_hash(number), number_masked=message.to_masked,
+        intro_sent_at=timezone.now(), created_by=user,
+    )
+    log_action("outreach.introduced", record, {
+        "kii_id": record.kii_id, "channel": channel, "recipient": message.to_masked, "outreach": outreach.pk,
+        "user_id": getattr(user, "id", None),
+    }, user=user)
+    return outreach
 
 
 def send_introduction(case, *, user) -> Outreach:
@@ -155,8 +228,9 @@ def record_inbound(params: dict) -> tuple[InboundMessage | None, str]:
         return None, ""
     digits = "".join(ch for ch in params.get("From", "") if ch.isdigit())
     hashed = number_hash(digits)
-    outreach = Outreach.objects.filter(number_hash=hashed).select_related("sample_case").order_by("-intro_sent_at").first()
-    case, record = (outreach.sample_case, None) if outreach else (None, None)
+    outreach = (Outreach.objects.filter(number_hash=hashed).select_related("sample_case", "kii_record")
+                .order_by("-intro_sent_at").first())
+    case, record = (outreach.sample_case, outreach.kii_record) if outreach else (None, None)
     if outreach is None:
         # Not an answer to an introduction, but it may still be someone on a case or KII record (2026-10-12): their
         # message then belongs in that conversation rather than among unknown numbers.
@@ -202,7 +276,7 @@ def _reply(message: InboundMessage, digits: str, text: str, *, purpose=MessagePu
 
 def handle_inbound(message_id: int, digits: str) -> None:
     """Acts on one stored message (from a Celery task, so Twilio's webhook is answered at once)."""
-    message = InboundMessage.objects.select_related("outreach__sample_case__organisation").get(pk=message_id)
+    message = InboundMessage.objects.select_related("outreach__sample_case__organisation", "outreach__kii_record").get(pk=message_id)
     outreach = message.outreach
     if outreach is None:
         message.needs_person = True
@@ -240,6 +314,8 @@ def _accept(outreach: Outreach, message: InboundMessage, digits: str) -> None:
     from apps.invitations.models import Channel
     from apps.invitations.services import TokenNotInvitable, issue_invitation
 
+    if outreach.kii_record_id:
+        return _accept_kii(outreach, message, digits)
     case = outreach.sample_case
     outreach.replied_at = timezone.now()
     if not _ready_to_invite(case):
@@ -279,6 +355,8 @@ def _decline(outreach: Outreach, message: InboundMessage, digits: str) -> None:
     from apps.sampling.models import WorkflowStatus
     from apps.sampling.services import WORKFLOW_TRANSITIONS, transition_workflow_status
 
+    if outreach.kii_record_id:
+        return _decline_kii(outreach, message, digits)
     case = outreach.sample_case
     for token in InvitationToken.objects.filter(sample_case=case).exclude(status__in=[TokenStatus.EXPIRED, TokenStatus.REVOKED,
                                                                                     TokenStatus.SUBMITTED, TokenStatus.QA_PASSED]):
@@ -295,6 +373,74 @@ def _decline(outreach: Outreach, message: InboundMessage, digits: str) -> None:
     })
 
 
+def _kii_ready(record) -> bool:
+    """A KII record a YES may still send a link to: not invited by hand meanwhile, declined or completed."""
+    from apps.kii.batch import OPEN_STATUSES
+    from apps.kii.models import KIIInvitationToken, KIIStatus
+
+    open_link = KIIInvitationToken.objects.filter(kii_record=record, status__in=OPEN_STATUSES, expires_at__gt=timezone.now())
+    return record.status in (KIIStatus.PROSPECT, KIIStatus.INVITED) and not open_link.exists()
+
+
+def _accept_kii(outreach: Outreach, message: InboundMessage, digits: str) -> None:
+    """YES from a KII informant: issue their self-service link (PROSPECT -> INVITED) and send it back in the chat, as
+    one step -- if the message cannot be sent, no link is kept."""
+    from apps.invitations.messages import portal_base
+    from apps.invitations.models import Channel
+    from apps.kii.messages import build_kii_messages
+    from apps.kii.services import issue_kii_invitation
+
+    record = outreach.kii_record
+    outreach.replied_at = timezone.now()
+    if not _kii_ready(record):
+        outreach.save(update_fields=["replied_at"])
+        message.needs_person = True
+        message.save(update_fields=["needs_person"])
+        _reply(message, digits, wording("outreach_link_unavailable"))
+        log_action("outreach.accept_not_sent", record, {"kii_id": record.kii_id, "outreach": outreach.pk, "status": record.status})
+        return
+    try:
+        with transaction.atomic():
+            raw_token, raw_code, token = issue_kii_invitation(record, channel=Channel.WHATSAPP, issued_by=None)
+            link = f"{portal_base(None)}/ki/{raw_token}"
+            text = build_kii_messages(kii_record=record, link=link, manual_code=raw_code, expires_at=token.expires_at)["whatsapp"]
+            outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.INVITATION, wa_text=text,
+                          kii_record=record, kii_invitation_token=token, redact_link=link, redact_code=raw_code)
+            outreach.status, outreach.kii_invitation_token = OutreachStatus.ACCEPTED, token
+            outreach.save(update_fields=["status", "kii_invitation_token", "replied_at"])
+    except outbound.OutboundError as exc:
+        # Nothing was kept: no link issued, the record still PROSPECT. A person follows up.
+        outreach.save(update_fields=["replied_at"])
+        message.needs_person = True
+        message.save(update_fields=["needs_person"])
+        log_action("outreach.accept_not_sent", record, {"kii_id": record.kii_id, "outreach": outreach.pk, "error": str(exc)[:300]})
+        return
+    message.auto_reply = "(the invitation with the personal link and code)"
+    message.save(update_fields=["auto_reply"])
+    log_action("outreach.accepted", record, {"kii_id": record.kii_id, "outreach": outreach.pk, "kii_invitation": token.pk})
+
+
+def _decline_kii(outreach: Outreach, message: InboundMessage, digits: str) -> None:
+    """NO or STOP from a KII informant: the record becomes DECLINED (as a decline on their own link does) and any open
+    link is revoked, with one acknowledgement."""
+    from apps.kii.batch import OPEN_STATUSES
+    from apps.kii.models import KIIInvitationToken
+    from apps.kii.services import SELF_SERVICE_DECLINED, advance_on_self_service, revoke_kii_invitation
+
+    record = outreach.kii_record
+    for token in KIIInvitationToken.objects.filter(kii_record=record, status__in=OPEN_STATUSES):
+        revoke_kii_invitation(token, "Said no to the study's introduction")
+    before = record.status
+    advance_on_self_service(record, SELF_SERVICE_DECLINED)
+    outreach.status, outreach.replied_at = OutreachStatus.DECLINED, timezone.now()
+    outreach.save(update_fields=["status", "replied_at"])
+    _reply(message, digits, wording("outreach_declined_reply"))
+    log_action("outreach.declined", record, {
+        "kii_id": record.kii_id, "outreach": outreach.pk, "reply": message.body[:40],
+        "moved_to": record.status if record.status != before else "",
+    })
+
+
 def reply_from_inbox(message: InboundMessage, text: str, *, user) -> None:
     """A person answers in Conversations. The study's Twilio WhatsApp number is on no phone, so this is the only way
     to answer in the chat, and only inside WhatsApp's 24-hour window."""
@@ -306,7 +452,8 @@ def reply_from_inbox(message: InboundMessage, text: str, *, user) -> None:
         raise OutreachError("window_closed", "WhatsApp only allows a reply within 24 hours of their last message. Phone them instead.", 409)
     digits = message.from_number
     if not digits and message.outreach_id:
-        number, _ = _mobile(message.outreach.sample_case)
+        target = message.outreach
+        number = _kii_mobile(target.kii_record) if target.kii_record_id else _mobile(target.sample_case)[0]
         digits = number if number and number_hash(number) == message.number_hash else ""
     if not digits and (message.sample_case_id or message.kii_record_id):
         from .matching import number_matching
@@ -335,23 +482,28 @@ def run_followups(now=None) -> dict:
     reminded = given_up = 0
     due = Outreach.objects.filter(status=OutreachStatus.INTRO_SENT,
                                   intro_sent_at__lte=now - timedelta(days=settings.OUTREACH_REMINDER_DAYS))
-    for outreach in due.select_related("sample_case__organisation"):
-        case = outreach.sample_case
-        channel = intro_channel()
-        number, _ = _mobile(case)
-        if not _ready_to_invite(case) or channel is None or not number:
+    for outreach in due.select_related("sample_case__organisation", "kii_record"):
+        kii = outreach.kii_record_id is not None
+        target = outreach.target
+        channel = intro_channel(kii=kii)
+        number = _kii_mobile(target) if kii else _mobile(target)[0]
+        if not (_kii_ready(target) if kii else _ready_to_invite(target)) or channel is None or not number:
             continue
         if outreach.channel == MessageChannel.SMS or outreach.sms_fallback_sent:
             channel = MessageChannel.SMS if tw.sms_configured() else channel
         try:
-            _send_intro(case, number, channel, reminder=True, user=None)
+            if kii:
+                _send_kii_intro(target, number, channel, reminder=True, user=None)
+            else:
+                _send_intro(target, number, channel, reminder=True, user=None)
         except outbound.OutboundError as exc:
             if exc.code == "daily_limit_reached":
                 break
             continue
         outreach.status, outreach.reminded_at = OutreachStatus.REMINDED, now
         outreach.save(update_fields=["status", "reminded_at"])
-        log_action("outreach.reminded", case, {"sample_id": case.sample_id, "outreach": outreach.pk, "channel": channel})
+        ident = {"kii_id": target.kii_id} if kii else {"sample_id": target.sample_id}
+        log_action("outreach.reminded", target, {**ident, "outreach": outreach.pk, "channel": channel})
         reminded += 1
     stale = Outreach.objects.filter(status=OutreachStatus.REMINDED,
                                     reminded_at__lte=now - timedelta(days=settings.OUTREACH_GIVE_UP_DAYS))
@@ -365,20 +517,28 @@ def run_followups(now=None) -> dict:
 def intro_not_delivered(message) -> None:
     """Twilio could not deliver an introduction (from outbound.record_status). A WhatsApp one is sent once by SMS, with
     the tap-to-reply link; otherwise the case is listed for an RA to phone."""
-    outreach = Outreach.objects.filter(sample_case=message.sample_case, status__in=OPEN_OUTREACH).order_by("-intro_sent_at").first()
+    if message.kii_record_id:
+        mine = Outreach.objects.filter(kii_record=message.kii_record)
+    elif message.sample_case_id:
+        mine = Outreach.objects.filter(sample_case=message.sample_case)
+    else:
+        return
+    outreach = mine.filter(status__in=OPEN_OUTREACH).order_by("-intro_sent_at").first()
     if outreach is None:
         return
-    case = outreach.sample_case
-    number, _ = _mobile(case)
+    kii, target = outreach.kii_record_id is not None, outreach.target
+    number = _kii_mobile(target) if kii else _mobile(target)[0]
     if message.channel == MessageChannel.WHATSAPP and not outreach.sms_fallback_sent and tw.sms_configured() and number:
         try:
-            _send_intro(case, number, MessageChannel.SMS, reminder=outreach.status == OutreachStatus.REMINDED, user=None)
+            send = _send_kii_intro if kii else _send_intro
+            send(target, number, MessageChannel.SMS, reminder=outreach.status == OutreachStatus.REMINDED, user=None)
         except outbound.OutboundError:
             pass
         else:
             outreach.sms_fallback_sent = True
             outreach.save(update_fields=["sms_fallback_sent"])
-            log_action("outreach.sms_fallback", case, {"sample_id": case.sample_id, "outreach": outreach.pk})
+            ident = {"kii_id": target.kii_id} if kii else {"sample_id": target.sample_id}
+            log_action("outreach.sms_fallback", target, {**ident, "outreach": outreach.pk})
             return
     outreach.status = OutreachStatus.NOT_DELIVERED
     outreach.save(update_fields=["status"])
@@ -396,3 +556,17 @@ def unanswered(*, assigned_to=None) -> list[dict]:
         "status": o.status, "status_label": o.get_status_display(), "asked_on": timezone.localtime(o.intro_sent_at).date(),
         "number": o.number_masked,
     } for o in items.order_by("intro_sent_at")]
+
+
+def kii_unanswered() -> list[dict]:
+    """KII informants asked first who never answered after the reminder, or whose introduction never arrived, and who
+    are still waiting (not invited by hand since): the KII Register's list of people to phone."""
+    from apps.contacts.kii_finder import organisation_name
+
+    items = (Outreach.objects.filter(status__in=[OutreachStatus.NO_REPLY, OutreachStatus.NOT_DELIVERED],
+                                     kii_record__status="PROSPECT").select_related("kii_record").order_by("intro_sent_at"))
+    return [{
+        "kii_id": o.kii_record.kii_id, "kii_record_id": o.kii_record_id, "organisation": organisation_name(o.kii_record),
+        "status": o.status, "status_label": o.get_status_display(), "asked_on": timezone.localtime(o.intro_sent_at).date(),
+        "number": o.number_masked,
+    } for o in items]

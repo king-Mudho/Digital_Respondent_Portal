@@ -10,6 +10,9 @@ One link per record, sent on every chosen channel it can receive, issued and sen
 channel gets through, the link and the move to INVITED are undone together, so a record never shows "Invited" for a
 message that never left. Batches are InvitationBatch rows with mode "KII", sharing the Main-400 caps -- one batch at a
 time and one daily email limit for the study mailbox (AGENTS.md rule 7) -- and recording masked addresses only.
+
+"Ask first" (2026-10-14): a batch with options["intro"] sends each record the KII introduction instead
+(apps/messaging/outreach.send_kii_introduction); a YES on WhatsApp then issues and sends the link by itself.
 """
 
 import logging
@@ -132,10 +135,27 @@ def summary(channels=("EMAIL",), groups=GROUPS, *, named_only: bool = False) -> 
             for channel in main.CHANNELS
         },
         "max_per_batch": main.per_batch_max(),
+        "introductions": introduction_summary(groups, named_only=named_only),
     }
 
 
-def start_batch(limit: int, *, user, channels=("EMAIL",), groups=GROUPS, named_only: bool = False) -> InvitationBatch:
+def introduction_summary(groups=GROUPS, *, named_only: bool = False) -> dict:
+    """For "Ask first": set up or not, how it would go out, and how many records could be introduced."""
+    from apps.messaging import outbound, outreach
+    from apps.messaging import twilio_client as tw
+
+    channel = outreach.intro_channel(kii=True)
+    ready = [r for r in outreach.kii_introduction_candidates(groups, named_only=named_only) if reachable_channels(r, ("WHATSAPP",))]
+    waiting = tw.template_waiting("TWILIO_WA_CONTENT_KII_INTRO")
+    return {"configured": channel is not None, "channel": channel or "", "ready": len(ready),
+            "left_today": outbound.left_today(channel) if channel else 0, "template_waiting": waiting,
+            "template_set": bool((settings.TWILIO_WA_CONTENT_KII_INTRO or "").strip())}
+
+
+def start_batch(limit: int, *, user, channels=("EMAIL",), groups=GROUPS, named_only: bool = False,
+                intro: bool = False) -> InvitationBatch:
+    if intro:
+        return _start_intro_batch(limit, user=user, groups=clean_groups(groups), named_only=named_only)
     channels, groups = main.clean_channels(channels), clean_groups(groups)
     for channel in channels:
         if not channel_configured(channel):
@@ -156,6 +176,55 @@ def start_batch(limit: int, *, user, channels=("EMAIL",), groups=GROUPS, named_o
     log_action("kii_invitations.batch_started", batch, {"requested": limit, "channels": channels, "groups": groups,
                                                         "named_only": named_only, "user_id": getattr(user, "id", None)}, user=user)
     return batch
+
+
+def _start_intro_batch(limit: int, *, user, groups, named_only: bool) -> InvitationBatch:
+    info = introduction_summary(groups, named_only=named_only)
+    if not info["configured"]:
+        raise BatchError("intro_not_configured", "KII introductions aren't set up yet: they need the study's WhatsApp number "
+                                                 "and the KII introduction template on Twilio (deploy/configure-twilio.sh).", 503)
+    allowed = min(main.per_batch_max(), info["left_today"])
+    if allowed < 1:
+        raise BatchError("daily_limit_reached", "Today's sending limit has been reached. Try again tomorrow.", 409)
+    if not 1 <= limit <= allowed:
+        raise BatchError("bad_limit", f"Choose between 1 and {allowed} introductions.")
+    if InvitationBatch.objects.filter(status=InvitationBatchStatus.RUNNING, started_at__gte=timezone.now() - timedelta(hours=1)).exists():
+        raise BatchError("already_running", "A batch is already sending. Wait for it to finish.", 409)
+    batch = InvitationBatch.objects.create(created_by=user, requested=limit, channels=[info["channel"]], mode=MODE,
+                                           options={"groups": groups, "named_only": named_only, "intro": True})
+    log_action("kii_invitations.batch_started", batch, {"requested": limit, "intro": True, "groups": groups,
+                                                        "named_only": named_only, "user_id": getattr(user, "id", None)}, user=user)
+    return batch
+
+
+def _run_intro_batch(batch, options) -> list[dict]:
+    """Send the KII introduction to `batch.requested` records. One record failing never stops the rest."""
+    from apps.messaging import outreach
+
+    results: list[dict] = []
+    pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
+    pool = outreach.kii_introduction_candidates(options.get("groups") or GROUPS, named_only=bool(options.get("named_only")))
+    for record in list(pool[: batch.requested * 2]):
+        if batch.sent + batch.failed >= batch.requested:
+            break
+        try:
+            sent = outreach.send_kii_introduction(record, user=batch.created_by)
+            batch.sent += 1
+            results.append({"kii_id": record.kii_id, "outcome": "sent", "detail": f"{sent.channel} {sent.number_masked}"})
+        except outreach.OutreachError as exc:
+            if exc.code == "daily_limit_reached":
+                batch.skipped += 1
+                results.append({"kii_id": record.kii_id, "outcome": "skipped", "detail": str(exc)[:200]})
+                break
+            failed = exc.code in ("twilio_refused",)
+            batch.failed += failed
+            batch.skipped += not failed
+            results.append({"kii_id": record.kii_id, "outcome": "failed" if failed else "skipped", "detail": str(exc)[:300]})
+        batch.results = results
+        batch.save(update_fields=["sent", "failed", "skipped", "results"])
+        if pause:
+            time.sleep(pause)
+    return results
 
 
 def send_one(record, *, user, link_base: str, channels=("EMAIL",)) -> dict:
@@ -193,7 +262,9 @@ def run_batch(batch) -> None:
     chosen = list(batch.channels or ["EMAIL"])
     results: list[dict] = []
     try:
-        pool = list(candidates(chosen, options.get("groups") or GROUPS, named_only=bool(options.get("named_only")))[: batch.requested * 2])
+        if options.get("intro"):
+            results = _run_intro_batch(batch, options)
+        pool = [] if options.get("intro") else list(candidates(chosen, options.get("groups") or GROUPS, named_only=bool(options.get("named_only")))[: batch.requested * 2])
         for record in pool:
             if batch.sent + batch.failed >= batch.requested:
                 break

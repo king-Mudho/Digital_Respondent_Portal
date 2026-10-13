@@ -8,6 +8,7 @@ import { KiiContactFinderPanel } from "@/components/admin/ContactFinderPanel";
 import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
+import { IntroductionPanel } from "@/components/admin/IntroductionPanel";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -456,6 +457,11 @@ export default function KIIDetailPage() {
         </IfRole>
       </div>
 
+      {record.status === "PROSPECT" || record.status === "INVITED" ? (
+        <div className="mt-4">
+          <IntroductionPanel target={{ kind: "kii", kiiId: record.kii_id }} />
+        </div>
+      ) : null}
       <KIIInvitePanel kiiId={record.kii_id} />
 
       <div className="mt-4">

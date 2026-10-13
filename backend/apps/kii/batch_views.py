@@ -28,7 +28,8 @@ def _flag(raw) -> bool:
 
 class KIIInvitationBatchView(APIView):
     """GET /api/v1/kii-invitations/batch/?channels=EMAIL&groups=CORE_60,RESERVE_30&named_only=1 -- what a batch with
-    those choices would do now. POST {limit, channels, groups, named_only} -- start one (202)."""
+    those choices would do now. POST {limit, channels, groups, named_only, mode} -- start one (202); mode "INTRO" sends
+    the "ask first" introduction instead of the invitation."""
 
     permission_classes = [IsFieldCoordinatorOrAdmin]
 
@@ -48,7 +49,8 @@ class KIIInvitationBatchView(APIView):
             limit = 0
         try:
             batch = kb.start_batch(limit, user=request.user, channels=_channels(request.data.get("channels")),
-                                   groups=_groups(request.data.get("groups")), named_only=_flag(request.data.get("named_only")))
+                                   groups=_groups(request.data.get("groups")), named_only=_flag(request.data.get("named_only")),
+                                   intro=str(request.data.get("mode", "")).upper() == "INTRO")
         except BatchError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         send_invitation_batch.delay(batch.pk)

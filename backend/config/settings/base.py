@@ -368,6 +368,9 @@ TWILIO_SMS_OPT_OUT_LINE = env("TWILIO_SMS_OPT_OUT_LINE", default="")
 # sender's incoming-message webhook, https://<APP_DOMAIN>/api/v1/twilio/inbound/.
 TWILIO_WA_CONTENT_INTRO = env("TWILIO_WA_CONTENT_INTRO", default="")
 TWILIO_WA_CONTENT_INTRO_REMINDER = env("TWILIO_WA_CONTENT_INTRO_REMINDER", default="")
+# "Ask first" for KII informants (2026-10-14): their own introduction and reminder, addressed to a named person.
+TWILIO_WA_CONTENT_KII_INTRO = env("TWILIO_WA_CONTENT_KII_INTRO", default="")
+TWILIO_WA_CONTENT_KII_INTRO_REMINDER = env("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", default="")
 # Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
 OUTREACH_REMINDER_DAYS = env.int("OUTREACH_REMINDER_DAYS", default=3)
 OUTREACH_GIVE_UP_DAYS = env.int("OUTREACH_GIVE_UP_DAYS", default=4)
