@@ -245,7 +245,7 @@ export default function OrganisationsPage() {
                 setSearch(v);
                 setPage(1);
               }}
-              placeholder="Search name, Master ID or district"
+              placeholder="Search name, Master ID, district or phone"
             />
           </div>
           {isLoading ? (

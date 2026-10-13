@@ -169,7 +169,7 @@ export default function KIIRegisterPage() {
               setSearch(v);
               setPage(1);
             }}
-            placeholder="Search KII ID, name or role"
+            placeholder="Search KII ID, name, role or phone"
           />
           <WriteOnly note={null}>
             <Link href="/admin/kii/new">

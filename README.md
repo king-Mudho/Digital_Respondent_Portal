@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### Search the registers by phone number (13 Oct 2026)
+
+At the PI's request, the search boxes on the Main-400 Register, Reserve Activation, Organisations and the KII Register
+also find records by phone or WhatsApp number (`api/phone_search.PhoneSearchFilter`): Main-400 cases and
+organisations by their respondents' numbers, KII records by their own (including additional numbers). Numbers on file
+are written every way, often several to a field ("(+263) 242 70396175 or 0242 703 961", "0242 703961-5; ..."), so a
+term made only of digits and phone punctuation, with at least six digits once the 263 country code or trunk 0 is
+dropped, is matched against the digits of each number: "0772 123 456", "+263772123456" and "772123456" all find the
+same record. Other terms search exactly as before, and a Contact RA still finds only their own cases.
+
 ### No WhatsApp on a template Meta hasn't approved (13 Oct 2026)
 
 At 08:00 on 13 Oct the automatic reminder run sent 148 WhatsApp reminders to Main-400 cases while all six templates

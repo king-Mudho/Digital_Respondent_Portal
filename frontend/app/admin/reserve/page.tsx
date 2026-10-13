@@ -74,7 +74,7 @@ export default function ReserveActivationPage() {
             setSearch(v);
             setPage(1);
           }}
-          placeholder="Search ID or organisation"
+          placeholder="Search ID, organisation or phone"
         />
       </div>
       <AutoReplacementPanel />

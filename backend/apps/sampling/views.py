@@ -1,11 +1,13 @@
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanViewSampleCases, IsFieldCoordinatorOrAdmin
+from api.phone_search import PhoneSearchFilter
 
 from .models import Organisation, SampleCase, SampleType
 from .serializers import (
@@ -52,6 +54,8 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
     serializer_class = SampleCaseSerializer
     filterset_fields = ["sample_type", "status", "workflow_status", "stratum__province"]
     search_fields = ["sample_id", "organisation__name", "organisation__master_id"]
+    filter_backends = [DjangoFilterBackend, PhoneSearchFilter]
+    phone_search_fields = ["respondents__phone", "respondents__whatsapp_number"]
 
     def get_queryset(self):
         # Everything SampleCaseSerializer reads; this list ran 2 extra queries per row.
@@ -166,6 +170,8 @@ class OrganisationListCreateView(generics.ListCreateAPIView):
     serializer_class = OrganisationSerializer
     filterset_fields = ["province", "actor_family", "size_class", "verification_status"]
     search_fields = ["name", "master_id", "district"]
+    filter_backends = [DjangoFilterBackend, PhoneSearchFilter]
+    phone_search_fields = ["sample_cases__respondents__phone", "sample_cases__respondents__whatsapp_number"]
 
     def get_queryset(self):
         return Organisation.objects.order_by("name")

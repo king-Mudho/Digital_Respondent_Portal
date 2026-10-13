@@ -1,10 +1,12 @@
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageKII
+from api.phone_search import PhoneSearchFilter
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
 from apps.consent.services import has_given_consent, record_consent
@@ -41,6 +43,8 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
         "kii_id", "participant_name", "participant_role",
         "stakeholder_category", "organisation__name",
     ]
+    filter_backends = [DjangoFilterBackend, PhoneSearchFilter]
+    phone_search_fields = ["phone", "whatsapp_number"]
     # KIIRecord has no Meta.ordering -- an unordered queryset makes
     # PageNumberPagination's page boundaries arbitrary, so a record can
     # appear on two pages or on none.

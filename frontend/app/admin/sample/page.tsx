@@ -750,7 +750,7 @@ export default function SampleRegisterPage() {
           <SearchBox
             value={search}
             onChange={(v) => changeFilter(() => setSearch(v))}
-            placeholder="Search ID or organisation"
+            placeholder="Search ID, organisation or phone"
           />
           <label className="text-sm text-text-muted">
             <span className="sr-only">Sample type</span>
