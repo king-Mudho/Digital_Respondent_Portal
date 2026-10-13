@@ -71,6 +71,7 @@ ACTION_LABELS: dict[str, str] = {
     "kii_invitation.sms_sent": "KII invitation sent by SMS (Twilio)",
     "kii_invitation.whatsapp_sent": "KII invitation sent by WhatsApp (Twilio)",
     "kii.participant_name_corrected": "KII participant name corrected",
+    "kii.record_registered": "KII record registered from a registration list",
     "kii.status_changed": "KII status changed",
     "kii.status_reset_after_test_cleanup": "KII status reset (test cleanup)",
     "kobo.data_exported": "Submissions exported from KoboToolbox",
@@ -117,6 +118,7 @@ ACTION_LABELS: dict[str, str] = {
     "sampling.bulk_assignment": "Cases bulk-assigned to a Contact RA",
     "sampling.bulk_workflow_transition": "Cases moved forward in bulk",
     "sampling.invalid_workflow_transition": "Invalid workflow transition attempted",
+    "sampling.organisation_registered": "Organisation registered from a registration list",
     "sampling.status_caught_up": "Case status brought up to what its respondent had already done",
     "sampling.status_reset_after_test_cleanup": "Case status reset (test cleanup)",
 }
