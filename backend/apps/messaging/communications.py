@@ -290,7 +290,13 @@ def _in_item(m: InboundMessage) -> dict:
     text, quoted = split_quoted(m.body) if m.channel == MessageChannel.EMAIL else (m.body, "")
     return {
         "type": "in", "id": f"in-{m.pk}", "at": m.sent_at or m.received_at, "channel": m.channel, "from": m.from_masked,
-        "subject": m.subject, "body": text, "quoted": quoted, "has_attachments": m.has_attachments,
+        "subject": m.subject, "body": text, "quoted": quoted,
+        "has_attachments": m.has_attachments and m.channel == MessageChannel.EMAIL,
+        "attachments": [{
+            "id": a.pk, "kind": a.kind, "label": a.get_kind_display(), "content_type": a.content_type,
+            "contact": a.contact_text, "error": a.error, "size": a.size,
+            "url": f"/communications/attachments/{a.pk}/" if a.file_ref else "",
+        } for a in m.attachments.all()],
         "reply_kind": m.kind if m.channel == MessageChannel.WHATSAPP and m.kind != ReplyKind.OTHER else "",
         "waiting": m.needs_person and m.handled_at is None,
         "handled_by": m.handled_by.username if m.handled_by_id else "",
@@ -354,7 +360,7 @@ def thread(user, kind: str, pk) -> dict:
     subject = get_subject(user, kind, pk)
     link = _link(kind)
     items = [_out_item(m) for m in ProviderMessage.objects.filter(**{link: subject}).select_related("sent_by")]
-    items += [_in_item(m) for m in InboundMessage.objects.filter(**{link: subject}).select_related("handled_by")]
+    items += [_in_item(m) for m in InboundMessage.objects.filter(**{link: subject}).select_related("handled_by").prefetch_related("attachments")]
 
     if kind == "main":
         from apps.contacts.models import ContactEvent
@@ -601,4 +607,4 @@ def unknown_senders(user) -> list[dict]:
     if not sees_unknown_senders(user):
         return []
     return [_in_item(m) | {"message_id": m.pk} for m in
-            InboundMessage.objects.filter(sample_case=None, kii_record=None).order_by("-received_at")[:100]]
+            InboundMessage.objects.filter(sample_case=None, kii_record=None).prefetch_related("attachments").order_by("-received_at")[:100]]

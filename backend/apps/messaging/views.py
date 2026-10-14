@@ -330,6 +330,45 @@ class CommunicationHandledView(APIView):
             return _communication_error(exc)
 
 
+class CommunicationAttachmentView(APIView):
+    """GET /api/v1/communications/attachments/{id}/ -- a voice note, picture, shared contact or file someone sent on
+    WhatsApp (2026-10-14), streamed from private storage. Only for someone who may see that conversation: the case's
+    Contact RA, KII RAs for KII records, the PI and Field Coordinator (and Supervisor, reading); a number on no record
+    only for those who see unknown senders. Each opening is audited."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request, pk):
+        import os
+
+        from django.http import FileResponse, Http404
+
+        from apps.audit.utils import log_action
+
+        from .communications import sees_unknown_senders, visible_cases, visible_records
+        from .media import file_path
+        from .models import InboundAttachment
+
+        attachment = get_object_or_404(InboundAttachment.objects.select_related("message"), pk=pk)
+        message = attachment.message
+        if message.sample_case_id:
+            allowed = visible_cases(request.user).filter(pk=message.sample_case_id).exists()
+        elif message.kii_record_id:
+            allowed = visible_records(request.user).filter(pk=message.kii_record_id).exists()
+        else:
+            allowed = sees_unknown_senders(request.user)
+        if not allowed or not attachment.file_ref:
+            raise Http404
+        path = file_path(attachment)
+        if not os.path.exists(path):
+            raise Http404
+        log_action("communication.attachment_opened", message.sample_case or message.kii_record or message,
+                   {"attachment": attachment.pk, "kind": attachment.kind, "user_id": request.user.id}, user=request.user)
+        response = FileResponse(open(path, "rb"), content_type=attachment.content_type or "application/octet-stream")
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
 class CommunicationUnknownView(APIView):
     """GET /api/v1/communications/unknown/ -- WhatsApp messages from numbers on no case or KII record. PI and Field
     Coordinator (and Supervisor, reading); everyone else gets an empty list. Answered through conversations/<id>/reply/."""

@@ -45,6 +45,17 @@ export interface OutItem {
   from_mailbox: boolean;
 }
 
+export interface InAttachment {
+  id: number;
+  kind: "VOICE" | "IMAGE" | "VIDEO" | "CONTACT" | "DOCUMENT" | "OTHER";
+  label: string;
+  content_type: string;
+  contact: string;
+  error: string;
+  size: number;
+  url: string;
+}
+
 export interface InItem {
   type: "in";
   id: string;
@@ -55,7 +66,9 @@ export interface InItem {
   body: string;
   quoted: string;
   has_attachments: boolean;
-  reply_kind: "" | "YES" | "NO";
+  /** WhatsApp voice notes, pictures, shared contacts and files (2026-10-14); url is relative to the API proxy. */
+  attachments?: InAttachment[];
+  reply_kind: "" | "YES" | "NO" | "PHONE";
   waiting: boolean;
   handled_by: string;
 }
@@ -153,6 +166,7 @@ export interface Summary {
 
 export interface UnknownMessage {
   message_id: number;
+  attachments?: InAttachment[];
   id: string;
   at: string;
   channel: Channel;

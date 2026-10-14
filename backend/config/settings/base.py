@@ -372,6 +372,8 @@ TWILIO_WA_CONTENT_INTRO_REMINDER = env("TWILIO_WA_CONTENT_INTRO_REMINDER", defau
 TWILIO_WA_CONTENT_KII_INTRO = env("TWILIO_WA_CONTENT_KII_INTRO", default="")
 TWILIO_WA_CONTENT_KII_INTRO_REMINDER = env("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", default="")
 # Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
+# Voice notes, pictures and files people send on WhatsApp are copied into PRIVATE_DATA_ROOT (apps/messaging/media.py).
+WHATSAPP_MEDIA_MAX_MB = env.float("WHATSAPP_MEDIA_MAX_MB", default=16)
 OUTREACH_REMINDER_DAYS = env.int("OUTREACH_REMINDER_DAYS", default=3)
 OUTREACH_GIVE_UP_DAYS = env.int("OUTREACH_GIVE_UP_DAYS", default=4)
 # A reply counts as YES or NO only when the whole message (or the quick-reply button) is one of these words, so

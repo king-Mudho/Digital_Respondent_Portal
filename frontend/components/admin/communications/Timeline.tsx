@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fullTime, shortTime, type EventItem, type InItem, type OutItem, type TimelineItem } from "@/lib/api/communications";
+import { fullTime, shortTime, type EventItem, type InAttachment, type InItem, type OutItem, type TimelineItem } from "@/lib/api/communications";
 import { ChannelBadge, StatusTicks } from "./Marks";
 
 const EVENT_TONE: Record<EventItem["tone"], string> = {
@@ -63,6 +63,32 @@ function Outgoing({ item }: { item: OutItem }) {
   );
 }
 
+const PROXY = "/api/proxy";
+
+/** A voice note plays here, a picture shows here, a shared contact reads as text; anything else opens in a new tab. */
+export function Attachment({ attachment: a }: { attachment: InAttachment }) {
+  const src = a.url ? `${PROXY}${a.url}` : "";
+  return (
+    <div className="mt-1.5 space-y-1">
+      <p className="text-[11px] font-medium text-text-muted">{a.label}</p>
+      {a.error ? (
+        <p className="text-[11px] text-danger">{a.error}</p>
+      ) : a.kind === "CONTACT" ? (
+        <p className="whitespace-pre-wrap break-words rounded-md border border-border px-2 py-1">{a.contact || "(no details in the card)"}</p>
+      ) : a.kind === "VOICE" && src ? (
+        <audio controls preload="none" src={src} className="w-full max-w-xs" />
+      ) : a.kind === "IMAGE" && src ? (
+        <a href={src} target="_blank" rel="noreferrer">
+          {/* eslint-disable-next-line @next/next/no-img-element -- a private, authenticated file, not a static asset */}
+          <img src={src} alt="Picture they sent" className="max-h-60 max-w-full rounded-md border border-border" />
+        </a>
+      ) : src ? (
+        <a href={src} target="_blank" rel="noreferrer" className="text-xs underline">Open the {a.label.toLowerCase()}</a>
+      ) : null}
+    </div>
+  );
+}
+
 function Incoming({ item }: { item: InItem }) {
   const [showQuoted, setShowQuoted] = useState(false);
   return (
@@ -72,14 +98,19 @@ function Incoming({ item }: { item: InItem }) {
           <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px] text-text-muted">
             <ChannelBadge channel={item.channel} />
             <span>from {item.from}</span>
-            {item.reply_kind && (
+            {item.reply_kind === "PHONE" ? (
+              <span className="rounded-full bg-header px-1.5 font-semibold text-white">Wants to answer by phone: call them</span>
+            ) : item.reply_kind && (
               <span className={`rounded-full px-1.5 font-semibold ${item.reply_kind === "YES" ? "bg-success text-white" : "bg-warning text-white"}`}>
                 Said {item.reply_kind.toLowerCase()}
               </span>
             )}
           </div>
           {item.subject && <p className="font-medium">{item.subject}</p>}
-          <p className="whitespace-pre-wrap break-words">{item.body || <i className="text-text-muted">(no text)</i>}</p>
+          {(item.body || !item.attachments?.length) && (
+            <p className="whitespace-pre-wrap break-words">{item.body || <i className="text-text-muted">(no text)</i>}</p>
+          )}
+          {item.attachments?.map((a) => <Attachment key={a.id} attachment={a} />)}
           {item.quoted && (
             <div className="mt-1.5">
               <button type="button" className="text-[11px] text-text-muted underline" onClick={() => setShowQuoted((s) => !s)}>

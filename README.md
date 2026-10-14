@@ -782,6 +782,22 @@ works):
 
 ## Notable fixes
 
+### WhatsApp voice notes, pictures and shared contacts; "wants to answer by phone" (14 Oct 2026)
+
+Two gaps found answering the first fresh-start replies:
+
+- **Media was thrown away.** The incoming-message webhook kept only the text, so a message that was only a voice note,
+  picture or shared contact arrived empty -- Kushinga Phikelela shared "this person" to contact and nobody could see who.
+  Now each attachment is listed from Twilio (`Messages/{sid}/Media`), copied into `PRIVATE_DATA_ROOT/whatsapp_media/`
+  (never web-served; capped by `WHATSAPP_MEDIA_MAX_MB`), shown on Communications (voice notes play, pictures show, a
+  vCard reads as name, number and email), opened only through `GET /api/v1/communications/attachments/{id}/` by people
+  who may see that conversation (audited), and deleted on withdrawal. `InboundAttachment`, `apps/messaging/media.py`.
+- **An invitation code looked like a stray word.** The invitation says "Prefer to answer by phone? Reply and quote code
+  ABCD2345"; AfriGroup did ("CALCLWRI") and it sat among other messages. A reply containing a word that verifies against
+  that case's or KII record's own code hash (or any code, for a number on no record -- which then finds its case) is now
+  `ReplyKind.PHONE`, shown as "Wants to answer by phone: call them", audited `conversation.phone_requested`, and answered
+  once a day (Message template `outreach_phone_requested`). A random 8-letter word is not taken as a code.
+
 ### WhatsApp first; without WhatsApp, email (14 Oct 2026)
 
 PI decision: when an "ask first" introduction cannot be delivered -- the number is not on WhatsApp, Meta holds it

@@ -209,6 +209,9 @@ class Outreach(models.Model):
 class ReplyKind(models.TextChoices):
     YES = "YES", "Yes"
     NO = "NO", "No"
+    # They sent the code from their own invitation, which the invitation asks for when they would rather answer by
+    # phone (2026-10-14).
+    PHONE = "PHONE", "Wants to answer by phone"
     OTHER = "OTHER", "Other"
 
 
@@ -246,6 +249,38 @@ class InboundMessage(models.Model):
 
     def __str__(self):
         return f"InboundMessage({self.from_masked} {self.kind})"
+
+
+class AttachmentKind(models.TextChoices):
+    VOICE = "VOICE", "Voice note"
+    IMAGE = "IMAGE", "Picture"
+    VIDEO = "VIDEO", "Video"
+    CONTACT = "CONTACT", "Shared contact"
+    DOCUMENT = "DOCUMENT", "Document"
+    OTHER = "OTHER", "File"
+
+
+class InboundAttachment(models.Model):
+    """A voice note, picture, shared contact or file someone sent the study on WhatsApp (2026-10-14). Until then only the
+    text was kept, so a message that was only a voice note or a contact card arrived empty. Copied from Twilio into
+    PRIVATE_DATA_ROOT (never a web-served directory) and opened only through Communications by people who may see that
+    conversation; a shared contact's name and number are also read into contact_text. Deleted, file and all, if the
+    participant withdraws."""
+
+    message = models.ForeignKey(InboundMessage, on_delete=models.CASCADE, related_name="attachments")
+    kind = models.CharField(max_length=10, choices=AttachmentKind.choices, default=AttachmentKind.OTHER)
+    content_type = models.CharField(max_length=100, blank=True)
+    file_ref = models.CharField(max_length=255, blank=True)  # relative to PRIVATE_DATA_ROOT
+    size = models.PositiveIntegerField(default=0)
+    contact_text = models.CharField(max_length=500, blank=True)
+    error = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"InboundAttachment({self.message_id} {self.kind})"
 
 
 class MailboxCursor(models.Model):

@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     CaseOutreachView,
+    CommunicationAttachmentView,
     CommunicationHandledView,
     CommunicationSendView,
     CommunicationSummaryView,
@@ -38,4 +39,5 @@ urlpatterns = [
     path("communications/threads/<str:kind>/<int:pk>/send/", CommunicationSendView.as_view(), name="communications-send"),
     path("communications/threads/<str:kind>/<int:pk>/handled/", CommunicationHandledView.as_view(), name="communications-handled"),
     path("communications/unknown/", CommunicationUnknownView.as_view(), name="communications-unknown"),
+    path("communications/attachments/<int:pk>/", CommunicationAttachmentView.as_view(), name="communications-attachment"),
 ]

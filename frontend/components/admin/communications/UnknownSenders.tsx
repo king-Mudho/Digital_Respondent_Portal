@@ -6,6 +6,7 @@ import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/api/admin";
 import { fullTime, type UnknownMessage } from "@/lib/api/communications";
+import { Attachment } from "./Timeline";
 
 /**
  * WhatsApp messages from numbers that are on no case or KII record (PI and Field Coordinator only). Answered from
@@ -57,7 +58,8 @@ export function UnknownSenders() {
             {m.from} · {fullTime(m.at)}
             {!m.waiting && m.handled_by && ` · handled by ${m.handled_by}`}
           </p>
-          <p className="whitespace-pre-wrap break-words text-sm">{m.body || "(no text)"}</p>
+          {(m.body || !m.attachments?.length) && <p className="whitespace-pre-wrap break-words text-sm">{m.body || "(no text)"}</p>}
+          {m.attachments?.map((a) => <Attachment key={a.id} attachment={a} />)}
           <WriteOnly note={null}>
             {m.can_reply ? (
               <div className="space-y-2">

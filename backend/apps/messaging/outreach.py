@@ -257,10 +257,24 @@ def record_inbound(params: dict) -> tuple[InboundMessage | None, str]:
 
         case, record = find_by_number(digits)
     body = (params.get("Body") or "")[:2000]
+    kind = classify(body, params.get("ButtonPayload", ""))
+    if kind == ReplyKind.OTHER:
+        # Their own invitation code: "Prefer to answer by phone? Reply and quote code ..." (2026-10-14).
+        from .media import invitation_code_owner
+
+        owner = invitation_code_owner(body, case=case, record=record)
+        if owner is not None:
+            kind = ReplyKind.PHONE
+            if case is None and record is None:
+                case, record = owner
+    try:
+        media = int(params.get("NumMedia") or 0)
+    except ValueError:
+        media = 0
     message = InboundMessage.objects.create(
         channel=MessageChannel.WHATSAPP, provider_sid=sid, outreach=outreach, sample_case=case, kii_record=record,
         number_hash=hashed, from_masked=tw.mask(digits), from_number="" if (case or record) else digits, body=body,
-        kind=classify(body, params.get("ButtonPayload", "")),
+        kind=kind, has_attachments=media > 0,
     )
     return message, digits
 
@@ -296,6 +310,23 @@ def _reply(message: InboundMessage, digits: str, text: str, *, purpose=MessagePu
 def handle_inbound(message_id: int, digits: str) -> None:
     """Acts on one stored message (from a Celery task, so Twilio's webhook is answered at once)."""
     message = InboundMessage.objects.select_related("outreach__sample_case__organisation", "outreach__kii_record").get(pk=message_id)
+    if message.has_attachments:
+        from .media import fetch_attachments
+
+        try:
+            fetch_attachments(message)
+        except Exception:  # never lose the reply over a media download
+            logger.exception("Attachments of message %s could not be copied", message.pk)
+    if message.kind == ReplyKind.PHONE:
+        message.needs_person = True
+        message.save(update_fields=["needs_person"])
+        target = message.sample_case or message.kii_record
+        if target is not None:
+            ident = {"sample_id": target.sample_id} if message.sample_case_id else {"kii_id": target.kii_id}
+            log_action("conversation.phone_requested", target, {**ident, "message": message.pk})
+        if not _answered_today(message):
+            _reply(message, digits, wording("outreach_phone_requested"))
+        return
     outreach = message.outreach
     if outreach is None:
         message.needs_person = True
