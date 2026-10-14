@@ -145,7 +145,8 @@ def introduction_summary(groups=GROUPS, *, named_only: bool = False) -> dict:
     from apps.messaging import twilio_client as tw
 
     channel = outreach.intro_channel(kii=True)
-    ready = [r for r in outreach.kii_introduction_candidates(groups, named_only=named_only) if reachable_channels(r, ("WHATSAPP",))]
+    ready = [r for r in outreach.kii_introduction_candidates(groups, named_only=named_only)
+             if reachable_channels(r, ("WHATSAPP",)) and not outreach.tried_this_number(r)]
     waiting = tw.template_waiting("TWILIO_WA_CONTENT_KII_INTRO")
     return {"configured": channel is not None, "channel": channel or "", "ready": len(ready),
             "left_today": outbound.left_today(channel) if channel else 0, "template_waiting": waiting,
@@ -204,7 +205,7 @@ def _run_intro_batch(batch, options) -> list[dict]:
     results: list[dict] = []
     pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
     pool = outreach.kii_introduction_candidates(options.get("groups") or GROUPS, named_only=bool(options.get("named_only")))
-    for record in list(pool[: batch.requested * 2]):
+    for record in [r for r in pool if not outreach.tried_this_number(r)][: batch.requested * 2]:
         if batch.sent + batch.failed >= batch.requested:
             break
         try:

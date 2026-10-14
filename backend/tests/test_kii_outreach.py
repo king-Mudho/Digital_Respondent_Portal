@@ -289,3 +289,15 @@ def test_who_may_ask_first(twilio):
     assert resp.status_code == 201 and resp.json()["status"] == "INTRO_SENT"
     rows = ra.get(f"/api/v1/kii-outreach/?kii_id={record.kii_id}").json()
     assert rows["intro_channel"] == "WHATSAPP" and rows["results"][0]["status_label"] == "Asked"
+
+
+def test_a_kii_number_that_never_got_the_introduction_is_not_asked_again(introduced, twilio):
+    Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    record = introduced.kii_record
+    assert kb.introduction_summary()["ready"] == 0
+    with pytest.raises(outreach.OutreachError) as exc:
+        outreach.send_kii_introduction(record, user=None)
+    assert exc.value.code == "already_tried"
+    record.phone = "0772000999"
+    record.save(update_fields=["phone"])
+    assert kb.introduction_summary()["ready"] == 1

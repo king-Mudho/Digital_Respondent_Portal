@@ -196,7 +196,8 @@ def introduction_summary() -> dict:
     from apps.sampling.services import is_invitable
 
     channel = outreach.intro_channel()
-    ready = [case for case in outreach.introduction_candidates() if is_invitable(case) and reachable_channels(case, ("WHATSAPP",))]
+    ready = [case for case in outreach.introduction_candidates()
+             if is_invitable(case) and reachable_channels(case, ("WHATSAPP",)) and not outreach.tried_this_number(case)]
     return {"configured": channel is not None, "channel": channel or "", "ready": len(ready),
             "left_today": outbound.left_today(channel) if channel else 0}
 
@@ -250,7 +251,8 @@ def _run_intro_batch(batch) -> list[dict]:
 
     results: list[dict] = []
     pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
-    for case in list(outreach.introduction_candidates()[: batch.requested * 2]):
+    pool = [case for case in outreach.introduction_candidates() if not outreach.tried_this_number(case)]
+    for case in pool[: batch.requested * 2]:
         if batch.sent + batch.failed >= batch.requested:
             break
         try:

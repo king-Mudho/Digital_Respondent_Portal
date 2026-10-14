@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### A number that never got the introduction is not asked again (14 Oct 2026)
+
+On the first fresh-start day 171 introductions went out and 60 never arrived -- 51 to numbers not on WhatsApp (63024).
+An introduction that is not delivered, or gets no answer after the reminder, leaves the case eligible for
+"ask first" again (so a corrected number can be asked), and the batch panel immediately showed 48 cases "ready": the
+next batch would have messaged the same dead numbers again, spending the daily limit and the new line's standing with
+Meta. `outreach.tried_this_number()` now keeps a case or KII record out of introductions while its current mobile is
+the one already tried; a corrected number can be asked. Those cases get an email invitation where there is an email,
+and are otherwise on the phone list.
+
 ### Fresh start for Main-400 outreach on the new WhatsApp line (14 Oct 2026)
 
 PI decision: with the study now sending from its own Twilio WhatsApp line, every Main case that was contacted but

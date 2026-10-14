@@ -113,6 +113,19 @@ def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
                          user=user, sample_case=case)
 
 
+def tried_this_number(target) -> bool:
+    """True when this case or KII record was already asked on its current mobile and the introduction never arrived or
+    got no answer after the reminder (2026-10-14). Such a number is not asked again -- on the first fresh-start day 51
+    introductions went to numbers not on WhatsApp, and a second batch would have messaged them all again. A corrected
+    number can be asked."""
+    kii = hasattr(target, "kii_id")
+    number = _kii_mobile(target) if kii else _mobile(target)[0]
+    if not number:
+        return False
+    mine = Outreach.objects.filter(kii_record=target) if kii else Outreach.objects.filter(sample_case=target)
+    return mine.filter(number_hash=number_hash(number), status__in=[OutreachStatus.NOT_DELIVERED, OutreachStatus.NO_REPLY]).exists()
+
+
 def kii_introduction_candidates(groups=None, *, named_only: bool = False):
     """KII records never invited, in the chosen groups, with a number on file, no open link and no introduction yet."""
     from apps.kii.batch import GROUPS, candidates
@@ -164,6 +177,9 @@ def send_kii_introduction(record, *, user) -> Outreach:
     number = _kii_mobile(record)
     if not number:
         raise OutreachError("no_mobile", "No mobile number is on file (a landline can't receive WhatsApp or SMS).")
+    if tried_this_number(record):
+        raise OutreachError("already_tried", "This number was already asked and the message never arrived or got no answer. "
+                                             "Phone them, or correct the number first.", 409)
     try:
         message = _send_kii_intro(record, number, channel, reminder=False, user=user)
     except outbound.OutboundError as exc:
@@ -193,6 +209,9 @@ def send_introduction(case, *, user) -> Outreach:
     number, respondent = _mobile(case)
     if not number:
         raise OutreachError("no_mobile", "No mobile number is on file (a landline can't receive WhatsApp or SMS).")
+    if tried_this_number(case):
+        raise OutreachError("already_tried", "This number was already asked and the message never arrived or got no answer. "
+                                             "Phone them, or correct the number first.", 409)
     try:
         message = _send_intro(case, number, channel, reminder=False, user=user)
     except outbound.OutboundError as exc:

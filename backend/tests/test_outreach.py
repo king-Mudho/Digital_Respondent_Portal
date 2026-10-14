@@ -340,3 +340,21 @@ def test_an_ask_first_batch_introduces_cases_without_issuing_invitations(twilio,
     batch.refresh_from_db()
     assert batch.sent == 2 and Outreach.objects.filter(sample_case__in=[main_case, second]).count() == 2
     assert not InvitationToken.objects.exists()
+
+
+def test_a_number_that_never_got_the_introduction_is_not_asked_again_but_a_corrected_one_is(introduced, twilio, main_case):
+    """14 Oct 2026: 51 introductions went to numbers not on WhatsApp; a second batch would have messaged them all again."""
+    Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    assert b.introduction_summary()["ready"] == 0
+    with pytest.raises(outreach.OutreachError) as exc:
+        outreach.send_introduction(main_case, user=None)
+    assert exc.value.code == "already_tried"
+    batch = b.start_batch(1, user=None, mode="INTRO") if b.introduction_summary()["ready"] else None
+    assert batch is None and len(twilio) == 1
+    Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NO_REPLY)
+    with pytest.raises(outreach.OutreachError):
+        outreach.send_introduction(main_case, user=None)
+    Respondent.objects.filter(sample_case=main_case).update(phone="0772000999")  # the number is corrected
+    assert b.introduction_summary()["ready"] == 1
+    outreach.send_introduction(main_case, user=None)
+    assert len(twilio) == 2 and twilio[-1]["To"] == "whatsapp:+263772000999"
