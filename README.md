@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### "Passed us to someone else" (14 Oct 2026)
+
+Several organisations answered the introduction by sharing a contact for the right person. `outreach.refer_introduction()`
+adds that person to the case and asks them first on their own number; the organisation's introduction becomes
+`REFERRED` ("Passed us to someone else") so its reminder stops, and the case is never re-asked on the organisation's
+line by a later batch. Reminders and the SMS fallback now go to the number the introduction was actually sent to
+(`_asked_number`: the outreach's own person), not the case's first number -- after a referral that would have been the
+organisation. Refused for a landline, a number already asked about the case, or a case no longer waiting. Audited as
+`outreach.referred`.
+
 ### WhatsApp voice notes, pictures and shared contacts; "wants to answer by phone" (14 Oct 2026)
 
 Two gaps found answering the first fresh-start replies:

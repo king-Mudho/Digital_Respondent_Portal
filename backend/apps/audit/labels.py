@@ -96,6 +96,7 @@ ACTION_LABELS: dict[str, str] = {
     "outreach.introduced": "Introduction sent (ask first)",
     "outreach.reminded": "Introduction reminder sent",
     "outreach.sms_fallback": "Introduction re-sent by SMS",
+    "outreach.referred": "Passed us to someone else: that person was asked first",
     "outreach.email_fallback": "Introduction never arrived: invitation sent by email instead",
     "outreach.email_fallback_failed": "Introduction never arrived, and the email invitation could not be sent",
     "outreach.email_fallback_waiting": "Introduction never arrived: email invitation waiting (daily limit reached)",

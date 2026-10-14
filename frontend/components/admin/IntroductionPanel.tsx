@@ -9,7 +9,7 @@ import { adminFetch } from "@/lib/api/admin";
 
 interface OutreachEntry {
   id: number;
-  status: "INTRO_SENT" | "REMINDED" | "ACCEPTED" | "DECLINED" | "NO_REPLY" | "NOT_DELIVERED";
+  status: "INTRO_SENT" | "REMINDED" | "ACCEPTED" | "DECLINED" | "NO_REPLY" | "NOT_DELIVERED" | "REFERRED";
   status_label: string;
   channel: "WHATSAPP" | "SMS";
   number: string;
@@ -20,7 +20,7 @@ interface OutreachEntry {
   messages: { received_at: string; body: string; kind: "YES" | "NO" | "OTHER"; auto_reply: string }[];
 }
 
-const INTRODUCED: OutreachEntry["status"][] = ["INTRO_SENT", "REMINDED", "ACCEPTED", "DECLINED"];
+const INTRODUCED: OutreachEntry["status"][] = ["INTRO_SENT", "REMINDED", "ACCEPTED", "DECLINED", "REFERRED"];
 
 type Target = { kind: "case"; sampleId: string } | { kind: "kii"; kiiId: string };
 

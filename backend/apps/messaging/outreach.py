@@ -51,7 +51,8 @@ from .models import (
 logger = logging.getLogger(__name__)
 
 # Statuses that mean the case has had its introduction and is not to be introduced again.
-INTRODUCED = [OutreachStatus.INTRO_SENT, OutreachStatus.REMINDED, OutreachStatus.ACCEPTED, OutreachStatus.DECLINED]
+INTRODUCED = [OutreachStatus.INTRO_SENT, OutreachStatus.REMINDED, OutreachStatus.ACCEPTED, OutreachStatus.DECLINED,
+              OutreachStatus.REFERRED]
 # A late YES or NO still counts after the case was listed for a phone call.
 ANSWERABLE = [*OPEN_OUTREACH, OutreachStatus.NO_REPLY, OutreachStatus.NOT_DELIVERED]
 
@@ -99,6 +100,65 @@ def _mobile(case) -> tuple[str, object]:
         if number and number in (whatsapp_digits(person.whatsapp_number), whatsapp_digits(person.phone)):
             return number, person
     return number, None
+
+
+def _asked_number(outreach) -> str:
+    """The mobile this introduction was sent to: its person's, when that person still has it, else the case's. A
+    reminder or SMS fallback goes to the same person the introduction went to (2026-10-14: after a referral a case has
+    two people, and the case's first number is the organisation that referred us)."""
+    from apps.messaging.services import whatsapp_digits
+
+    if outreach.kii_record_id:
+        return _kii_mobile(outreach.kii_record)
+    person = outreach.respondent
+    if person is not None:
+        for raw in (person.whatsapp_number, person.phone):
+            digits = whatsapp_digits(raw)
+            if digits and number_hash(digits) == outreach.number_hash:
+                return digits
+    return _mobile(outreach.sample_case)[0]
+
+
+def refer_introduction(outreach, *, name: str, phone: str, email: str = "", user=None) -> Outreach:
+    """They answered the introduction by passing the study to someone else (a shared contact or a name and number):
+    that person is added to the case and asked first on their own number, and the organisation's introduction is
+    marked REFERRED so its reminder stops. Main-400 cases only; the case must still be waiting (S03/S04, invitable, no
+    open link), and a number already asked about this case is never asked again."""
+    from apps.contacts.models import Respondent
+    from apps.messaging.services import whatsapp_digits
+    from apps.sampling.services import is_invitable
+
+    case = outreach.sample_case
+    if case is None:
+        raise OutreachError("not_main", "Referrals are for Main-400 cases.")
+    if outreach.status not in OPEN_OUTREACH + [OutreachStatus.NO_REPLY]:
+        raise OutreachError("not_open", "This introduction was already answered or could not be delivered.", 409)
+    if not (is_invitable(case) and _ready_to_invite(case)):
+        raise OutreachError("not_ready", "This case can't be introduced now: it must be waiting (S03/S04) with no open link.", 409)
+    number = whatsapp_digits(phone)
+    if not number:
+        raise OutreachError("no_mobile", "Give a mobile number: a landline can't receive WhatsApp.")
+    if Outreach.objects.filter(sample_case=case, number_hash=number_hash(number)).exists():
+        raise OutreachError("already_asked", "This number was already asked about this case. Reply to them on Communications instead.", 409)
+    channel = intro_channel()
+    if channel is None:
+        raise OutreachError("not_configured", "Introductions aren't set up yet.", 503)
+    with transaction.atomic():
+        person = Respondent.objects.create(sample_case=case, full_name=(name or "Contact they passed us to").strip()[:255],
+                                           phone=phone.strip()[:255], whatsapp_number=phone.strip()[:255], email=(email or "").strip())
+        try:
+            message = _send_intro(case, number, channel, reminder=False, user=user)
+        except outbound.OutboundError as exc:
+            raise OutreachError(exc.code, str(exc), exc.status) from exc
+        outreach.status = OutreachStatus.REFERRED
+        outreach.save(update_fields=["status"])
+        new = Outreach.objects.create(sample_case=case, respondent=person, channel=channel, number_hash=number_hash(number),
+                                      number_masked=message.to_masked, intro_sent_at=timezone.now(), created_by=user)
+    log_action("outreach.referred", case, {
+        "sample_id": case.sample_id, "from_outreach": outreach.pk, "outreach": new.pk, "respondent": person.pk,
+        "recipient": message.to_masked, "user_id": getattr(user, "id", None),
+    }, user=user)
+    return new
 
 
 def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
@@ -536,7 +596,7 @@ def run_followups(now=None) -> dict:
         kii = outreach.kii_record_id is not None
         target = outreach.target
         channel = intro_channel(kii=kii)
-        number = _kii_mobile(target) if kii else _mobile(target)[0]
+        number = _asked_number(outreach)
         if not (_kii_ready(target) if kii else _ready_to_invite(target)) or channel is None or not number:
             continue
         if outreach.channel == MessageChannel.SMS or outreach.sms_fallback_sent:
@@ -579,7 +639,7 @@ def intro_not_delivered(message) -> None:
     if outreach is None:
         return
     kii, target = outreach.kii_record_id is not None, outreach.target
-    number = _kii_mobile(target) if kii else _mobile(target)[0]
+    number = _asked_number(outreach)
     if message.channel == MessageChannel.WHATSAPP and not outreach.sms_fallback_sent and tw.sms_configured() and number:
         try:
             send = _send_kii_intro if kii else _send_intro

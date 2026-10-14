@@ -421,3 +421,48 @@ def test_no_email_while_the_introduction_is_still_waiting_for_a_reply(introduced
     assert outreach.email_after_failed_intro(introduced.pk) == "not_failed"
     main_case.refresh_from_db()
     assert mailbox == [] and main_case.workflow_status == "S03"
+
+
+# --- They pass us to someone else (2026-10-14) -----------------------------------------------------------------------
+
+def test_a_referred_person_is_asked_on_their_own_number_and_their_yes_gets_the_link(introduced, twilio, main_case):
+    new = outreach.refer_introduction(introduced, name="Tendai Moyo", phone="+263 77 200 0999", user=None)
+    introduced.refresh_from_db()
+    assert introduced.status == OutreachStatus.REFERRED and new.status == OutreachStatus.INTRO_SENT
+    assert twilio[-1]["To"] == "whatsapp:+263772000999" and twilio[-1]["ContentSid"] == "HXintro"
+    assert new.respondent.full_name == "Tendai Moyo" and AuditEvent.objects.filter(action="outreach.referred").exists()
+    _reply("YES", number="263772000999")
+    new.refresh_from_db()
+    main_case.refresh_from_db()
+    assert new.status == OutreachStatus.ACCEPTED and main_case.workflow_status == "S05"
+    assert twilio[-1]["To"] == "whatsapp:+263772000999" and "/i/" in twilio[-1]["Body"]
+
+
+def test_the_reminder_goes_to_the_referred_person_and_the_organisation_is_not_reminded(introduced, twilio, main_case):
+    new = outreach.refer_introduction(introduced, name="Tendai Moyo", phone="0772000999", user=None)
+    Outreach.objects.filter(pk__in=[introduced.pk, new.pk]).update(intro_sent_at=timezone.now() - timedelta(days=3))
+    assert outreach.run_followups()["reminded"] == 1
+    assert twilio[-1]["To"] == "whatsapp:+263772000999" and twilio[-1]["ContentSid"] == "HXintroReminder"
+    introduced.refresh_from_db()
+    assert introduced.status == OutreachStatus.REFERRED
+
+
+def test_a_referral_is_refused_for_a_landline_a_number_already_tried_or_a_case_already_invited(introduced, twilio, main_case):
+    with pytest.raises(outreach.OutreachError) as landline:
+        outreach.refer_introduction(introduced, name="Office", phone="+263 242 703961", user=None)
+    assert landline.value.code == "no_mobile"
+    with pytest.raises(outreach.OutreachError) as tried:
+        outreach.refer_introduction(introduced, name="Same", phone=MOBILE, user=None)
+    assert tried.value.code == "already_asked"
+    issue_invitation(main_case)
+    with pytest.raises(outreach.OutreachError) as invited:
+        outreach.refer_introduction(introduced, name="Tendai", phone="0772000999", user=None)
+    assert invited.value.code == "not_ready"
+    assert Respondent.objects.filter(sample_case=main_case).count() == 1  # nothing added by a refused referral
+
+
+def test_after_a_referral_fails_the_organisation_is_not_asked_again(introduced, twilio, main_case):
+    new = outreach.refer_introduction(introduced, name="Tendai Moyo", phone="0772000999", user=None)
+    Outreach.objects.filter(pk=new.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    assert not outreach.introduction_candidates().filter(pk=main_case.pk).exists()
+    assert b.introduction_summary()["ready"] == 0

@@ -156,6 +156,8 @@ class OutreachStatus(models.TextChoices):
     DECLINED = "DECLINED", "Said no"
     NO_REPLY = "NO_REPLY", "No reply"
     NOT_DELIVERED = "NOT_DELIVERED", "Could not be delivered"
+    # They answered by pointing the study to someone else, who is then asked on their own number (2026-10-14).
+    REFERRED = "REFERRED", "Passed us to someone else"
 
 
 OPEN_OUTREACH = [OutreachStatus.INTRO_SENT, OutreachStatus.REMINDED]
