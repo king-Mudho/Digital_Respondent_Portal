@@ -782,6 +782,19 @@ works):
 
 ## Notable fixes
 
+### WhatsApp daily limit counted the way Meta counts it (14 Oct 2026)
+
+The portal's WhatsApp cap counted every message sent since midnight -- replies on Communications and the link sent
+after a YES included -- while Meta's limit counts different people started with a template in a rolling 24 hours. On
+14 Oct the cap read 250 of 250 with about 163 people actually counted by Meta, and from then on a YES would not have
+got its link. Now (`outbound.sent_today` / `daily_max`):
+
+- only template messages (`ProviderMessage.is_template`: introductions, reminders, invitations sent first) count, one
+  per person, over the last 24 hours; free-text replies inside a conversation are never counted or held back;
+- the limit is the smaller of the study's ceiling (`TWILIO_WHATSAPP_DAILY_MAX`, now 500, PI decision) and Meta's
+  current tier for the number, read from Twilio's Senders API (`twilio_client.meta_messaging_limit`, cached 30 min;
+  the last value read, else 250, if Twilio can't be asked), so the portal follows Meta's upgrade to 2,000 by itself.
+
 ### No automatic answer to anything but YES or NO (14 Oct 2026)
 
 PI decision: a WhatsApp message that is not a clear YES or NO -- a question, a greeting, a business's auto-reply, an

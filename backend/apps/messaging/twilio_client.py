@@ -17,6 +17,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import time
 
 import requests
@@ -247,6 +248,52 @@ def template_approvals(*, get=None) -> list[dict]:
         out.append(row)
     cache.set(key, out, APPROVALS_CACHE_SECONDS)
     return out
+
+
+LIMIT_CACHE_SECONDS = 1800
+
+
+def _parse_limit(text: str):
+    """"250 Customers/24hr" -> 250, "2K Customers/24hr" -> 2000, "Unlimited" -> None (no limit), unreadable -> 0."""
+    value = (text or "").strip().upper()
+    if not value:
+        return 0
+    if value.startswith("UNLIMITED"):
+        return None
+    match = re.match(r"([\d.,]+)\s*([KM]?)", value)
+    if not match:
+        return 0
+    number = float(match.group(1).replace(",", ""))
+    return int(number * {"": 1, "K": 1000, "M": 1000000}[match.group(2)])
+
+
+def meta_messaging_limit(*, get=None):
+    """Meta's current limit on how many different people the study's WhatsApp number may start conversations with in
+    24 hours, from Twilio's Senders API; cached for half an hour. None means no limit. When Twilio cannot be asked, the
+    last value read is used, and 250 (Meta's starting tier) if there is none."""
+    from django.core.cache import cache
+
+    number = "".join(ch for ch in (settings.TWILIO_WHATSAPP_FROM or "") if ch.isdigit())
+    if not number or not credentials_set():
+        return 250
+    cached = cache.get("twilio-meta-limit")
+    if cached is not None:
+        return None if cached == "none" else cached
+    get = get or requests.get
+    try:
+        response = get("https://messaging.twilio.com/v2/Channels/Senders", params={"Channel": "whatsapp", "PageSize": 50},
+                       auth=_account(), timeout=15)
+        senders = (response.json() or {}).get("senders", []) if response.ok else []
+        sender = next((s for s in senders if number in "".join(ch for ch in s.get("sender_id", "") if ch.isdigit())), None)
+        limit = _parse_limit(((sender or {}).get("properties") or {}).get("messaging_limit", "")) if sender else 0
+    except (requests.RequestException, ValueError):
+        limit = 0
+    if limit == 0:  # not readable: the last known value, else Meta's starting tier
+        last = cache.get("twilio-meta-limit-last")
+        return None if last == "none" else (last or 250)
+    cache.set("twilio-meta-limit", "none" if limit is None else limit, LIMIT_CACHE_SECONDS)
+    cache.set("twilio-meta-limit-last", "none" if limit is None else limit, 7 * 24 * 3600)
+    return limit
 
 
 def template_waiting(setting: str, *, approvals=None) -> str:

@@ -344,7 +344,7 @@ def test_an_ask_first_batch_introduces_cases_without_issuing_invitations(twilio,
     _verified(main_case)
     second = _verified(create_sample_case(organisation=organisation, stratum=stratum, sample_type="MAIN", year=2026), phone="0772222222")
     info = _client(_user(Role.FIELD_COORDINATOR, "out_fc4")).get("/api/v1/invitations/batch/").json()
-    assert info["introductions"] == {"configured": True, "channel": "WHATSAPP", "ready": 2, "left_today": 250}
+    assert info["introductions"] == {"configured": True, "channel": "WHATSAPP", "ready": 2, "left_today": 500}  # the study ceiling (PI, 2026-10-14); no Meta tier in tests
     batch = b.start_batch(2, user=_user(Role.FIELD_COORDINATOR, "out_fc5"), mode="INTRO")
     b.run_batch(batch.pk)
     batch.refresh_from_db()
@@ -476,3 +476,11 @@ def test_after_a_referral_fails_the_organisation_is_not_asked_again(introduced, 
     Outreach.objects.filter(pk=new.pk).update(status=OutreachStatus.NOT_DELIVERED)
     assert not outreach.introduction_candidates().filter(pk=main_case.pk).exists()
     assert b.introduction_summary()["ready"] == 0
+
+
+def test_a_yes_gets_its_link_even_when_the_daily_limit_is_used_up(introduced, twilio, main_case, settings):
+    """14 Oct 2026: the cap counted every message, so after 250 a YES would not get its link."""
+    settings.TWILIO_WHATSAPP_DAILY_MAX = 1  # the introduction used it
+    _reply("YES")
+    main_case.refresh_from_db()
+    assert main_case.workflow_status == "S05" and "/i/" in twilio[-1]["Body"]

@@ -18,6 +18,8 @@ def _no_meta_lookup(monkeypatch):
     from apps.messaging import twilio_client as tw
 
     monkeypatch.setattr(tw, "template_approvals", lambda **kw: [])
+    # Meta's limit for the number is read from Twilio too: in tests there is none, so the study's own ceiling applies.
+    monkeypatch.setattr(tw, "meta_messaging_limit", lambda **kw: None)
 
 
 @pytest.fixture(autouse=True)

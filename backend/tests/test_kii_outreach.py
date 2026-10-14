@@ -180,8 +180,9 @@ def test_yes_after_the_record_was_invited_by_hand_goes_to_a_person(introduced, t
     assert AuditEvent.objects.filter(action="outreach.accept_not_sent").exists()
 
 
-def test_if_the_link_cannot_be_sent_nothing_is_kept(introduced, twilio, settings):
-    settings.TWILIO_WHATSAPP_DAILY_MAX = 1  # the introduction used today's only WhatsApp message
+def test_if_the_link_cannot_be_sent_nothing_is_kept(introduced, twilio, monkeypatch):
+    refused = Mock(status_code=400, json=Mock(return_value={"code": 63016, "message": "refused"}))
+    monkeypatch.setattr(tw.requests, "post", lambda *a, **k: refused)  # Twilio refuses the message with the link
     _reply("YES")
     record = introduced.kii_record
     record.refresh_from_db()

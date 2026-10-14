@@ -427,3 +427,70 @@ def test_the_daily_cap_stops_sending(twilio, settings, main_case):
     assert exc.value.code == "daily_limit_reached" and len(twilio.sent) == 1
     _invited(main_case, days_ago=2)
     assert dispatch_due_reminders() == [] and len(twilio.sent) == 1
+
+
+# --- WhatsApp limit counted as Meta counts it (2026-10-14) -----------------------------------------------------------
+
+from apps.messaging.twilio_client import _parse_limit, meta_messaging_limit as real_meta_limit  # noqa: E402
+
+
+def test_replies_inside_a_conversation_are_never_blocked_by_the_daily_limit(twilio, settings, db):
+    _whatsapp(settings)
+    settings.TWILIO_WHATSAPP_DAILY_MAX = 1
+    outbound.send(channel="WHATSAPP", number="263771234567", purpose="INTRODUCTION", wa_content="HXinvite")
+    with pytest.raises(outbound.OutboundError) as exc:
+        outbound.send(channel="WHATSAPP", number="263772000111", purpose="INTRODUCTION", wa_content="HXinvite")
+    assert exc.value.code == "daily_limit_reached"
+    outbound.send(channel="WHATSAPP", number="263772000111", purpose="INVITATION", wa_text="Your personal link: ...")
+    outbound.send(channel="WHATSAPP", number="263771234567", purpose="REPLY", wa_text="Thank you")
+    assert len(twilio.sent) == 3 and outbound.sent_today("WHATSAPP") == 1
+
+
+def test_the_same_person_counts_once_and_only_the_last_24_hours_count(twilio, settings, db):
+    from datetime import timedelta as td
+
+    _whatsapp(settings)
+    settings.TWILIO_WHATSAPP_DAILY_MAX = 2
+    for _ in range(3):
+        outbound.send(channel="WHATSAPP", number="263771234567", purpose="REMINDER", wa_content="HXday2")
+    assert outbound.sent_today("WHATSAPP") == 1 and outbound.left_today("WHATSAPP") == 1
+    ProviderMessage.objects.update(created_at=timezone.now() - td(hours=25))
+    assert outbound.sent_today("WHATSAPP") == 0
+
+
+def test_the_limit_is_the_smaller_of_the_studys_ceiling_and_metas_tier(settings, monkeypatch):
+    settings.TWILIO_WHATSAPP_DAILY_MAX = 500
+    for meta, expected in ((250, 250), (2000, 500), (None, 500)):
+        monkeypatch.setattr(tw, "meta_messaging_limit", lambda meta=meta, **kw: meta)
+        assert outbound.daily_max("WHATSAPP") == expected
+
+
+@pytest.mark.parametrize("text,limit", [("250 Customers/24hr", 250), ("2K Customers/24hr", 2000), ("10K", 10000),
+                                        ("100K Customers/24hr", 100000), ("Unlimited", None), ("", 0), ("Unavailable", 0)])
+def test_metas_tier_is_read_from_twilios_wording(text, limit):
+    assert _parse_limit(text) == limit
+
+
+def test_metas_tier_is_read_from_the_sender_and_falls_back_safely(settings):
+    from django.core.cache import cache
+
+    settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_WHATSAPP_FROM = "ACtest", "t", "+263790388749"
+    senders = {"senders": [{"sender_id": "whatsapp:+14155238886", "properties": {"messaging_limit": "Unavailable"}},
+                           {"sender_id": "whatsapp:+263790388749", "properties": {"messaging_limit": "2K Customers/24hr"}}]}
+    ok = lambda *a, **k: Mock(ok=True, json=Mock(return_value=senders))  # noqa: E731
+    assert real_meta_limit(get=ok) == 2000
+    cache.clear()
+    cache.set("twilio-meta-limit-last", 2000)
+    down = lambda *a, **k: Mock(ok=False, json=Mock(return_value={}))  # noqa: E731
+    assert real_meta_limit(get=down) == 2000  # Twilio not answering: the last value read
+    cache.clear()
+    assert real_meta_limit(get=down) == 250  # never read: Meta's starting tier
+
+
+def test_a_second_template_to_someone_already_counted_goes_even_when_the_limit_is_full(twilio, settings, db):
+    _whatsapp(settings)
+    settings.TWILIO_WHATSAPP_DAILY_MAX = 1
+    outbound.send(channel="WHATSAPP", number="263771234567", purpose="INTRODUCTION", wa_content="HXinvite")
+    assert outbound.left_today("WHATSAPP") == 0
+    outbound.send(channel="WHATSAPP", number="263771234567", purpose="REMINDER", wa_content="HXday2")  # same person
+    assert len(twilio.sent) == 2

@@ -11,6 +11,7 @@ replaced (redact()): a link works like a password, and the portal otherwise keep
 """
 
 import re
+from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
@@ -52,13 +53,33 @@ class OutboundError(Exception):
 
 
 def daily_max(channel: str) -> int:
-    name = "TWILIO_SMS_DAILY_MAX" if channel == MessageChannel.SMS else "TWILIO_WHATSAPP_DAILY_MAX"
-    return max(0, int(getattr(settings, name, 0)))
+    """SMS: TWILIO_SMS_DAILY_MAX messages a day. WhatsApp: the smaller of the study's own ceiling
+    (TWILIO_WHATSAPP_DAILY_MAX) and Meta's current limit for the number, read from Twilio (2026-10-14) -- Meta raises
+    it by itself (250, then 2,000, 10,000...) and the portal follows."""
+    if channel == MessageChannel.SMS:
+        return max(0, int(getattr(settings, "TWILIO_SMS_DAILY_MAX", 0)))
+    ceiling = max(0, int(getattr(settings, "TWILIO_WHATSAPP_DAILY_MAX", 0)))
+    meta = tw.meta_messaging_limit()
+    return ceiling if meta is None else min(ceiling, meta)
 
 
 def sent_today(channel: str) -> int:
+    """SMS: messages sent since midnight. WhatsApp: what Meta counts -- different people sent a template (an
+    introduction, reminder or invitation sent first) in the last 24 hours. Free-text replies inside a conversation the
+    person started, such as the link after a YES, are not counted (2026-10-14)."""
+    if channel == MessageChannel.WHATSAPP:
+        since = timezone.now() - timedelta(hours=24)
+        return (ProviderMessage.objects.filter(channel=channel, is_template=True, created_at__gte=since)
+                .values("to_hash").distinct().count())
     start = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
     return ProviderMessage.objects.filter(channel=channel, created_at__gte=start).count()
+
+
+def _already_counted(number: str) -> bool:
+    """A template to someone already sent one in the last 24 hours does not use up Meta's limit again."""
+    since = timezone.now() - timedelta(hours=24)
+    return ProviderMessage.objects.filter(channel=MessageChannel.WHATSAPP, is_template=True, created_at__gte=since,
+                                          to_hash=number_hash(number)).exists()
 
 
 def left_today(channel: str) -> int:
@@ -111,7 +132,9 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
                                 "Send by email or SMS for now.", 409)
     if not number:
         raise OutboundError("no_mobile", "No mobile number is on file (a landline can't receive SMS or WhatsApp). Add one under contact details.")
-    if left_today(channel) < 1:
+    template = channel == MessageChannel.WHATSAPP and not wa_text
+    capped = channel == MessageChannel.SMS or (template and not _already_counted(number))
+    if capped and left_today(channel) < 1:
         raise OutboundError("daily_limit_reached", f"Today's limit of {daily_max(channel)} {label} messages has been reached. Try again tomorrow.", 409)
     try:
         if channel == MessageChannel.SMS:
@@ -131,7 +154,7 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
         channel=channel, purpose=purpose, provider=MessageProvider.TWILIO, provider_sid=result.get("sid") or None,
         to_masked=tw.mask(number), to_hash=number_hash(number), body=redact(shown, link=redact_link, code=redact_code),
         status=TWILIO_STATUS.get(str(result.get("status", "")).lower(), ProviderStatus.QUEUED),
-        segments=int(segments) if str(segments or "").isdigit() else None, sent_by=user, **links,
+        segments=int(segments) if str(segments or "").isdigit() else None, sent_by=user, is_template=template, **links,
     )
 
 

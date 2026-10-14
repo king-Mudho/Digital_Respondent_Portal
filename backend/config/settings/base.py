@@ -357,7 +357,9 @@ TWILIO_WA_CONTENT_REMINDER_DAY2 = env("TWILIO_WA_CONTENT_REMINDER_DAY2", default
 TWILIO_WA_CONTENT_REMINDER_DAY7 = env("TWILIO_WA_CONTENT_REMINDER_DAY7", default="")
 # Most messages each channel may send in a day (invitations and automatic reminders together).
 TWILIO_SMS_DAILY_MAX = env.int("TWILIO_SMS_DAILY_MAX", default=150)
-TWILIO_WHATSAPP_DAILY_MAX = env.int("TWILIO_WHATSAPP_DAILY_MAX", default=250)
+# The study's own ceiling on different people sent a WhatsApp template in 24 hours (PI decision, 2026-10-14: 500).
+# Meta's own limit for the number applies on top and is read from Twilio (twilio_client.meta_messaging_limit).
+TWILIO_WHATSAPP_DAILY_MAX = env.int("TWILIO_WHATSAPP_DAILY_MAX", default=500)
 # Twilio's price per SMS segment to Zimbabwe (checked 2026-10-07), for the cost estimate shown before a batch.
 TWILIO_SMS_SEGMENT_PRICE_USD = env.float("TWILIO_SMS_SEGMENT_PRICE_USD", default=0.3212)
 # Appended to every SMS when set. Two-way SMS is not available in Zimbabwe, so a respondent cannot reply STOP; the

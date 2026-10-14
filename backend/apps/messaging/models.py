@@ -138,6 +138,9 @@ class ProviderMessage(models.Model):
     error_code = models.CharField(max_length=16, blank=True)
     error_message = models.CharField(max_length=300, blank=True)
     segments = models.PositiveSmallIntegerField(null=True, blank=True)
+    # A WhatsApp message sent as an approved template (an introduction, reminder or invitation sent first) rather than
+    # free text inside a conversation the person started. Only templates count toward Meta's daily limit (2026-10-14).
+    is_template = models.BooleanField(default=False)
     sent_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

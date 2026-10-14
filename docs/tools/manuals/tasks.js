@@ -317,7 +317,7 @@ T.emailBatch = [
   ]],
   ["warn", "Before the first batch", [
     "Each way must be set up on the server first: email with `configure-email.sh`, SMS and WhatsApp with `configure-twilio.sh` (see the System Manual). Until then the panel says so and the button stays disabled.",
-    "Daily limits: 300 emails (Main-400 and KII invitations together), 150 SMS and 250 WhatsApp messages (invitations and automatic reminders together). The panel shows what is left.",
+    "Daily limits: 300 emails (Main-400 and KII invitations together), 150 SMS, and on WhatsApp up to 500 different people a day started with an introduction, reminder or invitation (fewer while Meta's own limit for the study's number is lower: 250 at first, then 2,000 once Meta raises it). Replies in a conversation and the link sent after a YES never count and are never held back. The panel shows what is left.",
     "WhatsApp stays unavailable until Meta approves the invitation template: the panel shows the template as pending and the batch refuses WhatsApp, because a message on an unapproved template is accepted and then silently not delivered. The same applies everywhere the portal sends WhatsApp (a single invitation, an introduction, a reminder): it says Meta hasn't approved the template yet, and introductions go by SMS with the reply link instead.",
     "If nothing gets through for a case, nothing is kept for it: no link is issued, it stays at S03 or S04, and the next batch tries it again. If one way works and another fails, the case is sent and **Case by case** says what failed.",
   ]],
