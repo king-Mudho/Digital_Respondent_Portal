@@ -66,6 +66,17 @@ export function getKIIRespondentProfile(token: string) {
   return apiFetch<KIIRespondentProfile | null>(`/proit/kii-respondent-profile/?t=${encodeURIComponent(token)}`);
 }
 
+/** Every answer in one call, saved together or not at all (2026-10-14): one call per fact ran into the per-link limit. */
+export function submitKIIFieldVerifications(token: string, answers: { fieldId: number; status: string; respondentValue: string }[]) {
+  return apiFetch<{ saved: number }>("/proit/kii-respondent-verify/", {
+    method: "POST",
+    body: JSON.stringify({
+      token,
+      answers: answers.map((a) => ({ field_id: a.fieldId, status: a.status, respondent_value: a.respondentValue })),
+    }),
+  });
+}
+
 export function submitKIIFieldVerification(params: { token: string; fieldId: number; status: string; respondentValue: string }) {
   return apiFetch<{ id: number; verification_status: string }>("/proit/kii-respondent-verify/", {
     method: "POST",

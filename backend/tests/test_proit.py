@@ -356,3 +356,26 @@ def test_respondent_can_verify_only_a_field_from_their_own_case(main_case, admin
         format="json",
     )
     assert resp.status_code == 404
+
+
+def test_a_respondent_saves_every_answer_in_one_call_together_or_not_at_all(main_case, admin_user):
+    """14 Oct 2026: one call per fact ran into the per-link limit of 20 a minute."""
+    from apps.invitations.services import issue_invitation
+    from apps.proit.models import PROIT_FIELD_CATALOG
+
+    profile = create_pre_profile(sample_case=main_case)
+    fields = []
+    for field_id in list(PROIT_FIELD_CATALOG)[:25]:
+        f = add_field(profile, field_id, documentary_value=f"value of {field_id}")
+        add_evidence(f, source_title="PRAZ registry", source_confidence=Confidence.HIGH)
+        fields.append(f)
+    lock_pre_profile(profile, reviewer=admin_user)
+    raw_token, _, _ = issue_invitation(main_case)
+    bad = [{"field_id": f.id, "status": "YES_CORRECT"} for f in fields]
+    bad[10]["status"] = "NOT_A_STATUS"
+    resp = APIClient().post("/api/v1/proit/respondent-verify/", {"token": raw_token, "answers": bad}, format="json")
+    assert resp.status_code == 400 and not profile.fields.exclude(verification_status="").exists()
+    good = [{"field_id": f.id, "status": "YES_CORRECT"} for f in fields]
+    resp = APIClient().post("/api/v1/proit/respondent-verify/", {"token": raw_token, "answers": good}, format="json")
+    assert resp.status_code == 200 and resp.json()["saved"] == 25
+    assert profile.fields.filter(verification_status="YES_CORRECT").count() == 25

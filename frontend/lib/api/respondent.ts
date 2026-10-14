@@ -105,6 +105,17 @@ export type VerificationStatus =
   | "PREFER_NOT_TO_SAY"
   | "NOT_APPLICABLE";
 
+/** Every answer in one call, saved together or not at all (2026-10-14): one call per fact ran into the per-link limit. */
+export function submitFieldVerifications(token: string, answers: { fieldId: number; status: VerificationStatus; respondentValue?: string }[]) {
+  return apiFetch<{ saved: number }>("/proit/respondent-verify/", {
+    method: "POST",
+    body: JSON.stringify({
+      token,
+      answers: answers.map((a) => ({ field_id: a.fieldId, status: a.status, respondent_value: a.respondentValue ?? "" })),
+    }),
+  });
+}
+
 export function submitFieldVerification(params: {
   token: string;
   fieldId: number;

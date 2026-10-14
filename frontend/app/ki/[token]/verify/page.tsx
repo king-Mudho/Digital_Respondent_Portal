@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   getKIIRespondentProfile,
-  submitKIIFieldVerification,
+  submitKIIFieldVerifications,
   type KIIRespondentProfile,
 } from "@/lib/api/kiiRespondent";
 import { respondentErrorMessage } from "@/lib/api/respondentErrors";
@@ -93,10 +93,9 @@ export default function KIIVerifyPage() {
     setSubmitting(true);
     setError(null);
     try {
-      // One at a time, as on the Main-400 page: a retry after a failure part-way simply re-sends each answer.
-      for (const id of items) {
-        await submitKIIFieldVerification({ token, fieldId: id, status: answers[id], respondentValue: values[id] ?? "" });
-      }
+      // All answers in one call, saved together or not at all: one call per fact ran into the per-link limit of 20
+      // a minute on longer profiles (2026-10-14), and a retry simply sends them all again.
+      await submitKIIFieldVerifications(token, items.map((id) => ({ fieldId: id, status: answers[id], respondentValue: values[id] ?? "" })));
       goOn();
     } catch (err) {
       setError(respondentErrorMessage(err));

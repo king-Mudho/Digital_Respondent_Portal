@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   getRespondentPreProfile,
-  submitFieldVerification,
+  submitFieldVerifications,
   type RespondentPreProfile,
   type VerificationStatus,
 } from "@/lib/api/respondent";
@@ -81,19 +81,13 @@ export default function VerifyPage() {
     setSubmitting(true);
     setError(null);
     try {
-      // Sequential, not Promise.all: these are separate writes, and a
-      // partial failure part-way through a parallel batch left the
-      // respondent stuck on this screen with no message and no idea which
-      // answers had been saved. In order, a retry simply re-sends the
-      // ones that already succeeded, which is idempotent per field.
-      for (const field of profile!.fields) {
-        await submitFieldVerification({
-          token,
-          fieldId: field.id,
-          status: responses[field.id],
-          respondentValue: corrections[field.id] ?? "",
-        });
-      }
+      // All answers in one call, saved together or not at all (2026-10-14): one call per fact ran into the
+      // per-link limit of 20 a minute on longer profiles, and a part-way failure left the respondent unsure which
+      // answers had been saved. A retry simply sends them all again.
+      await submitFieldVerifications(
+        token,
+        profile!.fields.map((field) => ({ fieldId: field.id, status: responses[field.id], respondentValue: corrections[field.id] ?? "" })),
+      );
       goToChoice();
     } catch (err) {
       setError(respondentErrorMessage(err));

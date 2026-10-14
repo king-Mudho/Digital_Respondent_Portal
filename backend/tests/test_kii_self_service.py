@@ -195,3 +195,50 @@ def test_the_queue_is_refused_to_roles_without_interview_work(db):
         client.force_authenticate(_user(role, f"q_{role.lower()}"))
         assert client.get(QUEUE).status_code == 403
     assert KIIRecord.objects.count() == 0
+
+
+# --- All answers in one call (2026-10-14) ----------------------------------------------------------------------------
+
+def _big_profile(record, n=25):
+    from apps.proit.models import PROIT_FIELD_CATALOG
+
+    profile = create_pre_profile(kii_record=record)
+    fields = []
+    for field_id in list(PROIT_FIELD_CATALOG)[:n]:
+        f = add_field(profile, field_id, documentary_value=f"value of {field_id}")
+        add_evidence(f, source_title="Annual report", source_confidence="HIGH", source_authority="TIER_1_STATUTORY")
+        fields.append(f)
+    lock_pre_profile(profile, reviewer=_user(Role.PI_ADMIN, f"lockbig_{record.pk}"))
+    return profile, fields
+
+
+def test_a_profile_with_many_facts_is_saved_in_one_call_within_the_per_link_limit(db):
+    """14 Oct 2026: one call per fact hit the 20-a-minute limit on the informant's own link at the 21st fact."""
+    record = _record()
+    profile, fields = _big_profile(record)
+    raw, _, _ = issue_kii_invitation(record)
+    _consent(raw)
+    answers = [{"field_id": f.id, "status": "YES_CORRECT", "respondent_value": ""} for f in fields]
+    resp = APIClient().post(VERIFY, {"token": raw, "answers": answers}, format="json")
+    assert resp.status_code == 200 and resp.json()["saved"] == 25
+    assert profile.fields.filter(verification_status="YES_CORRECT").count() == 25
+    one_by_one = [APIClient().post(VERIFY, {"token": raw, **a}, format="json").status_code for a in answers]
+    assert 429 in one_by_one  # what informants ran into before
+
+
+def test_answers_are_saved_together_or_not_at_all(db):
+    record = _record()
+    profile, fields = _big_profile(record, n=5)
+    raw, _, _ = issue_kii_invitation(record)
+    _consent(raw)
+    answers = [{"field_id": f.id, "status": "YES_CORRECT"} for f in fields]
+    answers[3] = {"field_id": fields[3].id, "status": "NO_CORRECT_VALUE_PROVIDED", "respondent_value": ""}  # no correction
+    resp = APIClient().post(VERIFY, {"token": raw, "answers": answers}, format="json")
+    assert resp.status_code == 400 and resp.json()["error"]["field_id"] == fields[3].id
+    assert not profile.fields.exclude(verification_status="").exists()
+    other = _record()
+    _, theirs = _big_profile(other, n=1)
+    mixed = [{"field_id": fields[0].id, "status": "YES_CORRECT"}, {"field_id": theirs[0].id, "status": "YES_CORRECT"}]
+    assert APIClient().post(VERIFY, {"token": raw, "answers": mixed}, format="json").status_code == 404
+    assert not profile.fields.exclude(verification_status="").exists()
+    assert APIClient().post(VERIFY, {"token": raw, "answers": []}, format="json").status_code == 400

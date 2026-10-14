@@ -230,10 +230,38 @@ class RespondentPreProfileView(APIView):
         })
 
 
+MAX_ANSWERS = 200
+
+
+class _AnswerRefused(Exception):
+    def __init__(self, field_id, code: str, message: str):
+        self.field_id, self.code = field_id, code
+        super().__init__(message)
+
+
+def _answers(data) -> list[dict]:
+    """The answers in a request: {answers: [{field_id, status, respondent_value}, ...]} -- all of them in one call
+    (2026-10-14) -- or the older one-field form {field_id, status, respondent_value}."""
+    answers = data.get("answers")
+    if answers is None:
+        return [{"field_id": data.get("field_id"), "status": data.get("status"),
+                 "respondent_value": data.get("respondent_value", ""), "comment": data.get("comment", "")}]
+    if not isinstance(answers, list) or not 1 <= len(answers) <= MAX_ANSWERS or not all(isinstance(a, dict) for a in answers):
+        raise _AnswerRefused(None, "invalid_input", "Send between 1 and 200 answers.")
+    return answers
+
+
+def _refused(exc: _AnswerRefused):
+    # Another record's item answers 404, as before: whether it exists is not theirs to know.
+    status = 404 if exc.code == "not_found" else 400
+    return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}, "field_id": exc.field_id}}, status=status)
+
+
 class RespondentVerifyView(APIView):
-    """POST /api/v1/proit/respondent-verify/ -- public, one field per
-    call. Scoped to the token's own case: a respondent can only verify a
-    field belonging to the pre-profile resolved from their own token."""
+    """POST /api/v1/proit/respondent-verify/ -- public. Scoped to the token's own case: a respondent can only verify
+    fields belonging to the pre-profile resolved from their own token. Takes every answer in one call
+    ({token, answers: [...]}), saved together or not at all (2026-10-14): one call per fact ran into the per-link
+    limit of 20 requests a minute on any profile with more than about 18 facts. The one-field form still works."""
 
     permission_classes = [AllowAny]
     throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
@@ -248,19 +276,27 @@ class RespondentVerifyView(APIView):
         except TokenValidationError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=400)
 
-        field = get_object_or_404(
-            PreProfileField, pk=request.data.get("field_id"), pre_profile__sample_case=token.sample_case,
-        )
-        status_code = request.data.get("status")
+        from django.db import transaction
+
+        saved = []
         try:
-            record_verification(
-                field, status=status_code,
-                respondent_value=request.data.get("respondent_value", ""),
-                comment=request.data.get("comment", ""),
-            )
-        except PreProfileError as exc:
-            return Response({"error": {"code": "verification_failed", "message": str(exc), "field_errors": {}}}, status=400)
-        return Response({"id": field.id, "verification_status": field.verification_status})
+            with transaction.atomic():
+                for item in _answers(request.data):
+                    field = PreProfileField.objects.filter(
+                        pk=item.get("field_id"), pre_profile__sample_case=token.sample_case,
+                    ).first()
+                    if field is None:
+                        raise _AnswerRefused(item.get("field_id"), "not_found", "This item is not part of your questionnaire.")
+                    try:
+                        record_verification(field, status=item.get("status"),
+                                            respondent_value=str(item.get("respondent_value") or "")[:500],
+                                            comment=str(item.get("comment") or "")[:500])
+                    except PreProfileError as exc:
+                        raise _AnswerRefused(field.id, "verification_failed", str(exc)) from exc
+                    saved.append({"id": field.id, "verification_status": field.verification_status})
+        except _AnswerRefused as exc:
+            return _refused(exc)
+        return Response({**saved[-1], "saved": len(saved), "results": saved})
 
 
 # --- AI desk research: the AI proposes, a researcher decides ------------------------------------------
@@ -556,9 +592,10 @@ class KIIRespondentPreProfileView(APIView):
 
 
 class KIIRespondentVerifyView(APIView):
-    """POST /api/v1/proit/kii-respondent-verify/ {token, field_id, status, respondent_value} -- one fact or question,
-    only on the informant's own profile. A plain confirmation settles the fact; anything else waits for a researcher's
-    reconciled value (proit.services.field_is_settled)."""
+    """POST /api/v1/proit/kii-respondent-verify/ {token, answers: [{field_id, status, respondent_value}, ...]} -- every
+    fact and question in one call, saved together or not at all, only on the informant's own profile (one call per
+    fact ran into the per-link limit, 2026-10-14; the one-field form still works). A plain confirmation settles the
+    fact; anything else waits for a researcher's reconciled value (proit.services.field_is_settled)."""
 
     permission_classes = [AllowAny]
     throttle_classes = [PerTokenThrottle, RespondentRateThrottle]
@@ -571,24 +608,35 @@ class KIIRespondentVerifyView(APIView):
             return problem
         if profile is None:
             return _error("not_found", "There is nothing to check.", 404)
-        field = get_object_or_404(PreProfileField, pk=request.data.get("field_id"), pre_profile=profile)
-        status_code = request.data.get("status")
-        value = str(request.data.get("respondent_value", "")).strip()[:500]
-        asked_as_question = not field_is_displayable(field)
-        if asked_as_question and status_code not in QUESTION_ANSWERS:
-            return _error("invalid_input", "Give your own answer, or say you don't know.")
-        if status_code in ("NO_CORRECT_VALUE_PROVIDED", "PARTLY_CORRECT") and not value:
-            return _error("invalid_input", "Please say what it should be.")
-        comment = "Answered by the informant online" + (" (asked as an open question)" if asked_as_question else "")
+        from django.db import transaction
+
+        saved = []
         try:
-            record_verification(field, status=status_code, respondent_value=value, comment=comment)
-        except PreProfileError as exc:
-            return _error("verification_failed", str(exc))
+            with transaction.atomic():
+                for item in _answers(request.data):
+                    field = PreProfileField.objects.filter(pk=item.get("field_id"), pre_profile=profile).first()
+                    if field is None:
+                        raise _AnswerRefused(item.get("field_id"), "not_found", "This item is not part of your interview.")
+                    status_code = item.get("status")
+                    value = str(item.get("respondent_value") or "").strip()[:500]
+                    asked_as_question = not field_is_displayable(field)
+                    if asked_as_question and status_code not in QUESTION_ANSWERS:
+                        raise _AnswerRefused(field.id, "invalid_input", "Give your own answer, or say you don't know.")
+                    if status_code in ("NO_CORRECT_VALUE_PROVIDED", "PARTLY_CORRECT") and not value:
+                        raise _AnswerRefused(field.id, "invalid_input", "Please say what it should be.")
+                    comment = "Answered by the informant online" + (" (asked as an open question)" if asked_as_question else "")
+                    try:
+                        record_verification(field, status=status_code, respondent_value=value, comment=comment)
+                    except PreProfileError as exc:
+                        raise _AnswerRefused(field.id, "verification_failed", str(exc)) from exc
+                    saved.append({"id": field.id, "verification_status": field.verification_status})
+        except _AnswerRefused as exc:
+            return _refused(exc)
         refresh_reconciliation(profile)
         from apps.kii.services import complete_coding_if_settled
 
         complete_coding_if_settled(record)
-        return Response({"id": field.id, "verification_status": field.verification_status})
+        return Response({**saved[-1], "saved": len(saved), "results": saved})
 
 
 class ReconciliationQueueView(APIView):

@@ -782,6 +782,17 @@ works):
 
 ## Notable fixes
 
+### Fact check saved in one call (14 Oct 2026)
+
+The pre-interview fact-check pages (KII `/ki/[token]/verify` and Main-400 `/i/[token]/verify`) saved one answer per
+request, while each personal link is limited to 20 requests a minute (`PerTokenThrottle`). Any profile with more than
+about 18 facts therefore stopped part-way with "We've had a lot of requests from your connection" -- the PI's test of
+KII-0001 (23 facts) saved 20 and stopped; 112 KII profiles were locked with up to 30 facts each. Unnoticed because the
+test profiles had two or three facts. Both endpoints now take every answer in one call
+(`{token, answers: [{field_id, status, respondent_value}, ...]}`, up to 200), saved together or not at all -- an
+invalid answer is refused with its `field_id` and nothing is kept; another record's item still answers 404. The
+one-field form still works.
+
 ### WhatsApp daily limit counted the way Meta counts it (14 Oct 2026)
 
 The portal's WhatsApp cap counted every message sent since midnight -- replies on Communications and the link sent
