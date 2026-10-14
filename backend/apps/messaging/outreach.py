@@ -535,7 +535,9 @@ def run_followups(now=None) -> dict:
 
 def intro_not_delivered(message) -> None:
     """Twilio could not deliver an introduction (from outbound.record_status). A WhatsApp one is sent once by SMS, with
-    the tap-to-reply link; otherwise the case is listed for an RA to phone."""
+    the tap-to-reply link, where SMS is set up. Otherwise the introduction is marked not delivered and, when an email is
+    on file, the invitation goes by email instead (email_after_failed_intro, in the background so Twilio's webhook is
+    answered at once); with no email the case or record is listed for a person to phone."""
     if message.kii_record_id:
         mine = Outreach.objects.filter(kii_record=message.kii_record)
     elif message.sample_case_id:
@@ -561,6 +563,47 @@ def intro_not_delivered(message) -> None:
             return
     outreach.status = OutreachStatus.NOT_DELIVERED
     outreach.save(update_fields=["status"])
+    from .tasks import email_after_failed_intro_task
+
+    email_after_failed_intro_task.delay(outreach.pk)
+
+
+def email_after_failed_intro(outreach_id: int) -> str:
+    """WhatsApp (and SMS, where set up) could not reach them, so the invitation goes by email when one is on file (PI
+    decision, 2026-10-14: "WhatsApp first; without WhatsApp, email"). It is the ordinary invitation -- issued and sent
+    as one step by the batch's send_one(), so a failed email keeps no link -- and the case moves to S05 (a KII record
+    to INVITED), which takes it off the phone list. Inside the daily email limit; never for a case that was meanwhile
+    invited, refused or completed. Returns what happened, for the audit log and tests."""
+    from apps.invitations import batch as main_batch
+    from apps.invitations.messages import portal_base
+
+    outreach = Outreach.objects.select_related("sample_case", "kii_record").get(pk=outreach_id)
+    if outreach.status != OutreachStatus.NOT_DELIVERED:
+        return "not_failed"
+    kii, target = outreach.kii_record_id is not None, outreach.target
+    ident = {"kii_id": target.kii_id} if kii else {"sample_id": target.sample_id}
+    if kii:
+        from apps.kii import batch as kii_batch
+
+        ready = _kii_ready(target) and bool(kii_batch.reachable_channels(target, ("EMAIL",)))
+        send_one = kii_batch.send_one
+    else:
+        from apps.sampling.services import is_invitable
+
+        ready = _ready_to_invite(target) and is_invitable(target) and bool(main_batch.reachable_channels(target, ("EMAIL",)))
+        send_one = main_batch.send_one
+    if not ready:
+        return "no_email" if not (target.email if kii else main_batch.recipients(target)["email_to"]) else "not_ready"
+    if main_batch.left_today() < 1:
+        log_action("outreach.email_fallback_waiting", target, {**ident, "outreach": outreach.pk, "reason": "daily email limit reached"})
+        return "daily_limit"
+    try:
+        sent = send_one(target, user=None, link_base=portal_base(None), channels=("EMAIL",))
+    except Exception as exc:  # nothing was kept; the case stays on the phone list
+        log_action("outreach.email_fallback_failed", target, {**ident, "outreach": outreach.pk, "error": str(exc)[:300]})
+        return "failed"
+    log_action("outreach.email_fallback", target, {**ident, "outreach": outreach.pk, "recipient": sent["sent_to"]})
+    return "sent"
 
 
 def unanswered(*, assigned_to=None) -> list[dict]:

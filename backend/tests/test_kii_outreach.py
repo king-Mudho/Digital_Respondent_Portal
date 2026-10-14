@@ -301,3 +301,17 @@ def test_a_kii_number_that_never_got_the_introduction_is_not_asked_again(introdu
     record.phone = "0772000999"
     record.save(update_fields=["phone"])
     assert kb.introduction_summary()["ready"] == 1
+
+
+def test_a_kii_introduction_that_never_arrives_sends_the_link_by_email(introduced, twilio, settings, monkeypatch):
+    from django.core import mail
+
+    settings.EMAIL_BACKEND, settings.TWILIO_SMS_FROM = "django.core.mail.backends.locmem.EmailBackend", ""
+    monkeypatch.setattr(tasks.email_after_failed_intro_task, "delay", lambda pk: outreach.email_after_failed_intro(pk))
+    record = introduced.kii_record
+    record.email = "tendai@agribank.co.zw"
+    record.save(update_fields=["email"])
+    _report(ProviderMessage.objects.get().provider_sid, "undelivered")
+    record.refresh_from_db()
+    assert record.status == KIIStatus.INVITED and [m.to for m in mail.outbox] == [["tendai@agribank.co.zw"]]
+    assert "/ki/" in mail.outbox[0].body and outreach.kii_unanswered() == []

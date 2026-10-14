@@ -358,3 +358,66 @@ def test_a_number_that_never_got_the_introduction_is_not_asked_again_but_a_corre
     assert b.introduction_summary()["ready"] == 1
     outreach.send_introduction(main_case, user=None)
     assert len(twilio) == 2 and twilio[-1]["To"] == "whatsapp:+263772000999"
+
+
+# --- WhatsApp first; without WhatsApp, email (PI decision, 2026-10-14) ----------------------------------------------
+
+@pytest.fixture
+def mailbox(settings, monkeypatch):
+    from django.core import mail
+
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    monkeypatch.setattr(tasks.email_after_failed_intro_task, "delay", lambda pk: outreach.email_after_failed_intro(pk))
+    return mail.outbox
+
+
+def _undelivered(introduced):
+    _report(ProviderMessage.objects.filter(sample_case=introduced.sample_case, purpose="INTRODUCTION").latest("created_at").provider_sid, "undelivered")
+
+
+def test_an_introduction_that_never_arrives_sends_the_invitation_by_email(introduced, twilio, main_case, mailbox, settings):
+    settings.TWILIO_SMS_FROM = ""  # no SMS: straight to email
+    Respondent.objects.filter(sample_case=main_case).update(email="jane@example.co.zw")
+    _undelivered(introduced)
+    introduced.refresh_from_db()
+    main_case.refresh_from_db()
+    assert introduced.status == OutreachStatus.NOT_DELIVERED and main_case.workflow_status == "S05"
+    assert [m.to for m in mailbox] == [["jane@example.co.zw"]] and "/i/" in mailbox[0].body
+    assert main_case.invitation_tokens.get().channel == "EMAIL"
+    assert AuditEvent.objects.filter(action="outreach.email_fallback").exists()
+    assert outreach.unanswered() == []  # off the phone list
+    assert outreach.email_after_failed_intro(introduced.pk) == "not_ready"  # never a second link
+
+
+def test_with_no_email_it_stays_on_the_phone_list(introduced, twilio, main_case, mailbox, settings):
+    settings.TWILIO_SMS_FROM = ""
+    _undelivered(introduced)
+    main_case.refresh_from_db()
+    assert main_case.workflow_status == "S03" and mailbox == []
+    assert [i["sample_id"] for i in outreach.unanswered()] == [main_case.sample_id]
+
+
+def test_sms_is_still_tried_first_where_it_is_set_up_then_email(introduced, twilio, main_case, mailbox):
+    Respondent.objects.filter(sample_case=main_case).update(email="jane@example.co.zw")
+    _undelivered(introduced)
+    assert mailbox == [] and "wa.me" in twilio[-1]["Body"]  # the SMS with the reply link first
+    _report(ProviderMessage.objects.get(channel="SMS").provider_sid, "undelivered")
+    main_case.refresh_from_db()
+    assert len(mailbox) == 1 and main_case.workflow_status == "S05"
+
+
+def test_the_email_fallback_keeps_to_the_daily_email_limit(introduced, twilio, main_case, mailbox, settings):
+    settings.TWILIO_SMS_FROM, settings.INVITATION_EMAIL_DAILY_MAX = "", 1
+    AuditEvent.objects.create(action="invitation.emailed", object_type="InvitationToken", object_id="1", metadata={})
+    Respondent.objects.filter(sample_case=main_case).update(email="jane@example.co.zw")
+    _undelivered(introduced)
+    main_case.refresh_from_db()
+    assert mailbox == [] and main_case.workflow_status == "S03"
+    assert AuditEvent.objects.filter(action="outreach.email_fallback_waiting").exists()
+
+
+def test_no_email_while_the_introduction_is_still_waiting_for_a_reply(introduced, twilio, main_case, mailbox):
+    Respondent.objects.filter(sample_case=main_case).update(email="jane@example.co.zw")
+    assert outreach.email_after_failed_intro(introduced.pk) == "not_failed"
+    main_case.refresh_from_db()
+    assert mailbox == [] and main_case.workflow_status == "S03"

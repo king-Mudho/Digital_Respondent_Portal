@@ -28,6 +28,14 @@ def handle_inbound_message(message_id: int, digits: str):
 
 
 @shared_task
+def email_after_failed_intro_task(outreach_id: int):
+    """An introduction could not be delivered: send the invitation by email when one is on file (outreach.py)."""
+    from .outreach import email_after_failed_intro
+
+    return email_after_failed_intro(outreach_id)
+
+
+@shared_task
 def sync_study_mailbox():
     """Copies replies from the study mailbox into Communications (apps/messaging/mailbox.py, 2026-10-12)."""
     from .mailbox import sync_mailbox

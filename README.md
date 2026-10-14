@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### WhatsApp first; without WhatsApp, email (14 Oct 2026)
+
+PI decision: when an "ask first" introduction cannot be delivered -- the number is not on WhatsApp, Meta holds it
+back, or the SMS fallback (where SMS is set up) also fails -- and an email is on file, the invitation goes by email
+instead (`outreach.email_after_failed_intro`, run by the Celery worker so Twilio's status webhook is answered at once).
+It is the ordinary invitation, issued and sent as one step by the batch's `send_one()` (a failed email keeps no link):
+the Main case moves to S05, a KII record to INVITED, and either leaves the phone list. It keeps to the daily email
+limit (audited `outreach.email_fallback_waiting` when reached) and never sends for a case invited, refused or completed
+in the meantime. With no email, the case stays on the phone list as before.
+
 ### A number that never got the introduction is not asked again (14 Oct 2026)
 
 On the first fresh-start day 171 introductions went out and 60 never arrived -- 51 to numbers not on WhatsApp (63024).
