@@ -44,7 +44,9 @@ from .models import (
     ReplyKind,
 )
 
-PAGE_SIZE = 30
+PAGE_SIZE = 20
+# The sizes the list offers (2026-10-14), as on the registers' "Show: N per page"; anything else falls back to PAGE_SIZE.
+PAGE_SIZES = (10, 20, 50, 100, 200)
 NOT_DELIVERED = [ProviderStatus.UNDELIVERED, ProviderStatus.FAILED]
 WRITE_ROLES = {"PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}
 SEE_ALL_ROLES = {"PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"}
@@ -229,7 +231,8 @@ def _channels_used(subject, kind: str) -> list[str]:
     return [c for c in (MessageChannel.WHATSAPP, MessageChannel.SMS, MessageChannel.EMAIL) if c in used]
 
 
-def thread_list(user, *, show: str = "all", register: str = "", channel: str = "", q: str = "", page: int = 1) -> dict:
+def thread_list(user, *, show: str = "all", register: str = "", channel: str = "", q: str = "", page: int = 1,
+                page_size: int = PAGE_SIZE) -> dict:
     q = (q or "").strip()[:100]
     rows = []
     for kind, queryset in (("main", visible_cases(user)), ("kii", visible_records(user))):
@@ -244,9 +247,10 @@ def thread_list(user, *, show: str = "all", register: str = "", channel: str = "
     # Waiting first, then the most recent activity; the id breaks ties so pages never overlap.
     rows.sort(key=lambda r: (r[1].waiting, r[1].last_activity, r[0] == "main", r[1].pk), reverse=True)
     total = len(rows)
+    size = page_size if page_size in PAGE_SIZES else PAGE_SIZE
     page = max(1, int(page or 1))
     results = []
-    for kind, subject in rows[(page - 1) * PAGE_SIZE: page * PAGE_SIZE]:
+    for kind, subject in rows[(page - 1) * size: page * size]:
         organisation, person, ref = _title(subject, kind)
         results.append({
             "kind": kind, "id": subject.pk, "ref": ref, "organisation": organisation, "person": person,
@@ -256,7 +260,7 @@ def thread_list(user, *, show: str = "all", register: str = "", channel: str = "
         })
     unknown = InboundMessage.objects.filter(sample_case=None, kii_record=None, needs_person=True, handled_at=None).count() \
         if sees_unknown_senders(user) else 0
-    return {"count": total, "page": page, "page_size": PAGE_SIZE, "results": results, "unknown_waiting": unknown}
+    return {"count": total, "page": page, "page_size": size, "results": results, "unknown_waiting": unknown}
 
 
 # --- One conversation ----------------------------------------------------------------------------------------------

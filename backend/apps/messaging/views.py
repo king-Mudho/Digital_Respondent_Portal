@@ -269,8 +269,9 @@ class CommunicationSummaryView(APIView):
 
 
 class CommunicationThreadListView(APIView):
-    """GET /api/v1/communications/threads/?show=all|waiting|failed&register=main|kii&channel=&q=&page= -- one row per
-    case or KII record with any communication, waiting first, then most recent."""
+    """GET /api/v1/communications/threads/?show=all|waiting|failed&register=main|kii&channel=&q=&page=&page_size= --
+    one row per case or KII record with any communication, waiting first, then most recent. page_size is 10, 20, 50,
+    100 or 200 (default 20)."""
 
     permission_classes = [CanUseCommunications]
 
@@ -278,9 +279,10 @@ class CommunicationThreadListView(APIView):
         from .communications import thread_list
 
         p = request.query_params
-        page = p.get("page", "1")
+        page, size = p.get("page", "1"), p.get("page_size", "")
         return Response(thread_list(request.user, show=p.get("show", "all"), register=p.get("register", ""),
-                                    channel=p.get("channel", ""), q=p.get("q", ""), page=int(page) if page.isdigit() else 1))
+                                    channel=p.get("channel", ""), q=p.get("q", ""), page=int(page) if page.isdigit() else 1,
+                                    page_size=int(size) if size.isdigit() else 0))
 
 
 class CommunicationThreadView(APIView):

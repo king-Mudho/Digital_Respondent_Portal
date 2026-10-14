@@ -1,5 +1,6 @@
 "use client";
 
+import { PAGE_SIZE_OPTIONS } from "@/components/admin/Pagination";
 import { shortTime, threadKey, type Channel, type Kind, type ThreadPage } from "@/lib/api/communications";
 import { ChannelBadge, StatusTicks } from "./Marks";
 
@@ -11,6 +12,19 @@ export interface ListFilters {
   channel: "" | Channel;
   q: string;
   page: number;
+  pageSize: number;
+}
+
+/** Page numbers to show around the current one: 1 … 4 5 6 … 12. */
+function pageWindow(current: number, total: number): (number | null)[] {
+  const wanted = new Set([1, total, current - 1, current, current + 1].filter((p) => p >= 1 && p <= total));
+  const sorted = [...wanted].sort((a, b) => a - b);
+  const out: (number | null)[] = [];
+  sorted.forEach((p, i) => {
+    if (i > 0 && p - sorted[i - 1] > 1) out.push(null);
+    out.push(p);
+  });
+  return out;
 }
 
 const SHOW_LABEL: Record<Show, string> = { waiting: "Waiting", failed: "Not delivered", all: "All" };
@@ -155,18 +169,54 @@ export function ThreadList({
         })}
       </ul>
 
-      {data && pages > 1 && (
-        <div className="flex items-center justify-between border-t border-border px-3 py-2 text-xs">
-          <button type="button" disabled={filters.page <= 1} onClick={() => onFilters({ page: filters.page - 1 })} className="rounded px-2 py-1 hover:bg-bg disabled:opacity-40">
-            ← Newer
-          </button>
-          <span className="text-text-muted tabular-nums">
-            Page {filters.page} of {pages} · {data.count}
-          </span>
-          <button type="button" disabled={filters.page >= pages} onClick={() => onFilters({ page: filters.page + 1 })} className="rounded px-2 py-1 hover:bg-bg disabled:opacity-40">
-            Older →
-          </button>
-        </div>
+      {data && data.count > 0 && (
+        <nav aria-label="Pages" className="space-y-1.5 border-t border-border px-3 py-2 text-xs">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-text-muted tabular-nums" role="status">
+              {(filters.page - 1) * data.page_size + 1}–{Math.min(filters.page * data.page_size, data.count)} of {data.count}
+            </span>
+            <label className="flex items-center gap-1.5 text-text-muted">
+              Show
+              <select
+                aria-label="Conversations per page"
+                value={data.page_size}
+                onChange={(e) => onFilters({ pageSize: Number(e.target.value), page: 1 })}
+                className="rounded-md border border-border bg-surface px-1.5 py-1 text-xs text-text"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+              per page
+            </label>
+          </div>
+          {pages > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-0.5">
+              <button type="button" aria-label="Newer page" disabled={filters.page <= 1} onClick={() => onFilters({ page: filters.page - 1 })} className="min-h-8 rounded px-2 hover:bg-bg disabled:opacity-40">
+                ← Newer
+              </button>
+              {pageWindow(filters.page, pages).map((p, i) =>
+                p === null ? (
+                  <span key={`gap-${i}`} className="px-1 text-text-muted" aria-hidden="true">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-label={`Page ${p}`}
+                    aria-current={p === filters.page ? "page" : undefined}
+                    onClick={() => onFilters({ page: p })}
+                    className={`min-h-8 min-w-8 rounded px-1.5 tabular-nums ${p === filters.page ? "bg-header font-medium text-white" : "hover:bg-bg"}`}
+                  >
+                    {p}
+                  </button>
+                ),
+              )}
+              <button type="button" aria-label="Older page" disabled={filters.page >= pages} onClick={() => onFilters({ page: filters.page + 1 })} className="min-h-8 rounded px-2 hover:bg-bg disabled:opacity-40">
+                Older →
+              </button>
+            </div>
+          )}
+        </nav>
       )}
     </div>
   );

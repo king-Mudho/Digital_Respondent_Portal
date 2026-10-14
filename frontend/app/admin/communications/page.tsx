@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useDeferredValue, useState } from "react";
+import { Suspense, useDeferredValue, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { PAGE_SIZE_OPTIONS } from "@/components/admin/Pagination";
 import { ChannelHealth } from "@/components/admin/communications/ChannelHealth";
 import { Composer, type Draft } from "@/components/admin/communications/Composer";
 import { ContactCard } from "@/components/admin/communications/ContactCard";
@@ -45,7 +46,23 @@ function Communications() {
   const selectedKey = params.get("t");
   const selected = parseThreadKey(selectedKey);
   const unknownOpen = selectedKey === "unknown";
-  const [filters, setFilters] = useState<ListFilters>({ show: "all", register: "", channel: "", q: "", page: 1 });
+  const [filters, setFilters] = useState<ListFilters>({ show: "all", register: "", channel: "", q: "", page: 1, pageSize: 20 });
+  // The chosen page size is remembered in this browser only (a per-person convenience; the page works without it).
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem("drp.communicationsPageSize"));
+      if (PAGE_SIZE_OPTIONS.includes(saved)) setFilters((f) => ({ ...f, pageSize: saved }));
+    } catch {
+      /* storage unavailable: keep the default */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("drp.communicationsPageSize", String(filters.pageSize));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [filters.pageSize]);
   const q = useDeferredValue(filters.q);
   const [sendError, setSendError] = useState<string | null>(null);
 
@@ -61,6 +78,7 @@ function Communications() {
   });
   const listQuery = new URLSearchParams({
     show: filters.show, register: filters.register, channel: filters.channel, q, page: String(filters.page),
+    page_size: String(filters.pageSize),
   });
   const list = useQuery({
     queryKey: ["communications", "threads", listQuery.toString()],

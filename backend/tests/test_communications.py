@@ -457,3 +457,21 @@ def test_withdrawal_erases_the_text_both_ways(pi, person, main_case):
     record_withdrawal(main_case, reason="Asked to withdraw", recorded_by=pi)
     assert ProviderMessage.objects.get().body == "" and ProviderMessage.objects.get().subject == ""
     assert InboundMessage.objects.get().body == ""
+
+
+def test_the_list_shows_the_page_size_chosen_and_pages_never_overlap(pi, organisation, stratum):
+    """2026-10-14: the list offers 10, 20, 50, 100 or 200 per page, as the registers do; anything else falls back to 20."""
+    from apps.messaging.communications import thread_list
+    from apps.sampling.services import create_sample_case
+
+    for i in range(25):
+        case = create_sample_case(organisation=organisation, stratum=stratum, sample_type="MAIN", year=2026)
+        _whatsapp_in(case, number=f"26377100{i:04d}", minutes_ago=i)
+    first, second = thread_list(pi, page=1, page_size=10), thread_list(pi, page=2, page_size=10)
+    assert first["page_size"] == 10 and len(first["results"]) == 10 and first["count"] == 25
+    ids = lambda page: {r["id"] for r in page["results"]}  # noqa: E731
+    assert not ids(first) & ids(second)
+    assert len(thread_list(pi, page=1, page_size=50)["results"]) == 25
+    assert thread_list(pi, page=1, page_size=7)["page_size"] == 20  # not an offered size
+    resp = _client(pi).get("/api/v1/communications/threads/", {"page_size": "100"})
+    assert resp.status_code == 200 and resp.json()["page_size"] == 100
