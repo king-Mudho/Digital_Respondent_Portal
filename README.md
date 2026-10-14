@@ -782,6 +782,19 @@ works):
 
 ## Notable fixes
 
+### Fresh start for Main-400 outreach on the new WhatsApp line (14 Oct 2026)
+
+PI decision: with the study now sending from its own Twilio WhatsApp line, every Main case that was contacted but
+never completed is asked again from the beginning ("ask first", then the link) instead of being reminded about an old
+invitation. `manage.py fresh_start_outreach --reason "..." --user <pi> [--apply]` (dry run without `--apply`):
+
+- **Reset:** Main cases at S04-S09 or S13 with **no questionnaire submission** go back to S03, every link they still hold
+  is revoked (so no reminder about an old link goes out), and each is audited as `sampling.status_reset_fresh_start`.
+- **Never touched:** cases with a submission (the 12 completed organisations), refusals (S12), unverified cases (S00-S02)
+  and Reserve cases.
+- **Kept:** respondents, consent records (a consent given stays given; the one online decline stays on file and the
+  consent page asks again -- re-asking that person was the PI's explicit decision), messages and the audit trail.
+
 ### Ask first for KII informants (14 Oct 2026)
 
 At the PI's request, KII informants can be asked first, as Main-400 organisations are: a short WhatsApp introduction
