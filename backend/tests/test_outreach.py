@@ -218,12 +218,22 @@ def test_no_after_yes_revokes_the_open_invitation(introduced, main_case):
 
 # --- Anything else ---------------------------------------------------------------------------------------------------
 
-def test_no_problem_is_not_a_refusal_and_goes_to_a_person_with_one_answer_a_day(introduced, twilio, main_case):
+def test_no_problem_is_not_a_refusal_and_waits_for_a_person_with_no_automatic_answer(introduced, twilio, main_case):
+    """PI decision, 2026-10-14: anything that is not a clear YES or NO is answered by a person, not automatically."""
+    sent = len(twilio)
     _reply("No problem, who is this?")
     main_case.refresh_from_db()
     assert main_case.workflow_status == "S03"
     message = InboundMessage.objects.get()
-    assert message.kind == "OTHER" and message.needs_person and "A member of the research team will reply" in twilio[-1]["Body"]
+    assert message.kind == "OTHER" and message.needs_person and message.auto_reply == ""
+    _reply("123", number="263712000000")  # an unknown number gets no automatic answer either
+    assert len(twilio) == sent
+
+
+def test_the_automatic_answer_can_be_switched_back_on_and_is_sent_once_a_day(introduced, twilio, main_case, settings):
+    settings.OUTREACH_AUTO_ANSWER_OTHER = True
+    _reply("No problem, who is this?")
+    assert "A member of the research team will reply" in twilio[-1]["Body"]
     sent = len(twilio)
     _reply("Hello?")
     assert len(twilio) == sent  # one automatic answer a day

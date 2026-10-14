@@ -367,6 +367,14 @@ def _reply(message: InboundMessage, digits: str, text: str, *, purpose=MessagePu
     return True
 
 
+def auto_answer_other() -> bool:
+    """Whether a message that is not a clear YES or NO -- a question, a greeting, an invitation code, a message from an
+    unknown number -- gets an automatic answer. Off since 2026-10-14 (PI decision): such messages are answered by a
+    person on Communications, and the automatic "A member of the research team will reply..." is not sent. YES and NO
+    are still acted on and acknowledged automatically. OUTREACH_AUTO_ANSWER_OTHER switches it back on."""
+    return bool(getattr(settings, "OUTREACH_AUTO_ANSWER_OTHER", False))
+
+
 def handle_inbound(message_id: int, digits: str) -> None:
     """Acts on one stored message (from a Celery task, so Twilio's webhook is answered at once)."""
     message = InboundMessage.objects.select_related("outreach__sample_case__organisation", "outreach__kii_record").get(pk=message_id)
@@ -384,14 +392,14 @@ def handle_inbound(message_id: int, digits: str) -> None:
         if target is not None:
             ident = {"sample_id": target.sample_id} if message.sample_case_id else {"kii_id": target.kii_id}
             log_action("conversation.phone_requested", target, {**ident, "message": message.pk})
-        if not _answered_today(message):
+        if auto_answer_other() and not _answered_today(message):
             _reply(message, digits, wording("outreach_phone_requested"))
         return
     outreach = message.outreach
     if outreach is None:
         message.needs_person = True
         message.save(update_fields=["needs_person"])
-        if not _answered_today(message):
+        if auto_answer_other() and not _answered_today(message):
             _reply(message, digits, wording("outreach_unknown_number"))
         return
     if message.kind == ReplyKind.YES and outreach.status in ANSWERABLE:
@@ -406,7 +414,7 @@ def handle_inbound(message_id: int, digits: str) -> None:
         # A question, another word, or a YES after saying no: a person decides.
         message.needs_person = True
         message.save(update_fields=["needs_person"])
-        if not _answered_today(message):
+        if auto_answer_other() and not _answered_today(message):
             _reply(message, digits, wording("outreach_auto_answer"))
 
 

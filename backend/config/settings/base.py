@@ -374,6 +374,9 @@ TWILIO_WA_CONTENT_KII_INTRO_REMINDER = env("TWILIO_WA_CONTENT_KII_INTRO_REMINDER
 # Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
 # Voice notes, pictures and files people send on WhatsApp are copied into PRIVATE_DATA_ROOT (apps/messaging/media.py).
 WHATSAPP_MEDIA_MAX_MB = env.float("WHATSAPP_MEDIA_MAX_MB", default=16)
+# A WhatsApp message that is not a clear YES or NO waits for a person on Communications with no automatic answer
+# (PI decision, 2026-10-14). True brings back the one-a-day automatic answer (apps/messaging/outreach.py).
+OUTREACH_AUTO_ANSWER_OTHER = env.bool("OUTREACH_AUTO_ANSWER_OTHER", default=False)
 OUTREACH_REMINDER_DAYS = env.int("OUTREACH_REMINDER_DAYS", default=3)
 OUTREACH_GIVE_UP_DAYS = env.int("OUTREACH_GIVE_UP_DAYS", default=4)
 # A reply counts as YES or NO only when the whole message (or the quick-reply button) is one of these words, so

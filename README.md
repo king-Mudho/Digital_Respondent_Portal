@@ -782,6 +782,15 @@ works):
 
 ## Notable fixes
 
+### No automatic answer to anything but YES or NO (14 Oct 2026)
+
+PI decision: a WhatsApp message that is not a clear YES or NO -- a question, a greeting, a business's auto-reply, an
+invitation code asking for a phone interview, a message from an unknown number -- waits on Communications for a person
+and gets **no** automatic answer. Before, each got "Thank you for your message. A member of the research team will
+reply..." (or the unknown-number / phone-request equivalent) once a day; on the first fresh-start day ten of those answers
+went to businesses' own automatic replies. YES and NO are still acted on and acknowledged
+automatically. `OUTREACH_AUTO_ANSWER_OTHER=True` brings the old behaviour back (AGENTS.md rule 7).
+
 ### "Passed us to someone else" (14 Oct 2026)
 
 Several organisations answered the introduction by sharing a contact for the right person. `outreach.refer_introduction()`

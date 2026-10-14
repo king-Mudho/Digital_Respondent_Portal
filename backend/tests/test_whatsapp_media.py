@@ -173,13 +173,21 @@ def test_withdrawal_deletes_the_files(twilio, main_case):
 def test_their_own_invitation_code_means_they_want_to_answer_by_phone(twilio, main_case):
     _case_with_person(main_case)
     _, code, _ = issue_invitation(main_case)
+    sent = len(twilio.sent)
     message = _send(code.lower(), twilio=twilio)
     assert message.kind == ReplyKind.PHONE and message.needs_person
-    assert "call you" in twilio.sent[-1]["Body"]
+    assert len(twilio.sent) == sent  # a person answers (PI decision, 2026-10-14): no automatic reply
     assert AuditEvent.objects.filter(action="conversation.phone_requested").exists()
-    replies = len(twilio.sent)
-    _send(f"My code is {code}", twilio=twilio)  # inside a sentence too; answered once a day
-    assert InboundMessage.objects.filter(kind=ReplyKind.PHONE).count() == 2 and len(twilio.sent) == replies
+    _send(f"My code is {code}", twilio=twilio)  # inside a sentence too
+    assert InboundMessage.objects.filter(kind=ReplyKind.PHONE).count() == 2 and len(twilio.sent) == sent
+
+
+def test_with_automatic_answers_on_a_phone_request_is_answered_once(twilio, main_case, settings):
+    settings.OUTREACH_AUTO_ANSWER_OTHER = True
+    _case_with_person(main_case)
+    _, code, _ = issue_invitation(main_case)
+    _send(code, twilio=twilio)
+    assert "call you" in twilio.sent[-1]["Body"]
 
 
 def test_a_random_word_of_the_same_length_is_not_a_code(twilio, main_case):
