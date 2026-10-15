@@ -782,6 +782,14 @@ works):
 
 ## Notable fixes
 
+### A KII record asked on two of its numbers is reminded on each (15 Oct 2026)
+
+A KII introduction's reminder went to the record's first mobile, whichever number the introduction had gone to. On
+15 Oct KII-0028's informant was asked on both his mobiles; the second one's reminder would have gone to the first
+number, which would then have had two and the second none. Unnoticed because until then a KII record was only ever
+asked on one number. The reminder now goes to the record's number that matches the introduction
+(`outreach._asked_number`), as the Main-400 one already did.
+
 ### KII interview link pre-fills the organisation and, on the informant's own link, the interviewer code (15 Oct 2026)
 
 The KII Guide's Part A requires an "Interviewer code" and the "Organisation represented". The portal's link

@@ -109,7 +109,17 @@ def _asked_number(outreach) -> str:
     from apps.messaging.services import whatsapp_digits
 
     if outreach.kii_record_id:
-        return _kii_mobile(outreach.kii_record)
+        # The record's number this introduction went to: a record can be asked on two of its numbers (2026-10-15,
+        # KII-0028), and the second one's reminder went to the first.
+        from apps.contacts.contact_text import CHUNK_SPLIT
+
+        record = outreach.kii_record
+        for raw in (record.whatsapp_number, record.phone):
+            for chunk in CHUNK_SPLIT.split(raw or ""):
+                digits = whatsapp_digits(chunk)
+                if digits and number_hash(digits) == outreach.number_hash:
+                    return digits
+        return _kii_mobile(record)
     person = outreach.respondent
     if person is not None:
         for raw in (person.whatsapp_number, person.phone):

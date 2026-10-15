@@ -358,3 +358,13 @@ def test_a_kii_referral_is_refused_for_a_landline_a_number_already_asked_or_a_re
     with pytest.raises(outreach.OutreachError) as invited:
         outreach.refer_kii_introduction(introduced, name="X", phone="0772000001")
     assert invited.value.code == "not_ready" and Outreach.objects.count() == 1
+
+
+def test_a_record_asked_on_two_of_its_numbers_gets_each_reminder_on_that_number(twilio, settings):
+    """15 Oct 2026, KII-0028: the informant's two mobiles were both asked; a reminder went to the record's first number."""
+    record = _record(phone="0772000001; 0772000002")
+    first = outreach.send_kii_introduction(record, user=None)
+    second = Outreach.objects.create(kii_record=record, channel="WHATSAPP", number_hash=outreach.number_hash("263772000002"),
+                                     number_masked="+263 ••• 002", intro_sent_at=first.intro_sent_at)
+    outreach.run_followups(now=timezone.now() + timedelta(days=settings.OUTREACH_REMINDER_DAYS + 1))
+    assert sorted(m["To"] for m in twilio[1:]) == ["whatsapp:+263772000001", "whatsapp:+263772000002"]
