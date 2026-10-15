@@ -214,6 +214,8 @@ def test_kobo_redirect_works_once_consent_is_given(kii_record, settings):
     assert resp.status_code == 200
     assert kii_record.kii_id in resp.data["kobo_form_url"]
     assert kii_record.participant_name not in resp.data["kobo_form_url"]
+    # Completing it alone (2026-10-15): no interviewer to give a code.
+    assert "d[part_a/interviewer_code]=SELF" in resp.data["kobo_form_url"]
 
 
 def test_kobo_redirect_not_configured(kii_record, settings):

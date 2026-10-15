@@ -176,19 +176,22 @@ def kii_form_is_configured() -> bool:
     return bool((settings.KOBO_KII_FORM_URL or "").strip())
 
 
-def build_kii_coding_url(record: KIIRecord) -> str | None:
+# What a self-completed interview carries as its "Interviewer code" (2026-10-15): there is no interviewer.
+SELF_COMPLETED_CODE = "SELF"
+
+
+def build_kii_coding_url(record: KIIRecord, *, self_completed: bool = False) -> str | None:
     """Prefills the KoboToolbox Main Study KII Guide with this record's
     KII-ID, so a KII RA doesn't retype it and a typo can't make the
     completed interview fail to match back up with this record
     (docs/13_KII_MODULE.md), the same ?d[<data column>]=value mechanism as
     the other two forms (apps/kobo/services.py, apps/evidence/services.py).
 
-    Deliberately narrower than the document coding link: a KIIRecord
-    identifies a real person, so nothing participant-identifying
-    (participant_name, organisation, role) goes into the URL -- only the
-    system-generated ID and the interviewer's own username, mirroring
-    apps/kobo/services.py build_redirect_url()'s minimal-identifiers
-    pattern for the respondent questionnaire link. And unlike a document,
+    Also the organisation represented, and -- on the informant's own link (`self_completed`) -- an interviewer code of
+    SELF and today's date (PI request 2026-10-15): an informant completing it alone on a phone was asked for an
+    "Interviewer code" they could not have and their organisation, and had to leave the form to find them. The
+    organisation went into the URL only from then on; the person stays out of it -- participant_name and role never
+    go into the URL. And unlike a document,
     the link is withheld entirely until participation consent is GIVEN --
     there is no legitimate reason to open the interview instrument on
     someone before they have consented to take part.
@@ -201,11 +204,18 @@ def build_kii_coding_url(record: KIIRecord) -> str | None:
     if not has_given_consent(record, ConsentType.PARTICIPATION):
         return None
     form_url = settings.KOBO_KII_FORM_URL.strip().rstrip("/")
+    from apps.contacts.kii_finder import organisation_name
+
     fields = {"part_a/KII_ID": record.kii_id}
-    if record.interviewer_id and record.interviewer.username:
+    if self_completed:
+        fields["part_a/interviewer_code"] = SELF_COMPLETED_CODE
+    elif record.interviewer_id and record.interviewer.username:
         fields["part_a/interviewer_code"] = record.interviewer.username
     if record.interview_date:
         fields["part_a/interview_date"] = record.interview_date.isoformat()
+    elif self_completed:
+        fields["part_a/interview_date"] = timezone.localdate().isoformat()
+    fields["part_a/org_represented"] = organisation_name(record)
     query = "&".join(f"d[{key}]={quote(str(value), safe='')}" for key, value in fields.items() if value)
     separator = "&" if "?" in form_url else "?"
     return f"{form_url}{separator}{query}"

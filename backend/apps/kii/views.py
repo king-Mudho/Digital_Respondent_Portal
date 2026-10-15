@@ -339,4 +339,4 @@ class KIIKoboRedirectView(APIView):
         # coding_status). An RA marks the record COMPLETED, same button as the
         # interviewer-administered path, once the submission is visible on Form PDFs.
         _advance_kii_token_status(token, KIIInvitationTokenStatus.STARTED)
-        return Response({"kobo_form_url": build_kii_coding_url(record)})
+        return Response({"kobo_form_url": build_kii_coding_url(record, self_completed=True)})

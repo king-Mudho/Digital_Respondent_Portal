@@ -255,6 +255,53 @@ def send_kii_introduction(record, *, user) -> Outreach:
     return outreach
 
 
+def refer_kii_introduction(outreach, *, name: str, phone: str, email: str = "", user=None) -> Outreach:
+    """A KII introduction answered by passing the study to someone else (2026-10-15, KII-0132): a KII record is one
+    informant, so the record becomes that person -- their name (when given), their mobile as the WhatsApp number,
+    their email when given; the numbers already on file stay -- and they are asked first on their own number. The
+    earlier introduction is marked REFERRED so its reminder stops. The record must still be a Prospect, and a number
+    already asked about this record is never asked again."""
+    from apps.messaging.services import whatsapp_digits
+
+    record = outreach.kii_record
+    if record is None:
+        raise OutreachError("not_kii", "This introduction isn't for a KII record.")
+    if outreach.status not in OPEN_OUTREACH + [OutreachStatus.NO_REPLY]:
+        raise OutreachError("not_open", "This introduction was already answered or could not be delivered.", 409)
+    if record.status != "PROSPECT":
+        raise OutreachError("not_ready", "This record was already invited or answered.", 409)
+    number = whatsapp_digits(phone)
+    if not number:
+        raise OutreachError("no_mobile", "Give a mobile number: a landline can't receive WhatsApp.")
+    if Outreach.objects.filter(kii_record=record, number_hash=number_hash(number)).exists():
+        raise OutreachError("already_asked", "This number was already asked about this record. Reply to them on Communications instead.", 409)
+    channel = intro_channel(kii=True)
+    if channel is None:
+        raise OutreachError("not_configured", "Introductions aren't set up yet.", 503)
+    with transaction.atomic():
+        before = {"participant_name": record.participant_name, "whatsapp_number": record.whatsapp_number, "email": record.email}
+        if (name or "").strip():
+            record.participant_name = name.strip()[:255]
+        record.whatsapp_number = phone.strip()[:255]
+        if (email or "").strip():
+            record.email = email.strip()
+        record.save(update_fields=["participant_name", "whatsapp_number", "email", "updated_at"])
+        try:
+            message = _send_kii_intro(record, number, channel, reminder=False, user=user)
+        except outbound.OutboundError as exc:
+            raise OutreachError(exc.code, str(exc), exc.status) from exc
+        outreach.status = OutreachStatus.REFERRED
+        outreach.save(update_fields=["status"])
+        new = Outreach.objects.create(kii_record=record, channel=channel, number_hash=number_hash(number),
+                                      number_masked=message.to_masked, intro_sent_at=timezone.now(), created_by=user)
+    log_action("outreach.referred", record, {
+        "kii_id": record.kii_id, "from_outreach": outreach.pk, "outreach": new.pk, "recipient": message.to_masked,
+        "name_changed": before["participant_name"] != record.participant_name, "email_changed": before["email"] != record.email,
+        "user_id": getattr(user, "id", None),
+    }, user=user)
+    return new
+
+
 def send_introduction(case, *, user) -> Outreach:
     """Introduce the study to one case and ask whether it will take part."""
     from apps.sampling.services import is_invitable

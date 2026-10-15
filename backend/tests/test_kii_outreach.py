@@ -326,3 +326,35 @@ def test_an_ask_first_batch_is_not_used_up_by_landline_only_records(twilio):
     batch = kb.start_batch(3, user=_user(Role.FIELD_COORDINATOR, "kout_fc_land"), intro=True)
     kb.run_batch(batch)
     assert batch.sent == 3 and {o.kii_record_id for o in Outreach.objects.all()} == {r.pk for r in mobiles}
+
+
+# --- Passed us to someone else (2026-10-15, KII-0132) ---------------------------------------------------------------
+
+def test_a_referred_kii_contact_is_asked_on_their_own_number_and_their_yes_gets_the_link(introduced, twilio):
+    _reply("Speak to Mr Parsons +27 83 604 1496")
+    new = outreach.refer_kii_introduction(introduced, name="Mr Parsons", phone="+27 83 604 1496", user=_user(Role.KII_RA, "kout_ref"))
+    introduced.refresh_from_db()
+    record = new.kii_record
+    record.refresh_from_db()
+    assert introduced.status == OutreachStatus.REFERRED and new.status == OutreachStatus.INTRO_SENT
+    assert record.participant_name == "Mr Parsons" and record.phone == "0771234567"  # the number on file stays
+    assert twilio[-1]["To"] == "whatsapp:+27836041496" and "Mr Parsons (Agri Bank)" in twilio[-1]["ContentVariables"]
+    _reply("", number="27836041496", payload="YES")
+    new.refresh_from_db()
+    record.refresh_from_db()
+    assert new.status == OutreachStatus.ACCEPTED and record.status == KIIStatus.INVITED
+    assert twilio[-1]["To"] == "whatsapp:+27836041496"
+
+
+def test_a_kii_referral_is_refused_for_a_landline_a_number_already_asked_or_a_record_already_invited(introduced, twilio):
+    with pytest.raises(outreach.OutreachError) as landline:
+        outreach.refer_kii_introduction(introduced, name="X", phone="+263 242 700000")
+    with pytest.raises(outreach.OutreachError) as same:
+        outreach.refer_kii_introduction(introduced, name="X", phone="0771234567")
+    assert (landline.value.code, same.value.code) == ("no_mobile", "already_asked")
+    record = introduced.kii_record
+    record.status = KIIStatus.INVITED
+    record.save(update_fields=["status"])
+    with pytest.raises(outreach.OutreachError) as invited:
+        outreach.refer_kii_introduction(introduced, name="X", phone="0772000001")
+    assert invited.value.code == "not_ready" and Outreach.objects.count() == 1

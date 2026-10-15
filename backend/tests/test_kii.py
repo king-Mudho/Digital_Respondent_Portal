@@ -203,17 +203,40 @@ def test_coding_url_after_consent(kii_record, settings):
 
 def test_coding_url_never_carries_participant_identity(kii_record, settings):
     """A KIIRecord identifies a real person -- unlike a DocumentRecord's
-    title/author, participant_name/role/organisation must never appear in
-    a URL handed to a third-party service or left in browser history."""
+    title/author, participant_name/role must never appear in a URL handed to a
+    third-party service or left in browser history. (The organisation does, from
+    2026-10-15, at the PI's request.)"""
     settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
     _consent(kii_record, ConsentType.PARTICIPATION)
 
-    url = build_kii_coding_url(kii_record)
+    for url in (build_kii_coding_url(kii_record), build_kii_coding_url(kii_record, self_completed=True)):
+        assert "Moyo" not in url
+        assert "SME" not in url
+        assert "participant_name" not in url
+        assert "participant_role" not in url
 
-    assert "Moyo" not in url
-    assert "SME" not in url
-    assert "participant_name" not in url
-    assert "participant_role" not in url
+
+def test_coding_url_prefills_the_organisation(kii_record, settings):
+    """15 Oct 2026: an informant on a phone had to leave the form to find what to type as their organisation."""
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    kii_record.metadata = {"organisation_name": "Agri Bank & Co"}
+    kii_record.save(update_fields=["metadata"])
+    _consent(kii_record, ConsentType.PARTICIPATION)
+
+    assert "d[part_a/org_represented]=Agri%20Bank%20%26%20Co" in build_kii_coding_url(kii_record)
+
+
+def test_the_informants_own_link_prefills_self_and_today(kii_record, settings):
+    """15 Oct 2026: completing it alone, the informant was asked for an "Interviewer code" they could not have."""
+    from django.utils import timezone
+
+    settings.KOBO_KII_FORM_URL = "https://ee.kobotoolbox.org/x/abcd1234"
+    _consent(kii_record, ConsentType.PARTICIPATION)
+
+    own = build_kii_coding_url(kii_record, self_completed=True)
+    assert "d[part_a/interviewer_code]=SELF" in own
+    assert f"d[part_a/interview_date]={timezone.localdate().isoformat()}" in own
+    assert "interviewer_code" not in build_kii_coding_url(kii_record)  # an RA's link: their own username, or nothing
 
 
 def test_coding_url_recording_consent_alone_is_not_enough(kii_record, settings):

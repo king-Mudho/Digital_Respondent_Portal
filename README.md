@@ -782,6 +782,26 @@ works):
 
 ## Notable fixes
 
+### KII interview link pre-fills the organisation and, on the informant's own link, the interviewer code (15 Oct 2026)
+
+The KII Guide's Part A requires an "Interviewer code" and the "Organisation represented". The portal's link
+pre-filled only the KII ID, so an informant completing the interview alone -- on a phone -- was asked for an
+interviewer code they could not have and had to leave the form to find their organisation; the first informant to
+say yes (KII-0095) wrote back saying so. Unnoticed because every earlier KII interview was RA-administered, where
+the interviewer knows both. `build_kii_coding_url()` now pre-fills `org_represented` on every link, and on the
+informant's own link (`/kii-invitations/kobo-redirect-url/`) `interviewer_code=SELF` and today's date. Checked
+against the live form: the three values land in the right fields. **Privacy change, at the PI's request:** the
+organisation name now travels in the KoboToolbox URL; until then nothing but the KII ID did. The person's name and
+role still never do (`test_coding_url_never_carries_participant_identity`).
+
+### A KII informant can pass the study to someone else (15 Oct 2026)
+
+The "passed us to someone else" referral (`outreach.refer_introduction`) was Main-400 only, so a KII reply such as
+"Speak to Mr Parsons" plus a number (KII-0132) had no way to be asked. `outreach.refer_kii_introduction()` makes
+the record that person -- a KII record is one informant -- puts their mobile in the WhatsApp field (the numbers
+already on file stay), asks them first on their own number, and marks the earlier introduction REFERRED so its
+reminder stops. Refused for a landline, a number already asked about the record, or a record already invited.
+
 ### "Ask first" batches skip records with no mobile before choosing (15 Oct 2026)
 
 An "Ask first" batch picked its working list -- twice the number requested -- in register order and only then
