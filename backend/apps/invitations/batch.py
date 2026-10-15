@@ -251,7 +251,9 @@ def _run_intro_batch(batch) -> list[dict]:
 
     results: list[dict] = []
     pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
-    pool = [case for case in outreach.introduction_candidates() if not outreach.tried_this_number(case)]
+    # Only cases with a mobile, so landline-only cases never use up the batch (15 Oct 2026, KII batch).
+    pool = [case for case in outreach.introduction_candidates()
+            if reachable_channels(case, ("WHATSAPP",)) and not outreach.tried_this_number(case)]
     for case in pool[: batch.requested * 2]:
         if batch.sent + batch.failed >= batch.requested:
             break

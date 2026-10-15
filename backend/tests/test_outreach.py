@@ -484,3 +484,16 @@ def test_a_yes_gets_its_link_even_when_the_daily_limit_is_used_up(introduced, tw
     _reply("YES")
     main_case.refresh_from_db()
     assert main_case.workflow_status == "S05" and "/i/" in twilio[-1]["Body"]
+
+
+def test_a_main_ask_first_batch_is_not_used_up_by_landline_only_cases(twilio, organisation, stratum):
+    from apps.sampling.services import create_sample_case
+
+    for i in range(5):
+        _verified(create_sample_case(organisation=organisation, stratum=stratum, sample_type="MAIN", year=2026), phone=f"+263 242 70{i:04d}")
+    mobiles = [_verified(create_sample_case(organisation=organisation, stratum=stratum, sample_type="MAIN", year=2026), phone=f"07720{i:05d}")
+               for i in range(2)]
+    batch = b.start_batch(2, user=None, mode="INTRO")
+    b.run_batch(batch.pk)
+    batch.refresh_from_db()
+    assert batch.sent == 2 and {o.sample_case_id for o in Outreach.objects.all()} == {c.pk for c in mobiles}

@@ -316,3 +316,13 @@ def test_a_kii_introduction_that_never_arrives_sends_the_link_by_email(introduce
     record.refresh_from_db()
     assert record.status == KIIStatus.INVITED and [m.to for m in mail.outbox] == [["tendai@agribank.co.zw"]]
     assert "/ki/" in mail.outbox[0].body and outreach.kii_unanswered() == []
+
+
+def test_an_ask_first_batch_is_not_used_up_by_landline_only_records(twilio):
+    """15 Oct 2026: 87 landline-only records ahead in KII ID order filled the window and a batch of 72 sent 57."""
+    for i in range(6):
+        _record(phone=f"+263 242 70{i:04d}")  # landlines, earlier in KII ID order
+    mobiles = [_record(phone=f"07720{i:05d}") for i in range(3)]
+    batch = kb.start_batch(3, user=_user(Role.FIELD_COORDINATOR, "kout_fc_land"), intro=True)
+    kb.run_batch(batch)
+    assert batch.sent == 3 and {o.kii_record_id for o in Outreach.objects.all()} == {r.pk for r in mobiles}

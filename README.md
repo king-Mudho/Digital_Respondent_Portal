@@ -782,6 +782,14 @@ works):
 
 ## Notable fixes
 
+### "Ask first" batches skip records with no mobile before choosing (15 Oct 2026)
+
+An "Ask first" batch picked its working list -- twice the number requested -- in register order and only then
+dropped records with no mobile. On 15 Oct a KII batch of 72 met 87 landline-only records first, used up its list on
+them, and sent 57; the other 15 were sent one by one. Unnoticed because the earlier Main-400 batches had few
+landline-only cases near the front. Both the KII and the Main-400 batch now keep only records with a WhatsApp-capable
+number before choosing (`apps/kii/batch.py`, `apps/invitations/batch.py`).
+
 ### Fact check saved in one call (14 Oct 2026)
 
 The pre-interview fact-check pages (KII `/ki/[token]/verify` and Main-400 `/i/[token]/verify`) saved one answer per

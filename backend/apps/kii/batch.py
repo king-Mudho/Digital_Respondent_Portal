@@ -205,7 +205,10 @@ def _run_intro_batch(batch, options) -> list[dict]:
     results: list[dict] = []
     pause = float(getattr(settings, "INVITATION_EMAIL_PAUSE_SECONDS", 1.0))
     pool = outreach.kii_introduction_candidates(options.get("groups") or GROUPS, named_only=bool(options.get("named_only")))
-    for record in [r for r in pool if not outreach.tried_this_number(r)][: batch.requested * 2]:
+    # Only records with a mobile (15 Oct 2026: 87 landline-only records ahead of them used up the window, and a batch
+    # of 72 sent 57).
+    pool = [r for r in pool if reachable_channels(r, ("WHATSAPP",)) and not outreach.tried_this_number(r)]
+    for record in pool[: batch.requested * 2]:
         if batch.sent + batch.failed >= batch.requested:
             break
         try:
