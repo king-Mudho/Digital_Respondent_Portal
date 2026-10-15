@@ -132,6 +132,7 @@ ACTION_LABELS: dict[str, str] = {
     "sampling.status_caught_up": "Case status brought up to what its respondent had already done",
     "sampling.status_reset_after_test_cleanup": "Case status reset (test cleanup)",
     "sampling.status_reset_fresh_start": "Case returned to S03 for a fresh start (new outreach line)",
+    "sampling.status_reset_after_referral": "Case returned to S03: said no but passed us to someone else",
 }
 
 # Keys checked in this order for the one-line "detail" summary; the first match found wins, then any
