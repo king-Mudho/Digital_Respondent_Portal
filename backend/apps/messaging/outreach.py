@@ -90,16 +90,44 @@ def introduction_candidates():
     return batch_candidates(("SMS", "WHATSAPP")).exclude(Exists(introduced))
 
 
-def _mobile(case) -> tuple[str, object]:
-    """The case's mobile (eligible respondent first, as recipients() picks it) and the respondent it belongs to."""
-    from apps.invitations.messages import recipients
+def _failed_hashes(target) -> set[str]:
+    """The numbers this case or KII record was already asked on where the introduction never arrived or got no answer."""
+    mine = Outreach.objects.filter(kii_record=target) if hasattr(target, "kii_id") else Outreach.objects.filter(sample_case=target)
+    return set(mine.filter(status__in=[OutreachStatus.NOT_DELIVERED, OutreachStatus.NO_REPLY]).values_list("number_hash", flat=True))
+
+
+def _mobiles_in(*fields) -> list[str]:
+    """Every mobile in these fields, in order -- a field can hold several ("0772 686106; 0773 626999")."""
+    from apps.contacts.contact_text import CHUNK_SPLIT
     from apps.messaging.services import whatsapp_digits
 
-    number = recipients(case)["whatsapp_to"]
-    for person in sorted(case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id)):
-        if number and number in (whatsapp_digits(person.whatsapp_number), whatsapp_digits(person.phone)):
-            return number, person
-    return number, None
+    found = []
+    for raw in fields:
+        for chunk in CHUNK_SPLIT.split(raw or ""):
+            digits = whatsapp_digits(chunk)
+            if digits and digits not in found:
+                found.append(digits)
+    return found
+
+
+def _mobile(case) -> tuple[str, object]:
+    """The mobile to ask this case on, and the respondent it belongs to: the first one not already tried without success
+    -- the number recipients() picks first, then every respondent's (eligible first). Until 2026-10-17 it was always the
+    first number, so a new number added to a case whose first number had failed was never asked: the portal saw the old
+    one, already tried, and refused. When every mobile has failed it is the first one (and tried_this_number() is True)."""
+    from apps.invitations.messages import recipients
+
+    people = sorted(case.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))
+    candidates = [(number, person) for person in people for number in _mobiles_in(person.whatsapp_number, person.phone)]
+    first = recipients(case)["whatsapp_to"]
+    if first:
+        candidates.sort(key=lambda c: c[0] != first)  # stable: recipients()' choice first, the rest in order
+        if first not in [n for n, _ in candidates]:
+            candidates.insert(0, (first, None))
+    if not candidates:
+        return "", None
+    failed = _failed_hashes(case)
+    return next((c for c in candidates if number_hash(c[0]) not in failed), candidates[0])
 
 
 def _asked_number(outreach) -> str:
@@ -188,12 +216,9 @@ def tried_this_number(target) -> bool:
     got no answer after the reminder (2026-10-14). Such a number is not asked again -- on the first fresh-start day 51
     introductions went to numbers not on WhatsApp, and a second batch would have messaged them all again. A corrected
     number can be asked."""
-    kii = hasattr(target, "kii_id")
-    number = _kii_mobile(target) if kii else _mobile(target)[0]
-    if not number:
-        return False
-    mine = Outreach.objects.filter(kii_record=target) if kii else Outreach.objects.filter(sample_case=target)
-    return mine.filter(number_hash=number_hash(number), status__in=[OutreachStatus.NOT_DELIVERED, OutreachStatus.NO_REPLY]).exists()
+    number = _kii_mobile(target) if hasattr(target, "kii_id") else _mobile(target)[0]
+    # The mobile chosen is an untried one whenever there is one, so this is True only when every mobile on file failed.
+    return bool(number) and number_hash(number) in _failed_hashes(target)
 
 
 def kii_introduction_candidates(groups=None, *, named_only: bool = False):
@@ -205,9 +230,18 @@ def kii_introduction_candidates(groups=None, *, named_only: bool = False):
 
 
 def _kii_mobile(record) -> str:
+    """The mobile to ask this KII record on: the first one in its WhatsApp then phone field not already tried without
+    success (2026-10-17, as _mobile() for a case); the first one when every mobile has failed."""
     from apps.kii.messages import kii_recipients
 
-    return kii_recipients(record)["whatsapp_to"]
+    first = kii_recipients(record)["whatsapp_to"]
+    candidates = _mobiles_in(record.whatsapp_number, record.phone)
+    if first and first not in candidates:
+        candidates.insert(0, first)
+    if not candidates:
+        return ""
+    failed = _failed_hashes(record)
+    return next((n for n in candidates if number_hash(n) not in failed), candidates[0])
 
 
 def _kii_addressee(record) -> str:

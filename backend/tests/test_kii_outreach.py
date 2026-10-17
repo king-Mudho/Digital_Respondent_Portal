@@ -368,3 +368,17 @@ def test_a_record_asked_on_two_of_its_numbers_gets_each_reminder_on_that_number(
                                      number_masked="+263 ••• 002", intro_sent_at=first.intro_sent_at)
     outreach.run_followups(now=timezone.now() + timedelta(days=settings.OUTREACH_REMINDER_DAYS + 1))
     assert sorted(m["To"] for m in twilio[1:]) == ["whatsapp:+263772000001", "whatsapp:+263772000002"]
+
+
+def test_a_kii_record_is_asked_on_its_next_mobile_once_the_first_failed_and_refused_when_all_have(twilio):
+    """17 Oct 2026: as for a case -- the first untried mobile is asked; a record is refused only when every one failed."""
+    record = _record(phone="0772000001; 0772000002")
+    first = outreach.send_kii_introduction(record, user=None)
+    assert twilio[-1]["To"] == "whatsapp:+263772000001"
+    Outreach.objects.filter(pk=first.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    second = outreach.send_kii_introduction(record, user=None)
+    assert twilio[-1]["To"] == "whatsapp:+263772000002" and second.pk != first.pk
+    Outreach.objects.filter(pk=second.pk).update(status=OutreachStatus.NO_REPLY)
+    with pytest.raises(outreach.OutreachError) as exc:
+        outreach.send_kii_introduction(record, user=None)
+    assert exc.value.code == "already_tried"

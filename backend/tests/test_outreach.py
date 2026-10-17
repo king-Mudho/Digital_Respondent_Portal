@@ -497,3 +497,28 @@ def test_a_main_ask_first_batch_is_not_used_up_by_landline_only_cases(twilio, or
     b.run_batch(batch.pk)
     batch.refresh_from_db()
     assert batch.sent == 2 and {o.sample_case_id for o in Outreach.objects.all()} == {c.pk for c in mobiles}
+
+
+def test_a_new_number_added_after_the_first_failed_is_asked_and_reminded_there(introduced, twilio, main_case, settings):
+    """17 Oct 2026: six cases whose first number had failed got a new number from a contacts import, and the portal kept
+    picking the old one and refusing ("already asked"). The untried number is asked, on that person, and reminded there."""
+    Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    person = Respondent.objects.create(sample_case=main_case, full_name="Found later", whatsapp_number="0772000555")
+    assert b.introduction_summary()["ready"] == 1
+    new = outreach.send_introduction(main_case, user=None)
+    assert twilio[-1]["To"] == "whatsapp:+263772000555" and new.respondent_id == person.pk
+    outreach.run_followups(now=timezone.now() + timedelta(days=settings.OUTREACH_REMINDER_DAYS + 1))
+    assert twilio[-1]["To"] == "whatsapp:+263772000555"  # the reminder goes to the number asked, not the failed one
+    Outreach.objects.filter(pk=new.pk).update(status=OutreachStatus.NO_REPLY)
+    with pytest.raises(outreach.OutreachError) as exc:  # every mobile on the case has now failed
+        outreach.send_introduction(main_case, user=None)
+    assert exc.value.code == "already_tried" and b.introduction_summary()["ready"] == 0
+
+
+def test_an_ask_first_batch_asks_a_case_on_its_untried_second_mobile(introduced, twilio, main_case):
+    Outreach.objects.filter(pk=introduced.pk).update(status=OutreachStatus.NOT_DELIVERED)
+    Respondent.objects.filter(sample_case=main_case).update(phone="0771234567; 0772000666")  # a second mobile in the same field
+    batch = b.start_batch(1, user=None, mode="INTRO")
+    b.run_batch(batch.pk)
+    batch.refresh_from_db()
+    assert batch.sent == 1 and twilio[-1]["To"] == "whatsapp:+263772000666"

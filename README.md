@@ -782,6 +782,18 @@ works):
 
 ## Notable fixes
 
+### "Ask first" uses a case's untried mobile, not the one that already failed (17 Oct 2026)
+
+The introduction always went to a case's first mobile (`outreach._mobile`), and a KII record's first (`_kii_mobile`).
+Once that number had failed (not delivered, or no reply after the reminder) the portal refused the case as "already
+asked" -- even when a new number had since been added. On 17 Oct a contacts import added new numbers to six Main cases
+whose first number had failed; the batch and the send button both picked the old number and refused, and the six were
+introduced by hand. Unnoticed because until then no import had added a second number to a case whose first had failed.
+The number chosen is now the first mobile on file not already tried without success -- across every person on a case and
+every number in a field -- and the introduction records that person, so its reminder goes to the same number. A case or
+record is refused only when every mobile on it has failed. This also means a case whose field already held two mobiles
+("0772 686106; 0773 626999") is asked on the second once the first fails.
+
 ### A KII record asked on two of its numbers is reminded on each (15 Oct 2026)
 
 A KII introduction's reminder went to the record's first mobile, whichever number the introduction had gone to. On
