@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { CHANNEL_LABEL, type Channel, type ComposerData } from "@/lib/api/communications";
+import { CHANNEL_LABEL, messageParts, type Channel, type ComposerData } from "@/lib/api/communications";
 
 const ORDER: Channel[] = ["WHATSAPP", "EMAIL", "SMS"];
 const KEY: Record<Channel, "whatsapp" | "sms" | "email"> = { WHATSAPP: "whatsapp", SMS: "sms", EMAIL: "email" };
@@ -53,6 +53,8 @@ export function Composer({
     if (ok) setText("");
   };
   const over = text.length > composer.max_length;
+  // WhatsApp and SMS take at most 1,600 characters a message: a longer text goes as numbered parts (2026-10-17).
+  const parts = channel === "EMAIL" ? 1 : messageParts(text.length, composer.part_max);
 
   return (
     <div className="border-t border-border bg-surface">
@@ -139,6 +141,7 @@ export function Composer({
               <p className={`text-[11px] tabular-nums ${over ? "text-danger" : "text-text-muted"}`}>
                 {text.length} / {composer.max_length} · Ctrl+Enter sends
                 {channel === "SMS" && ` · about ${Math.max(1, Math.ceil(text.length / 153))} SMS part(s)`}
+                {parts > 1 && ` · will be sent as ${parts} ${CHANNEL_LABEL[channel]} messages, numbered (1/${parts})…`}
               </p>
               <Button onClick={submit} disabled={sending || !text.trim() || over || !recipient} className="min-h-9 py-1.5">
                 {sending ? "Sending…" : `Send ${CHANNEL_LABEL[channel]}`}

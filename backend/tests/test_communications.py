@@ -475,3 +475,45 @@ def test_the_list_shows_the_page_size_chosen_and_pages_never_overlap(pi, organis
     assert thread_list(pi, page=1, page_size=7)["page_size"] == 20  # not an offered size
     resp = _client(pi).get("/api/v1/communications/threads/", {"page_size": "100"})
     assert resp.status_code == 200 and resp.json()["page_size"] == 100
+
+
+# --- Long written messages (2026-10-17) ----------------------------------------------------------------------------
+
+LONG = ("Brief study background. " * 25 + "\n\n" + "Why your participation matters. " * 25 + "\n\n"
+        + "Participation is voluntary and confidential. " * 25 + "\n\nResearcher: Happyson Saina")  # 2,557 characters
+
+
+def test_a_long_message_is_split_at_paragraphs_into_numbered_parts_under_twilios_limit():
+    """17 Oct 2026: a 2,600-character study background was refused by Twilio ("exceeds the 1600 character limit")."""
+    parts = outbound.split_text(LONG)
+    assert len(LONG) > 2400 and len(parts) >= 2
+    assert all(len(p) <= 1500 for p in parts) and [p.split(")")[0] for p in parts] == [f"({i}/{len(parts)}" for i in range(1, len(parts) + 1)]
+    assert " ".join(p.split(") ", 1)[1] for p in parts).split() == LONG.split()  # nothing lost, nothing reordered
+    assert outbound.split_text("Hello") == ["Hello"]  # a message that fits goes as it is, unnumbered
+    assert all(len(p) <= 1500 for p in outbound.split_text("x" * 4000))  # even one long word
+
+
+def test_a_long_whatsapp_message_goes_as_numbered_parts_in_order(twilio, pi, person, main_case):
+    _whatsapp_in(main_case, minutes_ago=10)
+    resp = _send(pi, main_case, channel="WHATSAPP", recipient="263771234567", text=LONG)
+    assert resp.status_code == 201, resp.json()
+    bodies = [m["Body"] for m in twilio]
+    assert len(bodies) >= 2 and all(len(b) <= 1600 for b in bodies) and bodies[0].startswith("(1/") and bodies[-1].endswith("Saina")
+    assert list(ProviderMessage.objects.order_by("id").values_list("body", flat=True)) == bodies  # each part on the timeline
+    assert AuditEvent.objects.get(action="communication.sent").metadata["parts"] == len(bodies)
+
+
+def test_if_a_later_part_fails_the_writer_is_told_which_parts_went(twilio, pi, person, main_case, monkeypatch):
+    _whatsapp_in(main_case, minutes_ago=10)
+    calls = []
+
+    def post(url, data=None, auth=None, timeout=None):
+        calls.append(data)
+        if len(calls) == 2:
+            return Mock(status_code=400, json=Mock(return_value={"message": "Twilio says no"}), text="Twilio says no")
+        return Mock(status_code=201, json=Mock(return_value={"sid": f"SM{len(calls):04d}", "status": "queued"}))
+
+    monkeypatch.setattr(tw.requests, "post", post)
+    resp = _send(pi, main_case, channel="WHATSAPP", recipient="263771234567", text=LONG)
+    assert resp.status_code >= 400 and "Only part 1 of" in resp.json()["error"]["message"]
+    assert ProviderMessage.objects.count() == 1 and len(calls) == 2  # it stopped at the failed part

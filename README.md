@@ -782,6 +782,18 @@ works):
 
 ## Notable fixes
 
+### Long WhatsApp and SMS messages go as numbered parts; replies get the refused-words check (17 Oct 2026)
+
+Twilio refuses a WhatsApp or SMS body over 1,600 characters, while Communications allowed 3,000. On 17 Oct the PI's
+2,600-character study background to a new contact was refused with "The concatenated message body exceeds the 1600
+character limit". A written message over `COMMUNICATION_TEXT_PART_MAX` (1,500) is now cut at paragraph, then sentence,
+breaks into numbered parts, "(1/2) ...", sent in order (`outbound.split_text` / `send_text`); if a later part fails the
+writer is told which parts went. Both the reply box and the reply to an unknown number show how many messages a text
+will go as. The same message showed a second gap: the conversation reply (`outreach.reply_from_inbox`) had neither the
+3,000-character limit nor the check that refuses words respondents must never see (AGENTS.md rule 2) -- that text held
+"guarantee" and reached Twilio, refused only for its length. Unnoticed because every reply until then was short. The
+reply now applies both, as Communications does.
+
 ### "Ask first" uses a case's untried mobile, not the one that already failed (17 Oct 2026)
 
 The introduction always went to a case's first mobile (`outreach._mobile`), and a KII record's first (`_kii_mobile`).

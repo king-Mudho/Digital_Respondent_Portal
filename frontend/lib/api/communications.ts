@@ -127,6 +127,14 @@ export interface ComposerData {
   email: ChannelOption;
   actions: { key: "introduction" | "invitation"; label: string; href?: string }[];
   max_length: number;
+  /** A WhatsApp or SMS message longer than this goes out as numbered parts (2026-10-17). */
+  part_max?: number;
+}
+
+/** How many WhatsApp/SMS messages a written text goes out as: the server splits at paragraph and sentence breaks into
+ *  numbered parts of at most `partMax` characters, so this is an estimate a part either way. */
+export function messageParts(length: number, partMax = 1500): number {
+  return length <= partMax ? 1 : Math.ceil(length / (partMax - 40));
 }
 
 export interface ThreadData {

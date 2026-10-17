@@ -164,6 +164,64 @@ def email_configured() -> bool:
     return email_is_configured()
 
 
+def split_text(text: str, limit: int | None = None) -> list[str]:
+    """A written message cut into parts that each fit one WhatsApp or SMS body (2026-10-17): at paragraph breaks, then
+    sentence breaks, then spaces, never inside a word unless a single word is longer than a part. The writer's
+    paragraphs are kept. Each part of a message that needs more than one is numbered "(1/3) "; a message that fits is
+    returned as it is."""
+    limit = limit or settings.COMMUNICATION_TEXT_PART_MAX
+    text = (text or "").strip()
+    if len(text) <= limit:
+        return [text]
+    room = limit - len("(99/99) ")
+
+    def cut(block: str, separators: list[str]) -> list[str]:
+        if len(block) <= room:
+            return [block]
+        if not separators:
+            return [block[i:i + room] for i in range(0, len(block), room)]
+        out = []
+        for piece in re.split(separators[0], block):
+            out.extend(cut(piece.strip(), separators[1:]))
+        return [p for p in out if p]
+
+    # (unit, starts a paragraph) in reading order
+    units = []
+    for paragraph in re.split(r"\n\s*\n", text):
+        for i, unit in enumerate(cut(paragraph.strip(), [r"(?<=[.!?:;])\s+", r"\s+"])):
+            units.append((unit, i == 0))
+    parts, current = [], ""
+    for unit, new_paragraph in units:
+        candidate = f"{current}{chr(10) * 2 if new_paragraph else ' '}{unit}" if current else unit
+        if len(candidate) <= room:
+            current = candidate
+        else:
+            parts.append(current)
+            current = unit
+    if current:
+        parts.append(current)
+    return [f"({i}/{len(parts)}) {p}" for i, p in enumerate(parts, 1)]
+
+
+def send_text(*, channel: str, number: str, purpose: str, text: str, user=None, **links) -> list[ProviderMessage]:
+    """A written WhatsApp or SMS message, sent as one or more numbered parts in order (split_text). If a part fails
+    after others went, the error says which parts went, so nothing is half-sent without the writer knowing."""
+    parts = split_text(text)
+    sent: list[ProviderMessage] = []
+    for number_in_order, part in enumerate(parts, 1):
+        try:
+            sent.append(send(channel=channel, number=number, purpose=purpose, user=user,
+                             wa_text=part if channel == MessageChannel.WHATSAPP else "",
+                             sms_body=part if channel == MessageChannel.SMS else "", **links))
+        except OutboundError as exc:
+            if not sent:
+                raise
+            went = "part 1" if len(sent) == 1 else f"parts 1-{len(sent)}"
+            raise OutboundError(exc.code, f"Only {went} of {len(parts)} went. Part {number_in_order} was not sent ({exc}): "
+                                          f"send the rest again as a new message.", exc.status) from exc
+    return sent
+
+
 def send_email(*, to: str, subject: str, body: str, purpose: str, user=None, in_reply_to: str = "",
                redact_link: str = "", redact_code: str = "", **links) -> ProviderMessage:
     """One email from the study address, recorded like an SMS or WhatsApp message. It carries its own Message-ID, so a

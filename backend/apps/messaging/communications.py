@@ -496,7 +496,8 @@ def composer(user, subject, kind: str) -> dict:
     elif kind == "kii" and not blocked:
         actions.append({"key": "invitation", "label": "Send an invitation", "href": f"/admin/kii/{subject.pk}"})
     return {"can_write": can_write(user), "blocked": blocked, "whatsapp": whatsapp, "sms": sms, "email": email,
-            "actions": actions, "max_length": settings.COMMUNICATION_MAX_LENGTH}
+            "actions": actions, "max_length": settings.COMMUNICATION_MAX_LENGTH,
+            "part_max": settings.COMMUNICATION_TEXT_PART_MAX}
 
 
 def _window_open(number: str) -> bool:
@@ -546,9 +547,10 @@ def send_message(user, kind: str, pk, *, channel: str, recipient: str, text: str
             if channel == MessageChannel.WHATSAPP and not _window_open(digits):
                 raise CommunicationError("window_closed", "WhatsApp only allows a written message within 24 hours of their "
                                          "own last WhatsApp message. Use an approved message, email, or phone them.", 409)
-            sent = outbound.send(channel=channel, number=digits, purpose=MessagePurpose.MESSAGE,
-                                 wa_text=text if channel == MessageChannel.WHATSAPP else "",
-                                 sms_body=text if channel == MessageChannel.SMS else "", user=user, **links)
+            # A long message goes as numbered parts: Twilio refuses a body over 1,600 characters (2026-10-17).
+            parts = outbound.send_text(channel=channel, number=digits, purpose=MessagePurpose.MESSAGE, text=text,
+                                       user=user, **links)
+            sent = parts[0]
             to_masked = tw.mask(digits)
         else:
             raise CommunicationError("bad_channel", "Choose WhatsApp, SMS or email.")
@@ -561,6 +563,7 @@ def send_message(user, kind: str, pk, *, channel: str, recipient: str, text: str
     mark_handled(user, kind, pk, _subject=subject)
     log_action("communication.sent", subject, {
         "channel": channel, "recipient": to_masked, "provider_message": sent.pk, "user_id": user.id,
+        "parts": len(parts) if channel in (MessageChannel.WHATSAPP, MessageChannel.SMS) else 1,
         "ref": getattr(subject, "sample_id", None) or getattr(subject, "kii_id", None),
     }, user=user)
     return sent

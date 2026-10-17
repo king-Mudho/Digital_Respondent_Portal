@@ -522,3 +522,18 @@ def test_an_ask_first_batch_asks_a_case_on_its_untried_second_mobile(introduced,
     b.run_batch(batch.pk)
     batch.refresh_from_db()
     assert batch.sent == 1 and twilio[-1]["To"] == "whatsapp:+263772000666"
+
+
+def test_a_reply_refuses_words_respondents_never_see_and_goes_in_parts_when_long(introduced, twilio):
+    """17 Oct 2026: the reply path had neither the blocked-word check nor the length handling of Communications."""
+    _reply("What is this study about?")
+    message = InboundMessage.objects.get()
+    fc = _client(_user(Role.FIELD_COORDINATOR, "conv_fc_long"))
+    refused = fc.post(f"/api/v1/conversations/{message.pk}/reply/", {"text": "It is not a guarantee of finance."}, format="json")
+    assert refused.status_code == 400 and refused.json()["error"]["code"] == "blocked_phrase"
+    before = len(twilio)
+    long_text = ("The study looks at agribusiness finance. " * 40 + "\n\n" + "Taking part is voluntary. " * 40).strip()
+    resp = fc.post(f"/api/v1/conversations/{message.pk}/reply/", {"text": long_text}, format="json")
+    assert resp.status_code == 200, resp.json()
+    bodies = [m["Body"] for m in twilio[before:]]
+    assert len(bodies) >= 2 and all(len(b) <= 1600 for b in bodies) and bodies[0].startswith("(1/")

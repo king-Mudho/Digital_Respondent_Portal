@@ -654,9 +654,19 @@ def reply_from_inbox(message: InboundMessage, text: str, *, user) -> None:
     """A person answers in Conversations. The study's Twilio WhatsApp number is on no phone, so this is the only way
     to answer in the chat, and only inside WhatsApp's 24-hour window."""
 
+    from .communications import _blocked_phrase
+
     text = (text or "").strip()
     if not text:
         raise OutreachError("empty", "Write a reply first.")
+    # The same checks as a message written in Communications (2026-10-17: this path had neither, so a 2,600-character
+    # reply holding "guarantee" reached Twilio and was refused only for its length).
+    if len(text) > settings.COMMUNICATION_MAX_LENGTH:
+        raise OutreachError("too_long", f"Keep it under {settings.COMMUNICATION_MAX_LENGTH} characters.")
+    phrase = _blocked_phrase(text)
+    if phrase:
+        raise OutreachError("blocked_phrase", f"Take out \"{phrase}\": the study never uses that word with participants. "
+                                              "This is a research study, not a financing decision.")
     if not reply_window_open(message.number_hash):
         raise OutreachError("window_closed", "WhatsApp only allows a reply within 24 hours of their last message. Phone them instead.", 409)
     digits = message.from_number
@@ -671,14 +681,16 @@ def reply_from_inbox(message: InboundMessage, text: str, *, user) -> None:
     if not digits:
         raise OutreachError("no_number", "This number is no longer on file, so the portal can't reply. Phone them instead.", 409)
     try:
-        sent = outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.REPLY, wa_text=text,
-                             user=user, sample_case=message.sample_case, kii_record=message.kii_record)
+        # A long reply goes as numbered parts: Twilio refuses a body over 1,600 characters (2026-10-17).
+        parts = outbound.send_text(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.REPLY, text=text,
+                                   user=user, sample_case=message.sample_case, kii_record=message.kii_record)
+        sent = parts[0]
     except outbound.OutboundError as exc:
         raise OutreachError(exc.code, str(exc), exc.status) from exc
     message.handled_by, message.handled_at, message.needs_person = user, timezone.now(), False
     message.save(update_fields=["handled_by", "handled_at", "needs_person"])
     log_action("conversation.replied", message.sample_case or message, {
-        "message": message.pk, "recipient": sent.to_masked, "user_id": getattr(user, "id", None),
+        "message": message.pk, "recipient": sent.to_masked, "user_id": getattr(user, "id", None), "parts": len(parts),
     }, user=user)
 
 

@@ -338,6 +338,9 @@ COMMUNICATION_BLOCKED_PHRASES = env.list("COMMUNICATION_BLOCKED_PHRASES", defaul
     "approved", "loan approval", "credit rating", "bankability score", "guarantee",
 ])
 COMMUNICATION_MAX_LENGTH = env.int("COMMUNICATION_MAX_LENGTH", default=3000)
+# A written WhatsApp or SMS message longer than this goes out as numbered parts, "(1/2) ...": Twilio refuses a body over
+# 1,600 characters (2026-10-17: a 2,600-character study background was refused). Below 1,600 to leave room for "(1/2) ".
+COMMUNICATION_TEXT_PART_MAX = env.int("COMMUNICATION_TEXT_PART_MAX", default=1500)
 
 # --- SMS and WhatsApp through Twilio (apps/messaging/twilio_client.py, 2026-10-07) -----
 # Set with deploy/configure-twilio.sh. Each channel is offered only once its own values are set, so SMS can go live

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { adminFetch } from "@/lib/api/admin";
-import { fullTime, type UnknownMessage } from "@/lib/api/communications";
+import { fullTime, messageParts, type UnknownMessage } from "@/lib/api/communications";
 import { Attachment } from "./Timeline";
 
 /**
@@ -71,6 +71,11 @@ export function UnknownSenders() {
                   className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
                   placeholder="Reply on WhatsApp…"
                 />
+                <p className="text-[11px] tabular-nums text-text-muted">
+                  {(drafts[m.message_id] ?? "").length} characters
+                  {messageParts((drafts[m.message_id] ?? "").length) > 1 &&
+                    ` · will be sent as ${messageParts((drafts[m.message_id] ?? "").length)} WhatsApp messages, numbered`}
+                </p>
                 <div className="flex gap-2">
                   <Button className="min-h-9 py-1.5" disabled={reply.isPending || !(drafts[m.message_id] ?? "").trim()}
                     onClick={() => reply.mutate({ id: m.message_id, text: drafts[m.message_id] ?? "" })}>
