@@ -549,4 +549,4 @@ def test_the_new_introduction_wording_is_used_only_once_meta_approves_it(twilio,
     outreach.send_introduction(main_case, user=None)
     assert twilio[-1]["ContentSid"] == expected
     shown = ProviderMessage.objects.get().body
-    assert ("Your organisation has been selected" in shown and main_case.organisation.name in shown) == (expected == "HXintroV2")
+    assert ("A 15–25-minute questionnaire" in shown and main_case.organisation.name in shown) == (expected == "HXintroV2")

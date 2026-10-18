@@ -801,7 +801,7 @@ the study's background site, and that a YES gives permission to send materials, 
 (`build_messages`, `build_kii_messages`) now carry that text in full, with the personal link in place of "May I send
 you the link?"; the two uses of "guarantee" in the draft became "promise", as AGENTS.md rule 2 requires. WhatsApp
 caps a template at 1,024 characters, so a condensed version was submitted to Meta as `abffst_intro_v2` and
-`abffst_kii_intro_v2` (`TWILIO_WA_CONTENT_INTRO_NEXT` / `_KII_INTRO_NEXT`; wording copy in migration 0017).
+`abffst_kii_intro_v2`, replaced the same day by the PI's corrected `abffst_intro_v3` / `abffst_kii_intro_v3` (migration 0019) (`TWILIO_WA_CONTENT_INTRO_NEXT` / `_KII_INTRO_NEXT`; wording copy in migration 0017).
 `outreach._intro_content` sends the new template only once Meta's status for it is a definite "approved"
 (`twilio_client.content_approved`), else the current one -- so the switch needs no one to make it, and an
 unapproved template is never used (Twilio would accept it and fail it later, 63016).
