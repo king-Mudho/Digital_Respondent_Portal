@@ -782,6 +782,18 @@ works):
 
 ## Notable fixes
 
+### Participants who complete are thanked, and asked whether they want the findings or a workshop invitation (18 Oct 2026)
+
+At the PI's request (`apps/messaging/thanks.py`). A Main-400 or Reserve case whose questionnaire reached KoboToolbox
+(its link SUBMITTED or QA_PASSED, or the case at S08-S11) and a KII record marked COMPLETED are thanked once: on
+WhatsApp with the template `abffst_thank_you` (`TWILIO_WA_CONTENT_THANK_YOU`, used only once Meta approves it) to the
+number the link went to, else by email with the PI's full letter. Never after consent was withdrawn, never a case
+whose metadata `thank_you` says skip (the four possible test cases SID-2026-000001/02/05/62 are marked so until the
+PI confirms them). The WhatsApp buttons (Findings & workshop / Findings only / Workshop only) and an email answer
+starting BOTH, FINDINGS or WORKSHOP are recorded as `metadata["thank_you"]["preference"]` and audited; a button is
+checked before YES/NO, so it can never be read as YES to an introduction. Runs every 30 minutes, 07:00-19:59
+(Periodic task "Thank participants who completed").
+
 ### The PI's revised invitation wording; introductions switch to it once Meta approves (18 Oct 2026)
 
 The PI rewrote the study invitation (purpose, why participation matters, what it involves, voluntary participation,

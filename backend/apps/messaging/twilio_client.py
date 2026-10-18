@@ -219,6 +219,7 @@ TEMPLATE_SETTINGS = [
     ("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", "KII introduction reminder"),
     ("TWILIO_WA_CONTENT_INTRO_NEXT", "Introduction, new wording (used once approved)"),
     ("TWILIO_WA_CONTENT_KII_INTRO_NEXT", "KII introduction, new wording (used once approved)"),
+    ("TWILIO_WA_CONTENT_THANK_YOU", "Thank you for taking part (used once approved)"),
 ]
 APPROVALS_CACHE_SECONDS = 600
 

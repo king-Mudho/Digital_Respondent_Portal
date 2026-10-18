@@ -398,6 +398,12 @@ def send_introduction(case, *, user) -> Outreach:
 # --- Replies ------------------------------------------------------------------------------------------------------
 
 def classify(body: str, button_payload: str = "") -> str:
+    from .thanks import choice_of, is_button
+
+    # A thank-you button (2026-10-18) is checked first: it must never be read as YES to an introduction.
+    if is_button(button_payload) or (not button_payload and (body or "").strip().upper() in
+                                     ("FINDINGS & WORKSHOP", "FINDINGS ONLY", "WORKSHOP ONLY") and choice_of(body=body)):
+        return ReplyKind.PREFERENCE
     text = (button_payload or body or "").upper()
     words = " ".join(re.sub(r"[^\w\s]", " ", text).split())
     if words in {w.upper() for w in settings.OUTREACH_YES_WORDS}:
@@ -493,6 +499,16 @@ def handle_inbound(message_id: int, digits: str) -> None:
             fetch_attachments(message)
         except Exception:  # never lose the reply over a media download
             logger.exception("Attachments of message %s could not be copied", message.pk)
+    if message.kind == ReplyKind.PREFERENCE:
+        from . import thanks
+
+        choice = thanks.choice_of(body=message.body)
+        thanks.record_choice(message.sample_case or message.kii_record, choice, via="whatsapp", message=message)
+        message.needs_person = not choice
+        message.save(update_fields=["needs_person"])
+        if choice:
+            _reply(message, digits, thanks.acknowledgement(choice))
+        return
     if message.kind == ReplyKind.PHONE:
         message.needs_person = True
         message.save(update_fields=["needs_person"])

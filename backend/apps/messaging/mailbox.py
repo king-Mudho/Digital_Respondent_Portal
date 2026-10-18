@@ -213,15 +213,24 @@ def _store_inbound(head, folder: _Folder, uid: int, validity: int, known: set[st
     body, attachments = text_of(full)
     # An out-of-office answer is kept (it says when they are back) but needs nobody to act on it.
     automatic = str(head.get("Auto-Submitted", "no")).lower() not in ("", "no")
+    # An answer to the thank-you (2026-10-18): its first word is their choice of findings, workshop or both.
+    choice = ""
+    if answered is not None and answered.purpose == MessagePurpose.THANK_YOU:
+        from . import thanks
+
+        first_line = next((line for line in (body or "").splitlines() if line.strip()), "")
+        choice = thanks.choice_of(body=first_line)
     try:
-        InboundMessage.objects.create(
+        inbound = InboundMessage.objects.create(
             channel=MessageChannel.EMAIL, provider_sid=message_id[:255], sample_case=case, kii_record=record,
             number_hash=email_hash(sender), from_masked=mask_email(sender), subject=scrub(str(head.get("Subject", "")))[:300],
-            body=scrub(body), has_attachments=attachments, sent_at=_date(head.get("Date")), kind=ReplyKind.OTHER,
-            needs_person=not automatic,
+            body=scrub(body), has_attachments=attachments, sent_at=_date(head.get("Date")),
+            kind=ReplyKind.PREFERENCE if choice else ReplyKind.OTHER, needs_person=not automatic and not choice,
         )
     except IntegrityError:
         return False
+    if choice:
+        thanks.record_choice(case or record, choice, via="email", message=inbound)
     return True
 
 

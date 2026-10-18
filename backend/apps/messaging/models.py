@@ -88,6 +88,8 @@ class MessagePurpose(models.TextChoices):
     INTRODUCTION = "INTRODUCTION", "Introduction (ask first)"
     REPLY = "REPLY", "Reply in a conversation"
     MESSAGE = "MESSAGE", "Message written by the team"
+    # Thanking a participant who completed the questionnaire or interview (PI, 18 Oct 2026; apps/messaging/thanks.py).
+    THANK_YOU = "THANK_YOU", "Thank you for taking part"
     OTHER = "OTHER", "Other"
 
 
@@ -217,6 +219,8 @@ class ReplyKind(models.TextChoices):
     # They sent the code from their own invitation, which the invitation asks for when they would rather answer by
     # phone (2026-10-14).
     PHONE = "PHONE", "Wants to answer by phone"
+    # Their answer to the thank-you: the findings summary, a workshop invitation or both (2026-10-18).
+    PREFERENCE = "PREF", "Findings / workshop choice"
     OTHER = "OTHER", "Other"
 
 

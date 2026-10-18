@@ -517,3 +517,28 @@ def test_if_a_later_part_fails_the_writer_is_told_which_parts_went(twilio, pi, p
     resp = _send(pi, main_case, channel="WHATSAPP", recipient="263771234567", text=LONG)
     assert resp.status_code >= 400 and "Only part 1 of" in resp.json()["error"]["message"]
     assert ProviderMessage.objects.count() == 1 and len(calls) == 2  # it stopped at the failed part
+
+
+# --- The thank-you and their choice (2026-10-18) -------------------------------------------------------------------
+
+def test_an_email_answer_to_the_thank_you_records_the_choice_and_needs_no_one(imap_on, person, main_case):
+    from apps.messaging import thanks
+
+    subject, body = thanks.email_text(main_case)
+    sent = outbound.send_email(to=PERSON_EMAIL, subject=subject, body=body, purpose=MessagePurpose.THANK_YOU, sample_case=main_case)
+    fake = FakeIMAP({"INBOX": [(1, _email(sender=PERSON_EMAIL, subject="Re: " + subject, body="Workshop\n\n> quoted letter",
+                                          in_reply_to=sent.provider_sid))]})
+    mailbox.sync_mailbox(connect=lambda: fake)
+    reply = InboundMessage.objects.get()
+    main_case.refresh_from_db()
+    assert main_case.metadata["thank_you"]["preference"] == "WORKSHOP" and main_case.metadata["thank_you"]["preference_via"] == "email"
+    assert reply.kind == "PREF" and reply.needs_person is False
+
+
+def test_an_ordinary_email_answer_still_goes_to_a_person(imap_on, person, main_case):
+    sent = outbound.send_email(to=PERSON_EMAIL, subject="Hello", body="Hi", purpose=MessagePurpose.MESSAGE, sample_case=main_case)
+    fake = FakeIMAP({"INBOX": [(1, _email(sender=PERSON_EMAIL, body="Both of us will attend", in_reply_to=sent.provider_sid))]})
+    mailbox.sync_mailbox(connect=lambda: fake)
+    assert InboundMessage.objects.get().needs_person is True  # "Both" only counts as a choice when answering the thank-you
+    main_case.refresh_from_db()
+    assert "thank_you" not in (main_case.metadata or {})

@@ -19,6 +19,14 @@ def run_reminder_dispatch():
 
 
 @shared_task
+def send_due_thanks_task():
+    """Thank everyone who completed and has not been thanked yet (apps/messaging/thanks.py, 2026-10-18)."""
+    from .thanks import send_due_thanks
+
+    return send_due_thanks()
+
+
+@shared_task
 def handle_inbound_message(message_id: int, digits: str):
     """Acts on a WhatsApp message received by the study's Twilio number (outreach.handle_inbound). Run here so Twilio's
     webhook is answered at once: replying may wait on Twilio's retries."""
