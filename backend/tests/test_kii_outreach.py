@@ -382,3 +382,13 @@ def test_a_kii_record_is_asked_on_its_next_mobile_once_the_first_failed_and_refu
     with pytest.raises(outreach.OutreachError) as exc:
         outreach.send_kii_introduction(record, user=None)
     assert exc.value.code == "already_tried"
+
+
+@pytest.mark.parametrize("meta_says, expected", [("pending", "HXkiiIntro"), ("approved", "HXkiiIntroV2")])
+def test_the_new_kii_introduction_wording_is_used_only_once_meta_approves_it(twilio, settings, monkeypatch, meta_says, expected):
+    settings.TWILIO_WA_CONTENT_KII_INTRO_NEXT = "HXkiiIntroV2"
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXkiiIntroV2", "status": meta_says}])
+    outreach.send_kii_introduction(_record(), user=None)
+    assert twilio[-1]["ContentSid"] == expected
+    shown = ProviderMessage.objects.get().body
+    assert ("I invite a knowledgeable representative" in shown) == (expected == "HXkiiIntroV2")

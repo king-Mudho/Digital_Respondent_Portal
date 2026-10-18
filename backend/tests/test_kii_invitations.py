@@ -253,7 +253,8 @@ def test_a_placeholder_record_greets_the_organisation_and_asks_for_the_role_neve
                                metadata={"organisation_name": "CBZ Agro-Yield"})
     msgs = _messages(record)
     assert msgs["whatsapp"].startswith("Hello, CBZ Agro-Yield. You are invited")
-    assert msgs["email_body"].startswith("Dear Sir or Madam,") and msgs["email_subject"].startswith("CBZ Agro-Yield: ")
+    # The PI's invitation text (18 Oct 2026) greets the organisation's team.
+    assert msgs["email_body"].startswith("Dear CBZ Agro-Yield team,") and msgs["email_subject"].startswith("CBZ Agro-Yield: ")
     for key in ("whatsapp", "email_body"):
         assert "the role of Head of Agri-finance" in msgs[key], key
     for key in ("whatsapp", "sms", "email_subject", "email_body"):
@@ -278,3 +279,27 @@ def test_a_kii_invitation_is_emailed_with_its_own_link_even_after_the_whatsapp_l
 
     admin_client.post("/api/v1/kii-invitations/", {"kii_id": kii_record.kii_id, "channel": "EMAIL"}, format="json")
     assert admin_client.post(url, body, format="json").data["error"]["code"] == "invitation_not_open"  # superseded
+
+
+def test_the_emailed_invitations_carry_the_pis_text_its_link_and_none_of_the_refused_words(db, main_case):
+    """18 Oct 2026: the PI's own invitation text replaced the short email; it must still carry the personal link and the
+    phone code, and none of the words a participant must never see ("guarantee" was in the PI's draft)."""
+    from datetime import timedelta
+
+    from django.conf import settings
+    from django.utils import timezone
+
+    from apps.invitations.messages import build_messages
+
+    record = create_kii_record(participant_name="Tendai Moyo", participant_role="Head of Agribusiness",
+                               stakeholder_category="Bank, DFI & MFI", metadata={"organisation_name": "CBZ Bank"})
+    link, code, until = "https://research.example/x/abc", "AB12CD34", timezone.now() + timedelta(days=14)
+    texts = [_messages(record)["email_body"],
+             build_messages(sample_case=main_case, link=link, manual_code=code, expires_at=until)["email_body"]]
+    for text in texts:
+        assert "Your personal link" in text and "https://agribizframework.com/" in text and "0773943709" in text
+        assert "consent is requested" in text and "promise of access to finance" in text
+        for phrase in settings.COMMUNICATION_BLOCKED_PHRASES:
+            assert phrase.lower() not in text.lower(), phrase
+    assert link in texts[1] and code in texts[1] and "15-25 minutes" in texts[1]
+    assert "30 minutes" in texts[0] and "telephone interview" in texts[0]

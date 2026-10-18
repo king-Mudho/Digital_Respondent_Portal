@@ -376,6 +376,10 @@ TWILIO_WA_CONTENT_INTRO_REMINDER = env("TWILIO_WA_CONTENT_INTRO_REMINDER", defau
 # "Ask first" for KII informants (2026-10-14): their own introduction and reminder, addressed to a named person.
 TWILIO_WA_CONTENT_KII_INTRO = env("TWILIO_WA_CONTENT_KII_INTRO", default="")
 TWILIO_WA_CONTENT_KII_INTRO_REMINDER = env("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", default="")
+# A replacement wording for each introduction (PI, 18 Oct 2026), submitted to Meta: sent instead of the current one only
+# once Meta has approved it (outreach._intro_content), so nothing waits on a person to switch it over.
+TWILIO_WA_CONTENT_INTRO_NEXT = env("TWILIO_WA_CONTENT_INTRO_NEXT", default="")
+TWILIO_WA_CONTENT_KII_INTRO_NEXT = env("TWILIO_WA_CONTENT_KII_INTRO_NEXT", default="")
 # Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
 # Voice notes, pictures and files people send on WhatsApp are copied into PRIVATE_DATA_ROOT (apps/messaging/media.py).
 WHATSAPP_MEDIA_MAX_MB = env.float("WHATSAPP_MEDIA_MAX_MB", default=16)

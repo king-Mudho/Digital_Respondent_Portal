@@ -217,6 +217,8 @@ TEMPLATE_SETTINGS = [
     ("TWILIO_WA_CONTENT_INTRO_REMINDER", "Introduction reminder"),
     ("TWILIO_WA_CONTENT_KII_INTRO", "KII introduction (ask first)"),
     ("TWILIO_WA_CONTENT_KII_INTRO_REMINDER", "KII introduction reminder"),
+    ("TWILIO_WA_CONTENT_INTRO_NEXT", "Introduction, new wording (used once approved)"),
+    ("TWILIO_WA_CONTENT_KII_INTRO_NEXT", "KII introduction, new wording (used once approved)"),
 ]
 APPROVALS_CACHE_SECONDS = 600
 
@@ -302,6 +304,15 @@ def template_waiting(setting: str, *, approvals=None) -> str:
     template and it fails later (error 63016), so the batch would have reported it sent. "unknown" -- Twilio could
     not be asked -- does not block."""
     return content_waiting((getattr(settings, setting, "") or "").strip(), approvals=approvals)
+
+
+def content_approved(sid: str, *, approvals=None) -> bool:
+    """True only when Meta's answer for this Content SID is known and "approved" (2026-10-18). Stricter than
+    content_waiting(), which lets an unknown status through: a replacement template is used only on a definite yes."""
+    if not sid:
+        return False
+    rows = template_approvals() if approvals is None else approvals
+    return any(row["sid"] == sid and row["status"] == "approved" for row in rows)
 
 
 def content_waiting(sid: str, *, approvals=None) -> str:

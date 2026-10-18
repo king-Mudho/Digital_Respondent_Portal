@@ -199,13 +199,28 @@ def refer_introduction(outreach, *, name: str, phone: str, email: str = "", user
     return new
 
 
+def _intro_content(*, kii: bool) -> tuple[str, str]:
+    """(Content SID, the portal's copy of its wording) for an introduction: the replacement wording (the *_NEXT
+    setting, PI 18 Oct 2026) once Meta has approved it, else the current template. The switch needs no one to make it."""
+    base = "TWILIO_WA_CONTENT_KII_INTRO" if kii else "TWILIO_WA_CONTENT_INTRO"
+    wording_name = "kii_outreach_intro_whatsapp" if kii else "outreach_intro_whatsapp"
+    replacement = (getattr(settings, base + "_NEXT", "") or "").strip()
+    if replacement and tw.content_approved(replacement):
+        return replacement, wording_name + "_v2"
+    return (getattr(settings, base, "") or "").strip(), wording_name
+
+
 def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
     org = case.organisation.name
     if channel == MessageChannel.WHATSAPP:
         reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_INTRO_REMINDER")
-        content = (settings.TWILIO_WA_CONTENT_INTRO_REMINDER if reminder_ready else "") or settings.TWILIO_WA_CONTENT_INTRO
-        return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
-                             wa_variables={1: org}, user=user, sample_case=case)
+        if reminder_ready:
+            content, record_text = settings.TWILIO_WA_CONTENT_INTRO_REMINDER.strip(), ""
+        else:
+            content, name = _intro_content(kii=False)
+            record_text = wording(name).replace("{{1}}", org) if name.endswith("_v2") else ""
+        return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content,
+                             wa_variables={1: org}, record_text=record_text, user=user, sample_case=case)
     name = "outreach_intro_reminder_sms" if reminder else "outreach_intro_sms"
     return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, sms_body=wording(name, org),
                          user=user, sample_case=case)
@@ -259,8 +274,10 @@ def _send_kii_intro(record, number: str, channel: str, *, reminder: bool, user):
     who = _kii_addressee(record)
     if channel == MessageChannel.WHATSAPP:
         reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_KII_INTRO_REMINDER")
-        content = (settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER if reminder_ready else "") or settings.TWILIO_WA_CONTENT_KII_INTRO
-        name = "kii_outreach_intro_reminder_whatsapp" if reminder_ready else "kii_outreach_intro_whatsapp"
+        if reminder_ready:
+            content, name = settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER, "kii_outreach_intro_reminder_whatsapp"
+        else:
+            content, name = _intro_content(kii=True)
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
                              wa_variables={1: who}, record_text=wording(name).replace("{{1}}", who), user=user,
                              kii_record=record)

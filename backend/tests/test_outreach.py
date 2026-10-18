@@ -537,3 +537,16 @@ def test_a_reply_refuses_words_respondents_never_see_and_goes_in_parts_when_long
     assert resp.status_code == 200, resp.json()
     bodies = [m["Body"] for m in twilio[before:]]
     assert len(bodies) >= 2 and all(len(b) <= 1600 for b in bodies) and bodies[0].startswith("(1/")
+
+
+@pytest.mark.parametrize("meta_says, expected", [("pending", "HXintro"), ("unknown", "HXintro"), ("approved", "HXintroV2")])
+def test_the_new_introduction_wording_is_used_only_once_meta_approves_it(twilio, settings, monkeypatch, main_case, meta_says, expected):
+    """18 Oct 2026: the PI's revised introduction was submitted to Meta; the portal switches to it by itself, and only on
+    a definite approval -- an unapproved template is accepted by Twilio and fails later (63016)."""
+    settings.TWILIO_WA_CONTENT_INTRO_NEXT = "HXintroV2"
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXintroV2", "status": meta_says}])
+    _verified(main_case)
+    outreach.send_introduction(main_case, user=None)
+    assert twilio[-1]["ContentSid"] == expected
+    shown = ProviderMessage.objects.get().body
+    assert ("Your organisation has been selected" in shown and main_case.organisation.name in shown) == (expected == "HXintroV2")
