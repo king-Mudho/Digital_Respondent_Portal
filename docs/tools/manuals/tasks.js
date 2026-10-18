@@ -608,8 +608,9 @@ T.cost = [
   ["h2", "Logging fieldwork costs"],
   ["steps", [
     { text: "Select **Cost**. The top shows total spend, cost per QA-passed questionnaire and cost per completed KII, with spend by category.", img: "adm_cost.jpg", caption: "Cost Dashboard and the Log a cost event form." },
-    "In **Log a cost event**, enter the date, choose the category (RA_ALLOWANCE, AIRTIME_DATA, TRANSPORT, ACCOMMODATION, HOSTING, MESSAGING, OTHER) and the amount in USD.",
-    "Select **Log cost**. Keep the receipt as the study's finance rules require.",
+    "In **Record a cost**, enter the date, choose the category (RA allowance, Airtime / data, Transport, Accommodation, Hosting, Messaging, Software / AI tools, Other), say **what it was for** (for example “Claude subscription, October”), who it was **paid to** if anyone (for example the RA's name), and the amount in USD.",
+    "Select **Record cost**. The entry appears in **All costs** below, with its date and who recorded it. Keep the receipt as the study's finance rules require.",
+    "To see one month's spending, choose the month in **All costs**: the total at the bottom is for that month. **Download CSV** saves the list for a spreadsheet. **Edit** corrects an entry and **Delete** removes one recorded by mistake; both are kept in the audit log.",
   ]],
 ];
 

@@ -156,8 +156,10 @@ const screens = [
     roles: [R.PI, R.FC, R.AN, R.SUP],
     purpose: "What the fieldwork has cost, by category, so cost per completed case can be reported.",
     rows: [
-      ["Spend by category", "Shows spend for RA allowance, airtime/data, transport, accommodation, hosting, messaging and other.", "Funders and the dissertation need the real cost of each completed case.", "Read only."],
-      ["Log a cost event: Date, Category, Amount → Log cost", "Records one expense.", "Costs are logged as they happen so the total stays true, and each event records who approved it.", "The event is added and the total increases by that amount.", { only: [R.PI, R.FC], write: true }],
+      ["Spend by category", "Shows spend and the number of entries for RA allowance, airtime/data, transport, accommodation, hosting, messaging, software/AI tools and other, with the total.", "Funders and the dissertation need the real cost of each completed case.", "Read only."],
+      ["Record a cost: Date, Category, What it was for, Paid to, Amount → Record cost", "Records one expense, saying what it was for (e.g. “Claude subscription, October”) and who was paid (e.g. the RA's name).", "A category alone cannot say what the money bought; each entry records who recorded it.", "The entry appears in All costs and the total increases by that amount.", { only: [R.PI, R.FC], write: true }],
+      ["All costs", "Every entry with its date, category, what it was for, who was paid, amount and who recorded it, newest first; filter by month or category; Download CSV.", "The total at the bottom is for what is shown, so a month's spend can be read straight off.", "Read only for the Supervisor; the Analyst sees the totals above, not the entries (they name people paid).", { only: [R.PI, R.FC, R.SUP] }],
+      ["Edit / Delete on an entry", "Corrects an entry, or removes one recorded by mistake.", "Every correction and deletion is kept in the audit log with what it was before.", "The table and the totals update.", { only: [R.PI, R.FC], write: true }],
     ],
   },
   {

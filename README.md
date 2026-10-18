@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### Cost register: what each cost was for, who was paid, and a table of every entry (18 Oct 2026)
+
+The Cost Dashboard recorded a date, a category and an amount, and showed only totals by category: "Claude
+subscription, $20" or "Allowance to <RA>, $30" could not be told apart from any other Software or RA-allowance spend,
+and no single entry could be seen again. Each cost now records **what it was for** (required) and **who was paid**,
+under categories that include Software / AI tools; `GET /api/v1/costs/` lists every entry newest first with the total
+of what it lists (filter `?month=YYYY-MM`, `?category=`), and `/costs/<id>/` corrects or deletes one -- each audited
+with what it was before (`cost.recorded`, `cost.updated`, `cost.deleted`). The Supervisor reads the entries; the
+Analyst sees only the dashboard totals, since entries name the people paid. Manuals 1.45.
+
 ### Participants who complete are thanked, and asked whether they want the findings or a workshop invitation (18 Oct 2026)
 
 At the PI's request (`apps/messaging/thanks.py`). A Main-400 or Reserve case whose questionnaire reached KoboToolbox

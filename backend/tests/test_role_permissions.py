@@ -183,7 +183,8 @@ def test_field_coordinator_retains_full_prior_access(field_coordinator_client, m
     assert field_coordinator_client.post(
         f"/api/v1/sample-cases/{main_case.sample_id}/transition/", {"workflow_status": "S01"}, format="json"
     ).status_code == 200
-    assert field_coordinator_client.post("/api/v1/costs/", {"date": "2026-09-12", "category": "TRANSPORT", "amount": "10.00"}, format="json").status_code == 201
+    assert field_coordinator_client.post("/api/v1/costs/", {"date": "2026-09-12", "category": "TRANSPORT", "amount": "10.00",
+                                                         "description": "Bus fare to Mutare"}, format="json").status_code == 201
     assert field_coordinator_client.get("/api/v1/dashboards/executive/").status_code == 200
     # Still excluded, per docs/18's export column ("No" for Field Coordinator)
     # -- this pass didn't touch that pre-existing behaviour, only Supervisor's.

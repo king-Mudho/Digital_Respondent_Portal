@@ -10,7 +10,7 @@ import { loginAsAdmin } from "./helpers";
  * accumulates across every cost event ever logged, including from other
  * runs against a database that isn't reset between suite runs.
  */
-test("logging a cost event increases the total spend by the logged amount", async ({ page }) => {
+test("recording a cost lists it with what it was for and increases the total spend", async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto("/admin/cost");
 
@@ -22,11 +22,16 @@ test("logging a cost event increases the total spend by the logged amount", asyn
 
   const before = await parseTotal();
 
-  await page.locator("select").first().selectOption("TRANSPORT");
-  await page.getByPlaceholder("Amount").fill("12.34");
-  await page.getByRole("button", { name: "Log cost" }).click();
+  // The form says what the money was for (2026-10-18); the entry then appears in the "All costs" table.
+  const form = page.getByRole("heading", { name: "Record a cost" }).locator("..");
+  const what = `E2E bus fare ${Date.now()}`;
+  await form.getByLabel("Category").selectOption("TRANSPORT");
+  await form.getByLabel("What it was for").fill(what);
+  await form.getByLabel("Paid to (optional)").fill("Harare Bus Co");
+  await form.getByLabel("Amount (USD)").fill("12.34");
+  await form.getByRole("button", { name: "Record cost" }).click();
 
-  await expect(page.getByRole("cell", { name: "TRANSPORT" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: what })).toBeVisible();
   await expect(async () => {
     const after = await parseTotal();
     expect(after).toBeCloseTo(before + 12.34, 2);

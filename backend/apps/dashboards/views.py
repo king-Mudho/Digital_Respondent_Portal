@@ -181,7 +181,11 @@ class CostDashboardView(APIView):
     permission_classes = [IsAnalystOrAdmin]
 
     def get(self, request):
-        by_category = list(CostEvent.objects.values("category").annotate(total=Sum("amount")))
+        from apps.costs.models import CostCategory
+
+        labels = dict(CostCategory.choices)
+        by_category = [{**row, "label": labels.get(row["category"], row["category"])} for row in
+                       CostEvent.objects.values("category").annotate(total=Sum("amount"), count=Count("id")).order_by("-total")]
         total_cost = CostEvent.objects.aggregate(total=Sum("amount"))["total"] or 0
         qa_passed_count = QUANSubmission.objects.filter(qa_status=SubmissionQAStatus.QA_PASSED).count()
         kii_completed_count = KIIRecord.objects.filter(status=KIIStatus.COMPLETED).count()
