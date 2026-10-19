@@ -782,6 +782,16 @@ works):
 
 ## Notable fixes
 
+### The study's clearance letters go with the invitation (19 Oct 2026)
+
+The ethics clearance and ministry letters were shown only on the information page of a participant's link, so someone
+wary of an unknown message never saw them: a key informant left an invitation unanswered, then agreed to meet once
+the PI sent him the letters. Emailed invitations (Main-400 and KII, and the email sent when WhatsApp cannot be
+delivered) now attach every letter a participant may see -- public, active, with a file (`clearance.respondent_letters`)
+-- and say so; a private or switched-off letter never goes. For WhatsApp, the same letters are combined into one PDF
+(`letters_pack`) served at `/api/v1/study-letters/<STUDY_LETTERS_KEY>/ABF-FST-Study-Letters.pdf` for a template with
+the PDF above the introduction; a wrong or missing key 404s.
+
 ### Cost register: what each cost was for, who was paid, and a table of every entry (18 Oct 2026)
 
 The Cost Dashboard recorded a date, a category and an amount, and showed only totals by category: "Claude

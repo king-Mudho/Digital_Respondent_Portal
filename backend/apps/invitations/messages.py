@@ -67,7 +67,7 @@ def _greeting_name(name: str) -> str:
     return name if name and not placeholder else ""
 
 
-def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_name: str = "") -> dict:
+def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_name: str = "", letters=()) -> dict:
     expires = timezone.localtime(expires_at).strftime("%d %B %Y").lstrip("0")
     org = sample_case.organisation.name
     name = _greeting_name(to_name)
@@ -95,6 +95,8 @@ def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_n
         f"{org} has been selected for my study on how financing models can improve agribusiness access to suitable "
         "finance and support food systems transformation in Zimbabwe, and I invite a knowledgeable representative of "
         "your organisation to participate.\n\n"
+        + (f"So that you can confirm this study is genuine, its research clearance letters are attached: {'; '.join(letters)}.\n\n"
+           if letters else "") +
         "What is the purpose of the study?\n\n"
         "The study is developing and validating two practical research tools:\n\n"
         "\u2022 Agribusiness Bankability Index (ABI): intended to help assess an enterprise\u2019s readiness to access and use "
@@ -213,11 +215,17 @@ def email_invitation(token, *, link: str, manual_code: str, user) -> dict:
     who = recipients(case)
     if not who["email_to"]:
         raise InvitationSendError("no_email", "No email address is recorded for this case. Add one under Respondents and contact details.")
+    from apps.clearance.services import letter_attachments, respondent_letters
+
+    # The study's clearance letters go with the invitation (PI, 19 Oct 2026): people answer an approach that shows its
+    # authorisation up front.
+    letters = [d.title for d in respondent_letters()]
     text = build_messages(sample_case=case, link=link, manual_code=manual_code, expires_at=token.expires_at,
-                          to_name=who["email_to_name"])
+                          to_name=who["email_to_name"], letters=letters)
     outbound.send_email(
         to=who["email_to"], subject=text["email_subject"], body=text["email_body"], purpose=MessagePurpose.INVITATION,
         user=user, sample_case=case, invitation_token=token, redact_link=link, redact_code=manual_code,
+        attachments=letter_attachments() if letters else (),
     )
     log_action("invitation.emailed", token, {
         "sample_id": case.sample_id, "recipient": _mask(who["email_to"]), "user_id": getattr(user, "id", None),

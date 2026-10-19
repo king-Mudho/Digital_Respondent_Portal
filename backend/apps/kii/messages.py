@@ -34,7 +34,7 @@ def kii_recipients(kii_record) -> dict:
     }
 
 
-def build_kii_messages(*, kii_record, link: str, manual_code: str, expires_at) -> dict:
+def build_kii_messages(*, kii_record, link: str, manual_code: str, expires_at, letters=()) -> dict:
     """Names the informant's organisation (PI request, 2026-10-06), so the informant and the sender can both tell
     which organisation it is. A record still "<Organisation> (contact not yet identified)" goes to the organisation,
     not a person: it is greeted by the organisation's name and says which role the study would like to interview,
@@ -80,6 +80,8 @@ def build_kii_messages(*, kii_record, link: str, manual_code: str, expires_at) -
         "My name is Happyson Saina, a PhD researcher in Strategic Management at Chinhoyi University of Technology.\n\n"
         f"{invite} in my study on how financing models can improve agribusiness access to suitable finance and support "
         "food systems transformation in Zimbabwe.\n\n"
+        + (f"So that you can confirm this study is genuine, its research clearance letters are attached: {'; '.join(letters)}.\n\n"
+           if letters else "") +
         "What is the purpose of the study?\n\n"
         "The study is developing and validating two practical research tools:\n\n"
         "\u2022 Agribusiness Bankability Index (ABI): intended to help assess an enterprise\u2019s readiness to access and use "
@@ -197,13 +199,19 @@ def email_kii_invitation(token, *, link: str, manual_code: str, user) -> dict:
     who = kii_recipients(record)
     if not who["email_to"]:
         raise KIIInvitationSendError("no_email", "No email address is recorded for this informant. Add one on the KII record.")
-    text = build_kii_messages(kii_record=record, link=link, manual_code=manual_code, expires_at=token.expires_at)
+    from apps.clearance.services import letter_attachments, respondent_letters
+
+    # The study's clearance letters go with the invitation (PI, 19 Oct 2026).
+    letters = [d.title for d in respondent_letters()]
+    text = build_kii_messages(kii_record=record, link=link, manual_code=manual_code, expires_at=token.expires_at,
+                              letters=letters)
     from apps.messaging import outbound
     from apps.messaging.models import MessagePurpose
 
     outbound.send_email(
         to=who["email_to"], subject=text["email_subject"], body=text["email_body"], purpose=MessagePurpose.INVITATION,
         user=user, kii_record=record, kii_invitation_token=token, redact_link=link, redact_code=manual_code,
+        attachments=letter_attachments() if letters else (),
     )
     log_action("kii_invitation.emailed", token, {
         "kii_id": record.kii_id, "recipient": _mask(who["email_to"]), "user_id": getattr(user, "id", None),

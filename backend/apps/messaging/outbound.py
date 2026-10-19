@@ -222,7 +222,7 @@ def send_text(*, channel: str, number: str, purpose: str, text: str, user=None, 
     return sent
 
 
-def send_email(*, to: str, subject: str, body: str, purpose: str, user=None, in_reply_to: str = "",
+def send_email(*, to: str, subject: str, body: str, purpose: str, user=None, in_reply_to: str = "", attachments=(),
                redact_link: str = "", redact_code: str = "", **links) -> ProviderMessage:
     """One email from the study address, recorded like an SMS or WhatsApp message. It carries its own Message-ID, so a
     reply (In-Reply-To) or a bounce can be matched back to it by apps/messaging/mailbox.py. A refusal by the mail
@@ -242,12 +242,15 @@ def send_email(*, to: str, subject: str, body: str, purpose: str, user=None, in_
     record = ProviderMessage(
         channel=MessageChannel.EMAIL, purpose=purpose, provider=MessageProvider.SMTP, provider_sid=message_id,
         to_masked=mask_email(to), to_hash=email_hash(to), subject=redact(subject, link=redact_link, code=redact_code)[:300],
-        body=redact(body, link=redact_link, code=redact_code), sent_by=user, **links,
+        body=redact(body, link=redact_link, code=redact_code)
+        + ("\n\n[Attached: " + ", ".join(name for name, _, _ in attachments) + "]" if attachments else ""),
+        sent_by=user, **links,
     )
     try:
         EmailMessage(
             subject=subject, body=body, from_email=settings.DEFAULT_FROM_EMAIL, to=[to],
             reply_to=[settings.STUDY_REPLY_TO_EMAIL] if settings.STUDY_REPLY_TO_EMAIL else None, headers=headers,
+            attachments=list(attachments),
         ).send(fail_silently=False)
     except Exception as exc:
         record.status, record.error_message = ProviderStatus.FAILED, f"The mail server refused it: {exc}"[:300]

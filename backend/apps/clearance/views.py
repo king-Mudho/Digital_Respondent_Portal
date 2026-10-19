@@ -11,7 +11,10 @@ scraped by someone who was never invited (docs/06 "Security"). Only is_public=Tr
 uploaded file are ever returned or served; everything else 404s as if it didn't exist.
 """
 
-from django.http import FileResponse
+import hmac
+
+from django.conf import settings
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import AllowAny
@@ -25,7 +28,7 @@ from apps.invitations.services import TokenValidationError, validate_token
 
 from .models import ClearanceDocument
 from .serializers import ClearanceDocumentSerializer, RespondentClearanceDocumentSerializer
-from .services import ClearanceFileError, open_file, remove_file, save_file
+from .services import PACK_NAME, ClearanceFileError, letters_pack, open_file, remove_file, save_file
 
 
 def _resolve_token(request):
@@ -187,4 +190,27 @@ class RespondentClearanceDocumentFileView(APIView):
         response = FileResponse(open(path, "rb"), content_type=content_type)
         response["Content-Disposition"] = f'inline; filename="{filename}"'
         response["Cache-Control"] = "no-store"
+        return response
+
+
+class StudyLettersPackView(APIView):
+    """GET /api/v1/study-letters/<key>/ABF-FST-Study-Letters.pdf -- the letters every participant may see, as one PDF,
+    for WhatsApp to fetch and show above the introduction (2026-10-19). No token: WhatsApp fetches it, not a
+    respondent. The key (STUDY_LETTERS_KEY) keeps the address unguessable; a wrong or missing key 404s like any
+    unknown address."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [RespondentRateThrottle]
+
+    def get(self, request, key, filename):
+        expected = (getattr(settings, "STUDY_LETTERS_KEY", "") or "").strip()
+        if not expected or not hmac.compare_digest(key, expected) or filename != PACK_NAME:
+            return Response({"error": {"code": "not_found", "message": "Not found.", "field_errors": {}}}, status=404)
+        pack = letters_pack()
+        if pack is None:
+            return Response({"error": {"code": "not_found", "message": "Not found.", "field_errors": {}}}, status=404)
+        response = HttpResponse(pack, content_type="application/pdf")
+        response["Content-Disposition"] = f'inline; filename="{PACK_NAME}"'
+        response["Cache-Control"] = "public, max-age=3600"
         return response

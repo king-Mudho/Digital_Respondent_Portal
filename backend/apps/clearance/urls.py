@@ -6,6 +6,7 @@ from .views import (
     ClearanceDocumentListCreateView,
     RespondentClearanceDocumentFileView,
     RespondentClearanceDocumentsView,
+    StudyLettersPackView,
 )
 
 app_name = "clearance"
@@ -16,4 +17,5 @@ urlpatterns = [
     path("clearance-documents/<int:pk>/file/", ClearanceDocumentFileView.as_view(), name="file"),
     path("respondent-clearance-documents/", RespondentClearanceDocumentsView.as_view(), name="respondent-list"),
     path("respondent-clearance-documents/<int:pk>/file/", RespondentClearanceDocumentFileView.as_view(), name="respondent-file"),
+    path("study-letters/<str:key>/<str:filename>", StudyLettersPackView.as_view(), name="study-letters"),
 ]
