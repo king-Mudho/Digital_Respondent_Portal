@@ -204,9 +204,11 @@ def _intro_content(*, kii: bool) -> tuple[str, str]:
     setting, PI 18 Oct 2026) once Meta has approved it, else the current template. The switch needs no one to make it."""
     base = "TWILIO_WA_CONTENT_KII_INTRO" if kii else "TWILIO_WA_CONTENT_INTRO"
     wording_name = "kii_outreach_intro_whatsapp" if kii else "outreach_intro_whatsapp"
-    replacement = (getattr(settings, base + "_NEXT", "") or "").strip()
-    if replacement and tw.content_approved(replacement):
-        return replacement, wording_name + "_v2"
+    # The new wording with the study's letters attached first (2026-10-19), then the new wording alone.
+    for suffix in ("_LETTERS", "_NEXT"):
+        replacement = (getattr(settings, base + suffix, "") or "").strip()
+        if replacement and tw.content_approved(replacement):
+            return replacement, wording_name + "_v2"
     return (getattr(settings, base, "") or "").strip(), wording_name
 
 

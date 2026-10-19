@@ -380,6 +380,10 @@ TWILIO_WA_CONTENT_KII_INTRO_REMINDER = env("TWILIO_WA_CONTENT_KII_INTRO_REMINDER
 # once Meta has approved it (outreach._intro_content), so nothing waits on a person to switch it over.
 TWILIO_WA_CONTENT_INTRO_NEXT = env("TWILIO_WA_CONTENT_INTRO_NEXT", default="")
 TWILIO_WA_CONTENT_KII_INTRO_NEXT = env("TWILIO_WA_CONTENT_KII_INTRO_NEXT", default="")
+# The same new wording with the study's clearance letters as a PDF above it (2026-10-19), preferred over *_NEXT once
+# Meta approves it.
+TWILIO_WA_CONTENT_INTRO_LETTERS = env("TWILIO_WA_CONTENT_INTRO_LETTERS", default="")
+TWILIO_WA_CONTENT_KII_INTRO_LETTERS = env("TWILIO_WA_CONTENT_KII_INTRO_LETTERS", default="")
 # Thanking a participant who completed (PI, 18 Oct 2026): {{1}} who, {{2}} "questionnaire" or "key informant interview",
 # with buttons for the findings summary, a workshop invitation or both. Sent only once Meta has approved it; until
 # then the thank-you goes by email where there is an address (apps/messaging/thanks.py).

@@ -550,3 +550,18 @@ def test_the_new_introduction_wording_is_used_only_once_meta_approves_it(twilio,
     assert twilio[-1]["ContentSid"] == expected
     shown = ProviderMessage.objects.get().body
     assert ("The questionnaire takes 15–25 minutes" in shown and main_case.organisation.name in shown) == (expected == "HXintroV2")
+
+
+@pytest.mark.parametrize("letters_status, next_status, expected", [
+    ("approved", "approved", "HXwithLetters"), ("pending", "approved", "HXintroV2"), ("pending", "pending", "HXintro"),
+])
+def test_the_introduction_with_the_study_letters_is_preferred_once_approved(twilio, settings, monkeypatch, main_case,
+                                                                              letters_status, next_status, expected):
+    """19 Oct 2026: the same new wording with the clearance letters as a PDF above it is used first once Meta approves
+    it; until then the new wording alone if approved; else the current template."""
+    settings.TWILIO_WA_CONTENT_INTRO_NEXT, settings.TWILIO_WA_CONTENT_INTRO_LETTERS = "HXintroV2", "HXwithLetters"
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXwithLetters", "status": letters_status},
+                                                                {"sid": "HXintroV2", "status": next_status}])
+    _verified(main_case)
+    outreach.send_introduction(main_case, user=None)
+    assert twilio[-1]["ContentSid"] == expected
