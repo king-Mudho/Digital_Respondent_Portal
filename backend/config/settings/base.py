@@ -399,11 +399,18 @@ WHATSAPP_MEDIA_MAX_MB = env.float("WHATSAPP_MEDIA_MAX_MB", default=16)
 OUTREACH_AUTO_ANSWER_OTHER = env.bool("OUTREACH_AUTO_ANSWER_OTHER", default=False)
 OUTREACH_REMINDER_DAYS = env.int("OUTREACH_REMINDER_DAYS", default=3)
 OUTREACH_GIVE_UP_DAYS = env.int("OUTREACH_GIVE_UP_DAYS", default=4)
-# A reply counts as YES or NO only when the whole message (or the quick-reply button) is one of these words, so
+# A reply counts as YES or NO when the whole message (or the quick-reply button) is one of these words, so
 # "no problem" or "yes, but who is this?" go to an RA instead. English, Shona and Ndebele.
 OUTREACH_YES_WORDS = env.list("OUTREACH_YES_WORDS", default=["YES", "Y", "HONGU", "EHE", "YEBO", "OK", "OKAY"])
 OUTREACH_NO_WORDS = env.list("OUTREACH_NO_WORDS", default=["NO", "N", "STOP", "HAPANA", "AIWA", "AIHWA", "CHA", "HATSHI",
                                                             "UNSUBSCRIBE"])
+# A short reply also counts when it holds yes-words only (or no-words only) and every other word is one of these
+# greetings or courtesies -- "Good day YES", "Yes please, send it", "No thank you" (2026-10-19: KII-0181 answered
+# "Good day YES" and waited for a person). A question, a mix of yes and no, or any other word still goes to a person.
+OUTREACH_REPLY_COURTESY_WORDS = env.list("OUTREACH_REPLY_COURTESY_WORDS", default=[
+    "GOOD", "DAY", "MORNING", "AFTERNOON", "EVENING", "HI", "HIE", "HELLO", "DEAR", "SIR", "MADAM", "MAAM", "PLEASE", "PLS",
+    "THANK", "THANKS", "THANKYOU", "YOU", "SEND", "IT", "GO", "AHEAD", "MHORO", "MANGWANANI", "MASIKATI", "MANHERU",
+    "SAWUBONA", "NDATENDA", "SIYABONGA"])
 
 # --- Celery (reconciliation + reminder queue only -- docs/04_TECH_STACK.md) -
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")

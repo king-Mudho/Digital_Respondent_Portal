@@ -782,6 +782,17 @@ works):
 
 ## Notable fixes
 
+### "Good day YES" is a YES (19 Oct 2026)
+
+A reply to an "ask first" introduction counted as YES or NO only when the whole message was one word from
+`OUTREACH_YES_WORDS` / `OUTREACH_NO_WORDS` (or the quick-reply button). An informant who typed "Good day YES" (KII-0181)
+was classed as "anything else" and quietly left on Communications for a person, so no link went until the PI saw it and
+sent it by hand. Nobody had noticed because a held reply looks the same as a genuine question: it raises no error, and
+the button replies, which most people use, always worked. `classify()` now also accepts a short reply whose words are
+yes-words only (or no-words only) plus greetings and courtesies from `OUTREACH_REPLY_COURTESY_WORDS` (English, Shona,
+Ndebele; configurable). A question mark, yes and no together, or any other word -- "no problem", "Yes, I'll take part",
+"Let me give you the number of..." -- still goes to a person. Thank-you buttons are still checked first.
+
 ### The study's clearance letters go with the invitation (19 Oct 2026)
 
 The ethics clearance and ministry letters were shown only on the information page of a participant's link, so someone
@@ -1200,8 +1211,9 @@ invitation and sends its approved text, with link and code, back in the chat: Wh
 allows free text for 24 hours after the person's own message, and they asked for it, which
 is what WhatsApp's opt-in rule wants. A **NO** moves the case to **S12 Refused** (PI decision;
 `WORKFLOW_TRANSITIONS` now allows S03/S04 → S12, which before had no status for a refusal
-ahead of an invitation) and revokes any open invitation. Anything else, "no problem"
-included (only whole-message words count), gets one automatic answer a day and waits on the
+ahead of an invitation) and revokes any open invitation. A yes or a no wrapped only in greetings and
+courtesies ("Good day YES", "No thank you" -- `OUTREACH_REPLY_COURTESY_WORDS`) counts as that answer. Anything else, "no
+problem", a question, or yes and no together included, waits (an automatic answer is off since 14 Oct) on the
 **Conversations** screen (now Communications), where RAs reply, since the Twilio number is on no phone. No
 reply: one reminder after 3 days, then the case is listed on Follow-ups to phone. An
 undelivered WhatsApp introduction is re-sent once by SMS with a tap-to-reply WhatsApp link

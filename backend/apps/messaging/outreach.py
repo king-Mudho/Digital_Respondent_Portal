@@ -412,6 +412,16 @@ def classify(body: str, button_payload: str = "") -> str:
         return ReplyKind.YES
     if words in {w.upper() for w in settings.OUTREACH_NO_WORDS}:
         return ReplyKind.NO
+    # A short answer wrapped in a greeting or a courtesy ("Good day YES", "No thank you") is still a clear answer
+    # (2026-10-19). Never a question, never yes and no together, never any other word.
+    if "?" in text:
+        return ReplyKind.OTHER
+    courtesy = {w.upper() for w in settings.OUTREACH_REPLY_COURTESY_WORDS}
+    said = {word for word in words.split() if word not in courtesy}
+    if said and said <= {w.upper() for w in settings.OUTREACH_YES_WORDS}:
+        return ReplyKind.YES
+    if said and said <= {w.upper() for w in settings.OUTREACH_NO_WORDS}:
+        return ReplyKind.NO
     return ReplyKind.OTHER
 
 

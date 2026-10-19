@@ -6,7 +6,7 @@ signed posts to the incoming-message webhook, the way Twilio sends them. Under t
 - YES issues one invitation and sends its link back in the chat; a second YES issues nothing; a YES when no link can
   be sent goes to a person;
 - NO records the refusal (S12 Refused, open invitation revoked) and acknowledges once;
-- anything else, "no problem" included, goes to a person with one automatic answer a day; an unknown number never
+- a yes or no wrapped only in greetings ("Good day YES") still counts; anything else, "no problem" included, goes to a person with one automatic answer a day; an unknown number never
   touches a case;
 - no reply: one reminder, then listed for RAs; an undelivered WhatsApp introduction is re-sent once by SMS;
 - Conversations: who sees what, replies only inside WhatsApp's 24 hours; withdrawal erases what they wrote;
@@ -192,6 +192,29 @@ def test_yes_sends_no_link_when_the_case_can_no_longer_be_invited(introduced, tw
     assert InvitationToken.objects.filter(sample_case=main_case).count() == 1
     assert "will contact you shortly" in twilio[-1]["Body"]
     assert InboundMessage.objects.get().needs_person is True
+
+
+@pytest.mark.parametrize("body, kind", [
+    # 2026-10-19: KII-0181 answered "Good day YES" and waited for a person. A yes or a no wrapped in greetings and
+    # courtesies is a clear answer...
+    ("Good day YES", "YES"), ("Yes please", "YES"), ("Yes, send it", "YES"), ("Hello, ok. Thank you", "YES"),
+    ("Mangwanani, hongu", "YES"), ("No thank you", "NO"), ("Good morning sir, no", "NO"),
+    # ...but a question, yes and no together, or any other word still goes to a person.
+    ("Yes, but who is this?", "OTHER"), ("Good day, yes?", "OTHER"), ("yes but no time", "OTHER"), ("No, yes", "OTHER"),
+    ("No problem", "OTHER"), ("Yes, I'll take part", "OTHER"), ("Good day", "OTHER"), ("Thank you", "OTHER"),
+    ("Let me give you the number of the Chief Markets Officer", "OTHER"),
+    ("Did you get approval letter from City of Harare to conduct the research", "OTHER"),
+])
+def test_a_short_yes_or_no_wrapped_in_courtesies_is_still_an_answer(body, kind):
+    assert outreach.classify(body) == kind
+
+
+def test_good_day_yes_issues_the_invitation(introduced, twilio, main_case):
+    _reply("Good day YES")
+    main_case.refresh_from_db()
+    introduced.refresh_from_db()
+    assert main_case.workflow_status == "S05" and introduced.status == OutreachStatus.ACCEPTED
+    assert InvitationToken.objects.filter(sample_case=main_case).count() == 1
 
 
 # --- NO --------------------------------------------------------------------------------------------------------------

@@ -172,6 +172,15 @@ def test_yes_issues_the_kii_link_and_sends_it_in_the_chat(introduced, twilio):
     assert record.invitation_tokens.count() == 1 and "above" in twilio[-1]["Body"]
 
 
+def test_good_day_yes_from_an_informant_issues_the_kii_link(introduced, twilio):
+    _reply("Good day YES")  # KII-0181's own words, 19 Oct 2026
+    record = introduced.kii_record
+    record.refresh_from_db()
+    introduced.refresh_from_db()
+    assert record.status == KIIStatus.INVITED and introduced.status == OutreachStatus.ACCEPTED
+    assert "/ki/" in twilio[-1]["Body"]
+
+
 def test_yes_after_the_record_was_invited_by_hand_goes_to_a_person(introduced, twilio):
     issue_kii_invitation(introduced.kii_record)
     _reply("YES")
