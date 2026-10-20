@@ -358,6 +358,7 @@ def test_respondent_can_verify_only_a_field_from_their_own_case(main_case, admin
     assert resp.status_code == 404
 
 
+@override_settings(PROIT_ENABLED_FOR_RESPONDENTS=True)  # the switch is off by default; .env must not decide
 def test_a_respondent_saves_every_answer_in_one_call_together_or_not_at_all(main_case, admin_user):
     """14 Oct 2026: one call per fact ran into the per-link limit of 20 a minute."""
     from apps.invitations.services import issue_invitation
