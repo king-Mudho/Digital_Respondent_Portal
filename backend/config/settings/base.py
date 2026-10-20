@@ -411,6 +411,17 @@ OUTREACH_REPLY_COURTESY_WORDS = env.list("OUTREACH_REPLY_COURTESY_WORDS", defaul
     "GOOD", "DAY", "MORNING", "AFTERNOON", "EVENING", "HI", "HIE", "HELLO", "DEAR", "SIR", "MADAM", "MAAM", "PLEASE", "PLS",
     "THANK", "THANKS", "THANKYOU", "YOU", "SEND", "IT", "GO", "AHEAD", "MHORO", "MANGWANANI", "MASIKATI", "MANHERU",
     "SAWUBONA", "NDATENDA", "SIYABONGA"])
+# A business WhatsApp's automatic greeting sent back to an introduction ("Thank you for contacting X! Please let us know
+# how we can help you.", "We're unavailable right now") is shown in the conversation but does not wait for a person,
+# and the introduction stays open so its reminder still goes (PI request, 2026-10-20: 28 of 41 waiting messages were
+# these). A message counts when one of these patterns (regular expressions, matched case-insensitively) is found in it
+# and it holds no yes- or no-word, no phone number, no shared contact and no question other than one matching
+# OUTREACH_AUTO_REPLY_QUESTION_PATTERNS ("How can we help you?"). Patterns are separated by commas, so none may hold one.
+OUTREACH_AUTO_REPLY_PATTERNS = env.list("OUTREACH_AUTO_REPLY_PATTERNS", default=[
+    r"thank you for (contacting|your message|reaching out)", r"welcome to", r"unavailable right now",
+    r"currently unavailable", r"will (get back|respond|be attending)", r"whatsapp channel", r"let us know how we can"])
+OUTREACH_AUTO_REPLY_QUESTION_PATTERNS = env.list("OUTREACH_AUTO_REPLY_QUESTION_PATTERNS", default=[
+    r"how (can|may|could) (we|i) (help|assist|serve)"])
 
 # --- Celery (reconciliation + reminder queue only -- docs/04_TECH_STACK.md) -
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://localhost:6379/0")

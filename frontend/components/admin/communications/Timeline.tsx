@@ -100,6 +100,10 @@ function Incoming({ item }: { item: InItem }) {
             <span>from {item.from}</span>
             {item.reply_kind === "PHONE" ? (
               <span className="rounded-full bg-header px-1.5 font-semibold text-white">Wants to answer by phone: call them</span>
+            ) : item.reply_kind === "AUTO" ? (
+              <span className="rounded-full border border-border px-1.5" title="Their WhatsApp answered automatically. Nobody needs to reply, and the reminder still goes.">
+                Auto-reply
+              </span>
             ) : item.reply_kind && (
               <span className={`rounded-full px-1.5 font-semibold ${item.reply_kind === "YES" ? "bg-success text-white" : "bg-warning text-white"}`}>
                 Said {item.reply_kind.toLowerCase()}

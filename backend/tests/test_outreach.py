@@ -8,6 +8,8 @@ signed posts to the incoming-message webhook, the way Twilio sends them. Under t
 - NO records the refusal (S12 Refused, open invitation revoked) and acknowledges once;
 - a yes or no wrapped only in greetings ("Good day YES") still counts; anything else, "no problem" included, goes to a person with one automatic answer a day; an unknown number never
   touches a case;
+- a business WhatsApp's automatic greeting is shown but does not wait, and the reminder still goes; one with a
+  yes- or no-word, a question, a phone number or a shared contact still waits;
 - no reply: one reminder, then listed for RAs; an undelivered WhatsApp introduction is re-sent once by SMS;
 - Conversations: who sees what, replies only inside WhatsApp's 24 hours; withdrawal erases what they wrote;
 - "ask first" batches.
@@ -31,9 +33,16 @@ from apps.contacts.models import Respondent, RoleCategory
 from apps.invitations import batch as b
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import issue_invitation, validate_token
-from apps.messaging import outreach, tasks
+from apps.messaging import media, outreach, tasks
 from apps.messaging import twilio_client as tw
-from apps.messaging.models import InboundMessage, Outreach, OutreachStatus, ProviderMessage
+from apps.messaging.models import (
+    AttachmentKind,
+    InboundAttachment,
+    InboundMessage,
+    Outreach,
+    OutreachStatus,
+    ProviderMessage,
+)
 from apps.sampling.services import transition_workflow_status
 
 MOBILE = "263771234567"
@@ -88,8 +97,9 @@ def _sign(url, params, token="secret-token"):
 _sid = iter(range(1000, 9999))
 
 
-def _reply(body="", *, number=MOBILE, payload="", sid=None, signature=None):
-    params = {"MessageSid": sid or f"SMin{next(_sid)}", "From": f"whatsapp:+{number}", "To": "whatsapp:+15550001111", "Body": body}
+def _reply(body="", *, number=MOBILE, payload="", sid=None, signature=None, **extra):
+    params = {"MessageSid": sid or f"SMin{next(_sid)}", "From": f"whatsapp:+{number}", "To": "whatsapp:+15550001111", "Body": body,
+              **extra}
     if payload:
         params["ButtonPayload"] = payload
     signature = _sign(tw.inbound_url(), params) if signature is None else signature
@@ -267,6 +277,81 @@ def test_an_unknown_number_never_touches_a_case(introduced, twilio, main_case):
     message = InboundMessage.objects.get()
     assert message.outreach is None and message.sample_case is None and message.needs_person
     assert message.from_number == "263712000000" and not InvitationToken.objects.exists()
+
+
+# --- Automatic replies from a business WhatsApp (2026-10-20) ----------------------------------------------------------
+
+AUTO_REPLIES = [
+    "Thank you for contacting Mukuru Farm Supplies! Please let us know how we can help you.",
+    "We're unavailable right now, but will respond as soon as possible.",
+    "Welcome to Agro Hub. How can we help you today?",
+    "Hi! Follow our WhatsApp channel for this week's prices: maize seed $1.20, fertiliser $35.00",
+]
+
+
+@pytest.mark.parametrize("body", AUTO_REPLIES)
+def test_a_business_auto_reply_is_shown_but_does_not_wait_and_the_reminder_still_goes(introduced, twilio, main_case, body):
+    sent = len(twilio)
+    _reply(body)
+    message = InboundMessage.objects.get()
+    assert message.kind == "AUTO" and not message.needs_person and message.auto_reply == ""
+    assert len(twilio) == sent  # nothing sent back
+    introduced.refresh_from_db()
+    assert introduced.status == OutreachStatus.INTRO_SENT
+    main_case.refresh_from_db()
+    assert main_case.workflow_status == "S03" and not InvitationToken.objects.exists()
+    # Still in the conversation, labelled, and not waiting.
+    fc = _user(Role.FIELD_COORDINATOR, "auto_fc")
+    timeline = _client(fc).get(f"/api/v1/communications/threads/main/{main_case.pk}/").json()
+    [item] = [i for i in timeline["items"] if i["type"] == "in"]
+    assert item["reply_kind"] == "AUTO" and item["body"] == body and not item["waiting"]
+    # A person has not answered, so the introduction is reminded as usual.
+    Outreach.objects.filter(pk=introduced.pk).update(intro_sent_at=timezone.now() - timedelta(days=3))
+    assert outreach.run_followups()["reminded"] == 1
+    assert twilio[-1]["ContentSid"] == "HXintroReminder"
+
+
+@pytest.mark.parametrize("body", [
+    "Thank you for contacting us. Yes, we will take part.",          # a yes-word
+    "Thank you for reaching out. No, we are not interested.",        # a no-word
+    "Thank you for your message. Who gave you this number?",         # a question to us
+    "We are currently unavailable. Please call Mr Moyo on 0772 123 456.",  # a phone number
+    "Hello, which study is this?",                                   # no auto-reply phrase at all
+])
+def test_a_reply_a_person_must_see_still_waits(introduced, twilio, main_case, body):
+    _reply(body)
+    message = InboundMessage.objects.get()
+    assert message.kind == "OTHER" and message.needs_person
+
+
+def test_an_auto_reply_with_a_shared_contact_still_waits(introduced, twilio, main_case, monkeypatch):
+    def fetched(message, **kw):
+        InboundAttachment.objects.create(message=message, kind=AttachmentKind.CONTACT, content_type="text/vcard",
+                                         contact_text="Tendai Moyo, +263 77 000 0000")
+        return 1
+
+    monkeypatch.setattr(media, "fetch_attachments", fetched)
+    _reply("Thank you for contacting Agro Hub! Please let us know how we can help you.", NumMedia="1",
+           MediaContentType0="text/vcard")
+    message = InboundMessage.objects.get()
+    assert message.kind == "OTHER" and message.needs_person
+
+
+def test_an_auto_reply_with_a_picture_does_not_wait(introduced, twilio, main_case, monkeypatch):
+    def fetched(message, **kw):
+        InboundAttachment.objects.create(message=message, kind=AttachmentKind.IMAGE, content_type="image/jpeg")
+        return 1
+
+    monkeypatch.setattr(media, "fetch_attachments", fetched)
+    _reply("Welcome to Agro Hub! Here is our price list.", NumMedia="1", MediaContentType0="image/jpeg")
+    message = InboundMessage.objects.get()
+    assert message.kind == "AUTO" and not message.needs_person
+
+
+def test_the_auto_reply_patterns_are_settings(introduced, twilio, settings):
+    settings.OUTREACH_AUTO_REPLY_PATTERNS = []
+    _reply("Thank you for contacting Agro Hub! Please let us know how we can help you.")
+    assert InboundMessage.objects.get().needs_person
 
 
 # --- No reply, and messages that never arrived -----------------------------------------------------------------------

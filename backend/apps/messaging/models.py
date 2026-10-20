@@ -221,6 +221,9 @@ class ReplyKind(models.TextChoices):
     PHONE = "PHONE", "Wants to answer by phone"
     # Their answer to the thank-you: the findings summary, a workshop invitation or both (2026-10-18).
     PREFERENCE = "PREF", "Findings / workshop choice"
+    # A business WhatsApp's automatic greeting sent back to an introduction (2026-10-20): shown, but not waiting for a
+    # person, and the introduction stays open (outreach.is_auto_reply).
+    AUTO = "AUTO", "Automatic reply"
     OTHER = "OTHER", "Other"
 
 

@@ -782,6 +782,21 @@ works):
 
 ## Notable fixes
 
+### A business WhatsApp's automatic greeting no longer waits for a person (20 Oct 2026)
+
+Many organisations' WhatsApp Business accounts answer every incoming message automatically: "Thank you for contacting
+X! Please let us know how we can help you.", "We're unavailable right now, but will respond as soon as possible.",
+"Welcome to X", "Follow our WhatsApp channel", a price list. Each one is a reply that is neither YES nor NO, so it was
+stored as "anything else" and put on Communications under **Waiting**: on 20 Oct, 28 of the 41 waiting messages were
+these, burying the real questions. Nobody noticed sooner because each looks like a reply, and only the count gave it
+away. `outreach.is_auto_reply()` now recognises them from `OUTREACH_AUTO_REPLY_PATTERNS` (configurable regular
+expressions, starting from the ones used in that day's one-off cleanup); such a message is stored as kind `AUTO`, is
+not waiting, shows an **Auto-reply** label in the conversation, and gets nothing sent back. The introduction is left
+open (Intro sent / Reminded), so its reminder still goes: a person has not answered yet. A message that also holds a
+yes- or no-word, a phone number, a shared contact card, or a question other than "How can we help you?"
+(`OUTREACH_AUTO_REPLY_QUESTION_PATTERNS`) is never taken for one and still waits. This applies to replies to an
+introduction (Main-400 and KII); messages from other numbers wait as before.
+
 ### "Good day YES" is a YES (19 Oct 2026)
 
 A reply to an "ask first" introduction counted as YES or NO only when the whole message was one word from
@@ -1212,7 +1227,9 @@ allows free text for 24 hours after the person's own message, and they asked for
 is what WhatsApp's opt-in rule wants. A **NO** moves the case to **S12 Refused** (PI decision;
 `WORKFLOW_TRANSITIONS` now allows S03/S04 → S12, which before had no status for a refusal
 ahead of an invitation) and revokes any open invitation. A yes or a no wrapped only in greetings and
-courtesies ("Good day YES", "No thank you" -- `OUTREACH_REPLY_COURTESY_WORDS`) counts as that answer. Anything else, "no
+courtesies ("Good day YES", "No thank you" -- `OUTREACH_REPLY_COURTESY_WORDS`) counts as that answer. A business
+WhatsApp's automatic greeting (`OUTREACH_AUTO_REPLY_PATTERNS`, since 20 Oct) is shown but does not wait, and the reminder
+still goes. Anything else, "no
 problem", a question, or yes and no together included, waits (an automatic answer is off since 14 Oct) on the
 **Conversations** screen (now Communications), where RAs reply, since the Twilio number is on no phone. No
 reply: one reminder after 3 days, then the case is listed on Follow-ups to phone. An

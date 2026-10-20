@@ -181,6 +181,17 @@ def test_good_day_yes_from_an_informant_issues_the_kii_link(introduced, twilio):
     assert "/ki/" in twilio[-1]["Body"]
 
 
+def test_an_informants_whatsapp_auto_reply_does_not_wait_and_the_reminder_still_goes(introduced, twilio):
+    _reply("Thank you for contacting Agri Bank. We are currently unavailable and will respond as soon as possible.")
+    message = InboundMessage.objects.get()
+    assert message.kind == "AUTO" and not message.needs_person
+    introduced.refresh_from_db()
+    assert introduced.status == OutreachStatus.INTRO_SENT and introduced.kii_record.status == KIIStatus.PROSPECT
+    Outreach.objects.filter(pk=introduced.pk).update(intro_sent_at=timezone.now() - timedelta(days=3))
+    assert outreach.run_followups()["reminded"] == 1
+    assert twilio[-1]["ContentSid"] == "HXkiiIntroReminder"
+
+
 def test_yes_after_the_record_was_invited_by_hand_goes_to_a_person(introduced, twilio):
     issue_kii_invitation(introduced.kii_record)
     _reply("YES")

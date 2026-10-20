@@ -68,7 +68,8 @@ export interface InItem {
   has_attachments: boolean;
   /** WhatsApp voice notes, pictures, shared contacts and files (2026-10-14); url is relative to the API proxy. */
   attachments?: InAttachment[];
-  reply_kind: "" | "YES" | "NO" | "PHONE";
+  /** AUTO: a business WhatsApp's automatic greeting, shown but not waiting (2026-10-20). */
+  reply_kind: "" | "YES" | "NO" | "PHONE" | "AUTO";
   waiting: boolean;
   handled_by: string;
 }

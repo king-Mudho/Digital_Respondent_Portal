@@ -39,6 +39,7 @@ from . import twilio_client as tw
 from .hashing import number_hash
 from .models import (
     OPEN_OUTREACH,
+    AttachmentKind,
     InboundMessage,
     MessageChannel,
     MessagePurpose,
@@ -425,6 +426,34 @@ def classify(body: str, button_payload: str = "") -> str:
     return ReplyKind.OTHER
 
 
+# Nine or more digits, optionally split by spaces, dashes or brackets: "0772 123 456", "+263-77-123-4567". A dot
+# breaks it, so a price list's "$1.20 $1.50" is not a number.
+PHONE_NUMBER = re.compile(r"\+?\(?\d(?:[ \-()]{0,2}\d){8,}")
+
+
+def is_auto_reply(message: InboundMessage) -> bool:
+    """Whether a reply that is not a clear YES or NO is a business WhatsApp's automatic greeting (2026-10-20): it
+    matches one of OUTREACH_AUTO_REPLY_PATTERNS and carries nothing a person must see -- no yes- or no-word, no phone
+    number, no shared contact (nor an attachment that could not be listed) and no question but "How can we help you?".
+    """
+    text = message.body or ""
+    if not any(re.search(p, text, re.IGNORECASE) for p in settings.OUTREACH_AUTO_REPLY_PATTERNS):
+        return False
+    words = set(re.sub(r"[^\w\s]", " ", text.upper()).split())
+    if words & {w.upper() for w in [*settings.OUTREACH_YES_WORDS, *settings.OUTREACH_NO_WORDS]}:
+        return False
+    if PHONE_NUMBER.search(text):
+        return False
+    for question in re.findall(r"[^.!?\n]*\?", text):
+        if not any(re.search(p, question, re.IGNORECASE) for p in settings.OUTREACH_AUTO_REPLY_QUESTION_PATTERNS):
+            return False
+    if message.has_attachments:
+        kinds = set(message.attachments.values_list("kind", flat=True))
+        if not kinds or AttachmentKind.CONTACT in kinds:
+            return False
+    return True
+
+
 def record_inbound(params: dict) -> tuple[InboundMessage | None, str]:
     """Stores one message from Twilio's incoming-message webhook. Returns (message, the sender's digits), or (None, "")
     for a message already stored -- Twilio retries when it gets no quick answer."""
@@ -546,6 +575,11 @@ def handle_inbound(message_id: int, digits: str) -> None:
         _decline(outreach, message, digits)
     elif message.kind == ReplyKind.NO:
         return  # already recorded; no second acknowledgement
+    elif message.kind == ReplyKind.OTHER and is_auto_reply(message):
+        # A business WhatsApp answering automatically: shown in the conversation, nobody has to answer it, and the
+        # introduction stays open so its reminder still goes -- a person has not replied yet.
+        message.kind = ReplyKind.AUTO
+        message.save(update_fields=["kind"])
     else:
         # A question, another word, or a YES after saying no: a person decides.
         message.needs_person = True
