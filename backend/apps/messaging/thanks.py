@@ -185,9 +185,12 @@ def thank(target, *, user=None) -> str:
     if number and template and tw.content_approved(template):
         from .outreach import wording
 
+        text = wording("thank_you_whatsapp")
+        # 2026-10-21: the letter sits close to Meta's 1,024 characters, so most names took it over and Twilio failed it.
+        values = outbound.fit_template(text, {1: who, 2: what})
         sent = outbound.send(channel=MessageChannel.WHATSAPP, number=number, purpose=MessagePurpose.THANK_YOU,
-                             wa_content=template, wa_variables={1: who, 2: what},
-                             record_text=wording("thank_you_whatsapp").replace("{{1}}", who).replace("{{2}}", what),
+                             wa_content=template, wa_variables=values,
+                             record_text=text.replace("{{1}}", values[1]).replace("{{2}}", values[2]),
                              user=user, **link)
         channel = "whatsapp"
     else:

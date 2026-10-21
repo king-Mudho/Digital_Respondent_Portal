@@ -782,6 +782,19 @@ works):
 
 ## Notable fixes
 
+### Long names no longer cost the introduction or the thank-you (21 Oct 2026)
+
+Meta caps a WhatsApp template's body at 1,024 characters once its variables are filled in. Twilio accepts the request
+and then fails the message with 63021 "Channel invalid content error", which looked like an ordinary delivery failure.
+The PI's introductions are about 990 characters before the name goes in, and the thank-you letter is 994, which leaves 17
+characters for a Main organisation and 7 for a KII informant. So introductions to long names ("SAMUSHA & NCUBE FARM
+FRESH PRODUCE SUPPLIERS (PRIVATE) LIMITED") failed, and 4 of the first 5 WhatsApp thank-yous never arrived. Nobody
+noticed because a failed template is recorded like any other failed delivery, and the email fallback (where there was
+one) still sent something. `outbound.fit_template()` now shortens the greeted name only as far as the limit needs: first
+the legal form goes, then the trading name alone is used ("... t/a Rainham Abattoir" -> "Rainham Abattoir"), then the
+name is cut at a word, never leaving half a bracket. Introductions (Main and KII) and the thank-you use it. The limit is
+`WHATSAPP_TEMPLATE_BODY_MAX`. A shorter thank-you template would let names through in full.
+
 ### A business WhatsApp's automatic greeting no longer waits for a person (20 Oct 2026)
 
 Many organisations' WhatsApp Business accounts answer every incoming message automatically: "Thank you for contacting

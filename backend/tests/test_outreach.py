@@ -33,7 +33,7 @@ from apps.contacts.models import Respondent, RoleCategory
 from apps.invitations import batch as b
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.invitations.services import issue_invitation, validate_token
-from apps.messaging import media, outreach, tasks
+from apps.messaging import media, outbound, outreach, tasks
 from apps.messaging import twilio_client as tw
 from apps.messaging.models import (
     AttachmentKind,
@@ -172,6 +172,32 @@ def test_a_contact_ra_introduces_only_their_own_cases(twilio, main_case):
     assert _client(other).post("/api/v1/outreach/", {"sample_id": main_case.sample_id}, format="json").status_code == 403
     assert _client(_user(Role.SUPERVISOR_READONLY, "out_sup")).post("/api/v1/outreach/", {"sample_id": main_case.sample_id}, format="json").status_code == 403
     assert _client(mine).post("/api/v1/outreach/", {"sample_id": main_case.sample_id}, format="json").status_code == 201
+
+
+@pytest.mark.parametrize("name, short", [
+    ("Kaombe Farms", "Kaombe Farms"),  # fits: unchanged
+    ("SAMUSHA & NCUBE FARM FRESH PRODUCE SUPPLIERS (PRIVATE) LIMITED", "SAMUSHA & NCUBE FARM FRESH PRODUCE SUPPLIERS"),
+    ("Research Continental Information Systems PL T/A B24 Chicken", "B24 Chicken"),
+    ("Tendai Moyo (Zimbabwe Agricultural Development Trust Holdings Ltd)", "Tendai Moyo"),
+])
+def test_a_greeting_is_shortened_only_as_far_as_metas_body_limit_needs(name, short, settings):
+    """2026-10-21: over 1,024 characters filled in, Twilio fails a WhatsApp template with 63021."""
+    settings.WHATSAPP_TEMPLATE_BODY_MAX = 1024
+    text = "Dear {{1}},\n\n" + "x" * 970  # 978 characters before the name is filled in
+    fitted = outbound.fit_template(text, {1: name})[1]
+    assert fitted == short and len(text.replace("{{1}}", fitted)) <= 1024
+
+
+def test_an_introduction_for_a_long_name_is_kept_within_metas_limit(twilio, main_case, settings, monkeypatch):
+    settings.TWILIO_WA_CONTENT_INTRO_NEXT = "HXnext"  # the PI's v5 wording, sent once Meta approves it
+    monkeypatch.setattr(tw, "content_approved", lambda sid: sid == "HXnext")
+    main_case.organisation.name = "Mutirikwi Poultry Cooperative Company Limited " * 3
+    main_case.organisation.save(update_fields=["name"])
+    _verified(main_case)
+    outreach.send_introduction(main_case, user=None)
+    sent = ProviderMessage.objects.get(purpose="INTRODUCTION")
+    assert twilio[-1]["ContentSid"] == "HXnext" and len(sent.body) <= settings.WHATSAPP_TEMPLATE_BODY_MAX
+    assert json.loads(twilio[-1]["ContentVariables"])["1"] in sent.body
 
 
 # --- YES -------------------------------------------------------------------------------------------------------------

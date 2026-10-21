@@ -7,6 +7,7 @@ apps/messaging/thanks.py). Twilio is a fake requests.post; replies arrive as sig
 - a thank-you button answer records the choice, is acknowledged, and is never read as YES to an introduction.
 """
 
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -103,12 +104,28 @@ def test_a_skipped_case_and_one_that_withdrew_are_never_thanked(twilio, monkeypa
     assert thanks.send_due_thanks() == {"withdrawn": 1} and not twilio
 
 
+def test_a_long_name_is_shortened_so_the_thank_you_stays_within_metas_limit(twilio, monkeypatch, main_case, settings):
+    """2026-10-21: the letter sits close to WhatsApp's 1,024 characters, so most names took it over and Twilio failed it
+    with 63021 -- four of five completers were never thanked."""
+    _meta(monkeypatch, "approved")
+    main_case.organisation.name = "SAMUSHA & NCUBE FARM FRESH PRODUCE SUPPLIERS (PRIVATE) LIMITED"
+    main_case.organisation.save(update_fields=["name"])
+    _completed(main_case)
+    assert thanks.send_due_thanks() == {"whatsapp": 1}
+    name = json.loads(twilio[-1]["ContentVariables"])["1"]
+    sent = ProviderMessage.objects.get(purpose=MessagePurpose.THANK_YOU)
+    assert len(sent.body) <= settings.WHATSAPP_TEMPLATE_BODY_MAX and name in sent.body
+    assert name.startswith("SAMUSHA") and "LIMITED" not in name
+
+
 def test_a_completed_kii_informant_is_thanked_for_the_interview(twilio, monkeypatch):
     _meta(monkeypatch, "approved")
     create_kii_record(participant_name="Tendai Moyo", participant_role="Director", stakeholder_category="Bank",
                       status=KIIStatus.COMPLETED, phone="0771234567", metadata={"organisation_name": "Agri Bank"})
     assert thanks.send_due_thanks() == {"whatsapp": 1}
-    assert '"2": "key informant interview"' in twilio[-1]["ContentVariables"] and "Tendai Moyo (Agri Bank)" in twilio[-1]["ContentVariables"]
+    # The approved letter leaves 7 characters for the name beside "key informant interview" (2026-10-21), so the
+    # informant is greeted by first name rather than the message failing with 63021.
+    assert json.loads(twilio[-1]["ContentVariables"]) == {"1": "Tendai", "2": "key informant interview"}
 
 
 def test_a_thank_you_button_records_the_choice_and_is_never_read_as_yes_to_an_introduction(twilio, monkeypatch, main_case):

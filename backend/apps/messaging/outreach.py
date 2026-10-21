@@ -221,7 +221,9 @@ def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
             content, record_text = settings.TWILIO_WA_CONTENT_INTRO_REMINDER.strip(), ""
         else:
             content, name = _intro_content(kii=False)
-            record_text = wording(name).replace("{{1}}", org) if name.endswith("_v2") else ""
+            text = wording(name) if name.endswith("_v2") else ""
+            org = outbound.fit_template(text, {1: org})[1]  # a long name kept within Meta's body limit
+            record_text = text.replace("{{1}}", org)
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content,
                              wa_variables={1: org}, record_text=record_text, user=user, sample_case=case)
     name = "outreach_intro_reminder_sms" if reminder else "outreach_intro_sms"
@@ -281,8 +283,10 @@ def _send_kii_intro(record, number: str, channel: str, *, reminder: bool, user):
             content, name = settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER, "kii_outreach_intro_reminder_whatsapp"
         else:
             content, name = _intro_content(kii=True)
+        text = wording(name)
+        who = outbound.fit_template(text, {1: who})[1]  # a long name kept within Meta's body limit
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
-                             wa_variables={1: who}, record_text=wording(name).replace("{{1}}", who), user=user,
+                             wa_variables={1: who}, record_text=text.replace("{{1}}", who), user=user,
                              kii_record=record)
     name = "kii_outreach_intro_reminder_sms" if reminder else "kii_outreach_intro_sms"
     return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, sms_body=wording(name, who),

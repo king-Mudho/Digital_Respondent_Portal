@@ -110,6 +110,55 @@ def _template_label(purpose: str) -> str:
     return f"[Approved WhatsApp template: {MessagePurpose(purpose).label.lower()}]"
 
 
+# A legal-form ending a greeting can do without: "(Private) Limited", "Pvt Ltd", "P/L", "Limited", "Inc".
+_LEGAL_FORM = re.compile(r"[\s,]+(?:\(?(?:private|pvt\.?)\)?[\s,]+)?(?:limited|ltd\.?)$|[\s,]+\(?(?:private|pvt\.?)\)?$"
+                         r"|[\s,]+p/?l$|[\s,]+(?:inc\.?|incorporated|pbc)$", re.IGNORECASE)
+
+
+def without_legal_form(name: str) -> str:
+    """ "Samusha & Ncube Farm Fresh Produce Suppliers (Private) Limited" -> "... Produce Suppliers"; inside a closing
+    bracket too ("Jane Moyo (Agri Bank Ltd)" -> "Jane Moyo (Agri Bank)"). A name that is nothing but a legal form stays."""
+    name = (name or "").strip()
+    head, tail = (name[:-1], ")") if name.endswith(")") and "(" in name else (name, "")
+    while True:
+        match = _LEGAL_FORM.search(head)
+        if not match or match.start() == 0 or head[:match.start()].endswith("("):
+            return head + tail
+        head = head[:match.start()].rstrip(" ,")
+
+
+def fit_template(text: str, variables: dict, *, key=1) -> dict:
+    """`variables` for a WhatsApp template whose wording is `text` (the portal's copy, with {{1}}-style placeholders),
+    with variables[key] -- the organisation or person greeted -- shortened only as far as needed for the filled-in
+    body to stay within WHATSAPP_TEMPLATE_BODY_MAX (2026-10-21: over Meta's 1,024 characters Twilio fails the message
+    with 63021, so a long organisation name silently cost the introduction or the thank-you). In order: the legal form
+    dropped, then the trading name alone ("... t/a Rainham Abattoir"), then cut at a word."""
+    def filled(values) -> int:
+        out = text
+        for k, v in values.items():
+            out = out.replace("{{%s}}" % k, str(v))
+        return len(out)
+
+    limit = settings.WHATSAPP_TEMPLATE_BODY_MAX
+    values = {k: str(v) for k, v in variables.items()}
+    if not text or filled(values) <= limit:
+        return values
+    name = values[key]
+    shorter = without_legal_form(name)
+    trading = re.search(r"\b(?:t/a|trading as)\s+(.+)$", shorter, re.IGNORECASE)
+    for candidate in (shorter, without_legal_form(trading.group(1)) if trading else ""):
+        if candidate and filled({**values, key: candidate}) <= limit:
+            return {**values, key: candidate}
+    room = len(shorter) - (filled({**values, key: shorter}) - limit)
+    cut = shorter[:max(room, 0)]
+    if len(cut) < len(shorter) and " " in cut:
+        cut = cut.rsplit(" ", 1)[0]
+    if cut.count("(") > cut.count(")"):  # never a half-open bracket: keep the person, drop the organisation
+        cut = cut[:cut.rfind("(")]
+    cut = cut.rstrip(" ,&-/(")
+    return {**values, key: cut or "Sir/Madam"}
+
+
 def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_content: str = "", wa_variables=None,
          wa_text: str = "", user=None, record_text: str = "", redact_link: str = "", redact_code: str = "",
          **links) -> ProviderMessage:
