@@ -404,9 +404,22 @@ def test_a_kii_record_is_asked_on_its_next_mobile_once_the_first_failed_and_refu
     assert exc.value.code == "already_tried"
 
 
+def test_a_kii_greeting_the_new_wording_has_no_room_for_goes_with_the_earlier_template(twilio, settings, monkeypatch):
+    """2026-10-22: the approved KII v3 wording is 1,018 characters before the name, so with Meta's 1,024 every KII
+    introduction sent with it would have failed with 63021. The portal now uses the first approved template the
+    greeting fits."""
+    settings.TWILIO_WA_CONTENT_KII_INTRO_NEXT = "HXkiiIntroV2"
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXkiiIntroV2", "status": "approved"}])
+    outreach.send_kii_introduction(_record(), user=None)
+    shown = ProviderMessage.objects.get().body
+    assert twilio[-1]["ContentSid"] == "HXkiiIntro" and len(shown) <= settings.WHATSAPP_TEMPLATE_BODY_MAX
+    assert "Tendai Moyo" in shown  # greeted whole, not cut to fit
+
+
 @pytest.mark.parametrize("meta_says, expected", [("pending", "HXkiiIntro"), ("approved", "HXkiiIntroV2")])
 def test_the_new_kii_introduction_wording_is_used_only_once_meta_approves_it(twilio, settings, monkeypatch, meta_says, expected):
     settings.TWILIO_WA_CONTENT_KII_INTRO_NEXT = "HXkiiIntroV2"
+    settings.WHATSAPP_TEMPLATE_BODY_MAX = 2000  # room for the name: this test is about approval, not length
     monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXkiiIntroV2", "status": meta_says}])
     outreach.send_kii_introduction(_record(), user=None)
     assert twilio[-1]["ContentSid"] == expected

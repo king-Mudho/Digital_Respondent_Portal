@@ -200,17 +200,28 @@ def refer_introduction(outreach, *, name: str, phone: str, email: str = "", user
     return new
 
 
-def _intro_content(*, kii: bool) -> tuple[str, str]:
-    """(Content SID, the portal's copy of its wording) for an introduction: the replacement wording (the *_NEXT
-    setting, PI 18 Oct 2026) once Meta has approved it, else the current template. The switch needs no one to make it."""
+def _intro_content(*, kii: bool, greeting: str) -> tuple[str, str, str]:
+    """(Content SID, the portal's copy of its wording, the greeting as it will be sent) for an introduction.
+
+    Preferred in order, each once Meta has approved it: the new wording with the study's letters attached (2026-10-19),
+    the new wording alone (the *_NEXT setting, PI 18 Oct 2026), then the first approved template. The first in which the
+    greeting fits whole -- at most with its legal form dropped -- within Meta's 1,024 characters is used (2026-10-22:
+    the approved KII v3 wording leaves 6 characters for a name, so every KII introduction sent with it would have
+    failed with 63021). If it fits in none, the one with the most room is used, the name cut at a word."""
     base = "TWILIO_WA_CONTENT_KII_INTRO" if kii else "TWILIO_WA_CONTENT_INTRO"
     wording_name = "kii_outreach_intro_whatsapp" if kii else "outreach_intro_whatsapp"
-    # The new wording with the study's letters attached first (2026-10-19), then the new wording alone.
+    candidates = []
     for suffix in ("_LETTERS", "_NEXT"):
         replacement = (getattr(settings, base + suffix, "") or "").strip()
         if replacement and tw.content_approved(replacement):
-            return replacement, wording_name + "_v2"
-    return (getattr(settings, base, "") or "").strip(), wording_name
+            candidates.append((replacement, wording(wording_name + "_v2")))
+    candidates.append(((getattr(settings, base, "") or "").strip(), wording(wording_name)))
+    for content, text in candidates:
+        values = outbound.fit_template(text, {1: greeting}, cut=False)
+        if values:
+            return content, text, values[1]
+    content, text = min(candidates, key=lambda c: len(c[1]))
+    return content, text, outbound.fit_template(text, {1: greeting})[1]
 
 
 def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
@@ -220,9 +231,7 @@ def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
         if reminder_ready:
             content, record_text = settings.TWILIO_WA_CONTENT_INTRO_REMINDER.strip(), ""
         else:
-            content, name = _intro_content(kii=False)
-            text = wording(name) if name.endswith("_v2") else ""
-            org = outbound.fit_template(text, {1: org})[1]  # a long name kept within Meta's body limit
+            content, text, org = _intro_content(kii=False, greeting=org)  # a template the name fits
             record_text = text.replace("{{1}}", org)
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content,
                              wa_variables={1: org}, record_text=record_text, user=user, sample_case=case)
@@ -280,11 +289,10 @@ def _send_kii_intro(record, number: str, channel: str, *, reminder: bool, user):
     if channel == MessageChannel.WHATSAPP:
         reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_KII_INTRO_REMINDER")
         if reminder_ready:
-            content, name = settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER, "kii_outreach_intro_reminder_whatsapp"
+            content, text = settings.TWILIO_WA_CONTENT_KII_INTRO_REMINDER, wording("kii_outreach_intro_reminder_whatsapp")
+            who = outbound.fit_template(text, {1: who})[1]
         else:
-            content, name = _intro_content(kii=True)
-        text = wording(name)
-        who = outbound.fit_template(text, {1: who})[1]  # a long name kept within Meta's body limit
+            content, text, who = _intro_content(kii=True, greeting=who)  # a template the name fits
         return outbound.send(channel=channel, number=number, purpose=MessagePurpose.INTRODUCTION, wa_content=content.strip(),
                              wa_variables={1: who}, record_text=text.replace("{{1}}", who), user=user,
                              kii_record=record)

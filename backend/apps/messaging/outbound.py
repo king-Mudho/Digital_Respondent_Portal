@@ -127,12 +127,13 @@ def without_legal_form(name: str) -> str:
         head = head[:match.start()].rstrip(" ,")
 
 
-def fit_template(text: str, variables: dict, *, key=1) -> dict:
+def fit_template(text: str, variables: dict, *, key=1, cut: bool = True) -> dict | None:
     """`variables` for a WhatsApp template whose wording is `text` (the portal's copy, with {{1}}-style placeholders),
     with variables[key] -- the organisation or person greeted -- shortened only as far as needed for the filled-in
     body to stay within WHATSAPP_TEMPLATE_BODY_MAX (2026-10-21: over Meta's 1,024 characters Twilio fails the message
     with 63021, so a long organisation name silently cost the introduction or the thank-you). In order: the legal form
-    dropped, then the trading name alone ("... t/a Rainham Abattoir"), then cut at a word."""
+    dropped, then the trading name alone ("... t/a Rainham Abattoir"), then cut at a word -- or, with cut=False, None
+    when it would have to be cut."""
     def filled(values) -> int:
         out = text
         for k, v in values.items():
@@ -149,6 +150,8 @@ def fit_template(text: str, variables: dict, *, key=1) -> dict:
     for candidate in (shorter, without_legal_form(trading.group(1)) if trading else ""):
         if candidate and filled({**values, key: candidate}) <= limit:
             return {**values, key: candidate}
+    if not cut:
+        return None
     room = len(shorter) - (filled({**values, key: shorter}) - limit)
     cut = shorter[:max(room, 0)]
     if len(cut) < len(shorter) and " " in cut:

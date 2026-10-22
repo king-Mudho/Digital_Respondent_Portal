@@ -196,7 +196,8 @@ def test_an_introduction_for_a_long_name_is_kept_within_metas_limit(twilio, main
     _verified(main_case)
     outreach.send_introduction(main_case, user=None)
     sent = ProviderMessage.objects.get(purpose="INTRODUCTION")
-    assert twilio[-1]["ContentSid"] == "HXnext" and len(sent.body) <= settings.WHATSAPP_TEMPLATE_BODY_MAX
+    # Too long for the new wording even without its legal form: the earlier approved template, which has the room.
+    assert twilio[-1]["ContentSid"] == "HXintro" and len(sent.body) <= settings.WHATSAPP_TEMPLATE_BODY_MAX
     assert json.loads(twilio[-1]["ContentVariables"])["1"] in sent.body
 
 

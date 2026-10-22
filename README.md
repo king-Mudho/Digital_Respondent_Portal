@@ -795,6 +795,13 @@ the legal form goes, then the trading name alone is used ("... t/a Rainham Abatt
 name is cut at a word, never leaving half a bracket. Introductions (Main and KII) and the thank-you use it. The limit is
 `WHATSAPP_TEMPLATE_BODY_MAX`. A shorter thank-you template would let names through in full.
 
+On 22 Oct the same limit showed that the approved KII v3 introduction (with the study letters) is 1,018 characters before
+the name. That leaves room for 6 characters, so every KII introduction sent with it would have failed. None had been sent
+yet: the SAFIRE director's was stopped by a length check. `outreach._intro_content()` now takes the first approved
+template (letters, new wording, then the earlier one) that the greeting fits, at most with its legal form dropped. If it
+fits none, the template with the most room is used and the name is cut at a word. KII introductions therefore go with
+the earlier approved wording until a shorter v3 is approved.
+
 ### A business WhatsApp's automatic greeting no longer waits for a person (20 Oct 2026)
 
 Many organisations' WhatsApp Business accounts answer every incoming message automatically: "Thank you for contacting
