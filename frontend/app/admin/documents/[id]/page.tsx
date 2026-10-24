@@ -316,7 +316,7 @@ export default function DocumentDetailPage() {
             </div>
             <p className="text-xs text-text-muted">
               A scan, photo, screenshot or recording of the source (PDF, image, Office file or audio/video,
-              up to 20 MB). Uploaded the wrong one? Remove it above, or choose another file to replace it.
+              up to 60 MB). Uploaded the wrong one? Remove it above, or choose another file to replace it.
             </p>
             {doc.ai_coding_configured && (
               <label className="flex items-center gap-2 text-sm">

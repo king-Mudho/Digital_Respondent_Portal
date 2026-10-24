@@ -292,7 +292,7 @@ only its own form:
   Tool with the record's DOC-ID, title, author and source already filled in — a
   Documentary RA never retypes them, so the completed form is guaranteed to match back up
   with the right record. The page also stores the source file itself (a scan, a platform
-  screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 20 MB) under
+  screenshot, a recording — up to `DOCUMENT_MAX_UPLOAD_MB`, default 60 MB) under
   `PRIVATE_DATA_ROOT`, downloadable only by roles with document access; uploading replaces
   any earlier file for that record. Every upload and download is audited.
   **Remove file** (next to the file name, with a confirmation) deletes a wrongly attached
@@ -610,7 +610,7 @@ celery -A config beat --loglevel=info
 | `KOBO_WEBHOOK_SHARED_SECRET` | Validates `POST /api/v1/kobo/webhook/`; also signs the portal token passed to the form |
 | `KOBO_RECONCILIATION_INTERVAL_MINUTES` | Celery Beat pull frequency |
 | `PRIVATE_DATA_ROOT` | Where full Kobo payloads and uploaded document source files are stored; must not be under anything nginx serves |
-| `DOCUMENT_MAX_UPLOAD_MB` | Size limit for an uploaded document source file (default 20) |
+| `DOCUMENT_MAX_UPLOAD_MB` | Size limit for an uploaded document source file (default 60; nginx's `client_max_body_size` must allow it) |
 | `PROIT_ENABLED_FOR_RESPONDENTS` | Shows the PROIT verification step to respondents |
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
@@ -1456,7 +1456,7 @@ matched back to the right record — and there was nowhere to keep the source fi
    (`apps/evidence/services.py build_document_coding_url`). Nothing is retyped, and the
    completed form is guaranteed to land on the right record.
 2. **Source file upload.** The document page stores the scan, screenshot or recording
-   itself under `PRIVATE_DATA_ROOT` (`DOCUMENT_MAX_UPLOAD_MB`, default 20 MB; a fixed
+   itself under `PRIVATE_DATA_ROOT` (`DOCUMENT_MAX_UPLOAD_MB`, default 60 MB; a fixed
    extension allow-list), downloadable only by roles with document access, replacing any
    earlier file for that record; every upload and download is audited
    (`apps/evidence/views.py DocumentFileView`).

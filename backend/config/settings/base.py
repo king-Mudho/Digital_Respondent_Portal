@@ -258,7 +258,9 @@ KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
 # Stored under PRIVATE_DATA_ROOT, never a web-served directory -- downloaded
 # only through the permission-checked, audited DocumentFileView. Kept modest
 # because the current VPS disk is small (docs/33_GO_LIVE_READINESS.md).
-DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=20)
+# 60 MB (PI, 24 Oct 2026): annual reports and the Monetary Policy Statement run to 25-55 MB. nginx's
+# client_max_body_size on the research host must be at least this.
+DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=60)
 
 # --- AI-assisted document coding draft (apps/evidence/ai_coding.py) ---------
 # PI decision, 2026-09-17: AI may draft a full answer set for the Document

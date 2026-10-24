@@ -504,7 +504,7 @@ T.documents = [
   ["p", "You do not need to type the details of a document. Upload it and the AI reads it, fills in the record, drafts the whole KoboToolbox coding form, and waits for you to review. (This needs AI drafting to be switched on; otherwise use “Adding a document by hand” below.)"],
   ["steps", [
     { text: "Select **Documents → New document**. At the top is the box **Fastest: upload the document**.", img: "doc_new.jpg", caption: "New document: upload the file and let the AI do the rest." },
-    "Choose the file: a PDF, a Word (.docx) or Excel (.xlsx) file, a text or CSV file, or a JPG or PNG scan or photo (up to 20 MB). Nothing else is required.",
+    "Choose the file: a PDF, a Word (.docx) or Excel (.xlsx) file, a text or CSV file, or a JPG or PNG scan or photo (up to 60 MB). Nothing else is required.",
     "Optional (open **Optional: title, pages to read**): a **Title** if you want your own; **Pages to read** if you are coding one chapter of a long PDF, for example `290-340`; or tick **Read the whole document in parts** for a PDF over 100 pages (see “Coding a very long document” below).",
     "Select **Upload and auto-fill**. The record is created straight away and the review screen opens, showing “Step 1 of 2: reading the document’s details”, then “Step 2 of 2: drafting the coding form”. You can leave the page; the draft will be there when you return.",
     "The AI has filled in the title, author, date, document type, geographic scope, value chain and source it found in the document, and left blank anything the document does not state. Check them on the record page under **Record details** and correct anything wrong; a correction shows in the draft at once and is used when you submit.",
@@ -532,7 +532,7 @@ T.documents = [
   ]],
   ["h2", "Attaching the source file, and removing a wrong one"],
   ["steps", [
-    { text: "On the document's page, under **Source file**, select **Choose File** and pick the source: a PDF, a scan or photo (JPG or PNG), a Word (.docx) or Excel (.xlsx) file, or a text or CSV file. Audio and video can be attached as a reference. The limit is 20 MB. The file is stored privately on the server.", img: "doc_source_file.jpg", caption: "Source file: the file name, size and date, with Remove file beside it." },
+    { text: "On the document's page, under **Source file**, select **Choose File** and pick the source: a PDF, a scan or photo (JPG or PNG), a Word (.docx) or Excel (.xlsx) file, or a text or CSV file. Audio and video can be attached as a reference. The limit is 60 MB. The file is stored privately on the server.", img: "doc_source_file.jpg", caption: "Source file: the file name, size and date, with Remove file beside it." },
     "A bar shows how much of the file has been sent. A large file on a slow connection can take a minute or two: wait until it says **Saving…** and the file name appears. If **Start Auto-fill as soon as the file is uploaded** is ticked (it is by default), the review screen then opens and the AI starts reading.",
     "Attached the wrong one? Select the red **Remove file** link beside the file name and confirm. The file is deleted from the server and the record says “No file uploaded yet”. Then choose the right file.",
     "Choosing another file straight away also replaces the old one.",
