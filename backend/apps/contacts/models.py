@@ -62,8 +62,12 @@ class ContactOutcome(models.TextChoices):
 
 
 class ContactEvent(models.Model):
+    # A contact attempt on a Main-400 case or, since the Calls screen (2026-10-25), on a KII record -- one or the other.
     sample_case = models.ForeignKey(
-        "sampling.SampleCase", on_delete=models.CASCADE, related_name="contact_events"
+        "sampling.SampleCase", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_events"
+    )
+    kii_record = models.ForeignKey(
+        "kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE, related_name="contact_events"
     )
     channel = models.CharField(max_length=16, choices=ContactChannel.choices)
     occurred_at = models.DateTimeField()
@@ -75,6 +79,13 @@ class ContactEvent(models.Model):
 
     class Meta:
         ordering = ["-occurred_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(sample_case__isnull=False, kii_record__isnull=True)
+                | models.Q(sample_case__isnull=True, kii_record__isnull=False),
+                name="contact_event_one_subject",
+            ),
+        ]
 
 
 class AppointmentMode(models.TextChoices):

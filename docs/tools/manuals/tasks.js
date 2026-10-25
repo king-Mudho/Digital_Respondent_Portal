@@ -155,6 +155,19 @@ T.followUps = [
   ["tip", "Landlines", "WhatsApp and SMS only go to mobile numbers. Where a respondent has only a landline, the invitation panel and Follow-ups say so: phone them, or ask for a mobile number and add it to the case."],
 ];
 
+T.calls = [
+  ["h2", "Phoning people who haven't finished (Calls)"],
+  ["p", "**Calls** lists everyone whose link was sent but who hasn't finished, closest to finishing first: **Started, not finished**, then **Consented, not started**, **Opened, not started**, and **Link sent, not opened**. It covers the Main 400 (with activated Reserves) and the key informants. A Contact RA sees only their own cases and a KII RA only the KII records."],
+  ["steps", [
+    "Select **Calls**. Choose **Main 400**, **KII** or both, and a stage; each button shows how many people it holds. Search by organisation, name, ID or phone number.",
+    "Each card shows the organisation, who to ask for, every number on file (select **Call** to dial, or **WhatsApp**), the email and any gatekeeper, when the link was sent and opened, when it stops working, and the reminders and calls so far.",
+    "Make the call. Remind them of the study by Happyson Saina at Chinhoyi University of Technology and offer to re-send the link if it was lost. Never read out or change their answers.",
+    "Select **Log a call**, choose what happened, add a short factual note and, if they asked, a **Call back on** date. Select **Save call**. It goes into the case's (or KII record's) contact log under your name, and the card shows it as the last call.",
+  ]],
+  ["warn", "A refusal on the phone", "Choosing **Refused** records the call only. To close the case as Refused, use the case page, as before."],
+  ["tip", "Link expired?", "A card says when its link has expired. Issue a new one from the case or KII record page before asking them to continue."],
+];
+
 T.appointments = [
   ["h2", "Managing appointments"],
   ["steps", [

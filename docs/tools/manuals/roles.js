@@ -93,7 +93,7 @@ module.exports = [
       ["Executive, Sampling, Contact, QA, KII/Doc dashboards", "Monitor progress against targets."],
       ["Reports", "Analytics and charts for supervision meetings and progress reports."],
       ["Main-400 Register, Organisations", "The sample: cases, bulk verification, new organisations."],
-      ["Appointments, Follow-ups, Communications", "Oversee contact, reminders, and every message sent and received."],
+      ["Appointments, Follow-ups, Communications, Calls", "Oversee contact, reminders, every message sent and received, and the calls to people who haven't finished."],
       ["Form PDFs", "Completed forms for all three KoboToolbox forms; sync status and Sync now; the Excel workbook and PDF ZIP for each form."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands; upload a document and the AI drafts its coding form."],
@@ -173,7 +173,7 @@ module.exports = [
       ["Dashboards and Reports", "Track progress, coverage and bottlenecks."],
       ["Main-400 Register", "Cases, bulk verification, the contact finder, email invitations and the WhatsApp queue."],
       ["Organisations", "Late additions and replacements."],
-      ["Appointments, Follow-ups, Communications", "Keep contact on schedule; answer messages and email replies."],
+      ["Appointments, Follow-ups, Communications, Calls", "Keep contact on schedule; answer messages and email replies; phone people who haven't finished."],
       ["Form PDFs", "Completed forms for all three forms, and whether the portal matches KoboToolbox (Sync now)."],
       ["QA Queue, QA Exceptions", "Support and cover the QA RA."],
       ["KII Register, Documents", "Oversee the other strands."],
@@ -187,7 +187,7 @@ module.exports = [
       ["End of day", "Reports (last 7 days): submissions, response rate, coverage; note strata falling behind."],
       ["Weekly", "Cases stuck at S05–S07 beyond Day 7; Reserve activations; cost entries; brief the PI."],
     ],
-    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.contactFinder, T.respondents, T.invite, T.emailBatch, T.whatsappQueue, T.followUps, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.proitInterview, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
+    tasks: [T.dashboards, T.reports, T.bulkVerify, T.reassign, T.pairAssign, T.contactFinder, T.respondents, T.invite, T.emailBatch, T.whatsappQueue, T.followUps, T.calls, T.appointments, T.logContact, T.workflow, T.notEligible, T.withdrawal, T.reserve, T.registerOrg, T.proit, T.proitInterview, T.qaReview, T.qaExceptions, T.formPdfs("questionnaire, KII Guide and document", "adm_form_pdfs.jpg"), T.cost, T.exports("fc")],
     extraRules: ["Record a withdrawal the same day you hear of it.", "Activate a Reserve only with an authorised reason and written evidence."],
     trouble: [
       ["\"Move all\" shows 0", "No Main cases are at that step.", "Choose the next step in the list."],
@@ -217,6 +217,7 @@ module.exports = [
       ["Main-400 Register", "Your assigned cases; select **View** to work on one."],
       ["Appointments", "Calls and sessions respondents have requested."],
       ["Follow-ups", "Reminders due today for your cases."],
+      ["Calls", "Your cases whose link is out but who haven't finished: phone them and log each call."],
     ],
     routine: [
       ["Start of day", "**Follow-ups**: send every reminder due and mark each sent. **Appointments**: confirm today's."],
@@ -230,7 +231,7 @@ module.exports = [
         "Type a Sample ID, Master ID or organisation name in **Search**, or page through with **Next**.",
         "Select **View** to open the case page.",
       ]]],
-      T.respondents, T.invite, T.whatsappQueue, T.logContact, T.followUps, T.appointments, T.phoneAssisted, T.proitInterview, T.notEligible,
+      T.respondents, T.invite, T.whatsappQueue, T.logContact, T.followUps, T.calls, T.appointments, T.phoneAssisted, T.proitInterview, T.notEligible,
       [["h2", "When someone refuses or asks to withdraw"], ["steps", [
         "Thank them politely and do not try to persuade them.",
         "Log the contact attempt with outcome **REFUSED** and their words in the note.",
@@ -327,6 +328,7 @@ module.exports = [
       ["Form PDFs", "Completed KII Guide forms."],
       ["KII Register", "All KII records; create and manage."],
       ["Communications", "Messages and email replies with key informants, and whether each message arrived."],
+      ["Calls", "Informants whose link is out but who haven't finished: phone them and log each call."],
     ],
     routine: [
       ["Weekly planning", "KII Register filtered mentally by status: PROSPECT and INVITED need contact; SCHEDULED need preparation."],
@@ -336,7 +338,7 @@ module.exports = [
     ],
     tasks: [
       [["h2", "Reading the KII/Doc Dashboard"], ["img", "kii_dashboard.jpg", "KII / Document Dashboard."]],
-      T.kii, T.proitInterview, T.formPdfs("KII Guide", "kii_form_pdfs.jpg", "Completed KII Guide forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
+      T.kii, T.calls, T.proitInterview, T.formPdfs("KII Guide", "kii_form_pdfs.jpg", "Completed KII Guide forms, with the sync status.").map((b) => (b[0] === "steps" ? ["steps", b[1].map((s, i) => (i === 0 ? { text: "Select **Form PDFs**. You see the completed KII Guide forms from KoboToolbox, newest first.", img: s.img, caption: s.caption } : s)).filter((s) => !String(s.text ?? s).includes("For the questionnaire only"))] : b)),
       [["h2", "Consent in interviews"], ["bullets", [
         "Read or summarise the information sheet and ask for agreement **before** the first question.",
         "Ask separately whether the interview may be recorded. If they say no, take notes only.",
@@ -455,7 +457,7 @@ module.exports = [
     audience: "Academic supervisors and others overseeing the study",
     purpose: "You oversee the study with read-only access to almost every screen: progress, the sample, contact activity, QA, the KII and documentary strands, and costs. You can open case pages and completed-form PDFs, but you cannot change anything.",
     can: [
-      "Open 18 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Communications, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
+      "Open 19 screens: all dashboards, Reports, Main-400 Register and case pages, Organisations, Appointments, Follow-ups, Communications, Calls, Form PDFs, QA Queue, QA Exceptions, KII Register, Documents, Reserve Activation and Cost.",
       "Download PDFs of completed forms for all three forms.",
     ],
     cannot: [
@@ -466,7 +468,7 @@ module.exports = [
     screens: [
       ["Dashboards and Reports", "Progress, coverage, quality."],
       ["Main-400 Register and case pages", "How individual cases are being handled."],
-      ["Appointments, Follow-ups, Communications", "Whether contact is on schedule and what reached people."],
+      ["Appointments, Follow-ups, Communications, Calls", "Whether contact is on schedule, what reached people, and the calls made."],
       ["Form PDFs", "Completed questionnaires, KII Guides and document coding forms, and whether the portal matches KoboToolbox (read-only)."],
       ["QA Queue, QA Exceptions", "Quality decisions and flags."],
       ["KII Register, Documents", "Qualitative and documentary strands."],

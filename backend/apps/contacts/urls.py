@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .call_views import CallListView, CallLogView
 from .finder_views import (
     ContactProposalAcceptView,
     ContactProposalRejectView,
@@ -39,6 +40,8 @@ urlpatterns = [
     path("contacts/<str:sample_id>/contact-search/", ContactSearchView.as_view(), name="contact-search"),
     path("contacts/<str:sample_id>/events/", ContactEventListCreateView.as_view(), name="contact-events"),
     path("contacts/<str:sample_id>/respondents/", RespondentListCreateView.as_view(), name="respondents"),
+    path("calls/", CallListView.as_view(), name="calls"),
+    path("calls/<str:kind>/<str:ident>/", CallLogView.as_view(), name="call-log"),
     path("appointments/", AppointmentListCreateView.as_view(), name="appointments"),
     path("appointments/<int:pk>/status/", AppointmentStatusView.as_view(), name="appointment-status"),
 ]

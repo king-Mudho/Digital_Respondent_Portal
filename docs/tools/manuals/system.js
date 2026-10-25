@@ -201,6 +201,7 @@ module.exports = {
       ["Bulk verification", "✓", "✓", "—", "—", "—", "—", "—", "—"],
       ["Record respondents, invite, log contact", "✓", "✓", "own cases", "—", "—", "—", "—", "view"],
       ["Send follow-ups", "✓", "✓", "own cases", "—", "—", "—", "—", "view"],
+      ["Phone and log calls (Calls)", "✓", "✓", "own cases", "—", "KII records", "—", "—", "view"],
       ["Record withdrawal", "✓", "✓", "—", "—", "—", "—", "—", "—"],
       ["Activate Reserves", "✓", "✓", "—", "—", "—", "—", "—", "view"],
       ["QA decisions & exceptions", "✓", "✓", "—", "✓", "—", "—", "—", "view"],

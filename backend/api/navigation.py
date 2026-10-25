@@ -84,6 +84,12 @@ SCREENS = {
         "/admin/communications", "Communications",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.SUPERVISOR_READONLY},
     ),
+    # Phoning everyone whose link was sent but who has not finished, Main 400 and KII, with every contact on file and a
+    # call log (apps/contacts/calls.py, CanUseCalls, 2026-10-25). Same people and scoping as Communications.
+    "calls": (
+        "/admin/calls", "Calls",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.SUPERVISOR_READONLY},
+    ),
     # PDF copies of completed Kobo forms; each role sees only its own form
     # (kobo.submission_copies.FORMS), enforced server-side per request.
     "kobo_submissions": (

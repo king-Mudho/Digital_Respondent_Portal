@@ -26,6 +26,7 @@ ACTION_LABELS: dict[str, str] = {
     "consent.withdrawn": "Consent withdrawn",
     "consent.withdrawal_processed": "Participation withdrawn",
     "contacts.batch_started": "Contact search started for a batch of cases",
+    "contacts.call_logged": "Phone call logged (Calls screen)",
     "contacts.imported_contacts_cleaned": "Imported contacts cleaned up",
     "contacts.kii_batch_started": "Contact search started for a batch of KII records",
     "contacts.kii_proposal_accepted": "AI-found KII contact detail accepted",

@@ -24,11 +24,11 @@ EXPECTED_SCREENS = {
     Role.FIELD_COORDINATOR: {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
-        "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
+        "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
     },
-    Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups", "conversations"},
+    Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups", "conversations", "calls"},
     Role.QUAN_QA_RA: {"dashboard_qa", "kobo_submissions", "qa_queue", "qa_exceptions"},
-    Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register", "conversations"},
+    Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register", "conversations", "calls"},
     Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "kobo_submissions", "documents"},
     Role.ANALYST: {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact",
@@ -37,7 +37,7 @@ EXPECTED_SCREENS = {
     Role.SUPERVISOR_READONLY: {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
-        "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
+        "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
     },
 }
 
@@ -123,6 +123,7 @@ SCREEN_ENDPOINTS = {
     "appointments": "/api/v1/appointments/",
     "follow_ups": "/api/v1/follow-ups/",
     "conversations": "/api/v1/communications/threads/",
+    "calls": "/api/v1/calls/",
     "reports": "/api/v1/reports/overview/",
     "kobo_submissions": "/api/v1/kobo/forms/",
     "qa_queue": "/api/v1/qa/queue/",

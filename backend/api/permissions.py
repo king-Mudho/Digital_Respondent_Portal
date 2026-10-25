@@ -144,6 +144,21 @@ class CanUseCommunications(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanUseCalls(BasePermission):
+    """Calls (apps/contacts/calls.py, 2026-10-25): phoning people whose link was sent but who have not finished. The
+    same people as Communications -- PI, Field Coordinator, Contact RA (their assigned Main-400 cases) and KII RA (KII
+    records); Supervisor reads but never logs a call. Which rows each one sees is scoped in calls.py by
+    communications.visible_cases / visible_records, not here."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
 class CanManageDocuments(BasePermission):
     """Documentary-evidence register/detail, authenticity assessment and QA
     status -- docs/18: "Documentary RA: Assigned document records"."""

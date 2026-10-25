@@ -218,6 +218,18 @@ const screens = [
     ],
   },
   {
+    id: "calls", group: "The sample and contact", title: "Calls", path: "/admin/calls",
+    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP],
+    purpose: "Everyone whose link was sent but who hasn't finished, Main 400 and KII, closest to finishing first, with every contact on file and a log of each call. A Contact RA sees their own cases, a KII RA the KII records.",
+    rows: [
+      ["Main 400 / KII", "Shows one study or both.", "One person may call only the Main 400 or only the key informants.", "The list redraws; the stage buttons show the new counts."],
+      ["Stage buttons", "Started, not finished · Consented, not started · Opened, not started · Link sent, not opened.", "Call the people closest to finishing first.", "The list shows that stage only, with how many people it holds."],
+      ["Search", "Finds an organisation, a person, an ID or a phone number.", "To find someone who calls back.", "Only matching cards stay."],
+      ["Call / WhatsApp", "Dials the number, or opens a WhatsApp chat with it.", "Every number on file is shown, including second numbers in the same field.", "Your phone or WhatsApp opens."],
+      ["Log a call → Save call", "Records the call's outcome, a note and an optional call-back date.", "So the next caller knows what happened, and Reports count it.", "It goes into the contact log under your name and shows as the last call.", w],
+    ],
+  },
+  {
     id: "communications", group: "The sample and contact", title: "Communications", path: "/admin/communications",
     roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP],
     purpose: "Every message to and from participants in one place: WhatsApp, SMS and email the portal sent, with what happened to each one; WhatsApp messages and email replies received; and the events around them (invitations, the link opened, consent, the questionnaire submitted, follow-ups and calls). A Contact RA sees their own cases, a KII RA the KII records. It replaced Conversations.",

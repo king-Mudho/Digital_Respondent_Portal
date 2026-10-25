@@ -342,13 +342,13 @@ UX only; the permission classes remain the real boundary.
 
 | Role | Screens | Lands on |
 |---|---|---|
-| PI / Admin | 19 (everything) | `/admin/dashboard` |
-| Field Coordinator | 18 (no Audit Log) | `/admin/dashboard` |
-| Supervisor (read-only) | 17 (no Audit Log or Export) | `/admin/dashboard` |
+| PI / Admin | 21 (everything) | `/admin/dashboard` |
+| Field Coordinator | 19 (no Audit Log or Research Clearance) | `/admin/dashboard` |
+| Supervisor (read-only) | 18 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
 | Analyst (read-only) | 7 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, Cost, Export) | `/admin/dashboard` |
-| Contact RA | 3 (Main-400 Register, Appointments, Follow-ups) — only its assigned cases | `/admin/sample` |
+| Contact RA | 5 (Main-400 Register, Appointments, Follow-ups, Communications, Calls) — only its assigned cases | `/admin/sample` |
 | QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
-| KII RA | 3 (KII/Doc Dashboard, Form PDFs, KII Register) | `/admin/dashboard/kii-documents` |
+| KII RA | 5 (KII/Doc Dashboard, Form PDFs, KII Register, Communications, Calls) — KII records only | `/admin/dashboard/kii-documents` |
 | Documentary RA | 3 (KII/Doc Dashboard, Form PDFs, Documents) | `/admin/dashboard/kii-documents` |
 
 The three RA roles are deliberately **not** interchangeable — see
@@ -369,6 +369,7 @@ figures and lists on mixed screens but not the forms or buttons
 | A03 | `/admin/sample` | Main-400 / Reserve register, with bulk verification (move every Main case at S00, S01 or S02 one step forward at once, each move audited) |
 | A04 | `/admin/sample/[sampleId]` | Case detail: assigned Contact RA, respondents and contact details, matched Reserve, PROIT pre-profile, invitations (sent with a ready-written message by WhatsApp, SMS or email, including email from the study address), workflow transitions, contact-attempt log, withdrawal, and the completed questionnaire PDF |
 | A05 | `/admin/appointments` | Appointment queue with status transition buttons |
+| — | `/admin/calls` | Everyone whose link was sent but who hasn't finished (Main 400 with activated Reserves, and KII), closest to finishing first — started, consented, opened, not opened — with every number on file (tap to call or WhatsApp), email and gatekeeper, and **Log a call** into the case's or KII record's contact log; a Contact RA sees only its own cases, a KII RA only KII records |
 | — | `/admin/follow-ups` | Reminders due now from the approved reminder schedule, each with a one-tap WhatsApp link and "Mark as sent"; a Contact RA sees only its own cases |
 | — | `/admin/submissions` | Completed forms: your role's KoboToolbox form, sync status and **Sync now**, download PDFs or email; PI also gets the Excel workbook and PDF ZIP |
 | A06 | `/admin/qa` | QUAN QA decision queue (accept / re-query / reject) plus the KoboToolbox sync panel |
@@ -781,6 +782,19 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### Calls: phone everyone who hasn't finished (25 Oct 2026)
+
+The PI asked for one place to phone people whose link was sent but who have not finished; until now that meant an
+exported Excel list. **Calls** (`/admin/calls`, `apps/contacts/calls.py`) lists them closest to finishing first --
+started, consented, opened, then only sent -- for Main 400 (with activated Reserves) and KII, filtered by study, stage
+and search. Each card shows every number on file (split apart where one field holds two) with tap-to-call and WhatsApp
+links, the email and gatekeeper. A submitted, QA-passed or duplicate-marked case is never listed. **Log a call**
+records a PHONE contact event; `ContactEvent` can now belong to a KII record as well as a case (one or the other, by a
+check constraint), so calls to informants have a log too. Scoped like Communications (Contact RA: assigned cases; KII
+RA: KII records; Supervisor reads, cannot log; `CanUseCalls`). A refusal on a call is recorded on the call only:
+closing a case as Refused stays on the case page. The README's role table, stale since Communications was added, now
+counts that screen too.
 
 ### Long names no longer cost the introduction or the thank-you (21 Oct 2026)
 
