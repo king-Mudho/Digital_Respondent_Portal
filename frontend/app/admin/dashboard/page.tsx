@@ -24,8 +24,7 @@ interface ExecutiveDashboard {
   kii_completed: number;
   kii_target: number;
   documents_coded: number;
-  documents_target_low: number;
-  documents_target_high: number;
+  documents_target: number;
   days_remaining_to_data_lock: number;
   fieldwork_expenditure_to_date: string;
   highest_risk_coverage_gaps: Array<Record<string, unknown>>;
@@ -66,7 +65,7 @@ export default function ExecutiveDashboardPage() {
             />
             <StatCard
               label="Documents coded"
-              value={`${data.documents_coded} / ${data.documents_target_low}-${data.documents_target_high}`}
+              value={`${data.documents_coded} / ${data.documents_target}`}
             />
             <StatCard
               label="Days to data lock"

@@ -19,6 +19,7 @@ from collections import Counter
 from datetime import timedelta
 from statistics import median
 
+from django.conf import settings
 from django.core.cache import cache
 from django.db.models import Count, Exists, OuterRef, Q, Sum
 from django.utils import timezone
@@ -44,7 +45,6 @@ from apps.sampling.models import (
 
 MAIN_TARGET = 400
 KII_TARGET = 60
-DOCUMENT_TARGET_LOW, DOCUMENT_TARGET_HIGH = 50, 75
 RANGES = {"7": 7, "30": 30, "90": 90, "all": None}
 CACHE_SECONDS = 60
 
@@ -241,8 +241,7 @@ def build_report(range_key: str = "30") -> dict:
             "kii_completed": kii_counts.get(KIIStatus.COMPLETED, 0),
             "kii_target": KII_TARGET,
             "documents_included": doc_counts.get(DocumentQAStatus.INCLUDED, 0),
-            "documents_target_low": DOCUMENT_TARGET_LOW,
-            "documents_target_high": DOCUMENT_TARGET_HIGH,
+            "documents_target": settings.DOCUMENT_TARGET,
             "cost_total": str(total_cost),
             "cost_per_qa_passed": str(round(total_cost / passed, 2)) if passed else None,
         },

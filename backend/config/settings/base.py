@@ -261,6 +261,9 @@ KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
 # 60 MB (PI, 24 Oct 2026): annual reports and the Monetary Policy Statement run to 25-55 MB. nginx's
 # client_max_body_size on the research host must be at least this.
 DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=60)
+# Documentary-evidence target: coded, QA-included documents. 108 (PI, 25 Oct 2026) -- every register entry with a
+# file was coded and submitted; it replaces the planned 50-75 range. A methodology number, so config, not a literal.
+DOCUMENT_TARGET = env.int("DOCUMENT_TARGET", default=108)
 
 # --- AI-assisted document coding draft (apps/evidence/ai_coding.py) ---------
 # PI decision, 2026-09-17: AI may draft a full answer set for the Document

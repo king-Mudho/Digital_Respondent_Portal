@@ -160,7 +160,7 @@ const programme = {
     ["h2", "Module 1 — The study (60 min)"],
     ["bullets", [
       "**Objective:** trainees can explain the study in two minutes, to a busy manager.",
-      "**Content:** study title and purpose; Main-400 and Reserve-400; 400 questionnaires, 60 KIIs, 50–75 documents; data lock on 30 November 2026; what the portal does and does not do.",
+      "**Content:** study title and purpose; Main-400 and Reserve-400; 400 questionnaires, 60 KIIs, 108 documents; data lock on 30 November 2026; what the portal does and does not do.",
       "**Method:** short presentation (System Manual chapter 2), then pairs practise the two-minute explanation.",
       "**Check:** each trainee gives the explanation without notes, including 'voluntary' and 'no score or financing decision'.",
     ]],
@@ -268,7 +268,7 @@ const manual = {
     ["table", ["Strand", "What we collect", "Target"], [
       ["Questionnaire (quantitative)", "One questionnaire from a senior person at each Main-400 organisation", "400 completed"],
       ["Key Informant Interviews", "Interviews with experts from government, finance, development partners, associations and research", "60 completed"],
-      ["Documentary evidence", "Policies, reports, platforms and media, coded with the Document Analysis Tool", "50–75 coded"],
+      ["Documentary evidence", "Policies, reports, platforms and media, coded with the Document Analysis Tool", "108 coded"],
     ], [0.28, 0.52, 0.2]],
     ["kv", [
       ["Sample", "400 Main organisations, each with a matched Reserve that may replace it only for an authorised reason."],

@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.49 · 25 October 2026";
+const REVISION = "Version 1.50 · 25 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -126,7 +126,7 @@ const GLOSSARY = [
   ["QA", "Quality assurance: automated checks plus a human decision on every questionnaire."],
   ["QA exception", "An automated flag raised by a QA rule, worked and closed by a person."],
   ["KII", "Key Informant Interview (target 60 completed)."],
-  ["Documentary evidence", "Documents, digital platform and media sources analysed (target 50–75)."],
+  ["Documentary evidence", "Documents, digital platform and media sources analysed (target 108)."],
   ["Source file", "The uploaded scan, PDF, photo or document a documentary record is coded from. Stored privately; it can be removed or replaced."],
   ["Auto-fill", "A button on a document's page that has AI read the source file and draft the whole Document Analysis Tool for you to review. It never submits anything by itself."],
   ["AI draft", "The AI's proposed answers to the Document Analysis Tool: editable, reviewed by a person, and only sent to KoboToolbox when that person selects Submit."],

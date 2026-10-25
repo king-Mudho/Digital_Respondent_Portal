@@ -7,9 +7,9 @@ const T = {};
 T.dashboards = [
   ["h2", "Reading the dashboards"],
   ["p", "Dashboards are for monitoring; nothing on them changes data. Figures refresh whenever the screen is opened."],
-  ["img", "adm_exec_dashboard.jpg", "Executive Dashboard: completions against the 400 / 60 / 50–75 targets, days to data lock, spend, and the lowest-filled strata."],
+  ["img", "adm_exec_dashboard.jpg", "Executive Dashboard: completions against the 400 / 60 / 108 targets, days to data lock, spend, and the lowest-filled strata."],
   ["table", ["Dashboard", "What it tells you", "Use it to"], [
-    ["Executive", "QUAN completed out of 400, KII completed out of 60, documents coded against 50–75, days to the 30 November 2026 data lock, spend to date, lowest-filled strata.", "See overall progress and where fieldwork attention is most needed."],
+    ["Executive", "QUAN completed out of 400, KII completed out of 60, documents coded against 108, days to the 30 November 2026 data lock, spend to date, lowest-filled strata.", "See overall progress and where fieldwork attention is most needed."],
     ["Sampling", "Main cases by province, verified/total by stratum, Reserve activations by reason.", "Check the design stays balanced across strata."],
     ["Contact", "Organisations verified, eligible respondents identified, invitations sent and opened, upcoming appointments, refusals, unreachable cases.", "Track outreach and spot stalled contact."],
     ["QA Dashboard", "Submissions today and in total, the open QA queue, decisions recorded, completions by administration mode.", "Keep the QA backlog under control."],

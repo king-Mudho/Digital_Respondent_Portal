@@ -31,15 +31,11 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 3 &mdash; 13 September 2026"
+REVISION = "Revision 4 &mdash; 25 October 2026"
 REVISION_NOTE = (
-    "Updated for role-scoped navigation (each role now sees only its own modules), "
-    "the QA Dashboard, register search and paging, the PROIT pre-interview profile, "
-    "and the eligibility and consent gates on the respondent flow. Organisations, "
-    "sample cases and Main&ndash;Reserve pairing are all now handled from the Research "
-    "Operations Centre rather than Django admin (Sections 4, 5.7 and 8), and the "
-    "register figures throughout match the live system as at 13 September 2026. "
-    "Supersedes Revision 2 of the same date."
+    "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
+    "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
+    "13 September 2026."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -621,7 +617,7 @@ story.append(P(
 
 story.append(h2("5.1 Executive Dashboard"))
 story.append(P("The home screen for the PI, Field Coordinator, Analyst and Supervisor. "
-               "Overall progress against the 400 QUAN / 60 KII / 50–75 "
+               "Overall progress against the 400 QUAN / 60 KII / 108 "
                "document targets, days remaining to the data-lock date, and the "
                "lowest-filled strata (where fieldwork attention is most needed). Quick "
                "links across the top open the sub-dashboards your role can reach."))

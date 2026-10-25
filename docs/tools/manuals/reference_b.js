@@ -79,7 +79,7 @@ const screens = [
   {
     id: "docs_register", group: "Documentary evidence", title: "Documents (the corpus)", path: "/admin/documents",
     roles: [R.PI, R.FC, R.DOC, R.SUP],
-    purpose: "The register of documentary evidence (target 50–75 coded, included documents).",
+    purpose: "The register of documentary evidence (target 108 coded, included documents).",
     rows: [
       ["New document", "Opens the New Documentary Evidence Record screen.", "Every source needs a record with a document ID before it can be coded.", "The New document screen opens.", { only: [R.PI, R.FC, R.DOC], write: true }],
       ["Search title, ID or author", "Filters the list as you type.", "Finding one document in 100 or more.", "Only matching documents are listed."],

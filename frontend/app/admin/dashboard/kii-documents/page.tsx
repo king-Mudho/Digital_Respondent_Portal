@@ -12,8 +12,7 @@ interface KIIDocumentDashboard {
   kii_by_status: Record<string, number>;
   documents_by_type: Record<string, number>;
   documents_by_qa_status: Record<string, number>;
-  documents_target_low: number;
-  documents_target_high: number;
+  documents_target: number;
 }
 
 /** docs/16_DASHBOARDS_AND_REPORTING.md "KII/document dashboard" -- counts
@@ -35,8 +34,8 @@ export default function KIIDocumentDashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <StatCard label="KII completed" value={`${data.kii_completed} / ${data.kii_target}`} />
             <StatCard
-              label="Documents (target range)"
-              value={`${data.documents_target_low}-${data.documents_target_high}`}
+              label="Documents coded"
+              value={`${data.documents_by_qa_status?.INCLUDED ?? 0} / ${data.documents_target}`}
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

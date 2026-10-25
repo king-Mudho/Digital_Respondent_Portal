@@ -357,7 +357,7 @@ module.exports = [
   guide({
     n: 6, key: "Documentary_RA", role: "Documentary RA", title: "Documentary Evidence Research Assistant",
     audience: "Research assistants who collect, assess and code documentary evidence",
-    purpose: "You build the documentary corpus of 50–75 coded sources: record each document, judge its authenticity before it can be included, explain your reasoning in a memo, and code it with the Document, Digital Platform & Media Analysis Tool in KoboToolbox.",
+    purpose: "You build the documentary corpus of 108 coded sources: record each document, judge its authenticity before it can be included, explain your reasoning in a memo, and code it with the Document, Digital Platform & Media Analysis Tool in KoboToolbox.",
     can: [
       "See the KII/Doc Dashboard, the Documents register and document records.",
       "Create document records: upload the document and let the AI fill in the details and draft the form (Quick add), or type them in.",
@@ -374,7 +374,7 @@ module.exports = [
     ],
     landing: "KII/Doc Dashboard",
     screens: [
-      ["KII/Doc Dashboard", "Documents by type and QA status against the 50–75 target."],
+      ["KII/Doc Dashboard", "Documents by type and QA status against the target of 108."],
       ["Form PDFs", "Completed document coding forms, and whether the portal matches KoboToolbox (Sync now)."],
       ["Documents", "The corpus; create records by uploading the document, and manage them."],
     ],
@@ -408,7 +408,7 @@ module.exports = [
       ["Auto-fill asks for **Pages to read**", "The PDF has more than 100 pages.", "Enter a range of up to 100 pages, such as one chapter, or tick **Read the whole document in parts**."],
       ["Uploaded the wrong file", "It happens.", "Select **Remove file** beside the file name, then upload the right one."],
     ],
-    quick: [["Target", "50–75 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Fast path", "New document → upload file → AI fills the record and drafts the form → check details → assess authenticity → review draft → Submit → Sync now"], ["Long report", "One record per chapter: Copy for another chapter, then the chapter's pages"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],
+    quick: [["Target", "108 coded documents"], ["Types", "OFFICIAL, SECONDARY, PLATFORM"], ["Fast path", "New document → upload file → AI fills the record and drafts the form → check details → assess authenticity → review draft → Submit → Sync now"], ["Long report", "One record per chapter: Copy for another chapter, then the chapter's pages"], ["Auto-fill", "AI drafts; you review every field; only Submit sends it"]],
   }),
 
   guide({

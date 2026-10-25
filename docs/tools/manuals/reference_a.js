@@ -82,7 +82,7 @@ const screens = [
   {
     id: "dash_kiidoc", group: "Dashboards and Reports (read-only)", title: "KII / Document Dashboard", path: "/admin/dashboard/kii-documents",
     roles: [R.PI, R.FC, R.AN, R.SUP, R.KII, R.DOC],
-    purpose: "Progress of the two qualitative strands against their targets (about 60 KIIs, 50–75 documents).",
+    purpose: "Progress of the two qualitative strands against their targets (about 60 KIIs, 108 documents).",
     rows: [
       ["KII by status", "Counts KII records at each stage (prospect, invited, scheduled, completed, declined, no-show).", "Shows how far the interview target has come.", "Read only."],
       ["Documents by type / by QA status", "Counts documents by type (official, secondary, platform) and by decision (pending, included, excluded).", "Only included documents count towards the corpus target.", "Read only."],

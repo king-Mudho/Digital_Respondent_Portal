@@ -135,3 +135,13 @@ def test_activated_reserve_can_now_be_invited(auth_client, locked_reserve_case):
     locked_reserve_case.refresh_from_db()
     raw_token, _, _ = issue_invitation(locked_reserve_case)
     assert raw_token
+
+
+def test_the_document_target_is_a_setting_not_a_literal(auth_client, settings):
+    """PI, 25 Oct 2026: 108 coded documents replaced the planned 50-75 range. A methodology number lives in config
+    (AGENTS.md rule 7), so the dashboards read DOCUMENT_TARGET and changing it needs no code change."""
+    assert auth_client.get("/api/v1/dashboards/executive/").json()["documents_target"] == 108
+    settings.DOCUMENT_TARGET = 120
+    for url in ("/api/v1/dashboards/executive/", "/api/v1/dashboards/kii-documents/"):
+        assert auth_client.get(url).json()["documents_target"] == 120, url
+    assert auth_client.get("/api/v1/reports/overview/").json()["kpis"]["documents_target"] == 120

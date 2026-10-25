@@ -10,7 +10,7 @@ The portal authenticates and routes the study's selected Main-400 respondents (p
 locked Reserve-400), captures consent and eligibility, launches the KoboToolbox
 questionnaire with controlled identifiers, reconciles submissions, and runs the KII,
 documentary-evidence, contact/CRM, QA and fieldwork-cost operations behind the 400 QUAN
-/ 60 KII / 50–75 document data-collection target. It is **not** a public survey tool and
+/ 60 KII / 108 document data-collection target. It is **not** a public survey tool and
 does **not** expose any ABI bankability score to respondents — see
 `docs/00_PROJECT_MASTER.md` for full project identity and `docs/20_EMBEDDING_WITH_ABI.md`
 for why it is deliberately kept separate from the public ABI self-assessment demo.
@@ -359,7 +359,7 @@ figures and lists on mixed screens but not the forms or buttons
 | Screen | Route | Purpose |
 |---|---|---|
 | A01 | `/admin/login` | Internal sign-in |
-| A02 | `/admin/dashboard` | Executive dashboard — overall progress vs. the 400/60/50–75 targets, days to data lock, coverage gaps by stratum |
+| A02 | `/admin/dashboard` | Executive dashboard — overall progress vs. the 400/60/108 targets, days to data lock, coverage gaps by stratum |
 | — | `/admin/dashboard/sampling` | Main-400 by province, verified/total by stratum, reserve activations by reason |
 | — | `/admin/dashboard/contact` | Organisations verified, invitations sent/opened, appointments, refusals |
 | — | `/admin/dashboard/qa` | Submissions today/cumulative, QA queue depth, decisions recorded, administration-mode split |

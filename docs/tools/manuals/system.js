@@ -55,7 +55,7 @@ module.exports = {
     ["kv", [
       ["Quantitative strand", "400 completed questionnaires from the Main-400 sample of agribusiness organisations, with 400 matched Reserve organisations for replacement."],
       ["Qualitative strand", "60 completed Key Informant Interviews (90 KII records loaded: Core-60 plus Reserve-30)."],
-      ["Documentary strand", "50–75 coded documents, digital platform and media sources (100 records loaded)."],
+      ["Documentary strand", "108 coded documents, digital platform and media sources (138 registered)."],
       ["Data lock", "30 November 2026."],
       ["Approvals", "Ethics and POTRAZ covered by the PI's CUT research clearance; Participant Information Sheet (v1.3), QA thresholds, invitation and reminder wording, and PROIT approved by the PI on 15 September 2026. The PIS is now v1.5: v1.4 changed the study email (22 Sep) and v1.5 added the paragraph telling respondents an AI tool is used to help with the public-information search (28 Sep)."],
     ]],
@@ -427,7 +427,7 @@ module.exports = {
       ["Invitation validity", "14 days"],
       ["Reminders", "Day 2 and Day 7"],
       ["QA duration limits", "5 to 90 minutes"],
-      ["Targets", "400 questionnaires · 60 KIIs · 50–75 documents"],
+      ["Targets", "400 questionnaires · 60 KIIs · 108 documents"],
       ["Data lock", "30 November 2026"],
     ]],
     ["h2", "Administration modes"],

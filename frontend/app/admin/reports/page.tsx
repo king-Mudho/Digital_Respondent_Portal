@@ -49,8 +49,7 @@ interface Report {
     kii_completed: number;
     kii_target: number;
     documents_included: number;
-    documents_target_low: number;
-    documents_target_high: number;
+    documents_target: number;
     cost_total: string;
     cost_per_qa_passed: string | null;
   };
@@ -369,8 +368,8 @@ export default function ReportsPage() {
               <Meter
                 label="Documents included in the evidence base"
                 value={data.kpis.documents_included}
-                target={data.kpis.documents_target_high}
-                note={`Target ${data.kpis.documents_target_low}–${data.kpis.documents_target_high}`}
+                target={data.kpis.documents_target}
+                note={`Target ${data.kpis.documents_target}`}
               />
             </Card>
             <ChartCard

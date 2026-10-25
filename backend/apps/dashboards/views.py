@@ -8,6 +8,7 @@ tests/test_dashboards.py::test_dashboards_never_expose_identifying_fields.
 
 from datetime import date
 
+from django.conf import settings
 from django.db.models import Count, Q, Sum
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -26,7 +27,6 @@ from apps.sampling.models import SampleCase, SampleType
 DATA_LOCK_DATE = date(2026, 11, 30)
 MAIN_TARGET = 400
 KII_TARGET = 60
-DOCUMENT_TARGET_LOW, DOCUMENT_TARGET_HIGH = 50, 75
 
 # InvitationToken.status is a monotonically-advancing funnel field (see
 # apps.invitations.services.advance_token_status) -- a token currently at
@@ -69,8 +69,7 @@ class ExecutiveDashboardView(APIView):
             "kii_completed": kii_completed,
             "kii_target": KII_TARGET,
             "documents_coded": documents_coded,
-            "documents_target_low": DOCUMENT_TARGET_LOW,
-            "documents_target_high": DOCUMENT_TARGET_HIGH,
+            "documents_target": settings.DOCUMENT_TARGET,
             "days_remaining_to_data_lock": days_remaining,
             "fieldwork_expenditure_to_date": str(total_cost),
             "highest_risk_coverage_gaps": gaps,
@@ -172,8 +171,7 @@ class KIIDocumentDashboardView(APIView):
             "kii_by_stakeholder_category": kii_by_category,
             "documents_by_type": documents_by_type,
             "documents_by_qa_status": documents_by_qa_status,
-            "documents_target_low": DOCUMENT_TARGET_LOW,
-            "documents_target_high": DOCUMENT_TARGET_HIGH,
+            "documents_target": settings.DOCUMENT_TARGET,
         })
 
 
