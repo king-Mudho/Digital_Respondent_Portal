@@ -8,6 +8,10 @@ export interface AdminScreen {
   id: string;
   path: string;
   label: string;
+  /** Sidebar group, its position, and this screen's position inside it (display only). */
+  group?: string;
+  group_order?: number;
+  order_in_group?: number;
 }
 
 export interface AdminUser {

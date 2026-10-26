@@ -1,6 +1,6 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.51 · 26 October 2026";
+const REVISION = "Version 1.52 · 26 October 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
@@ -53,7 +53,7 @@ const signIn = (landing, role) => [
   ["tip", "Accounts", "There is no self-registration. The PI / System Admin creates every account and sets its role. Ask the PI if you need an account, a different role, or a password reset."],
   ["h2", "Finding your way around"],
   ["bullets", [
-    "The **top bar** shows your username and role, and the screens you can use. It is not a full menu with some items greyed out: anything absent is simply not part of your role.",
+    "The **sidebar** on the left shows your username and role, and the screens you can use, grouped as Dashboards, Reaching respondents, Main 400 sample, KII & documents, Quality & data and Administration. Select a group's heading to open it; on a phone, select **Menu** to open the sidebar. It is not a full menu with some items greyed out: anything absent is simply not part of your role.",
     "Most screens have a **← Back to …** link at the top that returns you to the screen you came from.",
     "Registers show **20 rows per page** to begin with. At the foot of the list, **Show** lets you choose 10, 20, 50, 100 or 200 rows per page (the portal remembers your choice), and the page numbers, **Previous**, **Next** and the double arrows take you to any page. The **Search** box above the list narrows it.",
     "**Change password** (top right) lets you set a new password at any time. Choose a long password you do not use anywhere else.",

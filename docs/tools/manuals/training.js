@@ -408,7 +408,7 @@ const manual = {
     ["h2", "Exercise 1 — Getting around (all RAs)"],
     ["steps", [
       "Sign in with your practice account and change your password.",
-      "List the screens in your top bar and write one sentence on what each is for.",
+      "List the screens in your sidebar and write one sentence on what each is for.",
       "Open a screen that isn't yours from a link your facilitator gives you. What do you see?",
       "Sign out.",
     ]],

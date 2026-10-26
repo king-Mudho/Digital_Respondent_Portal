@@ -270,7 +270,7 @@ module.exports = {
     ["h1", "7. Procedures, step by step"],
     ["p", "Each procedure lists who may do it. Screens you cannot open are not in your menu."],
     ["h2", "7.1 Dashboards (all monitoring roles)"],
-    ["p", "Open any dashboard from the top bar; see 6.1."],
+    ["p", "Open any dashboard from the Dashboards group in the sidebar; see 6.1."],
     ...T.reports.map((b) => (b[0] === "h2" ? ["h2", "7.2 Reports (PI, FC, Analyst, Supervisor)"] : b)),
     ...numberedSections(T.registerOrg, "7.3", "Registering an organisation (PI, FC)"),
     ...T.pairAssign.map((b) => (b[0] === "h2" ? ["h2", "7.4 Pairing a Reserve and assigning a Contact RA (PI, FC)"] : b)),

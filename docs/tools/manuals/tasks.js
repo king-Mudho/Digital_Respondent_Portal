@@ -21,7 +21,7 @@ T.dashboards = [
 T.reports = [
   ["h2", "Using Reports (analytics and charts)"],
   ["steps", [
-    { text: "Select **Reports** in the top bar.", img: "adm_reports_top.jpg", caption: "Reports: headline figures for the chosen period." },
+    { text: "Select **Reports** in the sidebar (Dashboards).", img: "adm_reports_top.jpg", caption: "Reports: headline figures for the chosen period." },
     "Choose the period with **Last 7 days**, **Last 30 days**, **Last 90 days** or **All time**. Case progress (the funnel and workflow) is always cumulative; time-based figures such as submissions per day follow the period.",
     { text: "Read the headline cards: questionnaires submitted, passed QA, response rate (submitted ÷ invited), median completion time, follow-ups sent, withdrawals, Reserves activated, and fieldwork cost per QA-passed case.", img: "adm_reports_funnel.jpg", caption: "Case funnel: each case counted once at every stage it has reached." },
     { text: "Select **Show table** on any chart to see the exact numbers, for example to copy them into a progress report.", img: "adm_reports_funnel_table.jpg", caption: "The same chart as a table." },
@@ -48,7 +48,7 @@ T.registerOrg = [
   ["h2", "Registering a new organisation and its sample case"],
   ["p", "The approved registers are already loaded. Use this only for a late addition or replacement."],
   ["steps", [
-    { text: "Select **Organisations** in the top bar.", img: "adm_organisations.jpg", caption: "Register Organisation: the form (top) and the list of registered organisations (below)." },
+    { text: "Select **Organisations** in the sidebar (Main 400 sample).", img: "adm_organisations.jpg", caption: "Register Organisation: the form (top) and the list of registered organisations (below)." },
     "Complete **Name**, **District**, **Province**, **Entity type**, **Actor family**, **Value chain** and **Size class**. Province, actor family and size class decide the stratum, so check them carefully.",
     "Select **Register organisation**. The Master ID (e.g. MID-HA-000012) is generated automatically.",
     "When offered, choose **Main** or **Reserve** and select **Create sample case**. The Sample ID is generated and the new case page opens. You can also create the case later from the organisation's row in the list.",

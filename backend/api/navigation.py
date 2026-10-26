@@ -137,6 +137,21 @@ SCREENS = {
     ),
 }
 
+# How the sidebar groups the screens (2026-10-26: the single top bar had grown to 22 links and scrolled sideways). Display
+# only -- which screens a role gets is still SCREENS above, and its start screen is still the first of them in SCREENS
+# order, so grouping never moves anyone's landing page. Every screen is in exactly one group
+# (test_every_screen_is_in_exactly_one_sidebar_group).
+NAV_GROUPS = [
+    ("Dashboards", ["dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
+                    "dashboard_kii_documents", "reports"]),
+    ("Reaching respondents", ["calls", "follow_ups", "conversations", "appointments"]),
+    ("Main 400 sample", ["sample_register", "organisations", "reserve"]),
+    ("KII & documents", ["kii_register", "documents"]),
+    ("Quality & data", ["qa_queue", "qa_exceptions", "kobo_submissions"]),
+    ("Administration", ["cost", "export", "audit", "clearance_documents"]),
+]
+_GROUP_OF = {sid: (n, label, pos) for n, (label, ids) in enumerate(NAV_GROUPS) for pos, sid in enumerate(ids)}
+
 # Screens every signed-in role may open, and which never appear in the main
 # nav bar (the account screen sits next to "Sign out" instead).
 UNIVERSAL_PATHS = ("/admin/account",)
@@ -157,7 +172,8 @@ def screens_for_role(role_name: str | None) -> list[dict]:
     if not role_name:
         return []
     return [
-        {"id": screen_id, "path": path, "label": label}
+        {"id": screen_id, "path": path, "label": label, "group": _GROUP_OF[screen_id][1],
+         "group_order": _GROUP_OF[screen_id][0], "order_in_group": _GROUP_OF[screen_id][2]}
         for screen_id, (path, label, roles) in SCREENS.items()
         if role_name in roles
     ]

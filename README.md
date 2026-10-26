@@ -334,7 +334,9 @@ There are **eight roles**, and each internal endpoint checks a specific one, nev
 "is logged in."
 
 **Navigation is scoped to the role.** `backend/api/navigation.py` is the single source of
-truth for role → screens, served to the frontend by `GET /api/v1/auth/me/`. The nav bar
+truth for role → screens, served to the frontend by `GET /api/v1/auth/me/`. The left sidebar
+(grouped by `NAV_GROUPS` in the same file: Dashboards, Reaching respondents, Main 400 sample,
+KII & documents, Quality & data, Administration; a drawer behind **Menu** on a phone)
 renders exactly that list — it is not a full menu with some entries disabled — and each
 role lands on its own first screen at sign-in. A screen outside your role renders an
 explicit "not part of your role" card rather than a page whose every fetch 403s. This is

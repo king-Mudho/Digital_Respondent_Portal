@@ -20,10 +20,11 @@ async function signIn(page: Page, username: string) {
   await page.waitForURL(/\/admin\/(?!login)/);
 }
 
-/** The nav bar's own links, excluding the account/sign-out header row. */
+/** The sidebar's screen links, in the order shown (grouped by api/navigation.py NAV_GROUPS). */
 async function navLabels(page: Page): Promise<string[]> {
-  await expect(page.locator("nav a").first()).toBeVisible();
-  const labels = await page.locator("nav a").allInnerTexts();
+  const links = page.getByRole("navigation", { name: "Screens" }).getByRole("link");
+  await expect(links.first()).toBeVisible();
+  const labels = await links.allInnerTexts();
   return labels.filter((l) => l !== "Change password").map((l) => l.trim());
 }
 
@@ -36,19 +37,19 @@ const EXPECTED: Array<{
   {
     username: "e2e_contact_ra",
     landing: "/admin/sample",
-    nav: ["Main-400 Register", "Appointments", "Follow-ups", "Communications"],
+    nav: ["Calls", "Follow-ups", "Communications", "Appointments", "Main-400 Register"],
     refused: "/admin/audit",
   },
   {
     username: "e2e_quan_qa_ra",
     landing: "/admin/dashboard/qa",
-    nav: ["QA Dashboard", "Form PDFs", "QA Queue", "QA Exceptions"],
+    nav: ["QA Dashboard", "QA Queue", "QA Exceptions", "Form PDFs"],
     refused: "/admin/kii",
   },
   {
     username: "e2e_kii_ra",
     landing: "/admin/dashboard/kii-documents",
-    nav: ["KII/Doc Dashboard", "Communications", "Form PDFs", "KII Register"],
+    nav: ["KII/Doc Dashboard", "Calls", "Communications", "KII Register", "Form PDFs"],
     // The over-grant this pass fixed: IsQAOrAdmin let a KII RA edit
     // documents and take QA decisions.
     refused: "/admin/documents",
@@ -56,7 +57,7 @@ const EXPECTED: Array<{
   {
     username: "e2e_documentary_ra",
     landing: "/admin/dashboard/kii-documents",
-    nav: ["KII/Doc Dashboard", "Form PDFs", "Documents"],
+    nav: ["KII/Doc Dashboard", "Documents", "Form PDFs"],
     refused: "/admin/qa",
   },
 ];
@@ -80,6 +81,12 @@ test("the PI sees every module", async ({ page }) => {
   await signIn(page, process.env.E2E_ADMIN_USERNAME!);
 
   await expect(page).toHaveURL(/\/admin\/dashboard$/);
+  // With 22 screens only the current page's group starts open; open the rest.
+  const sidebar = page.getByRole("navigation", { name: "Screens" });
+  await expect(sidebar.getByRole("link").first()).toBeVisible();
+  const folded = sidebar.locator('button[aria-expanded="false"]');
+  await expect(folded).toHaveCount(5);
+  while ((await folded.count()) > 0) await folded.first().click();
   const labels = await navLabels(page);
 
   expect(labels).toContain("Audit Log");
@@ -87,7 +94,8 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Reserve Activation");
   expect(labels).toContain("Research Clearance"); // the PI-only screen added 2026-09-30, which made it 20
   expect(labels).toContain("Communications"); // Conversations (2026-10-07), renamed Communications, which made it 21
-  expect(labels.length).toBe(21);
+  expect(labels).toContain("Calls"); // the Calls screen (2026-10-26), which made it 22
+  expect(labels.length).toBe(22);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

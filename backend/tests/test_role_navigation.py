@@ -15,7 +15,7 @@ refuses (or hiding ones it allows).
 import pytest
 from rest_framework.test import APIClient
 
-from api.navigation import SCREENS, can_open_path, landing_path_for_role, screens_for_role
+from api.navigation import NAV_GROUPS, SCREENS, can_open_path, landing_path_for_role, screens_for_role
 from apps.accounts.models import Role, User
 
 # role -> the exact set of screen ids that role should see, per docs/18.
@@ -218,3 +218,20 @@ def test_kii_and_documentary_ras_can_open_their_own_dashboard(db):
 
 def test_quan_qa_ra_can_open_the_qa_dashboard(db):
     assert client_for(Role.QUAN_QA_RA).get("/api/v1/dashboards/qa/").status_code == 200
+
+
+def test_every_screen_is_in_exactly_one_sidebar_group(db):
+    """The sidebar (2026-10-26) groups what /auth/me/ serves. A screen left out of NAV_GROUPS would crash the menu for
+    every role that has it; one listed twice would show twice."""
+    grouped = [sid for _, ids in NAV_GROUPS for sid in ids]
+    assert sorted(grouped) == sorted(SCREENS) and len(grouped) == len(set(grouped))
+    for role_name in EXPECTED_SCREENS:
+        for s in screens_for_role(role_name):
+            assert s["group"] and isinstance(s["group_order"], int) and isinstance(s["order_in_group"], int)
+
+
+def test_grouping_never_moves_a_roles_start_screen(db):
+    """Grouping is display only: each role still lands on the first of its screens in SCREENS order."""
+    assert landing_path_for_role(Role.CONTACT_RA) == "/admin/sample"
+    assert landing_path_for_role(Role.KII_RA) == "/admin/dashboard/kii-documents"
+    assert landing_path_for_role(Role.PI_ADMIN) == "/admin/dashboard"

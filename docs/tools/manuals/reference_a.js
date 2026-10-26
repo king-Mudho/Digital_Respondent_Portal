@@ -19,10 +19,11 @@ const screens = [
     ],
   },
   {
-    id: "header", group: "Signing in and your account", title: "The header and menu bar (every screen)", path: "(top of every screen)", roles: ALL,
-    purpose: "Shown at the top of every signed-in screen. The menu bar lists only the screens your role may open.",
+    id: "header", group: "Signing in and your account", title: "The sidebar (every screen)", path: "(left of every screen; Menu button on a phone)", roles: ALL,
+    purpose: "Shown on the left of every signed-in screen. The sidebar lists only the screens your role may open, in groups.",
     rows: [
-      ["Menu bar (Executive, Sampling, … Audit)", "Opens a screen. The current screen is underlined.", "The list is built by the server from your role, so you never see a screen that would refuse you.", "The screen opens. A screen not in your list shows “This screen isn't part of your role”."],
+      ["Group heading (Dashboards, Reaching respondents, …)", "Opens or closes that group's list of screens.", "With many screens, only the group of the page you are on starts open, so the list fits without scrolling.", "The group's screens appear below its heading."],
+      ["Screen name (Executive, Calls, … Audit Log)", "Opens a screen. The current screen is highlighted.", "The list is built by the server from your role, so you never see a screen that would refuse you.", "The screen opens. A screen not in your list shows “This screen isn't part of your role”."],
       ["Change password", "Opens the Change Password screen.", "You should change the first password you were given, and any password you think someone saw.", "The Change Password screen opens."],
       ["Sign out", "Ends your session on this device.", "Protects the data if the device is shared or lost. Always sign out on a shared device.", "Your session on this device ends and you return to the Sign in screen."],
       ["← Back to … (top left)", "Returns to the parent screen (for example from a case to the register).", "A consistent way back that does not lose your place in the menu.", "The parent screen opens."],

@@ -31,11 +31,13 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 4 &mdash; 25 October 2026"
+REVISION = "Revision 5 &mdash; 26 October 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
-    "13 September 2026."
+    "13 September 2026. Revision 5 (26 October 2026): the screens are now listed in a sidebar on the left, "
+    "grouped into Dashboards, Reaching respondents, Main 400 sample, KII &amp; documents, Quality &amp; data and "
+    "Administration; on a phone it opens from the Menu button."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -419,9 +421,12 @@ story.append(note(
 ))
 story.append(h2("2.3 Finding your way around"))
 story.append(P(
-    "The top navigation bar lists <b>only the screens your role can open</b> — it is not "
-    "a full menu with some items disabled. A Contact RA sees two entries; the PI sees "
-    "fifteen. If you open a link to a screen outside your role (someone shares a URL, or "
+    "The sidebar on the left lists <b>only the screens your role can open</b>, grouped by what they are for "
+    "(Dashboards, Reaching respondents, Main 400 sample, KII &amp; documents, Quality &amp; data, Administration). "
+    "When a role has many screens, only the group holding the page you are on starts open; select another "
+    "group's heading to open it. On a phone the sidebar opens from the <b>Menu</b> button. It is not "
+    "a full menu with some items disabled. A Contact RA sees five entries; the PI sees "
+    "twenty-two. If you open a link to a screen outside your role (someone shares a URL, or "
     "you have an old bookmark) you get a short “This screen isn't part of your role” "
     "card with a link back to your own start screen, rather than a page that fails as it "
     "loads."
@@ -445,12 +450,12 @@ story.append(PageBreak())
 story.append(h1("3. Roles &mdash; Who Can Do What", key="roles"))
 story.append(P(
     "Every internal account has exactly one role, and that role decides <b>which screens "
-    "appear in your navigation bar at all</b>. You are not shown a full menu with items "
+    "appear in your sidebar at all</b>. You are not shown a full menu with items "
     "you cannot use; you are shown your own modules and nothing else. Permissions are "
     "then enforced again by the server on every action, so a screen reached another way "
     "(a shared URL, an old bookmark) still refuses the underlying request."
 ))
-story.append(h2("3.1 What each role sees in the navigation bar"))
+story.append(h2("3.1 What each role sees in the sidebar"))
 nav_rows = [
     ["PI / Admin", "15", "Everything, including the <b>Audit Log</b> and both exports.",
      "Executive Dashboard"],
@@ -465,7 +470,7 @@ nav_rows = [
     ["Documentary RA", "2", "KII/Document Dashboard; Documents.", "KII/Document Dashboard"],
 ]
 story.append(data_table(
-    ["Role", "Screens", "Modules in the navigation bar", "Lands on"],
+    ["Role", "Screens", "Modules in the sidebar", "Lands on"],
     nav_rows,
     [3.1 * cm, 1.5 * cm, PAGE_W - 2 * MARGIN - 9.2 * cm, 4.6 * cm],
 ))
@@ -549,7 +554,7 @@ story.append(note(
 story.append(Spacer(1, 8))
 story.append(P(
     "Registering an organisation and its sample case is done from the Research "
-    "Operations Centre itself, at <b>Organisations</b> in the top navigation bar "
+    "Operations Centre itself, at <b>Organisations</b> in the sidebar "
     "&mdash; no separate Django admin site needed for this. The screen is available to "
     "the PI and Field Coordinator."
 ))
@@ -568,7 +573,7 @@ story.append(P(
 ))
 story.append(h2("4.2 To register a Main organisation and its matched Reserve"))
 steps_setup = [
-    ("1", "Open <b>Organisations</b> in the top navigation bar."),
+    ("1", "Open <b>Organisations</b> in the sidebar (Main 400 sample)."),
     ("2", "Fill in the New organisation form (name, district, province, entity type, "
           "actor family, value chain, size class) and click <b>Register organisation</b>. "
           "Its Master ID is generated the moment you save."),
@@ -611,7 +616,7 @@ story.append(PageBreak())
 # ------------------------------------------------------------ SECTION 5 ---
 story.append(h1("5. The Research Operations Centre, Screen by Screen", key="screens"))
 story.append(P(
-    "Every screen below lives under the top navigation bar once signed in. You will only "
+    "Every screen below is listed in the sidebar once signed in. You will only "
     "see the ones your role covers (Section 3.1) — this section describes all of them."
 ))
 
@@ -878,7 +883,7 @@ story.append(P(
 ))
 walk_steps = [
     ("1", "<b>PI / Field Coordinator</b> registers the organisation at <b>Organisations</b> "
-          "in the navigation bar, and creates its sample case from the same screen "
+          "in the sidebar, and creates its sample case from the same screen "
           "(Section 4). Master ID and Sample ID are generated automatically."),
     ("2", "<b>PI / Field Coordinator</b> assigns a Contact RA on the case detail page, if a "
           "specific RA should own it — until then, no Contact RA can see the case."),
@@ -933,7 +938,7 @@ story.append(Spacer(1, 12))
 story.append(h2("9.2 Internal users"))
 trouble_rows_internal = [
     ["“This screen isn't part of your role.”", "You opened a screen outside your role — usually a shared link or an old bookmark.", "Use the link on that card to return to your own start screen. If you should have access, ask the PI to change your role (Section 3)."],
-    ["A module is missing from my navigation bar.", "Not a fault — the bar shows only your role's modules.", "Check Section 3.1 for what your role should see. Anything absent there is deliberate."],
+    ["A module is missing from my sidebar.", "Not a fault — the sidebar shows only your role's modules (open each group heading to see all of them).", "Check Section 3.1 for what your role should see. Anything absent there is deliberate."],
     ["“Too many sign-in attempts from this network.”", "Sign-in is rate-limited per network address, shared by everyone in one office.", "Wait about a minute and try again. This is not a password error — a wrong password says so explicitly."],
     ["A QA decision button won't click.", "QA decisions require a note.", "Write the note first; the buttons enable once it's there."],
     ["“Include” is greyed out on a document.", "Its authenticity hasn't been assessed yet.", "Mark it Verified or Disputed first (Section 5.11)."],

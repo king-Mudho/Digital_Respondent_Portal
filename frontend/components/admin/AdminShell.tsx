@@ -61,9 +61,9 @@ export function AdminShell({
 
   return (
     <AdminUserProvider value={user}>
-      <div className="min-h-screen flex flex-col">
+      <div className="min-h-screen lg:flex">
         <AdminNav />
-        <main className="flex-1 px-6 py-6">
+        <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">
           {allowed ? (
             <>
               {effectiveBackHref && (
@@ -91,7 +91,7 @@ function NoAccess({ landingPath, roleLabel }: { landingPath: string; roleLabel: 
       <h2 className="font-semibold">This screen isn&apos;t part of your role</h2>
       <p className="text-text-muted text-sm">
         Your account is set up as <b>{roleLabel || "an internal user"}</b>, which doesn&apos;t include this screen.
-        The links in the bar above are the screens you can use. If you think you should have access to this one,
+        The menu on the left lists the screens you can use. If you think you should have access to this one,
         ask the PI to change your role.
       </p>
       <Link href={landingPath} className="inline-block text-header underline text-sm">
