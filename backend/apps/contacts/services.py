@@ -37,3 +37,24 @@ def has_passed_eligibility(sample_case) -> bool:
     (not yet screened), which is correctly not eligible here.
     """
     return Respondent.objects.filter(sample_case=sample_case, is_eligible=True).exists()
+
+
+OPEN_APPOINTMENT_STATUSES = ("REQUESTED", "CONFIRMED")
+
+
+def open_appointment_exists():
+    """An Exists() subquery for querysets of SampleCase: the respondent asked for a call or interview (an appointment
+    REQUESTED or CONFIRMED). Such a case is never waiting for a reminder, never becomes Nonresponse and is never
+    replaced automatically, until the appointment is completed, missed or cancelled (2026-10-06 for reminders;
+    2026-10-26 for automatic replacement, which had missed it)."""
+    from django.db.models import Exists, OuterRef
+
+    from .models import Appointment
+
+    return Exists(Appointment.objects.filter(sample_case=OuterRef("pk"), status__in=OPEN_APPOINTMENT_STATUSES))
+
+
+def has_open_appointment(sample_case) -> bool:
+    from .models import Appointment
+
+    return Appointment.objects.filter(sample_case=sample_case, status__in=OPEN_APPOINTMENT_STATUSES).exists()

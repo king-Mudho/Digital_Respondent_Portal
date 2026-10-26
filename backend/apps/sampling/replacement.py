@@ -66,18 +66,26 @@ def _latest_outreach_status():
     return Subquery(Outreach.objects.filter(sample_case=OuterRef("pk")).order_by("-intro_sent_at").values("status")[:1])
 
 
+# A respondent who asked for a call has not "not responded": never replace a case for Nonresponse or No reply while it
+# has an open appointment (2026-10-26: SID-2026-000158 was, its 6 Oct call request still waiting). A refusal, an
+# ineligibility or a duplicate is an outcome of its own and is still replaced.
+WAIT_FOR_APPOINTMENT = (ReplacementTrigger.NONRESPONSE, ReplacementTrigger.NO_REPLY)
+
+
 def due(policy: ReplacementPolicy) -> list[tuple[SampleCase, str]]:
     """(Main case, trigger) for every Main case the policy says to replace now, oldest first."""
+    from apps.contacts.services import open_appointment_exists
     from apps.messaging.models import OutreachStatus
 
     triggers = [t for t in policy.triggers if t in ReplacementTrigger.values]
     statuses = {TRIGGER_STATUS[t]: t for t in triggers if t in TRIGGER_STATUS}
-    wanted = Q(workflow_status__in=list(statuses))
+    waiting = [s for s, t in statuses.items() if t in WAIT_FOR_APPOINTMENT]
+    wanted = Q(workflow_status__in=[s for s in statuses if s not in waiting]) | Q(workflow_status__in=waiting, has_open_appointment=False)
     if ReplacementTrigger.NO_REPLY in triggers:
-        wanted |= Q(workflow_status__in=NO_REPLY_FROM, latest_outreach=OutreachStatus.NO_REPLY)
+        wanted |= Q(workflow_status__in=NO_REPLY_FROM, latest_outreach=OutreachStatus.NO_REPLY, has_open_appointment=False)
     cases = (SampleCase.objects.filter(sample_type=SampleType.MAIN, matched_case__sample_type=SampleType.RESERVE,
                                        matched_case__status=ReserveStatus.LOCKED)
-             .annotate(latest_outreach=_latest_outreach_status()).filter(wanted)
+             .annotate(latest_outreach=_latest_outreach_status(), has_open_appointment=open_appointment_exists()).filter(wanted)
              .select_related("matched_case", "organisation").order_by("updated_at", "sample_id"))
     return [(case, statuses.get(case.workflow_status, ReplacementTrigger.NO_REPLY)) for case in cases]
 
@@ -113,6 +121,10 @@ def replace(case: SampleCase, trigger: str, policy: ReplacementPolicy) -> Sample
             return None
         reserve = SampleCase.objects.select_for_update().get(pk=case.matched_case_id)
         if reserve.sample_type != SampleType.RESERVE or reserve.status != ReserveStatus.LOCKED:
+            return None
+        from apps.contacts.services import has_open_appointment
+
+        if trigger in WAIT_FOR_APPOINTMENT and has_open_appointment(case):  # booked since due() listed it
             return None
         if trigger == ReplacementTrigger.NO_REPLY:
             transition_workflow_status(case, WorkflowStatus.S13_NONRESPONSE)

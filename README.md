@@ -783,6 +783,19 @@ works):
 
 ## Notable fixes
 
+### Automatic replacement never closes a case that asked for a call (26 Oct 2026)
+
+On 24 Oct automatic replacement closed SID-2026-000158 (Sable Chickens) as S13 Nonresponse, under "No reply to the
+introduction", and activated its Reserve. But the respondent had asked on 6 Oct for a WhatsApp voice interview, and
+that appointment was still REQUESTED. The reminder and Nonresponse rule already left such cases alone (2026-10-06);
+`sampling.replacement` never checked. It went unnoticed because the 13 call requests had sat unconfirmed for up to
+three weeks, and the 14 Oct fresh start revoked those cases' links without touching their appointments, so nothing
+showed them as live. One check now serves both paths: `contacts.services.open_appointment_exists()` (an appointment
+REQUESTED or CONFIRMED). Replacement skips such a case for Nonresponse and No reply, both when it lists the day's
+cases and again inside `replace()`, in case a call is booked in between. A refusal, an ineligibility or a duplicate
+is still replaced. SID-2026-000065 (Charter Seeds) was closed the same way on 17 Oct by a one-off contact import, not
+by this code. Re-opening either case is the PI's sampling decision.
+
 ### Calls: phone everyone who hasn't finished (25 Oct 2026)
 
 The PI asked for one place to phone people whose link was sent but who have not finished; until now that meant an

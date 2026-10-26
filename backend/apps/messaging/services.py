@@ -9,7 +9,6 @@ SMS or WhatsApp is set up; until then every due reminder waits on Follow-ups.
 
 from urllib.parse import quote
 
-from django.db.models import Exists, OuterRef
 from django.utils import timezone
 
 from apps.audit.utils import log_action
@@ -105,14 +104,11 @@ def _awaiting(assigned_to=None, *, include_dead=False) -> list[_Awaiting]:
     reminders were marked sent the case could become Nonresponse and its Reserve be activated in its place.
 
     A case with no live invitation at all (every one revoked or superseded) is left out unless `include_dead`."""
-    from apps.contacts.models import Appointment, AppointmentStatus
+    from apps.contacts.services import open_appointment_exists
 
-    open_appointment = Appointment.objects.filter(
-        sample_case=OuterRef("pk"), status__in=[AppointmentStatus.REQUESTED, AppointmentStatus.CONFIRMED],
-    )
     cases = (
         SampleCase.objects.filter(sample_type=SampleType.MAIN, workflow_status__in=AWAITING_RESPONSE_STATUSES)
-        .exclude(Exists(open_appointment))
+        .exclude(open_appointment_exists())
         .select_related("organisation")
         .prefetch_related("respondents")
     )

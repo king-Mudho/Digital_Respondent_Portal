@@ -181,6 +181,43 @@ def test_no_reply_to_the_introduction_moves_the_main_to_s13_and_replaces_it(twil
     assert "did not reply to the introduction" in locked_reserve_case.activation_evidence_note
 
 
+@pytest.mark.parametrize("appointment, replaced", [("REQUESTED", False), ("CONFIRMED", False), ("MISSED", True), ("CANCELLED", True)])
+@pytest.mark.parametrize("trigger", ["NO_REPLY", "NONRESPONSE"])
+def test_a_case_that_asked_for_a_call_is_never_replaced_while_the_call_is_open(twilio, pi, main_case, locked_reserve_case,
+                                                                              trigger, appointment, replaced):
+    """2026-10-26: SID-2026-000158 asked on 6 Oct for a WhatsApp voice interview, and on 24 Oct automatic replacement
+    closed it as Nonresponse for not answering the introduction. A respondent who asked for a call has responded."""
+    from apps.contacts.models import Appointment
+
+    _person(locked_reserve_case, "0779999999")
+    _person(main_case)
+    _to(main_case, "S01", "S02", "S03")
+    if trigger == "NO_REPLY":
+        Outreach.objects.create(sample_case=main_case, channel="WHATSAPP", number_hash="h", number_masked="m",
+                                intro_sent_at=timezone.now() - timedelta(days=8), status=OutreachStatus.NO_REPLY)
+    else:
+        issue_invitation(main_case, channel="WHATSAPP", issued_by=pi)
+        _to(main_case, "S13")
+    Appointment.objects.create(sample_case=main_case, scheduled_for=timezone.now() - timedelta(days=5), mode="PHONE", status=appointment)
+    _switch_on(pi, triggers=[trigger])
+    run_auto_replacement()
+    locked_reserve_case.refresh_from_db()
+    main_case.refresh_from_db()
+    assert (locked_reserve_case.status == ReserveStatus.ACTIVATED) is replaced
+    if not replaced:
+        assert main_case.workflow_status == ("S03" if trigger == "NO_REPLY" else "S13")  # untouched
+
+
+def test_a_refusal_is_still_replaced_even_with_a_call_booked(twilio, pi, refused, locked_reserve_case):
+    from apps.contacts.models import Appointment
+
+    Appointment.objects.create(sample_case=refused, scheduled_for=timezone.now(), mode="PHONE", status="REQUESTED")
+    _switch_on(pi, triggers=["REFUSED"])
+    run_auto_replacement()
+    locked_reserve_case.refresh_from_db()
+    assert locked_reserve_case.status == ReserveStatus.ACTIVATED  # a refusal is an outcome of its own
+
+
 def test_an_introduction_still_waiting_for_a_reply_is_not_replaced(twilio, pi, main_case, locked_reserve_case):
     _person(main_case)
     _to(main_case, "S01", "S02", "S03")
