@@ -70,3 +70,11 @@ class TwilioWebhookThrottle(AnonRateThrottle):
     X-Twilio-Signature before anything is stored; this scope only keeps the volume generous."""
 
     scope = "twilio_webhook"
+
+
+class WhatsAppMediaThrottle(AnonRateThrottle):
+    """Per-IP throttle for the signed links Twilio fetches outgoing WhatsApp files from (2026-11-04). Its own scope, so
+    a burst of pictures never competes with delivery reports or the respondent journey. The link itself is the
+    credential: signed, for one file, and expired after WHATSAPP_MEDIA_LINK_MINUTES."""
+
+    scope = "whatsapp_media"

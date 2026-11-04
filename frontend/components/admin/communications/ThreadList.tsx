@@ -1,7 +1,7 @@
 "use client";
 
 import { PAGE_SIZE_OPTIONS } from "@/components/admin/Pagination";
-import { shortTime, threadKey, type Channel, type Kind, type ThreadPage } from "@/lib/api/communications";
+import { shortTime, threadKey, type Channel, type Kind, type StatusFilter, type ThreadPage } from "@/lib/api/communications";
 import { ChannelBadge, StatusTicks } from "./Marks";
 
 export type Show = "all" | "waiting" | "failed";
@@ -10,6 +10,8 @@ export interface ListFilters {
   show: Show;
   register: "" | Kind;
   channel: "" | Channel;
+  /** What happened: read, delivered not read, replied, never replied, called, not called (2026-11-04). */
+  status: StatusFilter;
   q: string;
   page: number;
   pageSize: number;
@@ -98,6 +100,19 @@ export function ThreadList({
             <option value="EMAIL">Email</option>
           </select>
         </div>
+        <select
+          aria-label="What happened"
+          value={filters.status}
+          onChange={(e) => onFilters({ status: e.target.value as StatusFilter, page: 1 })}
+          className={`w-full rounded-md border px-2 py-1.5 text-xs ${filters.status ? "border-header bg-bg font-medium" : "border-border bg-surface"}`}
+        >
+          <option value="">Anyone, whatever happened</option>
+          {(data?.status_filters ?? []).map((f) => (
+            <option key={f.key} value={f.key}>
+              {f.label} ({f.count})
+            </option>
+          ))}
+        </select>
       </div>
 
       <ul className="min-h-0 flex-1 overflow-y-auto" aria-label="Conversations">
@@ -125,7 +140,9 @@ export function ThreadList({
               ? "Nobody is waiting for an answer."
               : filters.show === "failed"
                 ? "No conversation's last message failed to arrive."
-                : "No conversations match."}
+                : filters.status
+                  ? "Nobody matches that filter."
+                  : "No conversations match."}
           </li>
         )}
         {data?.results.map((row) => {
@@ -158,9 +175,14 @@ export function ThreadList({
                   </p>
                   {row.waiting && <span className="h-2 w-2 shrink-0 rounded-full bg-header" aria-label="Waiting for an answer" />}
                 </div>
-                {row.channels.length > 0 && (
-                  <div className="mt-1.5 flex gap-1">
+                {(row.channels.length > 0 || row.called) && (
+                  <div className="mt-1.5 flex flex-wrap gap-1">
                     {row.channels.map((c) => <ChannelBadge key={c} channel={c} />)}
+                    {row.called && (
+                      <span className="inline-flex items-center rounded border border-border px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+                        Called
+                      </span>
+                    )}
                   </div>
                 )}
               </button>

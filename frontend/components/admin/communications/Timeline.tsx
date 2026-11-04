@@ -35,6 +35,9 @@ function Event({ item }: { item: EventItem }) {
 
 function Outgoing({ item }: { item: OutItem }) {
   const failed = item.status === "UNDELIVERED" || item.status === "FAILED";
+  // A file is kept as "[Picture: farm.jpg]" then its caption; the file itself shows below, so only the caption is text.
+  const files = item.attachments ?? [];
+  const body = files.length ? item.body.replace(/^\[[^\]\n]*\]\n?/, "") : item.body;
   return (
     <li className="flex justify-end pl-10 sm:pl-24">
       <article className="max-w-full" aria-label={`${item.purpose_label} sent ${fullTime(item.at)}`}>
@@ -49,7 +52,10 @@ function Outgoing({ item }: { item: OutItem }) {
             <span>· to {item.to}</span>
           </div>
           {item.subject && <p className="font-medium">{item.subject}</p>}
-          <p className="whitespace-pre-wrap break-words">{item.body || <i className="text-text-muted">(text erased)</i>}</p>
+          {(body || !files.length) && (
+            <p className="whitespace-pre-wrap break-words">{body || <i className="text-text-muted">(text erased)</i>}</p>
+          )}
+          {files.map((a) => <Attachment key={a.id} attachment={a} sent />)}
         </div>
         <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] text-text-muted">
           <span title={fullTime(item.at)} className="tabular-nums">{shortTime(item.at)}</span>
@@ -65,12 +71,17 @@ function Outgoing({ item }: { item: OutItem }) {
 
 const PROXY = "/api/proxy";
 
-/** A voice note plays here, a picture shows here, a shared contact reads as text; anything else opens in a new tab. */
-export function Attachment({ attachment: a }: { attachment: InAttachment }) {
+/** A voice note plays here, a picture or video shows here, a shared contact reads as text; anything else opens in a
+ *  new tab. `sent`: one the study sent (2026-11-04), rather than one they sent in. */
+export function Attachment({ attachment: a, sent = false }: { attachment: InAttachment; sent?: boolean }) {
   const src = a.url ? `${PROXY}${a.url}` : "";
   return (
     <div className="mt-1.5 space-y-1">
-      <p className="text-[11px] font-medium text-text-muted">{a.label}</p>
+      <p className="text-[11px] font-medium text-text-muted">
+        {a.label}
+        {a.filename && a.kind !== "VOICE" && <span className="font-normal"> · {a.filename}</span>}
+        {a.size > 0 && <span className="font-normal tabular-nums"> · {formatSize(a.size)}</span>}
+      </p>
       {a.error ? (
         <p className="text-[11px] text-danger">{a.error}</p>
       ) : a.kind === "CONTACT" ? (
@@ -80,13 +91,19 @@ export function Attachment({ attachment: a }: { attachment: InAttachment }) {
       ) : a.kind === "IMAGE" && src ? (
         <a href={src} target="_blank" rel="noreferrer">
           {/* eslint-disable-next-line @next/next/no-img-element -- a private, authenticated file, not a static asset */}
-          <img src={src} alt="Picture they sent" className="max-h-60 max-w-full rounded-md border border-border" />
+          <img src={src} alt={sent ? "Picture sent" : "Picture they sent"} className="max-h-60 max-w-full rounded-md border border-border" />
         </a>
+      ) : a.kind === "VIDEO" && src ? (
+        <video controls preload="none" src={src} className="max-h-60 max-w-full rounded-md border border-border" />
       ) : src ? (
         <a href={src} target="_blank" rel="noreferrer" className="text-xs underline">Open the {a.label.toLowerCase()}</a>
       ) : null}
     </div>
   );
+}
+
+function formatSize(bytes: number): string {
+  return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 function Incoming({ item }: { item: InItem }) {

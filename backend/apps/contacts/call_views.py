@@ -26,8 +26,9 @@ class CallListView(APIView):
 
 
 class CallLogView(APIView):
-    """POST /api/v1/calls/{main|kii}/{SID-.../KII-...}/ {outcome, notes, next_action_date} -- records one phone call
-    in the case's or record's contact-attempt log. Supervisor is read-only (CanUseCalls)."""
+    """POST /api/v1/calls/{main|kii}/{SID-.../KII-...}/ {outcome, notes, next_action_date, channel} -- records one call
+    in the case's or record's contact-attempt log: channel PHONE (the default), WHATSAPP_CALL or WHATSAPP_VIDEO.
+    Supervisor is read-only (CanUseCalls)."""
 
     permission_classes = [CanUseCalls]
 
@@ -35,7 +36,8 @@ class CallLogView(APIView):
         d = request.data
         try:
             event = log_call(request.user, kind, ident, outcome=d.get("outcome", ""), notes=d.get("notes", ""),
-                             next_action_date=d.get("next_action_date") or None)
+                             next_action_date=d.get("next_action_date") or None,
+                             channel=str(d.get("channel") or "PHONE"))
         except CallError as exc:
             return _error(exc)
         return Response({"id": event.pk, "outcome": event.outcome, "occurred_at": event.occurred_at.isoformat()}, status=201)

@@ -471,6 +471,31 @@ letters) so a respondent can check the study is real before answering anything.
   questionnaire submitted, follow-ups and calls). People write back from the same screen on
   any channel the rules allow. A Contact RA sees their own cases, a KII RA the KII records,
   the Supervisor reads. Replaced the WhatsApp-only Conversations screen.
+  Since 4 Nov 2026, inside the same 24-hour WhatsApp window as a written reply:
+  - **Files:** documents (PDF, Word, Excel, PowerPoint, TXT), photos and videos from the gallery
+    (JPG/PNG up to 5 MB, MP4 up to 16 MB).
+  - **Voice notes and contacts:** a voice note recorded in the browser, and a contact card.
+
+  How the files are handled (`apps/messaging/media_out.py`):
+  - **Checking:** each file is checked by its first bytes, not only its name.
+  - **Storage:** it is kept in `PRIVATE_DATA_ROOT`.
+  - **Delivery:** Twilio fetches it through a signed link (`/api/v1/twilio/media/…`) that names one file and expires after
+    `WHATSAPP_MEDIA_LINK_MINUTES`. The link has its own `whatsapp_media` throttle scope.
+  - **Voice notes:** a Chrome or Edge recording (WebM/Opus) is rewritten as Ogg/Opus in Python (`apps/messaging/voice.py`,
+    no ffmpeg).
+  - **Withdrawal:** the files are deleted when a participant withdraws.
+
+  Calls from the conversation:
+  - **WhatsApp calls:** **Voice call** and **Video call** open the person's chat in the caller's own WhatsApp. A business number
+    cannot start a video call, and calling from the Twilio number needs Meta's calling feature.
+  - **Phone:** **Phone** dials the number.
+  - **Logging:** each call is logged as `PHONE`, `WHATSAPP_CALL` or `WHATSAPP_VIDEO`.
+
+  Also on the screen:
+  - **List filter:** narrows to read / delivered-not-read / no delivery report / written back / never written back /
+    called / not called, with counts.
+  - **Contact card:** shows every number with Phone, WhatsApp and Copy links, gatekeepers, the organisation's details,
+    the contacts found publicly, and where they stand (link, consent, calls, the last message read).
 - **Withdrawal** (case page). One action records a WITHDRAWN consent and revokes live
   invitations, which stops reminders. Where the workflow allows, it moves the case to
   S12, erases the respondent's contact fields and writes an audit entry. Answers already
@@ -618,6 +643,7 @@ celery -A config beat --loglevel=info
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
 | `COMMUNICATION_BLOCKED_PHRASES`, `COMMUNICATION_MAX_LENGTH` | Words a message written in Communications may never contain (AGENTS.md rule 2), and its maximum length |
+| `WHATSAPP_IMAGE_MAX_MB`, `WHATSAPP_MEDIA_MAX_MB`, `WHATSAPP_MEDIA_LINK_MINUTES`, `WHATSAPP_MEDIA_FILES_PER_SEND`, `WHATSAPP_MEDIA_THROTTLE_RATE` | Files sent on WhatsApp from Communications: picture and other size limits (5 / 16 MB, WhatsApp's own), how long Twilio's signed link to a file works (60 minutes), files per send (10), and the link's throttle |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |
 | `TWILIO_WA_CONTENT_INVITATION`, `TWILIO_WA_CONTENT_KII_INVITATION`, `TWILIO_WA_CONTENT_REMINDER_DAY2`, `TWILIO_WA_CONTENT_REMINDER_DAY7` | Meta-approved WhatsApp templates (Twilio Content `HX…` ids); invitation variables `{{1}}` who it is for, `{{2}}` link, `{{3}}` valid-until date, `{{4}}` code |

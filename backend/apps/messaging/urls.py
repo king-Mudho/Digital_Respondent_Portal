@@ -3,8 +3,11 @@ from django.urls import path
 from .views import (
     CaseOutreachView,
     CommunicationAttachmentView,
+    CommunicationContactShareView,
     CommunicationHandledView,
+    CommunicationMediaView,
     CommunicationSendView,
+    CommunicationSentAttachmentView,
     CommunicationSummaryView,
     CommunicationThreadListView,
     CommunicationThreadView,
@@ -17,6 +20,7 @@ from .views import (
     KIIOutreachUnansweredView,
     KIIOutreachView,
     TwilioInboundView,
+    TwilioMediaView,
     TwilioStatusView,
 )
 
@@ -27,6 +31,7 @@ urlpatterns = [
     path("follow-ups/mark-sent/", FollowUpMarkSentView.as_view(), name="follow-ups-mark-sent"),
     path("twilio/status/", TwilioStatusView.as_view(), name="twilio-status"),
     path("twilio/inbound/", TwilioInboundView.as_view(), name="twilio-inbound"),
+    path("twilio/media/<str:token>/<str:filename>", TwilioMediaView.as_view(), name="twilio-media"),
     path("conversations/", ConversationListView.as_view(), name="conversations"),
     path("conversations/<int:pk>/handled/", ConversationHandledView.as_view(), name="conversation-handled"),
     path("conversations/<int:pk>/reply/", ConversationReplyView.as_view(), name="conversation-reply"),
@@ -38,6 +43,9 @@ urlpatterns = [
     path("communications/threads/<str:kind>/<int:pk>/", CommunicationThreadView.as_view(), name="communications-thread"),
     path("communications/threads/<str:kind>/<int:pk>/send/", CommunicationSendView.as_view(), name="communications-send"),
     path("communications/threads/<str:kind>/<int:pk>/handled/", CommunicationHandledView.as_view(), name="communications-handled"),
+    path("communications/threads/<str:kind>/<int:pk>/media/", CommunicationMediaView.as_view(), name="communications-media"),
+    path("communications/threads/<str:kind>/<int:pk>/contact/", CommunicationContactShareView.as_view(), name="communications-contact"),
     path("communications/unknown/", CommunicationUnknownView.as_view(), name="communications-unknown"),
     path("communications/attachments/<int:pk>/", CommunicationAttachmentView.as_view(), name="communications-attachment"),
+    path("communications/sent-attachments/<int:pk>/", CommunicationSentAttachmentView.as_view(), name="communications-sent-attachment"),
 ]

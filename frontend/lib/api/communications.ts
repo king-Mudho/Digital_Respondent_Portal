@@ -17,6 +17,18 @@ export interface ThreadRow {
   last_sent_status: DeliveryStatus | "";
   channels: Channel[];
   last_message: { direction: "in" | "out" | ""; channel: Channel | ""; text: string };
+  /** They have written back (not counting an automatic greeting); somebody has called them (2026-11-04). */
+  replied?: boolean;
+  called?: boolean;
+}
+
+/** What the list can be narrowed to by what happened (backend communications.STATUS_FILTERS), with counts. */
+export type StatusFilter = "" | "read" | "unread" | "no_report" | "replied" | "no_reply" | "called" | "not_called";
+
+export interface StatusFilterOption {
+  key: Exclude<StatusFilter, "">;
+  label: string;
+  count: number;
 }
 
 export interface ThreadPage {
@@ -25,6 +37,7 @@ export interface ThreadPage {
   page_size: number;
   results: ThreadRow[];
   unknown_waiting: number;
+  status_filters?: StatusFilterOption[];
 }
 
 export interface OutItem {
@@ -43,6 +56,8 @@ export interface OutItem {
   to: string;
   by: string;
   from_mailbox: boolean;
+  /** Documents, pictures, videos and voice notes the study sent on WhatsApp (2026-11-04). */
+  attachments?: InAttachment[];
 }
 
 export interface InAttachment {
@@ -54,6 +69,7 @@ export interface InAttachment {
   error: string;
   size: number;
   url: string;
+  filename?: string;
 }
 
 export interface InItem {
@@ -85,6 +101,12 @@ export interface EventItem {
 
 export type TimelineItem = OutItem | InItem | EventItem;
 
+export interface DialNumber {
+  number: string;
+  whatsapp_link: string;
+  tel: string;
+}
+
 export interface Person {
   name: string;
   role: string;
@@ -92,6 +114,15 @@ export interface Person {
   whatsapp: string;
   email: string;
   eligible: boolean | null;
+  gatekeeper?: string;
+  numbers?: DialNumber[];
+}
+
+export interface ProgressRow {
+  label: string;
+  value: string;
+  at: string;
+  detail: string;
 }
 
 export interface ContactCardData {
@@ -106,6 +137,31 @@ export interface ContactCardData {
   assigned_to: string;
   page: string;
   people: Person[];
+  details?: { label: string; value: string }[];
+  public_contacts?: string;
+  source_url?: string;
+  other_emails?: string[];
+  progress?: ProgressRow[];
+}
+
+export interface MediaOptions {
+  available: boolean;
+  extensions: string[];
+  image_max_mb: number;
+  max_mb: number;
+  files_per_send: number;
+  caption_max: number;
+}
+
+export type CallChannel = "PHONE" | "WHATSAPP_CALL" | "WHATSAPP_VIDEO";
+
+/** The call buttons: every number with its links, and what a call can be logged as (2026-11-04). */
+export interface CallOptions {
+  can_log: boolean;
+  ident: string;
+  numbers: (DialNumber & { person: string })[];
+  outcomes: { value: string; label: string }[];
+  channels: { value: CallChannel; label: string }[];
 }
 
 export interface Recipient {
@@ -118,6 +174,7 @@ export interface ChannelOption {
   reason: string;
   recipients: Recipient[];
   reply_subject?: string;
+  media?: MediaOptions;
 }
 
 export interface ComposerData {
@@ -142,6 +199,7 @@ export interface ThreadData {
   subject: ContactCardData;
   items: TimelineItem[];
   composer: ComposerData;
+  calls?: CallOptions;
 }
 
 export interface TemplateApproval {

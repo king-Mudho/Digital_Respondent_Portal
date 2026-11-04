@@ -167,6 +167,8 @@ REST_FRAMEWORK = {
         # Twilio's delivery reports and incoming messages (api/throttling.TwilioWebhookThrottle): several reports per
         # message sent, from a few Twilio addresses, each signature-checked.
         "twilio_webhook": env("TWILIO_WEBHOOK_THROTTLE_RATE", default="1200/minute"),
+        # Twilio fetching a file the study is sending on WhatsApp (api/throttling.WhatsAppMediaThrottle, 2026-11-04).
+        "whatsapp_media": env("WHATSAPP_MEDIA_THROTTLE_RATE", default="120/minute"),
     },
     "EXCEPTION_HANDLER": "api.exceptions.drp_exception_handler",
 }
@@ -402,6 +404,12 @@ STUDY_LETTERS_KEY = env("STUDY_LETTERS_KEY", default="")
 # Days with no reply before the one reminder, then days after it before the case is listed for RAs to phone.
 # Voice notes, pictures and files people send on WhatsApp are copied into PRIVATE_DATA_ROOT (apps/messaging/media.py).
 WHATSAPP_MEDIA_MAX_MB = env.float("WHATSAPP_MEDIA_MAX_MB", default=16)
+# Sending documents, pictures, videos and voice notes from Communications (apps/messaging/media_out.py, 2026-11-04).
+# WhatsApp takes pictures up to 5 MB and other media up to 16 MB; Twilio fetches each file through a signed link that
+# stops working after WHATSAPP_MEDIA_LINK_MINUTES.
+WHATSAPP_IMAGE_MAX_MB = env.float("WHATSAPP_IMAGE_MAX_MB", default=5)
+WHATSAPP_MEDIA_LINK_MINUTES = env.int("WHATSAPP_MEDIA_LINK_MINUTES", default=60)
+WHATSAPP_MEDIA_FILES_PER_SEND = env.int("WHATSAPP_MEDIA_FILES_PER_SEND", default=10)
 # A WhatsApp message that is not a clear YES or NO waits for a person on Communications with no automatic answer
 # (PI decision, 2026-10-14). True brings back the one-a-day automatic answer (apps/messaging/outreach.py).
 OUTREACH_AUTO_ANSWER_OTHER = env.bool("OUTREACH_AUTO_ANSWER_OTHER", default=False)

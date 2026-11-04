@@ -89,6 +89,8 @@ ACTION_LABELS: dict[str, str] = {
     "communication.attachment_opened": "WhatsApp attachment opened on Communications",
     "conversation.phone_requested": "Sent their invitation code: wants to answer by phone",
     "communication.sent": "Message written in Communications and sent (WhatsApp, SMS or email)",
+    "communication.media_sent": "Document, photo, video or voice note sent on WhatsApp from Communications",
+    "communication.sent_attachment_opened": "File the study sent on WhatsApp opened on Communications",
     "outreach.accept_not_sent": "Said yes, but no link could be sent",
     "proit.kii_research_imported": "KII background research imported for review (ChatGPT workbook)",
     "proit.main_research_imported": "Main-400 background research imported for review (ChatGPT workbook)",

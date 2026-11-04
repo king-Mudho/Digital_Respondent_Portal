@@ -5,15 +5,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { PAGE_SIZE_OPTIONS } from "@/components/admin/Pagination";
+import { CallBar, type CallLog } from "@/components/admin/communications/CallBar";
 import { ChannelHealth } from "@/components/admin/communications/ChannelHealth";
 import { Composer, type Draft } from "@/components/admin/communications/Composer";
 import { ContactCard } from "@/components/admin/communications/ContactCard";
 import { ThreadList, type ListFilters } from "@/components/admin/communications/ThreadList";
 import { Timeline } from "@/components/admin/communications/Timeline";
 import { UnknownSenders } from "@/components/admin/communications/UnknownSenders";
+import type { SharedContact } from "@/components/admin/communications/WhatsAppTools";
 import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
-import { adminFetch } from "@/lib/api/admin";
+import { adminFetch, adminUpload } from "@/lib/api/admin";
 import { parseThreadKey, type Summary, type ThreadData, type ThreadPage } from "@/lib/api/communications";
 import { useAdminUser } from "@/lib/auth/session";
 
@@ -46,7 +48,7 @@ function Communications() {
   const selectedKey = params.get("t");
   const selected = parseThreadKey(selectedKey);
   const unknownOpen = selectedKey === "unknown";
-  const [filters, setFilters] = useState<ListFilters>({ show: "all", register: "", channel: "", q: "", page: 1, pageSize: 20 });
+  const [filters, setFilters] = useState<ListFilters>({ show: "all", register: "", channel: "", status: "", q: "", page: 1, pageSize: 20 });
   // The chosen page size is remembered in this browser only (a per-person convenience; the page works without it).
   useEffect(() => {
     try {
@@ -65,9 +67,12 @@ function Communications() {
   }, [filters.pageSize]);
   const q = useDeferredValue(filters.q);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [callError, setCallError] = useState<string | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
 
   const select = (key: string | null) => {
     setSendError(null);
+    setCallError(null);
     router.replace(key ? `${pathname}?t=${key}` : pathname, { scroll: false });
   };
 
@@ -77,8 +82,8 @@ function Communications() {
     refetchInterval: 60000,
   });
   const listQuery = new URLSearchParams({
-    show: filters.show, register: filters.register, channel: filters.channel, q, page: String(filters.page),
-    page_size: String(filters.pageSize),
+    show: filters.show, register: filters.register, channel: filters.channel, status: filters.status, q,
+    page: String(filters.page), page_size: String(filters.pageSize),
   });
   const list = useQuery({
     queryKey: ["communications", "threads", listQuery.toString()],
@@ -118,6 +123,76 @@ function Communications() {
       refresh();
     },
     onError: (err) => setSendError(err instanceof Error ? err.message : "The introduction was not sent."),
+  });
+
+  const threadPath = selected ? `/communications/threads/${selected.kind}/${selected.id}` : "";
+  const failed = (err: unknown, fallback: string) => setSendError(err instanceof Error ? err.message : fallback);
+
+  // Files go one request each (the server takes up to 60 MB a request), in order; the first refusal stops the rest
+  // and says which went, so nothing is half-sent without the writer knowing (2026-11-04).
+  const sendFiles = async (files: File[], caption: string, recipient: string) => {
+    setMediaBusy(true);
+    setSendError(null);
+    let sentCount = 0;
+    try {
+      for (const [i, file] of files.entries()) {
+        const body = new FormData();
+        body.append("recipient", recipient);
+        body.append("files", file, file.name);
+        if (i === 0 && caption.trim()) body.append("caption", caption);
+        await adminUpload(`${threadPath}/media/`, body);
+        sentCount += 1;
+      }
+      return true;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "The file was not sent.";
+      setSendError(sentCount ? `${sentCount} of ${files.length} files went. The next was not sent: ${message}` : message);
+      return false;
+    } finally {
+      setMediaBusy(false);
+      refresh();
+    }
+  };
+  const sendRecording = async (blob: Blob, type: string, recipient: string) => {
+    setMediaBusy(true);
+    setSendError(null);
+    try {
+      const body = new FormData();
+      body.append("recipient", recipient);
+      body.append("recording_type", type);
+      body.append("files", blob, "recording");
+      await adminUpload(`${threadPath}/media/`, body);
+      return true;
+    } catch (err) {
+      failed(err, "The voice note was not sent.");
+      return false;
+    } finally {
+      setMediaBusy(false);
+      refresh();
+    }
+  };
+  const shareContact = async (contact: SharedContact, recipient: string) => {
+    setMediaBusy(true);
+    setSendError(null);
+    try {
+      await adminFetch(`${threadPath}/contact/`, { method: "POST", body: JSON.stringify({ recipient, ...contact }) });
+      return true;
+    } catch (err) {
+      failed(err, "The contact was not sent.");
+      return false;
+    } finally {
+      setMediaBusy(false);
+      refresh();
+    }
+  };
+  const logCall = useMutation({
+    mutationFn: (log: CallLog) =>
+      adminFetch(`/calls/${selected!.kind}/${encodeURIComponent(thread.data!.calls!.ident)}/`, { method: "POST", body: JSON.stringify(log) }),
+    onSuccess: () => {
+      setCallError(null);
+      refresh();
+    },
+    onError: (err) => setCallError(err instanceof Error ? err.message : "The call was not saved."),
   });
 
   const waitingHere = thread.data?.items.some((i) => i.type === "in" && i.waiting) ?? false;
@@ -210,6 +285,15 @@ function Communications() {
                   </WriteOnly>
                 )}
               </header>
+              {thread.data.calls && (
+                <CallBar
+                  key={`calls-${selectedKey}`}
+                  calls={{ ...thread.data.calls, can_log: thread.data.calls.can_log && !user?.read_only }}
+                  logging={logCall.isPending}
+                  error={callError}
+                  onLog={(log) => logCall.mutateAsync(log).then(() => true, () => false)}
+                />
+              )}
               <div className="min-h-[50vh] flex-1 overflow-y-auto bg-bg lg:min-h-0" data-scroll-pane>
                 <Timeline items={thread.data.items} />
               </div>
@@ -218,11 +302,14 @@ function Communications() {
                   <Composer
                     key={selectedKey}
                     composer={thread.data.composer}
-                    sending={send.isPending}
+                    sending={send.isPending || mediaBusy}
                     error={sendError}
                     onSend={(draft) => send.mutateAsync(draft).then(() => true, () => false)}
                     onAction={() => introduce.mutate()}
                     actionBusy={introduce.isPending}
+                    onSendFiles={sendFiles}
+                    onSendRecording={sendRecording}
+                    onShareContact={shareContact}
                   />
                 )}
               </WriteOnly>

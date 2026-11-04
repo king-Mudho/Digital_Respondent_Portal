@@ -163,20 +163,22 @@ def fit_template(text: str, variables: dict, *, key=1, cut: bool = True) -> dict
 
 
 def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_content: str = "", wa_variables=None,
-         wa_text: str = "", user=None, record_text: str = "", redact_link: str = "", redact_code: str = "",
-         **links) -> ProviderMessage:
+         wa_text: str = "", wa_media_url: str = "", user=None, record_text: str = "", redact_link: str = "",
+         redact_code: str = "", **links) -> ProviderMessage:
     """Sends one message and records it. `links` names what it belongs to: sample_case or kii_record, and
     invitation_token, kii_invitation_token or message_log. WhatsApp is an approved template (`wa_content`) unless
-    `wa_text` is given: a free-text reply inside a conversation the person started. `record_text` is what to show for
+    `wa_text` or `wa_media_url` is given: a free-text reply, or a file (with `wa_text` as its caption), inside a
+    conversation the person started. `record_text` is what to show for
     a template (the portal's own copy of its wording); `redact_link` / `redact_code` are taken out of what is kept.
     Raises OutboundError with words a coordinator can act on."""
     label = "SMS" if channel == MessageChannel.SMS else "WhatsApp"
     if channel == MessageChannel.SMS and not tw.sms_configured():
         raise OutboundError("sms_not_configured", "SMS isn't set up on the server yet (deploy/configure-twilio.sh).", 503)
-    if channel == MessageChannel.WHATSAPP and not ((wa_content or wa_text) and tw.credentials_set() and settings.TWILIO_WHATSAPP_FROM.strip()):
+    free_form = bool(wa_text or wa_media_url)
+    if channel == MessageChannel.WHATSAPP and not ((wa_content or free_form) and tw.credentials_set() and settings.TWILIO_WHATSAPP_FROM.strip()):
         raise OutboundError("whatsapp_not_configured",
                             "WhatsApp sending isn't set up yet: it needs the Meta-approved sender and template (deploy/configure-twilio.sh).", 503)
-    if channel == MessageChannel.WHATSAPP and wa_content and not wa_text:
+    if channel == MessageChannel.WHATSAPP and wa_content and not free_form:
         waiting = tw.content_waiting(wa_content)
         if waiting:  # Twilio would accept it and fail it later (63016), so it would look sent (2026-10-13)
             raise OutboundError("whatsapp_template_not_approved",
@@ -184,13 +186,15 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
                                 "Send by email or SMS for now.", 409)
     if not number:
         raise OutboundError("no_mobile", "No mobile number is on file (a landline can't receive SMS or WhatsApp). Add one under contact details.")
-    template = channel == MessageChannel.WHATSAPP and not wa_text
+    template = channel == MessageChannel.WHATSAPP and not free_form
     capped = channel == MessageChannel.SMS or (template and not _already_counted(number))
     if capped and left_today(channel) < 1:
         raise OutboundError("daily_limit_reached", f"Today's limit of {daily_max(channel)} {label} messages has been reached. Try again tomorrow.", 409)
     try:
         if channel == MessageChannel.SMS:
             result = tw.send_sms(number, sms_body)
+        elif wa_media_url:
+            result = tw.send_whatsapp_media(number, wa_media_url, wa_text)
         elif wa_text:
             result = tw.send_whatsapp_text(number, wa_text)
         else:
@@ -201,7 +205,8 @@ def send(*, channel: str, number: str, purpose: str, sms_body: str = "", wa_cont
     if channel == MessageChannel.SMS:
         shown = tw.with_opt_out(sms_body)
     else:
-        shown = wa_text or record_text or _template_label(purpose)
+        # A file is shown as what was sent ("[Picture: farm.jpg] caption"); no caller passes both texts otherwise.
+        shown = record_text or wa_text or _template_label(purpose)
     return ProviderMessage.objects.create(
         channel=channel, purpose=purpose, provider=MessageProvider.TWILIO, provider_sid=result.get("sid") or None,
         to_masked=tw.mask(number), to_hash=number_hash(number), body=redact(shown, link=redact_link, code=redact_code),

@@ -31,13 +31,16 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 5 &mdash; 26 October 2026"
+REVISION = "Revision 6 &mdash; 4 November 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
     "13 September 2026. Revision 5 (26 October 2026): the screens are now listed in a sidebar on the left, "
     "grouped into Dashboards, Reaching respondents, Main 400 sample, KII &amp; documents, Quality &amp; data and "
-    "Administration; on a phone it opens from the Menu button."
+    "Administration; on a phone it opens from the Menu button. Revision 6 (4 November 2026): on Communications, WhatsApp "
+    "can also carry documents, photos and videos, a voice note recorded on the screen and a contact card (within the "
+    "same 24 hours as a written message); Voice call and Video call open the person's chat in your own WhatsApp, and "
+    "the call is then logged; the list can be narrowed to who read, who has not, who wrote back and who was called."
 )
 
 # ---------------------------------------------------------------- palette --

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from rest_framework.parsers import FormParser
 from rest_framework.permissions import AllowAny
@@ -5,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from api.permissions import CanManageContact, CanManageKII, CanUseCommunications
-from api.throttling import TwilioWebhookThrottle
+from api.throttling import TwilioWebhookThrottle, WhatsAppMediaThrottle
 from apps.sampling.models import SampleCase
 
 from .models import ReminderSequenceStep
@@ -269,9 +270,10 @@ class CommunicationSummaryView(APIView):
 
 
 class CommunicationThreadListView(APIView):
-    """GET /api/v1/communications/threads/?show=all|waiting|failed&register=main|kii&channel=&q=&page=&page_size= --
-    one row per case or KII record with any communication, waiting first, then most recent. page_size is 10, 20, 50,
-    100 or 200 (default 20)."""
+    """GET /api/v1/communications/threads/?show=all|waiting|failed&register=main|kii&channel=&q=&page=&page_size=
+    &status= -- one row per case or KII record with any communication, waiting first, then most recent. page_size is
+    10, 20, 50, 100 or 200 (default 20). status narrows by what happened (communications.STATUS_FILTERS: read, unread,
+    no_report, replied, no_reply, called, not_called); the counts for each come back in status_filters."""
 
     permission_classes = [CanUseCommunications]
 
@@ -282,7 +284,7 @@ class CommunicationThreadListView(APIView):
         page, size = p.get("page", "1"), p.get("page_size", "")
         return Response(thread_list(request.user, show=p.get("show", "all"), register=p.get("register", ""),
                                     channel=p.get("channel", ""), q=p.get("q", ""), page=int(page) if page.isdigit() else 1,
-                                    page_size=int(size) if size.isdigit() else 0))
+                                    page_size=int(size) if size.isdigit() else 0, status=p.get("status", "")))
 
 
 class CommunicationThreadView(APIView):
@@ -316,6 +318,44 @@ class CommunicationSendView(APIView):
         except CommunicationError as exc:
             return _communication_error(exc)
         return Response({"id": sent.pk, "status": sent.status, "to": sent.to_masked}, status=201)
+
+
+class CommunicationMediaView(APIView):
+    """POST /api/v1/communications/threads/<main|kii>/<id>/media/ (multipart: files, recipient, caption,
+    recording_type) -- documents, pictures, videos or a voice note recorded in the browser, on WhatsApp, one message
+    per file (2026-11-04). Same checks as a written WhatsApp message (communications.send_media)."""
+
+    permission_classes = [CanUseCommunications]
+
+    def post(self, request, kind, pk):
+        from .communications import CommunicationError, send_media
+
+        files = [(f.name, f.read()) for f in request.FILES.getlist("files")]
+        try:
+            sent = send_media(request.user, kind, pk, recipient=str(request.data.get("recipient", "")), files=files,
+                              caption=str(request.data.get("caption", "")),
+                              recording_type=str(request.data.get("recording_type", "")))
+        except CommunicationError as exc:
+            return _communication_error(exc)
+        return Response({"sent": [{"id": m.pk, "status": m.status} for m in sent]}, status=201)
+
+
+class CommunicationContactShareView(APIView):
+    """POST /api/v1/communications/threads/<main|kii>/<id>/contact/ {recipient, name, number, note} -- a contact card
+    on WhatsApp (2026-11-04), sent as a written message (communications.share_contact)."""
+
+    permission_classes = [CanUseCommunications]
+
+    def post(self, request, kind, pk):
+        from .communications import CommunicationError, share_contact
+
+        d = request.data
+        try:
+            sent = share_contact(request.user, kind, pk, recipient=str(d.get("recipient", "")), name=str(d.get("name", "")),
+                                 number=str(d.get("number", "")), note=str(d.get("note", "")))
+        except CommunicationError as exc:
+            return _communication_error(exc)
+        return Response({"id": sent.pk, "status": sent.status}, status=201)
 
 
 class CommunicationHandledView(APIView):
@@ -367,6 +407,64 @@ class CommunicationAttachmentView(APIView):
         log_action("communication.attachment_opened", message.sample_case or message.kii_record or message,
                    {"attachment": attachment.pk, "kind": attachment.kind, "user_id": request.user.id}, user=request.user)
         response = FileResponse(open(path, "rb"), content_type=attachment.content_type or "application/octet-stream")
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class CommunicationSentAttachmentView(APIView):
+    """GET /api/v1/communications/sent-attachments/{id}/ -- a file the study sent on WhatsApp (2026-11-04), for someone
+    who may see that conversation, exactly as for files people send in. Each opening is audited."""
+
+    permission_classes = [CanUseCommunications]
+
+    def get(self, request, pk):
+        import os
+
+        from django.http import FileResponse, Http404
+
+        from apps.audit.utils import log_action
+
+        from .communications import visible_cases, visible_records
+        from .models import OutboundAttachment
+
+        attachment = get_object_or_404(OutboundAttachment.objects.select_related("message"), pk=pk)
+        message = attachment.message
+        if message.sample_case_id:
+            allowed = visible_cases(request.user).filter(pk=message.sample_case_id).exists()
+        elif message.kii_record_id:
+            allowed = visible_records(request.user).filter(pk=message.kii_record_id).exists()
+        else:
+            allowed = False
+        path = os.path.join(settings.PRIVATE_DATA_ROOT, attachment.file_ref)
+        if not allowed or not os.path.exists(path):
+            raise Http404
+        log_action("communication.sent_attachment_opened", message.sample_case or message.kii_record,
+                   {"attachment": attachment.pk, "kind": attachment.kind, "user_id": request.user.id}, user=request.user)
+        response = FileResponse(open(path, "rb"), content_type=attachment.content_type, filename=attachment.filename)
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class TwilioMediaView(APIView):
+    """GET /api/v1/twilio/media/<signed>/<filename> -- where Twilio fetches a file the study is sending on WhatsApp
+    (2026-11-04). Public, because Twilio cannot sign in: the signed link is the only credential. It names one file in
+    the outgoing-media folder, cannot be altered, and stops working after WHATSAPP_MEDIA_LINK_MINUTES
+    (apps/messaging/media_out.resolve). Anything else is a plain 404."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [WhatsAppMediaThrottle]
+
+    def get(self, request, token, filename):
+        from django.http import FileResponse, Http404
+
+        from .media_out import resolve
+
+        found = resolve(token)
+        if found is None:
+            raise Http404
+        path, content_type = found
+        response = FileResponse(open(path, "rb"), content_type=content_type, filename=filename)
         response["Cache-Control"] = "private, no-store"
         return response
 

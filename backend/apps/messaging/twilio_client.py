@@ -188,6 +188,23 @@ def send_whatsapp_text(to_digits: str, body: str, **kwargs) -> dict:
     }, **kwargs)
 
 
+def send_whatsapp_media(to_digits: str, media_url: str, body: str = "", **kwargs) -> dict:
+    """A document, picture, video or voice note, inside the same 24 hours as a free-text reply. Twilio fetches
+    `media_url` itself; `body` is the caption (WhatsApp shows none on a voice note, so none is sent with one)."""
+    data = {
+        "To": f"whatsapp:+{to_digits}", "From": f"whatsapp:{settings.TWILIO_WHATSAPP_FROM.strip()}", "MediaUrl": media_url,
+        "StatusCallback": status_callback_url(),
+    }
+    if body:
+        data["Body"] = body
+    return _post(data, **kwargs)
+
+
+def media_base_url() -> str:
+    """Where Twilio fetches an outgoing WhatsApp file from (apps/messaging/media_out.py). Built from APP_DOMAIN."""
+    return f"https://{settings.APP_DOMAIN}/api/v1/twilio/media/"
+
+
 def study_whatsapp_link(text: str = "YES") -> str:
     """The tap-to-reply link an SMS carries: opens a chat with the study's WhatsApp number with `text` typed in."""
     from urllib.parse import quote

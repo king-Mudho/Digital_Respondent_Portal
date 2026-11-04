@@ -50,6 +50,13 @@ class ContactChannel(models.TextChoices):
     PHONE = "PHONE", "Phone"
     SMS = "SMS", "SMS"
     FACE_TO_FACE = "FACE_TO_FACE", "Face to face"
+    # Calls made from WhatsApp on the caller's phone or computer, opened from Communications (2026-11-04).
+    WHATSAPP_CALL = "WHATSAPP_CALL", "WhatsApp voice call"
+    WHATSAPP_VIDEO = "WHATSAPP_VIDEO", "WhatsApp video call"
+
+
+# What counts as "called" on the Calls screen and in Communications' filters.
+CALL_CHANNELS = (ContactChannel.PHONE, ContactChannel.WHATSAPP_CALL, ContactChannel.WHATSAPP_VIDEO)
 
 
 class ContactOutcome(models.TextChoices):

@@ -22,7 +22,7 @@ from apps.kii.models import KIIInvitationToken
 from apps.messaging.communications import visible_cases, visible_records
 from apps.messaging.models import MessagePurpose, ProviderMessage
 
-from .models import ContactChannel, ContactEvent, ContactOutcome
+from .models import CALL_CHANNELS, ContactChannel, ContactEvent, ContactOutcome
 
 STAGE_LABELS = {
     "started": "Started, not finished",
@@ -73,11 +73,12 @@ def _when(value):
 
 
 def _last_call(events):
-    calls = [e for e in events if e.channel == ContactChannel.PHONE]
+    calls = [e for e in events if e.channel in CALL_CHANNELS]
     if not calls:
         return None, 0
     e = calls[0]  # ContactEvent.Meta.ordering is -occurred_at
     return {"at": _when(e.occurred_at), "outcome": e.outcome, "outcome_label": e.get_outcome_display(), "notes": e.notes,
+            "channel": e.channel, "channel_label": e.get_channel_display(),
             "by": e.ra.get_full_name() or e.ra.username, "next_action_date": _when(e.next_action_date)}, len(calls)
 
 
@@ -176,12 +177,15 @@ def call_list(user, *, study: str = "all", stage: str = "all", q: str = "") -> d
         "count": len(items), "stage_counts": counts, "stage_labels": STAGE_LABELS,
         "studies": [s for s, qs in (("main", visible_cases(user)), ("kii", visible_records(user))) if qs.exists()],
         "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices],
+        "call_channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS],
     }
 
 
-def log_call(user, kind: str, ident: str, *, outcome: str, notes: str = "", next_action_date=None) -> ContactEvent:
-    """Record one phone call on a case or KII record the user may see. A refusal is recorded as the call's outcome
-    only: moving a case to Refused stays the case page's decision, as before."""
+def log_call(user, kind: str, ident: str, *, outcome: str, notes: str = "", next_action_date=None,
+             channel: str = ContactChannel.PHONE) -> ContactEvent:
+    """Record one call on a case or KII record the user may see: a phone call, or (2026-11-04) a WhatsApp voice or
+    video call made from the caller's own WhatsApp. A refusal is recorded as the call's outcome only: moving a case to
+    Refused stays the case page's decision, as before."""
     if kind == "main":
         subject = visible_cases(user).filter(sample_id=ident).first()
     elif kind == "kii":
@@ -192,13 +196,15 @@ def log_call(user, kind: str, ident: str, *, outcome: str, notes: str = "", next
         raise CallError("not_found", "That case or record was not found, or is not one you can call.", 404)
     if outcome not in ContactOutcome.values:
         raise CallError("invalid_outcome", "Choose what happened on the call.")
+    if channel not in CALL_CHANNELS:
+        raise CallError("invalid_channel", "Choose a phone call, a WhatsApp voice call or a WhatsApp video call.")
     when = parse_date(next_action_date) if isinstance(next_action_date, str) and next_action_date else next_action_date or None
     if next_action_date and when is None:
         raise CallError("invalid_date", "The call-back date isn't a valid date.")
     event = ContactEvent.objects.create(
         sample_case=subject if kind == "main" else None, kii_record=subject if kind == "kii" else None,
-        channel=ContactChannel.PHONE, occurred_at=timezone.now(), outcome=outcome, notes=(notes or "").strip(),
+        channel=channel, occurred_at=timezone.now(), outcome=outcome, notes=(notes or "").strip(),
         next_action_date=when, ra=user)
-    log_action("contacts.call_logged", subject, {"kind": kind, "id": ident, "outcome": outcome, "event": event.pk,
+    log_action("contacts.call_logged", subject, {"kind": kind, "id": ident, "outcome": outcome, "channel": channel, "event": event.pk,
                                                  "user_id": user.id}, user=user)
     return event

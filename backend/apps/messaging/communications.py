@@ -14,7 +14,11 @@ from numbers the study has no record of go to the PI and Field Coordinator only.
 
 Sending a message written here (send_message) refuses text a respondent must never see (AGENTS.md rule 2), a locked
 Reserve (rule 4), a participant who withdrew, and WhatsApp free text outside the 24 hours WhatsApp allows after the
-person's own last message.
+person's own last message. Documents, pictures, videos, voice notes and shared contacts (send_media, share_contact,
+2026-11-04) pass exactly the same checks, through the same _whatsapp_number(); the file handling is in media_out.py.
+
+The list can be narrowed by what happened (2026-11-04): their last message from the study was read, or delivered and
+not read; they have written back or never have; somebody has called them (phone or WhatsApp call) or nobody has.
 """
 
 import re
@@ -158,7 +162,7 @@ def _blocked_phrase(text: str) -> str:
 def _annotated(queryset, kind: str):
     """Cases or records with their last activity of any kind, whether someone's message waits, and whether the last
     message sent did not arrive."""
-    from apps.contacts.models import ContactEvent
+    from apps.contacts.models import CALL_CHANNELS, ContactEvent
     from apps.invitations.models import InvitationToken
     from apps.kii.models import KIIInvitationToken
 
@@ -171,9 +175,9 @@ def _annotated(queryset, kind: str):
         tokens = KIIInvitationToken.objects.filter(kii_record=OuterRef("pk")).order_by("-issued_at")
     latest = [Subquery(sent.values("created_at")[:1]), Subquery(received.values("received_at")[:1]),
               Subquery(tokens.values("issued_at")[:1])]
+    latest.append(Subquery(ContactEvent.objects.filter(**{link: OuterRef("pk")}).order_by("-occurred_at")
+                           .values("occurred_at")[:1]))
     if kind == "main":
-        latest.append(Subquery(ContactEvent.objects.filter(sample_case=OuterRef("pk")).order_by("-occurred_at")
-                               .values("occurred_at")[:1]))
         latest.append(Subquery(MessageLog.objects.filter(sample_case=OuterRef("pk")).exclude(sent_at=None)
                                .order_by("-sent_at").values("sent_at")[:1]))
     epoch = datetime(2000, 1, 1, tzinfo=dt_timezone.utc)
@@ -181,6 +185,8 @@ def _annotated(queryset, kind: str):
         last_activity=Greatest(*[Coalesce(expr, epoch) for expr in latest]),
         waiting=Exists(InboundMessage.objects.filter(**{link: OuterRef("pk")}, needs_person=True, handled_at=None)),
         last_sent_status=Subquery(sent.values("status")[:1]),
+        replied=Exists(received.exclude(kind=ReplyKind.AUTO)),
+        called=Exists(ContactEvent.objects.filter(**{link: OuterRef("pk")}, channel__in=CALL_CHANNELS)),
     ).filter(last_activity__gt=epoch)
 
 
@@ -231,8 +237,20 @@ def _channels_used(subject, kind: str) -> list[str]:
     return [c for c in (MessageChannel.WHATSAPP, MessageChannel.SMS, MessageChannel.EMAIL) if c in used]
 
 
+# What the list can be narrowed to besides waiting / not delivered (2026-11-04), in the order the filter offers them.
+STATUS_FILTERS = {
+    "read": ("Read our last message", lambda s: s.last_sent_status == ProviderStatus.READ),
+    "unread": ("Delivered, not read", lambda s: s.last_sent_status == ProviderStatus.DELIVERED),
+    "no_report": ("Sent, no delivery report", lambda s: s.last_sent_status in (ProviderStatus.QUEUED, ProviderStatus.SENT)),
+    "replied": ("Have written back", lambda s: s.replied),
+    "no_reply": ("Never written back", lambda s: not s.replied),
+    "called": ("Called (phone or WhatsApp)", lambda s: s.called),
+    "not_called": ("Not called yet", lambda s: not s.called),
+}
+
+
 def thread_list(user, *, show: str = "all", register: str = "", channel: str = "", q: str = "", page: int = 1,
-                page_size: int = PAGE_SIZE) -> dict:
+                page_size: int = PAGE_SIZE, status: str = "") -> dict:
     q = (q or "").strip()[:100]
     rows = []
     for kind, queryset in (("main", visible_cases(user)), ("kii", visible_records(user))):
@@ -244,6 +262,10 @@ def thread_list(user, *, show: str = "all", register: str = "", channel: str = "
         elif show == "failed":
             queryset = queryset.filter(last_sent_status__in=NOT_DELIVERED)
         rows += [(kind, s) for s in queryset.prefetch_related("respondents" if kind == "main" else "invitation_tokens")]
+    # How many each filter would list, counted before it is applied, so every option shows what choosing it gives.
+    status_counts = {key: sum(1 for _, s in rows if test(s)) for key, (_, test) in STATUS_FILTERS.items()}
+    if status in STATUS_FILTERS:
+        rows = [r for r in rows if STATUS_FILTERS[status][1](r[1])]
     # Waiting first, then the most recent activity; the id breaks ties so pages never overlap.
     rows.sort(key=lambda r: (r[1].waiting, r[1].last_activity, r[0] == "main", r[1].pk), reverse=True)
     total = len(rows)
@@ -256,11 +278,13 @@ def thread_list(user, *, show: str = "all", register: str = "", channel: str = "
             "kind": kind, "id": subject.pk, "ref": ref, "organisation": organisation, "person": person,
             "last_activity": subject.last_activity, "waiting": subject.waiting,
             "last_sent_status": subject.last_sent_status or "", "channels": _channels_used(subject, kind),
-            "last_message": _last_message(subject, kind),
+            "last_message": _last_message(subject, kind), "replied": subject.replied, "called": subject.called,
         })
     unknown = InboundMessage.objects.filter(sample_case=None, kii_record=None, needs_person=True, handled_at=None).count() \
         if sees_unknown_senders(user) else 0
-    return {"count": total, "page": page, "page_size": size, "results": results, "unknown_waiting": unknown}
+    return {"count": total, "page": page, "page_size": size, "results": results, "unknown_waiting": unknown,
+            "status_filters": [{"key": key, "label": label, "count": status_counts[key]}
+                               for key, (label, _) in STATUS_FILTERS.items()]}
 
 
 # --- One conversation ----------------------------------------------------------------------------------------------
@@ -276,6 +300,11 @@ def _out_item(m: ProviderMessage) -> dict:
         "status_label": m.get_status_display(), "problem": delivery_problem(m), "subject": m.subject, "body": m.body,
         "to": m.to_masked, "by": m.sent_by.username if m.sent_by_id else ("" if from_mailbox else "automatic"),
         "from_mailbox": from_mailbox,
+        "attachments": [{
+            "id": a.pk, "kind": a.kind, "label": a.get_kind_display(), "content_type": a.content_type,
+            "filename": a.filename, "size": a.size, "contact": "", "error": "",
+            "url": f"/communications/sent-attachments/{a.pk}/",
+        } for a in m.attachments.all()],
     }
 
 
@@ -363,7 +392,8 @@ def thread(user, kind: str, pk) -> dict:
 
     subject = get_subject(user, kind, pk)
     link = _link(kind)
-    items = [_out_item(m) for m in ProviderMessage.objects.filter(**{link: subject}).select_related("sent_by")]
+    items = [_out_item(m) for m in ProviderMessage.objects.filter(**{link: subject}).select_related("sent_by")
+             .prefetch_related("attachments")]
     items += [_in_item(m) for m in InboundMessage.objects.filter(**{link: subject}).select_related("handled_by").prefetch_related("attachments")]
 
     if kind == "main":
@@ -394,8 +424,13 @@ def thread(user, kind: str, pk) -> dict:
             items.append(_event(subject.activated_at, f"Reserve activated{f' to replace {replaced.sample_id}' if replaced else ''} "
                                 f"({subject.get_activation_reason_display()})", detail=subject.activation_evidence_note))
     else:
+        from apps.contacts.models import ContactEvent
+
         tokens = list(subject.invitation_tokens.all())
         items += _token_events(tokens, _emailed(AuditEvent, "kii_invitation.emailed", "KIIInvitationToken", tokens), items)
+        for event in ContactEvent.objects.filter(kii_record=subject).select_related("ra"):  # calls, since 2026-10-25
+            items.append(_event(event.occurred_at, f"{event.get_channel_display()}: {event.get_outcome_display()}",
+                                detail=" · ".join(x for x in (event.notes, f"by {event.ra.username}") if x)))
 
     for consent in ConsentRecord.objects.filter(**{link: subject}).order_by("timestamp"):
         tone = "good" if consent.decision == "GIVEN" else "warn"
@@ -406,25 +441,117 @@ def thread(user, kind: str, pk) -> dict:
     for n, item in enumerate(items):
         if item["type"] == "event":
             item["id"] = f"ev-{n}-{item['at']:%Y%m%d%H%M%S}"
-    return {"subject": contact_card(subject, kind), "items": items, "composer": composer(user, subject, kind)}
+    return {"subject": contact_card(subject, kind), "items": items, "composer": composer(user, subject, kind),
+            "calls": call_options(user, subject, kind)}
+
+
+def _dial(*values) -> list[dict]:
+    """Every distinct number in these fields, with a WhatsApp link and a tel: link for each. The same number written
+    two ways (0772000111 in one field, 0772 000 111 in another) is one number."""
+    from apps.contacts.calls import _numbers as split_numbers, _whatsapp_link
+    from .services import whatsapp_digits
+
+    out, seen = [], set()
+    for number in split_numbers(*values):
+        digits = whatsapp_digits(number)
+        if (digits or number) in seen:
+            continue
+        seen.add(digits or number)
+        out.append({"number": number, "whatsapp_link": _whatsapp_link(number), "tel": f"tel:+{digits}" if digits else ""})
+    return out
+
+
+def _when(value) -> str:
+    return value.isoformat() if value else ""
+
+
+def _progress(subject, kind: str) -> list[dict]:
+    """Where they stand, as label/value rows: the invitation link, consent, calls, the last message they read."""
+    from apps.consent.models import ConsentType
+    from apps.consent.services import latest_consent
+    from apps.contacts.models import CALL_CHANNELS, ContactEvent
+
+    link = _link(kind)
+    rows = []
+    token = subject.invitation_tokens.order_by("-issued_at").first()
+    if token:
+        rows.append({"label": "Link", "value": f"{token.get_status_display()} ({CHANNEL_WORD.get(token.channel, token.channel)})",
+                     "at": _when(token.issued_at), "detail": f"expires {timezone.localtime(token.expires_at):%d %b %Y}"})
+    consent = latest_consent(subject, ConsentType.PARTICIPATION)
+    if consent:
+        rows.append({"label": "Consent", "value": consent.get_decision_display(), "at": _when(consent.timestamp), "detail": ""})
+    calls = ContactEvent.objects.filter(**{link: subject}, channel__in=CALL_CHANNELS).order_by("-occurred_at")
+    last = calls.first()
+    rows.append({"label": "Calls", "value": f"{calls.count()} logged" if last else "None logged",
+                 "at": _when(last.occurred_at) if last else "",
+                 "detail": f"last: {last.get_channel_display()}, {last.get_outcome_display()}" if last else ""})
+    read = ProviderMessage.objects.filter(**{link: subject}, status=ProviderStatus.READ).order_by("-updated_at").first()
+    if read:
+        rows.append({"label": "Last read", "value": read.get_channel_display(), "at": _when(read.updated_at), "detail": ""})
+    return rows
 
 
 def contact_card(subject, kind: str) -> dict:
+    """Everything recorded about who they are and how to reach them (fuller since 2026-11-04): the organisation and
+    where it is, every person with every number (each with WhatsApp and call links), gatekeepers, public contact
+    details found for it, and where they stand."""
     organisation, person, ref = _title(subject, kind)
     if kind == "main":
+        org, meta = subject.organisation, subject.organisation.metadata or {}
         people = [{"name": p.full_name, "role": p.get_role_category_display() if p.role_category else "",
-                   "phone": p.phone, "whatsapp": p.whatsapp_number, "email": p.email, "eligible": p.is_eligible}
+                   "phone": p.phone, "whatsapp": p.whatsapp_number, "email": p.email, "eligible": p.is_eligible,
+                   "gatekeeper": " ".join(x for x in (p.gatekeeper_name, p.gatekeeper_contact) if x),
+                   "numbers": _dial(p.whatsapp_number, p.phone, p.gatekeeper_contact)}
                   for p in sorted(subject.respondents.all(), key=lambda r: (r.is_eligible is not True, r.id))]
+        details = [("District", org.district), ("Town", meta.get("town", "")), ("Sector", org.get_actor_family_display()),
+                   ("Value chain", org.value_chain), ("Size", org.get_size_class_display()), ("Type", org.entity_type),
+                   ("Register ref", meta.get("register_reference", ""))]
         return {"kind": kind, "id": subject.pk, "ref": ref, "organisation": organisation, "person": person,
                 "status": subject.get_workflow_status_display() or "",
-                "sample_type": subject.get_sample_type_display(), "province": subject.organisation.get_province_display(),
+                "sample_type": subject.get_sample_type_display(), "province": org.get_province_display(),
                 "assigned_to": subject.assigned_ra.username if subject.assigned_ra_id else "",
-                "page": f"/admin/sample/{subject.sample_id}", "people": people}
+                "page": f"/admin/sample/{subject.sample_id}", "people": people,
+                "details": [{"label": k, "value": str(v)} for k, v in details if v],
+                "public_contacts": str(meta.get("public_contacts") or ""),
+                "source_url": str(meta.get("official_source_url") or ""),
+                "other_emails": [], "progress": _progress(subject, kind)}
+    from apps.contacts.kii_finder import other_emails
+
+    meta = subject.metadata or {}
+    pools = {"CORE_60": "Core 60", "RESERVE_30": "Reserve 30", "ADDITIONAL": "Additional"}
+    details = [("Category", subject.stakeholder_category), ("Detail", meta.get("stakeholder_detail", "")),
+               ("Pool", pools.get(meta.get("pool"), "")), ("Prefers", subject.get_preferred_mode_display()),
+               ("Referred by", meta.get("referred_by", ""))]
     return {"kind": kind, "id": subject.pk, "ref": ref, "organisation": organisation, "person": person,
             "status": subject.get_status_display(), "sample_type": "KII", "province": "",
             "assigned_to": "", "page": f"/admin/kii/{subject.pk}",
             "people": [{"name": subject.participant_name, "role": subject.participant_role, "phone": subject.phone,
-                        "whatsapp": subject.whatsapp_number, "email": subject.email, "eligible": None}]}
+                        "whatsapp": subject.whatsapp_number, "email": subject.email, "eligible": None, "gatekeeper": "",
+                        "numbers": _dial(subject.whatsapp_number, subject.phone)}],
+            "details": [{"label": k, "value": str(v)} for k, v in details if v],
+            "public_contacts": str(meta.get("public_contacts") or ""),
+            "source_url": str(meta.get("verification_source_url") or meta.get("public_evidence_url") or ""),
+            "other_emails": [e for e in other_emails(subject) if e and e != subject.email],
+            "progress": _progress(subject, kind)}
+
+
+def call_options(user, subject, kind: str) -> dict:
+    """What the call buttons need: every number with its WhatsApp and tel: links, and what a call can be logged as.
+    WhatsApp voice and video calls are made in the caller's own WhatsApp (the business number cannot start a video
+    call), then logged here like a phone call (apps/contacts/calls.log_call)."""
+    from apps.contacts.models import CALL_CHANNELS, ContactOutcome
+
+    card_people = contact_card(subject, kind)["people"]
+    numbers, seen = [], set()
+    for p in card_people:
+        for n in p["numbers"]:
+            key = n["tel"] or n["number"]
+            if key not in seen:
+                seen.add(key)
+                numbers.append({**n, "person": p["name"]})
+    return {"can_log": can_write(user), "ident": getattr(subject, "sample_id", None) or subject.kii_id, "numbers": numbers,
+            "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices],
+            "channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS]}
 
 
 # --- Sending -------------------------------------------------------------------------------------------------------
@@ -477,6 +604,12 @@ def composer(user, subject, kind: str) -> dict:
                               "Use an approved message below, email, or phone them.")
     else:
         whatsapp["available"] = True
+    from . import media_out
+
+    # Documents, pictures, videos, voice notes and contacts (2026-11-04): only when a written WhatsApp could go.
+    whatsapp["media"] = {"available": whatsapp["available"], "extensions": media_out.EXTENSIONS,
+                         "image_max_mb": settings.WHATSAPP_IMAGE_MAX_MB, "max_mb": settings.WHATSAPP_MEDIA_MAX_MB,
+                         "files_per_send": settings.WHATSAPP_MEDIA_FILES_PER_SEND, "caption_max": media_out.CAPTION_MAX}
     sms = {"available": tw.sms_configured() and bool(numbers), "recipients": [{"value": n, "label": tw.mask(n)} for n in numbers],
            "reason": "" if tw.sms_configured() else "SMS isn't set up (Zimbabwean numbers need a registered sender)."}
     if tw.sms_configured() and not numbers:
@@ -541,12 +674,9 @@ def send_message(user, kind: str, pk, *, channel: str, recipient: str, text: str
                                        in_reply_to=last.provider_sid if last else "", **links)
             to_masked = mask_email(recipient)
         elif channel in (MessageChannel.WHATSAPP, MessageChannel.SMS):
-            digits = "".join(ch for ch in recipient if ch.isdigit())
-            if digits not in _numbers(subject, kind):
-                raise CommunicationError("unknown_recipient", "Choose one of the numbers recorded for them.")
-            if channel == MessageChannel.WHATSAPP and not _window_open(digits):
-                raise CommunicationError("window_closed", "WhatsApp only allows a written message within 24 hours of their "
-                                         "own last WhatsApp message. Use an approved message, email, or phone them.", 409)
+            digits = _number_on_record(subject, kind, recipient)
+            if channel == MessageChannel.WHATSAPP:
+                _whatsapp_number(subject, kind, recipient)
             # A long message goes as numbered parts: Twilio refuses a body over 1,600 characters (2026-10-17).
             parts = outbound.send_text(channel=channel, number=digits, purpose=MessagePurpose.MESSAGE, text=text,
                                        user=user, **links)
@@ -567,6 +697,99 @@ def send_message(user, kind: str, pk, *, channel: str, recipient: str, text: str
         "ref": getattr(subject, "sample_id", None) or getattr(subject, "kii_id", None),
     }, user=user)
     return sent
+
+
+def _number_on_record(subject, kind: str, recipient: str) -> str:
+    digits = "".join(ch for ch in (recipient or "") if ch.isdigit())
+    if digits not in _numbers(subject, kind):
+        raise CommunicationError("unknown_recipient", "Choose one of the numbers recorded for them.")
+    return digits
+
+
+def _whatsapp_number(subject, kind: str, recipient: str) -> str:
+    """The one check every free-form WhatsApp send goes through -- text, files, voice notes, contacts: a number on
+    their record, inside the 24 hours WhatsApp allows after their own last message."""
+    digits = _number_on_record(subject, kind, recipient)
+    if not _window_open(digits):
+        raise CommunicationError("window_closed", "WhatsApp only allows a written message within 24 hours of their "
+                                 "own last WhatsApp message. Use an approved message, email, or phone them.", 409)
+    return digits
+
+
+def send_media(user, kind: str, pk, *, recipient: str, files, caption: str = "", recording_type: str = "") -> list[ProviderMessage]:
+    """Documents, pictures, videos or a voice note on WhatsApp, one message per file, the caption on the first file
+    that can carry one (WhatsApp shows none on a voice note, so a caption with only voice notes follows as text).
+    `files` is [(name, bytes)]. Every file is checked before any is sent, so a bad one never leaves the others
+    half-sent; if Twilio refuses one part-way, the error says which went."""
+    from . import media_out
+    from .models import AttachmentKind, OutboundAttachment
+
+    if not can_write(user):
+        raise CommunicationError("forbidden", "Your role can read conversations but not send messages.", 403)
+    subject = get_subject(user, kind, pk)
+    files = list(files or [])
+    if not files:
+        raise CommunicationError("no_file", "Choose a file first.")
+    if len(files) > settings.WHATSAPP_MEDIA_FILES_PER_SEND:
+        raise CommunicationError("too_many_files", f"Send at most {settings.WHATSAPP_MEDIA_FILES_PER_SEND} files at a time.")
+    caption = (caption or "").strip()
+    if len(caption) > media_out.CAPTION_MAX:
+        raise CommunicationError("too_long", f"Keep the caption under {media_out.CAPTION_MAX} characters.")
+    phrase = _blocked_phrase(" ".join([caption, *(name for name, _ in files)]))
+    if phrase:
+        raise CommunicationError("blocked_phrase", f"Take out \"{phrase}\": the study never uses that word with participants. "
+                                 "This is a research study, not a financing decision.")
+    blocked = _blocked_reason(subject, kind)
+    if blocked:
+        raise CommunicationError("not_contactable", blocked, 409)
+    digits = _whatsapp_number(subject, kind, recipient)
+    try:
+        prepared = [media_out.prepare(name, data, recording_type=recording_type) for name, data in files]
+    except media_out.MediaError as exc:
+        raise CommunicationError("invalid_file", str(exc)) from exc
+
+    links = {_link(kind): subject}
+    carrier = next((i for i, p in enumerate(prepared) if p["kind"] != AttachmentKind.VOICE), None) if caption else None
+    sent: list[ProviderMessage] = []
+    for i, p in enumerate(prepared):
+        rel = media_out.store(p)
+        text = caption if i == carrier else ""
+        shown = media_out.label(p["kind"], p["filename"]) + (f"\n{text}" if text else "")
+        try:
+            message = outbound.send(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.MESSAGE,
+                                    wa_media_url=media_out.signed_url(rel, p["content_type"], p["filename"]), wa_text=text,
+                                    record_text=shown, user=user, **links)
+        except outbound.OutboundError as exc:
+            media_out.discard(rel)
+            if not sent:
+                raise CommunicationError(exc.code, str(exc), exc.status) from exc
+            raise CommunicationError(exc.code, f"Only {len(sent)} of {len(prepared)} files went. The next one was not sent "
+                                     f"({exc}): send the rest again.", exc.status) from exc
+        OutboundAttachment.objects.create(message=message, kind=p["kind"], content_type=p["content_type"],
+                                          filename=p["filename"], file_ref=rel, size=len(p["data"]))
+        sent.append(message)
+    if caption and carrier is None:
+        sent += outbound.send_text(channel=MessageChannel.WHATSAPP, number=digits, purpose=MessagePurpose.MESSAGE,
+                                   text=caption, user=user, **links)
+    mark_handled(user, kind, pk, _subject=subject)
+    log_action("communication.media_sent", subject, {
+        "channel": MessageChannel.WHATSAPP, "recipient": tw.mask(digits), "user_id": user.id,
+        "files": [{"kind": p["kind"], "type": p["content_type"], "size": len(p["data"])} for p in prepared],
+        "provider_messages": [m.pk for m in sent], "ref": getattr(subject, "sample_id", None) or getattr(subject, "kii_id", None),
+    }, user=user)
+    return sent
+
+
+def share_contact(user, kind: str, pk, *, recipient: str, name: str, number: str, note: str = "") -> ProviderMessage:
+    """A contact on WhatsApp, as a short card: WhatsApp makes the number tappable (chat, call, add to contacts). Goes
+    through send_message, so it passes every check a written message does."""
+    name, number, note = (name or "").strip()[:100], (number or "").strip()[:40], (note or "").strip()[:300]
+    if not name:
+        raise CommunicationError("no_name", "Write whose contact this is.")
+    if sum(ch.isdigit() for ch in number) < 7:
+        raise CommunicationError("no_number", "Write the contact's phone number.")
+    text = f"Contact: {name}\n{number}" + (f"\n{note}" if note else "")
+    return send_message(user, kind, pk, channel=MessageChannel.WHATSAPP, recipient=recipient, text=text)
 
 
 def mark_handled(user, kind: str, pk, *, _subject=None) -> int:

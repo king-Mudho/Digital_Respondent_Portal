@@ -295,6 +295,27 @@ class InboundAttachment(models.Model):
         return f"InboundAttachment({self.message_id} {self.kind})"
 
 
+class OutboundAttachment(models.Model):
+    """A document, picture, video or voice note the study sent on WhatsApp from Communications (2026-11-04). Kept in
+    PRIVATE_DATA_ROOT like what people send in (InboundAttachment); Twilio fetches it once through a signed link that
+    expires (apps/messaging/media_out.py), and people who may see the conversation open it through Communications.
+    Deleted, file and all, if the participant withdraws."""
+
+    message = models.ForeignKey(ProviderMessage, on_delete=models.CASCADE, related_name="attachments")
+    kind = models.CharField(max_length=10, choices=AttachmentKind.choices, default=AttachmentKind.OTHER)
+    content_type = models.CharField(max_length=100)
+    filename = models.CharField(max_length=150)
+    file_ref = models.CharField(max_length=255)  # relative to PRIVATE_DATA_ROOT
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"OutboundAttachment({self.message_id} {self.kind})"
+
+
 class MailboxCursor(models.Model):
     """How far apps/messaging/mailbox.py has read one folder of the study's email account: the last IMAP UID looked at,
     valid while the folder's UIDVALIDITY is unchanged. Reading never changes anything in the mailbox."""

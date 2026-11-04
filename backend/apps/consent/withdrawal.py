@@ -84,6 +84,9 @@ def record_withdrawal(sample_case: SampleCase, *, reason: str, method: str = Con
     from apps.messaging.media import delete_attachments
 
     delete_attachments(InboundMessage.objects.filter(sample_case=sample_case))  # voice notes, pictures, shared contacts
+    from apps.messaging.media_out import delete_for
+
+    delete_for(ProviderMessage.objects.filter(sample_case=sample_case))  # files the study sent them (2026-11-04)
     ProviderMessage.objects.filter(sample_case=sample_case).update(body="", subject="")
 
     erased = 0
