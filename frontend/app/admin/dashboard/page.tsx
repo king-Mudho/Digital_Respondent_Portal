@@ -7,6 +7,7 @@ import { IfScreen } from "@/components/admin/RoleGate";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+import { withPilot } from "@/lib/api/pilot";
 
 // The sub-dashboards all link back here, so link forward to them too --
 // each only for the roles that hold it.
@@ -25,6 +26,10 @@ interface ExecutiveDashboard {
   kii_target: number;
   documents_coded: number;
   documents_target: number;
+  /** The ZAS 2026 pilot strand, counted beside the main study (2026-11-08). */
+  quan_pilot?: number;
+  kii_pilot?: number;
+  documents_pilot?: number;
   days_remaining_to_data_lock: number;
   fieldwork_expenditure_to_date: string;
   highest_risk_coverage_gaps: Array<Record<string, unknown>>;
@@ -55,18 +60,15 @@ export default function ExecutiveDashboardPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="QUAN completed"
-              value={`${data.quan_completed} / ${data.quan_target}`}
-            />
-            <StatCard
-              label="KII completed"
-              value={`${data.kii_completed} / ${data.kii_target}`}
-            />
-            <StatCard
-              label="Documents coded"
-              value={`${data.documents_coded} / ${data.documents_target}`}
-            />
+            {(
+              [
+                ["QUAN completed", withPilot(data.quan_completed, data.quan_pilot), data.quan_target],
+                ["KII completed", withPilot(data.kii_completed, data.kii_pilot), data.kii_target],
+                ["Documents coded", withPilot(data.documents_coded, data.documents_pilot), data.documents_target],
+              ] as const
+            ).map(([label, count, target]) => (
+              <StatCard key={label} label={label} value={`${count.total} / ${target}`} sublabel={count.split || undefined} />
+            ))}
             <StatCard
               label="Days to data lock"
               value={data.days_remaining_to_data_lock}

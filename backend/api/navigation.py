@@ -92,6 +92,11 @@ SCREENS = {
     ),
     # PDF copies of completed Kobo forms; each role sees only its own form
     # (kobo.submission_copies.FORMS), enforced server-side per request.
+    # The Zimbabwe Agricultural Show pilot, held beside the main study (PI, 8 Nov 2026; apps/kobo/pilot.py).
+    "pilot": (
+        "/admin/pilot", "ZAS 2026 pilot",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST, Role.SUPERVISOR_READONLY},
+    ),
     "kobo_submissions": (
         "/admin/submissions", "Form PDFs",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.KII_RA, Role.DOCUMENTARY_RA,
@@ -147,7 +152,7 @@ NAV_GROUPS = [
     ("Reaching respondents", ["calls", "follow_ups", "conversations", "appointments"]),
     ("Main 400 sample", ["sample_register", "organisations", "reserve"]),
     ("KII & documents", ["kii_register", "documents"]),
-    ("Quality & data", ["qa_queue", "qa_exceptions", "kobo_submissions"]),
+    ("Quality & data", ["qa_queue", "qa_exceptions", "kobo_submissions", "pilot"]),
     ("Administration", ["cost", "export", "audit", "clearance_documents"]),
 ]
 _GROUP_OF = {sid: (n, label, pos) for n, (label, ids) in enumerate(NAV_GROUPS) for pos, sid in enumerate(ids)}

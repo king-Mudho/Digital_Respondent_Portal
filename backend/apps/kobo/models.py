@@ -139,3 +139,45 @@ class FormSyncLog(models.Model):
 
     def __str__(self):
         return f"FormSyncLog({self.form_key} {self.run_started_at:%Y-%m-%d %H:%M})"
+
+
+class PilotStrand(models.TextChoices):
+    QUAN = "QUAN", "Questionnaire"
+    KII = "KII", "Key informant interview"
+    DOCUMENT = "DOCUMENT", "Document analysis"
+
+
+class PilotRecord(models.Model):
+    """One submission from the Zimbabwe Agricultural Show pilot (ZAS 2026, August 2026), held as its own strand beside
+    the main study (PI decision, 8 Nov 2026). The pilot used different forms and recruited at the Show rather than from
+    the Main-400 frame, so a pilot record is never a SampleCase, a QUANSubmission, a KIIRecord or a DocumentRecord:
+    it is counted next to them, labelled, and left out of the main study's exports. KoboToolbox stays the authority
+    for the answers (apps/kobo/pilot.py copies them). `included` is the PI's cleaning decision; a record whose
+    respondent declined consent is never included."""
+
+    strand = models.CharField(max_length=10, choices=PilotStrand.choices)
+    form_key = models.CharField(max_length=20)  # settings.KOBO_PILOT_FORMS key: quan, kii_show, kii_exec, docs
+    asset_uid = models.CharField(max_length=40)
+    kobo_id = models.BigIntegerField()
+    reference = models.CharField(max_length=120, blank=True)  # the interview / KII / document ID written on the form
+    collected_on = models.DateField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    consented = models.BooleanField(null=True)  # None: the form asks no consent question (documents)
+    # What the list shows, chosen to identify nobody: organisation type, province, value chain, RA, institution
+    # category, document title and issuer. Answer labels, not codes.
+    summary = models.JSONField(default=dict)
+    flags = models.JSONField(default=list)  # cleaning notes, e.g. "Interview ID shared by 9 submissions"
+    payload = models.JSONField(default=dict)
+    included = models.BooleanField(default=True)
+    exclusion_reason = models.CharField(max_length=300, blank=True)
+    decided_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    decided_at = models.DateTimeField(null=True, blank=True)
+    first_synced_at = models.DateTimeField(auto_now_add=True)
+    last_synced_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["strand", "collected_on", "kobo_id"]
+        constraints = [models.UniqueConstraint(fields=["asset_uid", "kobo_id"], name="pilot_record_unique")]
+
+    def __str__(self):
+        return f"PilotRecord({self.form_key}:{self.kobo_id})"

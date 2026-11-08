@@ -12,6 +12,7 @@ from .copy_views import (
     KoboSyncStatusView,
     KoboSyncView,
 )
+from .pilot_views import PilotDecisionView, PilotListView, PilotSyncView
 from .views import (
     KoboReconcileView,
     KoboReconciliationStatusView,
@@ -36,4 +37,7 @@ urlpatterns = [
     path("kobo/forms/<str:key>/submissions/", KoboFormSubmissionsView.as_view(), name="form-submissions"),
     path("kobo/forms/<str:key>/submissions/<int:submission_id>/pdf/", KoboSubmissionPDFView.as_view(), name="submission-pdf"),
     path("kobo/forms/<str:key>/submissions/<int:submission_id>/email/", KoboSubmissionEmailView.as_view(), name="submission-email"),
+    path("pilot/", PilotListView.as_view(), name="pilot"),
+    path("pilot/sync/", PilotSyncView.as_view(), name="pilot-sync"),
+    path("pilot/<int:pk>/decision/", PilotDecisionView.as_view(), name="pilot-decision"),
 ]

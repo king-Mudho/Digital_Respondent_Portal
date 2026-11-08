@@ -448,7 +448,9 @@ def thread(user, kind: str, pk) -> dict:
 def _dial(*values) -> list[dict]:
     """Every distinct number in these fields, with a WhatsApp link and a tel: link for each. The same number written
     two ways (0772000111 in one field, 0772 000 111 in another) is one number."""
-    from apps.contacts.calls import _numbers as split_numbers, _whatsapp_link
+    from apps.contacts.calls import _numbers as split_numbers
+    from apps.contacts.calls import _whatsapp_link
+
     from .services import whatsapp_digits
 
     out, seen = [], set()

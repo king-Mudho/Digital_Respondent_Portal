@@ -264,8 +264,16 @@ KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
 # client_max_body_size on the research host must be at least this.
 DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=60)
 # Documentary-evidence target: coded, QA-included documents. 108 (PI, 25 Oct 2026) -- every register entry with a
-# file was coded and submitted; it replaces the planned 50-75 range. A methodology number, so config, not a literal.
-DOCUMENT_TARGET = env.int("DOCUMENT_TARGET", default=108)
+# file was coded and submitted; it replaced the planned 50-75 range. 121 since 8 Nov 2026: the 108 main-study
+# documents plus the 13 coded in the ZAS 2026 pilot. A methodology number, so config, not a literal.
+DOCUMENT_TARGET = env.int("DOCUMENT_TARGET", default=121)
+# The Zimbabwe Agricultural Show pilot (ZAS 2026), held as its own strand beside the main study (PI, 8 Nov 2026;
+# apps/kobo/pilot.py): key:strand:asset_uid, comma-separated. Its counts are shown next to the main study's, never in
+# them.
+KOBO_PILOT_FORMS = env.list("KOBO_PILOT_FORMS", default=[
+    "quan:QUAN:aVHdngcf5t8FMsQHh6ceSt", "kii_show:KII:a7cNGBhFWpFcSCUeKcZD6b", "kii_exec:KII:aER2JAsT72ky4LwSvbC3RQ",
+    "docs:DOCUMENT:a7z85ZCaXfw4ohzuBnj723",
+])
 
 # --- AI-assisted document coding draft (apps/evidence/ai_coding.py) ---------
 # PI decision, 2026-09-17: AI may draft a full answer set for the Document

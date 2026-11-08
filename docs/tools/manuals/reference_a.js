@@ -43,6 +43,7 @@ const screens = [
 
   {
     id: "dash_exec", group: "Dashboards and Reports (read-only)", title: "Executive Dashboard", path: "/admin/dashboard",
+    // Since 8 Nov 2026 the QUAN, KII and document figures add the ZAS 2026 pilot, shown underneath as "main + pilot".
     roles: [R.PI, R.FC, R.AN, R.SUP],
     purpose: "The one-page picture of the study: how many cases are where in the funnel, response and quality headlines, and the weakest parts of the sample. Counts and rates only; never a name.",
     rows: [

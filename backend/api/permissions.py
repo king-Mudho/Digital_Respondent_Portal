@@ -159,6 +159,20 @@ class CanUseCalls(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanViewPilot(BasePermission):
+    """The ZAS 2026 pilot strand (apps/kobo/pilot.py, 2026-11-08): the PI, Field Coordinator, Analyst and Supervisor
+    see the pilot records (a summary that identifies nobody, never the answers); only the PI syncs them from
+    KoboToolbox or decides which are counted."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES:
+            return True
+        return role in {"FIELD_COORDINATOR", "ANALYST", "SUPERVISOR_READONLY"} and request.method in READ_ONLY_METHODS
+
+
 class CanManageDocuments(BasePermission):
     """Documentary-evidence register/detail, authenticity assessment and QA
     status -- docs/18: "Documentary RA: Assigned document records"."""

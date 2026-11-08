@@ -15,6 +15,7 @@ import {
 } from "@/components/reports/charts";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+import { withPilot } from "@/lib/api/pilot";
 
 type Range = "7" | "30" | "90" | "all";
 
@@ -50,6 +51,10 @@ interface Report {
     kii_target: number;
     documents_included: number;
     documents_target: number;
+    /** The ZAS 2026 pilot strand, beside the main study (2026-11-08). */
+    quan_pilot?: number;
+    kii_pilot?: number;
+    documents_pilot?: number;
     cost_total: string;
     cost_per_qa_passed: string | null;
   };
@@ -174,7 +179,9 @@ export default function ReportsPage() {
             <Kpi
               label="Passed QA"
               value={formatValue(data.kpis.cases_qa_passed)}
-              detail={`${formatValue(data.kpis.completion_rate, "percent")} of the target`}
+              detail={`${formatValue(data.kpis.completion_rate, "percent")} of the target${
+                data.kpis.quan_pilot ? ` · plus ${data.kpis.quan_pilot} ZAS 2026 pilot questionnaires` : ""
+              }`}
             />
             <Kpi
               label="Response rate"
@@ -364,12 +371,19 @@ export default function ReportsPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="space-y-4">
               <h3 className="font-medium">Qualitative and documentary strands</h3>
-              <Meter label="KII interviews completed" value={data.kpis.kii_completed} target={data.kpis.kii_target} />
+              <Meter
+                label="KII interviews completed"
+                value={withPilot(data.kpis.kii_completed, data.kpis.kii_pilot).total}
+                target={data.kpis.kii_target}
+                note={withPilot(data.kpis.kii_completed, data.kpis.kii_pilot).split || undefined}
+              />
               <Meter
                 label="Documents included in the evidence base"
-                value={data.kpis.documents_included}
+                value={withPilot(data.kpis.documents_included, data.kpis.documents_pilot).total}
                 target={data.kpis.documents_target}
-                note={`Target ${data.kpis.documents_target}`}
+                note={[withPilot(data.kpis.documents_included, data.kpis.documents_pilot).split, `Target ${data.kpis.documents_target}`]
+                  .filter(Boolean)
+                  .join(" · ")}
               />
             </Card>
             <ChartCard

@@ -1,17 +1,17 @@
 // Content shared by the system manual and the role guides.
 
-const REVISION = "Version 1.53 · 4 November 2026";
+const REVISION = "Version 1.54 · 8 November 2026";
 const SITE = "https://research.agribizframework.com";
 
 const ROLE_TABLE = [
-  ["PI / System Admin", "All 22 screens, including the Audit Log, Research Clearance and every export", "Executive Dashboard"],
-  ["Field / Digital Coordinator", "20 screens — everything except the Audit Log and Research Clearance. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
+  ["PI / System Admin", "All 23 screens, including the Audit Log, Research Clearance and every export", "Executive Dashboard"],
+  ["Field / Digital Coordinator", "21 screens — everything except the Audit Log and Research Clearance. No full operational export and no KoboToolbox data download", "Executive Dashboard"],
   ["Contact RA", "Main-400 Register, Appointments, Follow-ups, Communications, Calls — only the cases assigned to you", "Main-400 Register"],
   ["QUAN/Kobo QA RA", "QA Dashboard, Form PDFs (questionnaire), QA Queue, QA Exceptions", "QA Dashboard"],
   ["KII RA", "KII/Doc Dashboard, Form PDFs (KII Guide), KII Register, Communications and Calls (KII records)", "KII/Doc Dashboard"],
   ["Documentary RA", "KII/Doc Dashboard, Form PDFs (Document Analysis Tool), Documents", "KII/Doc Dashboard"],
-  ["Data Analyst", "Executive, Sampling, Reports, Contact and KII/Doc dashboards, Cost, Export (de-identified only). Read-only", "Executive Dashboard"],
-  ["Supervisor (read-only)", "19 screens — everything except the Audit Log, Export and Research Clearance. Read-only", "Executive Dashboard"],
+  ["Data Analyst", "Executive, Sampling, Reports, Contact and KII/Doc dashboards, ZAS 2026 pilot, Cost, Export (de-identified only). Read-only", "Executive Dashboard"],
+  ["Supervisor (read-only)", "20 screens — everything except the Audit Log, Export and Research Clearance. Read-only", "Executive Dashboard"],
 ];
 
 const STATUS_TABLE = [

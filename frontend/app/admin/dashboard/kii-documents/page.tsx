@@ -5,6 +5,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+import { withPilot } from "@/lib/api/pilot";
 
 interface KIIDocumentDashboard {
   kii_completed: number;
@@ -13,6 +14,8 @@ interface KIIDocumentDashboard {
   documents_by_type: Record<string, number>;
   documents_by_qa_status: Record<string, number>;
   documents_target: number;
+  kii_pilot?: number;
+  documents_pilot?: number;
 }
 
 /** docs/16_DASHBOARDS_AND_REPORTING.md "KII/document dashboard" -- counts
@@ -32,11 +35,14 @@ export default function KIIDocumentDashboardPage() {
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <StatCard label="KII completed" value={`${data.kii_completed} / ${data.kii_target}`} />
-            <StatCard
-              label="Documents coded"
-              value={`${data.documents_by_qa_status?.INCLUDED ?? 0} / ${data.documents_target}`}
-            />
+            {(
+              [
+                ["KII completed", withPilot(data.kii_completed, data.kii_pilot), data.kii_target],
+                ["Documents coded", withPilot(data.documents_by_qa_status?.INCLUDED ?? 0, data.documents_pilot), data.documents_target],
+              ] as const
+            ).map(([label, count, target]) => (
+              <StatCard key={label} label={label} value={`${count.total} / ${target}`} sublabel={count.split || undefined} />
+            ))}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>

@@ -21,6 +21,7 @@ from apps.invitations.models import InvitationToken, TokenStatus
 from apps.kii.models import KIIRecord, KIIStatus
 from apps.kobo.models import QAStatus as SubmissionQAStatus
 from apps.kobo.models import QUANSubmission
+from apps.kobo.pilot import counts as pilot_counts
 from apps.qa.models import QAEvent
 from apps.sampling.models import SampleCase, SampleType
 
@@ -53,6 +54,7 @@ class ExecutiveDashboardView(APIView):
         quan_completed = QUANSubmission.objects.filter(qa_status=SubmissionQAStatus.QA_PASSED).count()
         kii_completed = KIIRecord.objects.filter(status=KIIStatus.COMPLETED).count()
         documents_coded = DocumentRecord.objects.filter(qa_status=DocumentQAStatus.INCLUDED).count()
+        pilot = pilot_counts()
         days_remaining = (DATA_LOCK_DATE - date.today()).days
         total_cost = CostEvent.objects.aggregate(total=Sum("amount"))["total"] or 0
 
@@ -70,6 +72,8 @@ class ExecutiveDashboardView(APIView):
             "kii_target": KII_TARGET,
             "documents_coded": documents_coded,
             "documents_target": settings.DOCUMENT_TARGET,
+            # The ZAS 2026 pilot strand, shown beside the main study's figures, never inside them (2026-11-08).
+            "quan_pilot": pilot["quan"], "kii_pilot": pilot["kii"], "documents_pilot": pilot["documents"],
             "days_remaining_to_data_lock": days_remaining,
             "fieldwork_expenditure_to_date": str(total_cost),
             "highest_risk_coverage_gaps": gaps,
@@ -172,6 +176,7 @@ class KIIDocumentDashboardView(APIView):
             "documents_by_type": documents_by_type,
             "documents_by_qa_status": documents_by_qa_status,
             "documents_target": settings.DOCUMENT_TARGET,
+            "kii_pilot": pilot_counts()["kii"], "documents_pilot": pilot_counts()["documents"],
         })
 
 

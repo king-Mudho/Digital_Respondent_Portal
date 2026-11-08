@@ -31,6 +31,7 @@ from apps.evidence.models import DocumentQAStatus, DocumentRecord
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.kii.models import KIIRecord, KIIStatus
 from apps.kobo.models import AdministrationMode, QAStatus, QUANSubmission
+from apps.kobo.pilot import counts as pilot_counts
 from apps.messaging.models import MessageLog, MessageStatus
 from apps.qa.models import QAEvent, QARuleThreshold
 from apps.sampling.models import (
@@ -242,6 +243,8 @@ def build_report(range_key: str = "30") -> dict:
             "kii_target": KII_TARGET,
             "documents_included": doc_counts.get(DocumentQAStatus.INCLUDED, 0),
             "documents_target": settings.DOCUMENT_TARGET,
+            # The ZAS 2026 pilot strand, beside the main study's figures (2026-11-08).
+            **{f"{k}_pilot": v for k, v in pilot_counts().items()},
             "cost_total": str(total_cost),
             "cost_per_qa_passed": str(round(total_cost / passed, 2)) if passed else None,
         },

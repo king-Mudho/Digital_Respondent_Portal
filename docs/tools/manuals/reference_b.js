@@ -135,6 +135,18 @@ const screens = [
   },
 
   {
+    id: "pilot", group: "Completed forms and exports", title: "ZAS 2026 pilot", path: "/admin/pilot",
+    roles: [R.PI, R.FC, R.AN, R.SUP],
+    purpose: "The Zimbabwe Agricultural Show pilot (25–31 August 2026), held beside the main study: its questionnaires, KIIs and coded documents, counted next to the main figures on the dashboards (shown as “main + pilot”) and never part of the Main-400 sample or its exports. The answers stay in KoboToolbox; this screen shows a summary that identifies nobody.",
+    rows: [
+      ["Form cards", "How many records of each pilot form are counted, and how many are left out.", "These are the numbers the dashboards add beside the main study's.", "Read only."],
+      ["All / Questionnaires / KIIs / Documents", "Narrows the list to one strand.", "Each strand is counted against its own target.", "The list changes."],
+      ["Every record / Needs a decision / Left out", "Shows every record, only the flagged ones, or only those not counted.", "Flags mark questionnaires with a non-standard interview ID or one shared by several submissions: you decide whether each is a real respondent.", "The list changes."],
+      ["Leave out… / Count it (PI)", "Leaves a record out of the counts, with a reason, or counts it again.", "Pilot data needs cleaning (RA practice runs, reused IDs) before it is counted. A person who declined consent is never counted and can't be.", "The record moves to Left out, or back to Counted; the dashboards change. Recorded in the audit log with your reason.", { only: [R.PI], write: true }],
+      ["Fetch again from KoboToolbox (PI)", "Copies the pilot forms' submissions from KoboToolbox again.", "If a pilot record is edited or deleted in KoboToolbox.", "Changes are copied in; your decisions are kept; a deleted submission stops counting.", { only: [R.PI], write: true }],
+    ],
+  },
+  {
     id: "forms", group: "Completed forms and exports", title: "Completed forms (Form PDFs)", path: "/admin/submissions",
     roles: [R.PI, R.FC, R.QA, R.KII, R.DOC, R.SUP],
     purpose: "The completed KoboToolbox forms for your role (the questionnaire, the KII Guide or the Document Analysis Tool; the PI, coordinator and supervisor can switch between all three).",

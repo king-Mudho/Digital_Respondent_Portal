@@ -344,10 +344,10 @@ UX only; the permission classes remain the real boundary.
 
 | Role | Screens | Lands on |
 |---|---|---|
-| PI / Admin | 21 (everything) | `/admin/dashboard` |
-| Field Coordinator | 19 (no Audit Log or Research Clearance) | `/admin/dashboard` |
-| Supervisor (read-only) | 18 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
-| Analyst (read-only) | 7 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, Cost, Export) | `/admin/dashboard` |
+| PI / Admin | 23 (everything) | `/admin/dashboard` |
+| Field Coordinator | 21 (no Audit Log or Research Clearance) | `/admin/dashboard` |
+| Supervisor (read-only) | 20 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
+| Analyst (read-only) | 8 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, ZAS 2026 pilot, Cost, Export) | `/admin/dashboard` |
 | Contact RA | 5 (Main-400 Register, Appointments, Follow-ups, Communications, Calls) — only its assigned cases | `/admin/sample` |
 | QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
 | KII RA | 5 (KII/Doc Dashboard, Form PDFs, KII Register, Communications, Calls) — KII records only | `/admin/dashboard/kii-documents` |
@@ -496,6 +496,21 @@ letters) so a respondent can check the study is real before answering anything.
     called / not called, with counts.
   - **Contact card:** shows every number with Phone, WhatsApp and Copy links, gatekeepers, the organisation's details,
     the contacts found publicly, and where they stand (link, consent, calls, the last message read).
+- **ZAS 2026 pilot** (`/admin/pilot`, 8 Nov 2026). The Zimbabwe Agricultural Show pilot (25–31 Aug 2026) is held as
+  its own strand beside the main study (PI decision). Its forms are different from the main study's, and its
+  respondents were recruited at the Show rather than drawn from the Main-400 frame.
+  - **Records:** `apps/kobo/pilot.py` copies every submission of the four pilot forms (`KOBO_PILOT_FORMS`) into
+    `PilotRecord`, never into `SampleCase`, `QUANSubmission`, `KIIRecord` or `DocumentRecord`. The Main-400 sample and
+    its exports are untouched.
+  - **Dashboards:** every dashboard and Reports figure adds the pilot beside the main figure, shown as "main + pilot".
+    `DOCUMENT_TARGET` is 121: 108 main and 13 pilot documents.
+  - **Who sees and decides:** the screen shows each record's summary, which identifies nobody, and never the answers.
+    The PI, Field Coordinator, Analyst and Supervisor read it; only the PI fetches again or decides which records count
+    (a reason is required to leave one out; audited).
+  - **Cleaning:** a respondent who declined consent never counts. Non-standard or shared questionnaire IDs are flagged
+    for the PI. Re-running `manage.py sync_pilot_data` keeps every decision.
+  - **Pooling:** pooling the answers with the main study's is an analysis decision. A draft crosswalk was made for that
+    and is not used by the portal.
 - **Withdrawal** (case page). One action records a WITHDRAWN consent and revokes live
   invitations, which stops reminders. Where the workflow allows, it moves the case to
   S12, erases the respondent's contact fields and writes an audit entry. Answers already
