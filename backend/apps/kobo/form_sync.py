@@ -130,6 +130,9 @@ class _Ref:
 def _link_records(key: str, payloads: list[dict]) -> None:
     if key == "kii":
         _complete_kii_coding(payloads)
+        from apps.ra.credit import refresh as refresh_ra_credits  # credit the RA for each KII completed (2026-11-08)
+
+        refresh_ra_credits()
     elif key == "experts":  # an expert's questionnaire in KoboToolbox completes them (apps/experts, 2026-11-08)
         from apps.experts.services import mark_completed_from_kobo
 

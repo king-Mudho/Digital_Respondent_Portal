@@ -4,7 +4,7 @@ const { roleAppendix } = require("./reference");
 
 const ROLE_OF_GUIDE = {
   1: "PI_ADMIN", 2: "FIELD_COORDINATOR", 3: "CONTACT_RA", 4: "QUAN_QA_RA",
-  5: "KII_RA", 6: "DOCUMENTARY_RA", 7: "ANALYST", 8: "SUPERVISOR_READONLY",
+  5: "KII_RA", 6: "DOCUMENTARY_RA", 7: "ANALYST", 8: "SUPERVISOR_READONLY", 9: "TELEPHONE_RA",
 };
 
 const renum = (blocks, prefix) => {
@@ -493,5 +493,57 @@ module.exports = [
     extraRules: ["Raise any concern about how a case, consent or data was handled with the PI directly."],
     trouble: [["\"Your role has read-only access to this screen\"", "Expected for the Supervisor role.", "No action needed."]],
     quick: [["Most useful screen", "Reports"]],
+  }),
+  guide({
+    n: 9, key: "Research_Assistant_Calls", role: "Research Assistant (calls)", title: "Research Assistant (calls)",
+    audience: "The research assistants who phone Main-400 respondents and key informants to help them complete",
+    purpose: "You phone the Main-400 respondents and key informants assigned to you, help them finish, and fill the form in with them when they would rather do it on the call. Every completed form is credited to you when you administered it, or when your logged call or message was the last before they finished it themselves — so log every contact.",
+    can: [
+      "See My work: your assigned cases and KII records, your calls this week and every completion credited to you.",
+      "Use Calls, Communications, Appointments and Follow-ups for the people assigned to you, and read their Main-400 cases.",
+      "Fill in the questionnaire, or conduct the KII, with them on the phone or a WhatsApp call, after recording their verbal consent.",
+      "Log calls, and WhatsApp, SMS or email messages you send from your own phone.",
+    ],
+    cannot: [
+      "See or call anyone not assigned to you, or see another RA's credits.",
+      "Change anyone's answers, or describe the study as a loan, a credit rating or a guarantee.",
+      "Assign work or change a credit: the PI and Field Coordinator do that.",
+    ],
+    landing: "My work",
+    screens: [
+      ["My work", "Your assigned work and the completions credited to you, by period."],
+      ["Calls", "Everyone assigned to you who hasn't finished, closest to finishing first, and those with no link yet. Phone, fill in with them, log each call."],
+      ["Communications", "WhatsApp, SMS and email with your people, what they wrote back, and the call buttons."],
+      ["Appointments", "Times people asked you to call them back."],
+      ["Follow-ups", "Reminders due for your people."],
+      ["Main-400 Register", "Your assigned Main-400 cases, read-only."],
+    ],
+    routine: [
+      ["Start of the day", "My work: check your assigned numbers. Calls: start with Started, not finished, then Consented, then Opened."],
+      ["Each call", "Introduce yourself and the study. If they would like to do it now, use Fill in with them now; otherwise agree a time (Appointments) or send the link again."],
+      ["After each call", "Log it on Calls — even a call from your own phone or a WhatsApp message. An unlogged call earns no credit."],
+      ["End of the week", "My work: check the completions credited to you; tell the PI about any that are missing."],
+    ],
+    tasks: [
+      [["h2", "Filling in the form with them"], ["steps", [
+        "On **Calls**, find the person and select **Fill in with them now** (questionnaire) or **Interview them now** (KII).",
+        "Choose Phone call or WhatsApp call. For the questionnaire, write who you are speaking to and choose their role.",
+        "Read them the participant information. Only if they agree, tick the consent box (for a KII, tick recording consent only if they agreed to be recorded).",
+        "Select **Record consent and open the form**. The form opens in a new tab with their ID filled in: go through it with them, reading questions as written, and submit.",
+      ]]],
+      T.calls,
+      [["h2", "How your completions are counted"], ["bullets", [
+        "**Administered**: you opened the form with Fill in with them now and it was submitted.",
+        "**Assisted**: they completed it themselves, and your logged call or message was the last before it, within 14 days.",
+        "My work lists each one with the evidence. If one is missing (for example a call you forgot to log), tell the PI, who can correct it with a reason.",
+      ]]],
+    ],
+    extraRules: ["Only call the people assigned to you.", "Never read out or change a respondent's answers, and never say they will get finance."],
+    trouble: [
+      ["“Not assigned to you”", "The person is assigned to another RA, or to nobody.", "Ask the PI or Field Coordinator to assign them to you."],
+      ["“Record who you are speaking to and their role first”", "The questionnaire needs to know the respondent's role (eligibility).", "Fill in their name and role, then try again."],
+      ["A completion isn't credited to you", "No call or message of yours was logged before they finished, or another RA's came later.", "Tell the PI; they can correct it with a reason."],
+    ],
+    quick: [["Credit", "Administered, or assisted within 14 days"], ["Log", "Every call and every message from your own phone"], ["Never", "Change answers, or promise finance"]],
   }),
 ];

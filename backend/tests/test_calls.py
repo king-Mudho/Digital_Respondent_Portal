@@ -81,7 +81,7 @@ def test_people_who_have_not_finished_are_listed_closest_to_finishing_first(pi, 
     ids = [r["id"] for r in data["results"]]
     assert ids[0] == started.sample_id and "Done Farm" not in [r["organisation"] for r in data["results"]]
     assert [r["stage"] for r in data["results"]] == ["started", "opened", "opened", "not_opened"]
-    assert record.kii_id in ids and data["stage_counts"] == {"started": 1, "consented": 0, "opened": 2, "not_opened": 1}
+    assert record.kii_id in ids and data["stage_counts"] == {"started": 1, "consented": 0, "opened": 2, "not_opened": 1, "no_link": 0}
     first = data["results"][0]
     assert first["stage_label"] == "Started, not finished" and first["detail_path"] == f"/admin/sample/{started.sample_id}"
     numbers = first["people"][0]["numbers"]

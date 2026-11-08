@@ -28,7 +28,10 @@ from .services import (
 
 
 def _is_contact_ra(user) -> bool:
-    return getattr(getattr(user, "role", None), "name", None) == "CONTACT_RA"
+    """Limited to their assigned cases: a Contact RA, or a Research Assistant (calls) (apps.ra.roles)."""
+    from apps.ra.roles import assigned_cases_only
+
+    return assigned_cases_only(user)
 
 
 def _require_assigned(user, sample_case):

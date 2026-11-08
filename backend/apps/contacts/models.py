@@ -66,6 +66,12 @@ class ContactOutcome(models.TextChoices):
     REFUSED = "REFUSED", "Refused"
     RESCHEDULED = "RESCHEDULED", "Rescheduled"
     COMPLETED = "COMPLETED", "Completed"
+    # The RA filled in the form with them, opened from the portal (apps/ra/administer.py, 2026-11-08).
+    ADMINISTERED = "ADMINISTERED", "Filled in the form with them"
+
+
+# Contacts an RA logs that are not calls: a WhatsApp message, SMS or email sent from their own phone (2026-11-08).
+MESSAGE_CHANNELS = (ContactChannel.WHATSAPP, ContactChannel.SMS, ContactChannel.EMAIL)
 
 
 class ContactEvent(models.Model):

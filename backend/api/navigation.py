@@ -57,9 +57,15 @@ SCREENS = {
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.ANALYST, Role.SUPERVISOR_READONLY,
          Role.KII_RA, Role.DOCUMENTARY_RA},
     ),
+    # A research assistant's own assigned work and credited completions (apps/ra, 2026-11-08) -- the Research
+    # Assistant (calls)'s start screen, so it comes before the Main-400 Register.
+    "my_work": (
+        "/admin/my-work", "My work",
+        {Role.PI_ADMIN, Role.TELEPHONE_RA},
+    ),
     "sample_register": (
         "/admin/sample", "Main-400 Register",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     # Registering an organisation is a create-only screen; Contact RA can read
     # sample cases but never creates organisations, so it stays out of its nav
@@ -70,25 +76,30 @@ SCREENS = {
     ),
     "appointments": (
         "/admin/appointments", "Appointments",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     # Reminders due for sending by hand (messaging.views, CanManageContact).
     "follow_ups": (
         "/admin/follow-ups", "Follow-ups",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     # Every message to and from participants on WhatsApp, SMS and email, with delivery status (messaging.views
     # Communication*View, CanUseCommunications, 2026-10-12; replaced "Conversations"). A Contact RA sees only their
     # own Main-400 cases, a KII RA only KII records -- scoped in apps/messaging/communications.py.
     "conversations": (
         "/admin/communications", "Communications",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     # Phoning everyone whose link was sent but who has not finished, Main 400 and KII, with every contact on file and a
     # call log (apps/contacts/calls.py, CanUseCalls, 2026-10-25). Same people and scoping as Communications.
+    # The PI's view of the RAs: assign work, see each one's completions, settle credits (apps/ra, 2026-11-08).
+    "ra_team": (
+        "/admin/research-assistants", "Research assistants",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.SUPERVISOR_READONLY},
+    ),
     "calls": (
         "/admin/calls", "Calls",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.CONTACT_RA, Role.KII_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     # PDF copies of completed Kobo forms; each role sees only its own form
     # (kobo.submission_copies.FORMS), enforced server-side per request.
@@ -154,7 +165,7 @@ SCREENS = {
 NAV_GROUPS = [
     ("Dashboards", ["dashboard_executive", "dashboard_sampling", "dashboard_contact", "dashboard_qa",
                     "dashboard_kii_documents", "reports"]),
-    ("Reaching respondents", ["calls", "follow_ups", "conversations", "appointments"]),
+    ("Reaching respondents", ["my_work", "calls", "follow_ups", "conversations", "appointments", "ra_team"]),
     ("Main 400 sample", ["sample_register", "organisations", "reserve"]),
     ("KII, experts & documents", ["kii_register", "experts", "documents"]),
     ("Quality & data", ["qa_queue", "qa_exceptions", "kobo_submissions", "pilot"]),

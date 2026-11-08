@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.messaging",
     "apps.kii",
     "apps.experts",
+    "apps.ra",
     "apps.evidence",
     "apps.qa",
     "apps.dashboards",
@@ -277,6 +278,9 @@ DOCUMENT_TARGET = env.int("DOCUMENT_TARGET", default=121)
 # Invitations go out only once EXPERT_ETHICS_REFERENCE holds the approval reference: the questionnaire and protocol
 # both say they are distributed only after the required approval.
 EXPERT_TARGET = env.int("EXPERT_TARGET", default=12)
+# Research assistants are paid per completion they administered or assisted (apps/ra, PI 8 Nov 2026). A respondent's
+# own completion is "assisted" by the RA whose call or message came last within this many days before it.
+RA_ASSIST_CREDIT_DAYS = env.int("RA_ASSIST_CREDIT_DAYS", default=14)
 EXPERT_PANEL_TARGETS = env.dict("EXPERT_PANEL_TARGETS", cast={"value": int}, default={
     "FINANCE": 3, "AGRIBUSINESS": 3, "ECONOMICS": 2, "METHODS": 2, "FOOD_SYSTEMS": 2,
 })

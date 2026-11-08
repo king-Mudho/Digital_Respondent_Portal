@@ -22,13 +22,17 @@ from apps.kii.models import KIIInvitationToken
 from apps.messaging.communications import visible_cases, visible_records
 from apps.messaging.models import MessagePurpose, ProviderMessage
 
-from .models import CALL_CHANNELS, ContactChannel, ContactEvent, ContactOutcome
+from .models import CALL_CHANNELS, MESSAGE_CHANNELS, ContactChannel, ContactEvent, ContactOutcome
 
 STAGE_LABELS = {
     "started": "Started, not finished",
     "consented": "Consented, not started",
     "opened": "Opened, not started",
     "not_opened": "Link sent, not opened",
+    # Assigned to a research assistant and not invited yet: phone them, and fill the form in with them or send the
+    # link (2026-11-08). Only cases and KII records assigned to someone are listed, so the PI's list does not fill up
+    # with every prospect.
+    "no_link": "Assigned, no link yet",
 }
 STAGE_ORDER = list(STAGE_LABELS)
 # How far a live link got, per study. A link that is submitted, QA-passed, expired or revoked is not a call.
@@ -88,11 +92,15 @@ def _reminder_counts(field: str, ids) -> dict:
     return {r[field]: r["n"] for r in rows}
 
 
+def _ra_name(user):
+    return (user.get_full_name() or user.username) if user else ""
+
+
 def _main_items(user):
     from apps.sampling.models import SampleType
 
     events = Prefetch("contact_events", queryset=ContactEvent.objects.select_related("ra"))
-    cases = (visible_cases(user)
+    cases = (visible_cases(user).select_related("assigned_ra")
              .filter(Q(sample_type=SampleType.MAIN, workflow_status__in=["S05", "S06", "S07"])
                      | Q(sample_type=SampleType.RESERVE, status="ACTIVATED"))
              .exclude(metadata__has_key="duplicate_of")
@@ -120,6 +128,37 @@ def _main_items(user):
             "link_channel": token.get_channel_display(), "people": people,
             "public_contacts": str((org.metadata or {}).get("public_contacts") or ""),
             "reminders": reminders.get(c.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}",
+            "assigned_to": _ra_name(c.assigned_ra),
+        }
+    yield from _main_without_link(user, events)
+
+
+def _main_without_link(user, events):
+    """Assigned Main-400 cases (and activated Reserves) nobody has invited yet."""
+    from apps.sampling.models import SampleType
+    from apps.sampling.services import is_invitable
+
+    cases = (visible_cases(user).exclude(assigned_ra=None)
+             .filter(Q(sample_type=SampleType.MAIN, workflow_status__in=["S03", "S04"])
+                     | Q(sample_type=SampleType.RESERVE, status="ACTIVATED", workflow_status__in=["", "S00", "S01", "S02", "S03", "S04"]))
+             .exclude(metadata__has_key="duplicate_of")
+             .exclude(invitation_tokens__status__in=[*MAIN_STAGE, *FINISHED])
+             .distinct().select_related("assigned_ra").prefetch_related("respondents", events))
+    for c in cases:
+        if not is_invitable(c):
+            continue
+        org = c.organisation
+        last, n_calls = _last_call(list(c.contact_events.all()))
+        yield {
+            "kind": "main", "id": c.sample_id, "study": "Main 400" + (" reserve" if c.sample_type == SampleType.RESERVE else ""),
+            "organisation": org.name, "location": ", ".join(x for x in (org.district, org.get_province_display()) if x),
+            "sector": org.get_actor_family_display(), "stage": "no_link", "link_sent": None, "link_opened": None,
+            "link_expires": None, "link_channel": "",
+            "people": [_person(p.full_name, p.get_role_category_display() if p.role_category else "",
+                               _numbers(p.whatsapp_number, p.phone, p.gatekeeper_contact if not p.gatekeeper_name else ""),
+                               p.email, " ".join(x for x in (p.gatekeeper_name, p.gatekeeper_contact) if x)) for p in c.respondents.all()],
+            "public_contacts": str((org.metadata or {}).get("public_contacts") or ""), "reminders": 0, "calls": n_calls,
+            "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}", "assigned_to": _ra_name(c.assigned_ra),
         }
 
 
@@ -128,7 +167,7 @@ def _kii_items(user):
 
     events = Prefetch("contact_events", queryset=ContactEvent.objects.select_related("ra"))
     records = list(visible_records(user).filter(status="INVITED", invitation_tokens__status__in=KII_STAGE).distinct()
-                   .select_related("organisation")
+                   .select_related("organisation", "assigned_ra")
                    .prefetch_related(events, Prefetch("invitation_tokens", queryset=KIIInvitationToken.objects.filter(status__in=KII_STAGE))))
     reminders = _reminder_counts("kii_record_id", [r.id for r in records])
     pools = {"CORE_60": "Core 60", "RESERVE_30": "Reserve 30", "ADDITIONAL": "Additional"}
@@ -147,6 +186,23 @@ def _kii_items(user):
             "people": [_person(name, r.participant_role, _numbers(r.whatsapp_number, r.phone), r.email)],
             "public_contacts": str(meta.get("public_contacts") or ""),
             "reminders": reminders.get(r.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/kii/{r.pk}",
+            "assigned_to": _ra_name(r.assigned_ra),
+        }
+    # Assigned informants nobody has invited yet (2026-11-08).
+    waiting = (visible_records(user).exclude(assigned_ra=None).filter(status__in=["PROSPECT", "INVITED"])
+               .exclude(invitation_tokens__status__in=KII_STAGE).distinct()
+               .select_related("organisation", "assigned_ra").prefetch_related(events))
+    for r in waiting:
+        meta, org = r.metadata or {}, r.organisation
+        last, n_calls = _last_call(list(r.contact_events.all()))
+        yield {
+            "kind": "kii", "id": r.kii_id, "study": "KII " + pools.get(meta.get("pool"), "").strip(),
+            "organisation": organisation_name(r), "location": ", ".join(x for x in ((org.district, org.get_province_display()) if org else ()) if x),
+            "sector": r.stakeholder_category, "stage": "no_link", "link_sent": None, "link_opened": None, "link_expires": None,
+            "link_channel": "", "people": [_person("" if is_placeholder(r) else r.participant_name, r.participant_role,
+                                                   _numbers(r.whatsapp_number, r.phone), r.email)],
+            "public_contacts": str(meta.get("public_contacts") or ""), "reminders": 0, "calls": n_calls, "last_call": last,
+            "detail_path": f"/admin/kii/{r.pk}", "assigned_to": _ra_name(r.assigned_ra),
         }
 
 
@@ -176,8 +232,8 @@ def call_list(user, *, study: str = "all", stage: str = "all", q: str = "") -> d
         "results": [{**i, "stage_label": STAGE_LABELS[i["stage"]]} for i in items],
         "count": len(items), "stage_counts": counts, "stage_labels": STAGE_LABELS,
         "studies": [s for s, qs in (("main", visible_cases(user)), ("kii", visible_records(user))) if qs.exists()],
-        "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices],
-        "call_channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS],
+        "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices if v != ContactOutcome.ADMINISTERED],
+        "call_channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS + MESSAGE_CHANNELS],
     }
 
 
@@ -196,8 +252,10 @@ def log_call(user, kind: str, ident: str, *, outcome: str, notes: str = "", next
         raise CallError("not_found", "That case or record was not found, or is not one you can call.", 404)
     if outcome not in ContactOutcome.values:
         raise CallError("invalid_outcome", "Choose what happened on the call.")
-    if channel not in CALL_CHANNELS:
-        raise CallError("invalid_channel", "Choose a phone call, a WhatsApp voice call or a WhatsApp video call.")
+    if channel not in CALL_CHANNELS + MESSAGE_CHANNELS:
+        raise CallError("invalid_channel", "Choose a call, or a WhatsApp, SMS or email message sent from your phone.")
+    if outcome == ContactOutcome.ADMINISTERED:
+        raise CallError("invalid_outcome", "Use \"Fill in with them now\" to do the form with them: it records that itself.")
     when = parse_date(next_action_date) if isinstance(next_action_date, str) and next_action_date else next_action_date or None
     if next_action_date and when is None:
         raise CallError("invalid_date", "The call-back date isn't a valid date.")

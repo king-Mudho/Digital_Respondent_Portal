@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { CreditList } from "@/components/admin/CreditList";
+import { IfScreen } from "@/components/admin/RoleGate";
 import {
   ChartCard,
   Columns,
@@ -16,6 +18,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 import { withPilot } from "@/lib/api/pilot";
+import { periodQuery, type Team } from "@/lib/api/ra";
 
 type Range = "7" | "30" | "90" | "all";
 
@@ -368,6 +371,10 @@ export default function ReportsPage() {
             </ChartCard>
           </div>
 
+          <IfScreen path="/admin/research-assistants">
+            <RACompletions since={data.range.since} />
+          </IfScreen>
+
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="space-y-4">
               <h3 className="font-medium">Qualitative and documentary strands</h3>
@@ -400,5 +407,48 @@ export default function ReportsPage() {
         </div>
       )}
     </AdminShell>
+  );
+}
+
+
+/**
+ * Completed submissions by research assistant, for the report's date range (backend apps/ra, 2026-11-08): each RA's
+ * administered and assisted completions, and the latest completions with the RA who earned them.
+ */
+function RACompletions({ since }: { since: string | null }) {
+  const query = periodQuery(since ? since.slice(0, 10) : "", "");
+  const { data } = useQuery({ queryKey: ["reports-ra", query], queryFn: () => adminFetch<Team>(`/ra/team/?${query}`) });
+  if (!data) return null;
+  return (
+    <Card className="space-y-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-medium">Completed submissions by research assistant</h3>
+        <a href="/admin/research-assistants" className="text-sm text-header underline">Research assistants →</a>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-text-muted">
+              <th className="py-1 pr-4">Research assistant</th>
+              <th className="py-1 pr-4 text-right">Questionnaires (administered / assisted)</th>
+              <th className="py-1 pr-4 text-right">KIIs (administered / assisted)</th>
+              <th className="py-1 text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.team.map((m) => (
+              <tr key={m.id} className="border-t border-border">
+                <td className="py-1 pr-4 font-medium">{m.name}</td>
+                <td className="py-1 pr-4 text-right tabular-nums">{m.credits.quan_administered} / {m.credits.quan_assisted}</td>
+                <td className="py-1 pr-4 text-right tabular-nums">{m.credits.kii_administered} / {m.credits.kii_assisted}</td>
+                <td className="py-1 text-right font-semibold tabular-nums">{m.credits.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-text-muted">{data.uncredited} completed with no RA involved in this period.</p>
+      <CreditList credits={data.credits.slice(0, 15)} showRA empty="No completions in this period." />
+    </Card>
   );
 }

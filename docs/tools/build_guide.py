@@ -31,7 +31,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 8 &mdash; 8 November 2026"
+REVISION = "Revision 9 &mdash; 8 November 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
@@ -45,7 +45,9 @@ REVISION_NOTE = (
     "new ZAS 2026 pilot screen; the dashboards add it to the main figures, always shown as main + pilot, and the "
     "document target is 121 (108 main + 13 pilot). Revision 8: an Expert panel (ABI) screen registers the twelve "
     "experts who rate the 16 ABI indicators and sends each a personal link; they consent on the portal before the "
-    "questionnaire opens, and their submission completes them."
+    "questionnaire opens, and their submission completes them. Revision 9: a Research Assistant (calls) role for the "
+    "telephone RAs, who see only their assigned Main-400 cases and KII records, can fill the form in with a respondent "
+    "on a call, and are credited with each completion they administered or assisted (My work; Research assistants)."
 )
 
 # ---------------------------------------------------------------- palette --

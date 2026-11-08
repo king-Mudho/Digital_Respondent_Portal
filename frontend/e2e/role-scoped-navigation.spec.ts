@@ -97,7 +97,8 @@ test("the PI sees every module", async ({ page }) => {
   expect(labels).toContain("Calls"); // the Calls screen (2026-10-26), which made it 22
   expect(labels).toContain("ZAS 2026 pilot"); // the pilot strand (2026-11-08), which made it 23
   expect(labels).toContain("Expert panel (ABI)"); // the ABI expert panel (2026-11-08), which made it 24
-  expect(labels.length).toBe(24);
+  expect(labels).toContain("Research assistants"); // the RAs' work and credits (2026-11-08), with My work: 26
+  expect(labels.length).toBe(26);
 });
 
 test("a read-only role sees no write controls on a mixed screen", async ({ page }) => {

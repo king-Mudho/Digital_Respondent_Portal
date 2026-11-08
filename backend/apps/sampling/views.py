@@ -38,8 +38,9 @@ def _scope_to_assigned_cases_for_contact_ra(request, queryset):
     that reaches this point (Field Coordinator/Admin/Supervisor) sees the
     unfiltered queryset; CanViewSampleCases has already refused write
     access for Contact RA, this only narrows *which* cases it can read."""
-    role = getattr(getattr(request.user, "role", None), "name", None)
-    if role == "CONTACT_RA":
+    from apps.ra.roles import assigned_cases_only
+
+    if assigned_cases_only(request.user):  # Contact RA, and Research Assistant (calls) since 2026-11-08
         return queryset.filter(assigned_ra=request.user)
     return queryset
 

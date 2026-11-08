@@ -523,8 +523,10 @@ def bulk_assign_cases(*, to_user, from_user=None, from_unassigned=False, provinc
     RA can handle (Harare has 252) is split between several. `preview`
     returns the matching Sample IDs without changing anything.
     """
-    if to_user is not None and (getattr(to_user.role, "name", None) != "CONTACT_RA" or not to_user.is_active):
-        raise InvalidAssignment("Cases can only be assigned to an active Contact RA account.")
+    from apps.ra.roles import ASSIGNED_CASE_ROLES
+
+    if to_user is not None and (getattr(to_user.role, "name", None) not in ASSIGNED_CASE_ROLES or not to_user.is_active):
+        raise InvalidAssignment("Cases can only be assigned to an active Contact RA or Research Assistant (calls) account.")
     if limit is not None and limit < 1:
         raise InvalidAssignment("The number of cases to move must be at least 1.")
     cases = SampleCase.objects.filter(sample_type=SampleType.MAIN)

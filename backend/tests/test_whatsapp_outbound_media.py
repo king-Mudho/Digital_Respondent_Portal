@@ -282,7 +282,8 @@ def test_a_whatsapp_video_call_is_logged_and_counts_as_called(pi, person, main_c
     resp = _client(pi).post(url, {"outcome": "REACHED", "channel": "WHATSAPP_VIDEO", "notes": "Booked Friday"}, format="json")
     assert resp.status_code == 201
     assert ContactEvent.objects.get().channel == ContactChannel.WHATSAPP_VIDEO
-    assert _client(pi).post(url, {"outcome": "REACHED", "channel": "EMAIL"}, format="json").status_code == 400
+    # A message sent from the caller's own phone may be logged since 2026-11-08; face to face is not a call.
+    assert _client(pi).post(url, {"outcome": "REACHED", "channel": "FACE_TO_FACE"}, format="json").status_code == 400
     thread = _client(pi).get(f"{THREADS}main/{main_case.pk}/").json()
     assert any(i["type"] == "event" and i["text"] == "WhatsApp video call: Reached" for i in thread["items"])
     assert thread["calls"]["numbers"][0]["whatsapp_link"] == f"https://wa.me/{NUMBER}"

@@ -135,6 +135,29 @@ const screens = [
   },
 
   {
+    id: "my_work", group: "The sample and contact", title: "My work", path: "/admin/my-work",
+    roles: [R.PI, R.TRA],
+    purpose: "A research assistant's own page: how many Main-400 cases and KII records are assigned to you, your calls this week, and every completed form credited to you — the number you are paid on. You only ever see your own.",
+    rows: [
+      ["Completed (credited to you)", "Forms credited to you in the period chosen below: questionnaires and KIIs, administered (you filled it in with them) and assisted (they finished it after your call or message).", "This is the count you are paid on.", "Read only."],
+      ["Calls, Communications, Appointments, Follow-ups", "Shortcuts to your working screens.", "Everything you do happens there; this page adds it up.", "The screen opens."],
+      ["From / To / All time", "Chooses the period, e.g. one pay month.", "To check a month's count before payment.", "The list and counts change."],
+      ["Completions credited to you", "Each completed form: when, which case or KII, administered or assisted, and the evidence (e.g. the call you logged).", "So you can see exactly what you are credited with, and raise anything missing with the PI.", "Read only."],
+    ],
+  },
+  {
+    id: "ra_team", group: "The sample and contact", title: "Research assistants", path: "/admin/research-assistants",
+    roles: [R.PI, R.FC, R.SUP],
+    purpose: "The research assistants' work and pay sheet: what each one is assigned, their calls, and how many forms each administered or assisted, with every completion and the RA who earned it.",
+    rows: [
+      ["RA table", "For each RA: cases and KII records assigned, calls in the last 7 days, questionnaires and KIIs administered / assisted, passed QA, total.", "The numbers RAs are paid on.", "Read only."],
+      ["From / To / Download pay sheet (CSV)", "Chooses the pay period and downloads every completion in it with the RA's name.", "For paying the RAs and keeping a record of it.", "A CSV file downloads; the download is audited."],
+      ["Give work to a research assistant", "Choose the RA, Main-400 cases or KII records, where to take them from (unassigned, or another account such as the shared Contact RA account) and how many.", "Each RA sees and calls only what is assigned to them, so two never phone the same person.", "That many cases or KII records move to the RA; it is audited.", { only: [R.PI, R.FC], write: true }],
+      ["Completed submissions and who earned them", "Every completion: when, which case or KII, the RA, administered / assisted / no RA, and the evidence.", "So any completion can be traced to the person who earned it.", "Read only."],
+      ["Change (PI)", "Changes a credit: the RA and the kind, with a reason.", "For a call made but not logged, or a dispute.", "The credit shows “set by” you with your reason, and is never recomputed. Audited.", { only: [R.PI], write: true }],
+    ],
+  },
+  {
     id: "experts", group: "Key Informant Interviews", title: "Expert panel (ABI)", path: "/admin/experts · /admin/experts/{Expert ID}",
     roles: [R.PI, R.FC, R.SUP],
     purpose: "The twelve experts who rate the 16 candidate ABI indicators (Stage 1 of the ABI validation protocol): who they are, their panel area against its target, and how far each has got. Each expert has a personal link: they read the information, consent, and the KoboToolbox questionnaire opens with only their Expert ID filled in.",

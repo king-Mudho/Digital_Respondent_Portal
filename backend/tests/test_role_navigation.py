@@ -25,9 +25,11 @@ EXPECTED_SCREENS = {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
         "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
-        "pilot", "experts",
+        "pilot", "experts", "ra_team",
     },
     Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups", "conversations", "calls"},
+    # The two telephone RAs (2026-11-08): their own work, on both studies, assigned to them.
+    Role.TELEPHONE_RA: {"my_work", "sample_register", "appointments", "follow_ups", "conversations", "calls"},
     Role.QUAN_QA_RA: {"dashboard_qa", "kobo_submissions", "qa_queue", "qa_exceptions"},
     Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register", "conversations", "calls"},
     Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "kobo_submissions", "documents"},
@@ -39,7 +41,7 @@ EXPECTED_SCREENS = {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
         "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
-        "pilot", "experts",
+        "pilot", "experts", "ra_team",
     },
 }
 
@@ -130,6 +132,8 @@ SCREEN_ENDPOINTS = {
     "kobo_submissions": "/api/v1/kobo/forms/",
     "pilot": "/api/v1/pilot/",
     "experts": "/api/v1/experts/",
+    "my_work": "/api/v1/ra/my-work/",
+    "ra_team": "/api/v1/ra/team/",
     "qa_queue": "/api/v1/qa/queue/",
     "qa_exceptions": "/api/v1/qa/exceptions/",
     "kii_register": "/api/v1/kii/",
@@ -163,6 +167,9 @@ NAV_TIGHTER_THAN_API = {
     # already sees the same organisations through the Main-400 Register)
     # but never registers one, so the screen stays out of its nav.
     (Role.CONTACT_RA, "organisations"),
+    # The same for a Research Assistant (calls) (2026-11-08): it reads its assigned cases' organisations through the
+    # Main-400 Register, and never registers one.
+    (Role.TELEPHONE_RA, "organisations"),
 }
 
 

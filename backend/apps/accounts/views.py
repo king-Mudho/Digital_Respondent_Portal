@@ -119,9 +119,10 @@ class ContactRAListView(APIView):
     permission_classes = [CanViewSampleCases]
 
     def get(self, request):
-        role = Role.objects.filter(name=Role.CONTACT_RA).first()
-        users = User.objects.filter(role=role, is_active=True).order_by("username") if role else []
-        return Response({"results": [{"id": u.id, "username": u.username, "full_name": u.get_full_name()} for u in users]})
+        # Research Assistants (calls) are assignable too (2026-11-08).
+        users = User.objects.filter(role__name__in=[Role.CONTACT_RA, Role.TELEPHONE_RA], is_active=True).select_related("role").order_by("username")
+        return Response({"results": [{"id": u.id, "username": u.username, "full_name": u.get_full_name(),
+                                      "role": u.role.name} for u in users]})
 
 
 class QAAssigneeListView(APIView):

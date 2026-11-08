@@ -12,13 +12,15 @@ const READ_ONLY = new Set([R.SUP, R.AN]);
 const ROLE_NAME = {
   [R.PI]: "PI / System Admin", [R.FC]: "Field / Digital Coordinator", [R.CRA]: "Contact RA", [R.QA]: "QUAN/Kobo QA RA",
   [R.KII]: "KII RA", [R.DOC]: "Documentary RA", [R.AN]: "Data Analyst", [R.SUP]: "Supervisor",
+  [R.TRA]: "Research Assistant (calls)",
 };
 const ROLE_SHORT = {
   [R.PI]: "PI", [R.FC]: "FC", [R.CRA]: "CRA", [R.QA]: "QA", [R.KII]: "KII", [R.DOC]: "DOC", [R.AN]: "AN", [R.SUP]: "SUP",
+  [R.TRA]: "RA",
 };
 const ROLE_PLAIN = {
   [R.PI]: "the PI", [R.FC]: "the Field Coordinator", [R.CRA]: "Contact RAs", [R.QA]: "QA RAs", [R.KII]: "KII RAs",
-  [R.DOC]: "Documentary RAs", [R.AN]: "Analysts", [R.SUP]: "Supervisors",
+  [R.DOC]: "Documentary RAs", [R.AN]: "Analysts", [R.SUP]: "Supervisors", [R.TRA]: "research assistants (calls)",
 };
 
 const HEADERS = ["Control", "What it does and when to use it", "Why it exists", "What happens next"];

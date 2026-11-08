@@ -13,6 +13,12 @@ from .models import ReminderSequenceStep
 from .services import due_follow_ups, expired_invitations, record_manual_follow_up
 
 
+def _assigned_only(user) -> bool:
+    from apps.ra.roles import assigned_cases_only
+
+    return assigned_cases_only(user)
+
+
 class FollowUpListView(APIView):
     """GET /api/v1/follow-ups/ -- reminders due and not yet sent, with a
     WhatsApp click-to-chat link carrying the approved reminder text. The
@@ -23,7 +29,7 @@ class FollowUpListView(APIView):
     def get(self, request):
         from .outreach import unanswered
 
-        is_contact_ra = getattr(request.user.role, "name", None) == "CONTACT_RA"
+        is_contact_ra = _assigned_only(request.user)
         mine = request.user if is_contact_ra else None
         return Response({"results": due_follow_ups(assigned_to=mine), "expired": expired_invitations(assigned_to=mine),
                          "unanswered_introductions": unanswered(assigned_to=mine)})
@@ -37,7 +43,7 @@ class FollowUpMarkSentView(APIView):
 
     def post(self, request):
         sample_case = get_object_or_404(SampleCase, sample_id=request.data.get("sample_id", ""))
-        if getattr(request.user.role, "name", None) == "CONTACT_RA" and sample_case.assigned_ra_id != request.user.id:
+        if _assigned_only(request.user) and sample_case.assigned_ra_id != request.user.id:
             return Response(
                 {"error": {"code": "permission_denied", "message": "This case is not assigned to you.", "field_errors": {}}},
                 status=403,
@@ -118,8 +124,9 @@ def _visible_messages(user):
     from .models import InboundMessage
 
     messages = InboundMessage.objects.select_related("sample_case__organisation", "outreach", "handled_by")
-    if getattr(user.role, "name", None) == "CONTACT_RA":
-        # A Contact RA sees their own cases' conversations; messages from unknown numbers go to the PI and FC.
+    if _assigned_only(user):
+        # A Contact RA (or Research Assistant (calls)) sees their own cases' conversations; messages from unknown
+        # numbers go to the PI and FC.
         messages = messages.filter(sample_case__assigned_ra=user)
     return messages
 
@@ -233,7 +240,7 @@ class CaseOutreachView(APIView):
         from .outreach import intro_channel
 
         case = get_object_or_404(SampleCase, sample_id=request.query_params.get("sample_id"))
-        if getattr(request.user.role, "name", None) == "CONTACT_RA" and case.assigned_ra_id != request.user.id:
+        if _assigned_only(request.user) and case.assigned_ra_id != request.user.id:
             return Response({"error": {"code": "forbidden", "message": "This case is not assigned to you.", "field_errors": {}}}, status=403)
         outreaches = Outreach.objects.filter(sample_case=case).prefetch_related("messages")
         return Response({"intro_channel": intro_channel(), "results": _outreach_rows(outreaches)})
@@ -242,7 +249,7 @@ class CaseOutreachView(APIView):
         from .outreach import OutreachError, send_introduction
 
         case = get_object_or_404(SampleCase, sample_id=request.data.get("sample_id"))
-        if getattr(request.user.role, "name", None) == "CONTACT_RA" and case.assigned_ra_id != request.user.id:
+        if _assigned_only(request.user) and case.assigned_ra_id != request.user.id:
             return Response({"error": {"code": "forbidden", "message": "This case is not assigned to you.", "field_errors": {}}}, status=403)
         try:
             outreach = send_introduction(case, user=request.user)

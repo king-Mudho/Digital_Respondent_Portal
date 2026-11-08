@@ -75,7 +75,7 @@ class CanViewSampleCases(BasePermission):
             return False
         if role in ADMIN_ROLES | {"FIELD_COORDINATOR"}:
             return True
-        if role in {"CONTACT_RA", "SUPERVISOR_READONLY"}:
+        if role in {"CONTACT_RA", "TELEPHONE_RA", "SUPERVISOR_READONLY"}:
             return request.method in READ_ONLY_METHODS
         return False
 
@@ -91,7 +91,7 @@ class CanManageContact(BasePermission):
         role = _authenticated_role(request)
         if role is None:
             return False
-        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA"}:
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "TELEPHONE_RA"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
@@ -139,7 +139,7 @@ class CanUseCommunications(BasePermission):
         role = _authenticated_role(request)
         if role is None:
             return False
-        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}:
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA", "TELEPHONE_RA"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
@@ -154,7 +154,7 @@ class CanUseCalls(BasePermission):
         role = _authenticated_role(request)
         if role is None:
             return False
-        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}:
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA", "TELEPHONE_RA"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
@@ -171,6 +171,28 @@ class CanManageExperts(BasePermission):
         if role in ADMIN_ROLES | {"FIELD_COORDINATOR"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanManageRATeam(BasePermission):
+    """The Research assistants screen (apps/ra, 2026-11-08): the PI and Field Coordinator assign work to the RAs and
+    see every RA's completions and credits; the Supervisor reads; only the PI overrides a credit (checked in the
+    view). An RA sees their own numbers on My work instead (CanViewOwnRAWork)."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanViewOwnRAWork(BasePermission):
+    """My work (apps/ra, 2026-11-08): a Research Assistant (calls) sees their own assigned work, completions and
+    credits, never another RA's. The PI, who sees every screen, sees their own there too (any form they filled in)."""
+
+    def has_permission(self, request, view):
+        return _authenticated_role(request) in ADMIN_ROLES | {"TELEPHONE_RA"}
 
 
 class CanViewPilot(BasePermission):

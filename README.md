@@ -344,14 +344,15 @@ UX only; the permission classes remain the real boundary.
 
 | Role | Screens | Lands on |
 |---|---|---|
-| PI / Admin | 24 (everything) | `/admin/dashboard` |
-| Field Coordinator | 22 (no Audit Log or Research Clearance) | `/admin/dashboard` |
-| Supervisor (read-only) | 21 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
+| PI / Admin | 26 (everything) | `/admin/dashboard` |
+| Field Coordinator | 23 (no Audit Log, Research Clearance or My work) | `/admin/dashboard` |
+| Supervisor (read-only) | 22 (no Audit Log, Export, Research Clearance or My work) | `/admin/dashboard` |
 | Analyst (read-only) | 8 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, ZAS 2026 pilot, Cost, Export) | `/admin/dashboard` |
 | Contact RA | 5 (Main-400 Register, Appointments, Follow-ups, Communications, Calls) — only its assigned cases | `/admin/sample` |
 | QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
 | KII RA | 5 (KII/Doc Dashboard, Form PDFs, KII Register, Communications, Calls) — KII records only | `/admin/dashboard/kii-documents` |
 | Documentary RA | 3 (KII/Doc Dashboard, Form PDFs, Documents) | `/admin/dashboard/kii-documents` |
+| Research Assistant (calls) | 6 (My work, Calls, Follow-ups, Communications, Appointments, Main-400 Register) — only the Main-400 cases and KII records assigned to it | `/admin/my-work` |
 
 The three RA roles are deliberately **not** interchangeable — see
 [Notable fixes](#notable-fixes) for the over-grant this replaced. Read-only roles see
@@ -496,6 +497,28 @@ letters) so a respondent can check the study is real before answering anything.
     called / not called, with counts.
   - **Contact card:** shows every number with Phone, WhatsApp and Copy links, gatekeepers, the organisation's details,
     the contacts found publicly, and where they stand (link, consent, calls, the last message read).
+- **Research assistants** (`/admin/research-assistants`, `/admin/my-work`, 8 Nov 2026; `apps/ra`). Two telephone RAs
+  phone both Main-400 respondents and key informants, and are paid per completion.
+  - **Their role:** a role of its own, Research Assistant (calls). Each RA sees only the Main-400 cases (activated
+    Reserves included) and KII records assigned to them. The scoping lives in `apps/ra/roles.py`, and every
+    "assigned only" check calls it.
+  - **Assigning work:** the PI or Field Coordinator assigns work on Research assistants, taking it from the
+    unassigned cases or from another account.
+  - **Calls:** RAs work from Calls, which adds an "Assigned, no link yet" stage and a log for calls and for messages
+    sent from their own phone.
+  - **Fill in with them now:** records verbal consent (and, for the questionnaire, eligibility), then opens the form
+    through the usual gates (`build_redirect_url`, `build_kii_coding_url`). The questionnaire carries a signed
+    `ra_id`, which reconciliation verifies into `QUANSubmission.ra`; for a KII, the RA becomes its interviewer.
+  - **Credit:** every completion gets a `SubmissionCredit`:
+    - ADMINISTERED, if the RA filled it in with the respondent;
+    - ASSISTED, if the RA's call or message was the last before a self-completion, within `RA_ASSIST_CREDIT_DAYS`
+      (14);
+    - UNCREDITED otherwise.
+
+    The PI's own calls never credit an RA. Credits refresh after every reconciliation and KII sync. The PI can
+    override one with a reason (audited); an overridden credit is never recomputed.
+  - **Seeing the numbers:** an RA sees their own completions on My work. The PI sees everyone's on Research
+    assistants (with a CSV pay sheet for a date range) and in Reports.
 - **Expert panel (ABI)** (`/admin/experts`, 8 Nov 2026). This is Stage 1 of the ABI validation protocol: twelve experts,
   across five panel areas with targets of 3/3/2/2/2 (`EXPERT_PANEL_TARGETS`), rate the 16 candidate ABI indicators.
   `apps/experts` mirrors the KII self-service flow, in its own tables.
@@ -675,6 +698,7 @@ celery -A config beat --loglevel=info
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
 | `COMMUNICATION_BLOCKED_PHRASES`, `COMMUNICATION_MAX_LENGTH` | Words a message written in Communications may never contain (AGENTS.md rule 2), and its maximum length |
+| `RA_ASSIST_CREDIT_DAYS` | How many days before a respondent's own submission an RA's logged call or message still earns an "assisted" credit (14) |
 | `WHATSAPP_IMAGE_MAX_MB`, `WHATSAPP_MEDIA_MAX_MB`, `WHATSAPP_MEDIA_LINK_MINUTES`, `WHATSAPP_MEDIA_FILES_PER_SEND`, `WHATSAPP_MEDIA_THROTTLE_RATE` | Files sent on WhatsApp from Communications: picture and other size limits (5 / 16 MB, WhatsApp's own), how long Twilio's signed link to a file works (60 minutes), files per send (10), and the link's throttle |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |

@@ -85,6 +85,10 @@ class KIIRecord(models.Model):
     )
     interview_date = models.DateField(null=True, blank=True)
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    # The Research Assistant (calls) who phones this informant (PI, 8 Nov 2026): they see only their own records.
+    assigned_ra = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="assigned_kii_records",
+    )
     interviewer = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="conducted_kiis",

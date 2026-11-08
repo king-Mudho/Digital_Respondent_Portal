@@ -4,6 +4,7 @@
 const R = {
   PI: "PI_ADMIN", FC: "FIELD_COORDINATOR", CRA: "CONTACT_RA", QA: "QUAN_QA_RA",
   KII: "KII_RA", DOC: "DOCUMENTARY_RA", AN: "ANALYST", SUP: "SUPERVISOR_READONLY",
+  TRA: "TELEPHONE_RA",
 };
 const ALL = Object.values(R);
 const w = { write: true };
@@ -103,7 +104,7 @@ const screens = [
 
   {
     id: "sample", group: "The sample and contact", title: "Main-400 Register (and Reserve)", path: "/admin/sample",
-    roles: [R.PI, R.FC, R.CRA, R.SUP],
+    roles: [R.PI, R.FC, R.CRA, R.SUP, R.TRA],
     purpose: "The list of sample cases. A Contact RA sees only the cases assigned to them. From here you open a case, and the coordinator moves or reassigns cases in bulk.",
     rows: [
       ["Main / Reserve (sample type)", "Switches the list between the 400 Main cases and the 400 locked Reserve cases.", "Reserve cases are locked replacements and are handled differently from Main cases.", "The list changes and returns to page 1."],
@@ -198,7 +199,7 @@ const screens = [
   },
   {
     id: "appts", group: "The sample and contact", title: "Appointment Queue", path: "/admin/appointments",
-    roles: [R.PI, R.FC, R.CRA, R.SUP],
+    roles: [R.PI, R.FC, R.CRA, R.SUP, R.TRA],
     purpose: "Calls that respondents have asked for, and their progress.",
     rows: [
       ["Filter by status", "Shows all appointments, or only Requested, Confirmed, Completed, Missed or Cancelled.", "Coordinators mostly need the ones still to be acted on.", "The list changes and returns to page 1."],
@@ -209,7 +210,7 @@ const screens = [
   },
   {
     id: "followups", group: "The sample and contact", title: "Follow-ups due", path: "/admin/follow-ups",
-    roles: [R.PI, R.FC, R.CRA, R.SUP],
+    roles: [R.PI, R.FC, R.CRA, R.SUP, R.TRA],
     purpose: "Approved reminders (on day 2 and day 7 after an invitation) for invited cases that have not responded, and below them the invitations that have run out and need a new one.",
     rows: [
       ["Case link (Sample ID)", "Opens the case the reminder is for.", "Lets you check the case before you send.", "The case page opens."],
@@ -221,19 +222,21 @@ const screens = [
   },
   {
     id: "calls", group: "The sample and contact", title: "Calls", path: "/admin/calls",
-    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP],
+    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP, R.TRA],
     purpose: "Everyone whose link was sent but who hasn't finished, Main 400 and KII, closest to finishing first, with every contact on file and a log of each call. A Contact RA sees their own cases, a KII RA the KII records.",
     rows: [
       ["Main 400 / KII", "Shows one study or both.", "One person may call only the Main 400 or only the key informants.", "The list redraws; the stage buttons show the new counts."],
       ["Stage buttons", "Started, not finished · Consented, not started · Opened, not started · Link sent, not opened.", "Call the people closest to finishing first.", "The list shows that stage only, with how many people it holds."],
       ["Search", "Finds an organisation, a person, an ID or a phone number.", "To find someone who calls back.", "Only matching cards stay."],
       ["Call / WhatsApp", "Dials the number, or opens a WhatsApp chat with it.", "Every number on file is shown, including second numbers in the same field.", "Your phone or WhatsApp opens."],
-      ["Log a call → Save call", "Records the call's outcome, a note and an optional call-back date.", "So the next caller knows what happened, and Reports count it.", "It goes into the contact log under your name and shows as the last call.", w],
+      ["Log a call → Save call", "Records how you contacted them (a call, or a WhatsApp, SMS or email from your own phone), the outcome, a note and an optional call-back date.", "So the next caller knows what happened, Reports count it, and a research assistant's logged contact is what earns an assisted credit.", "It goes into the contact log under your name and shows as the last call.", w],
+      ["Fill in with them now / Interview them now", "On the phone or a WhatsApp call: say who you are speaking to and their role (questionnaire), tick that you read them the participant information and they agreed, then Record consent and open the form.", "Records their verbal consent (and eligibility) first, as the rules require, and stamps you in the form so the completion is credited to you as administered.", "The form opens in a new tab with their case or KII ID filled in. Complete it with them and submit.", w],
+      ["Assigned, no link yet (stage)", "People assigned to a research assistant whom nobody has invited yet.", "So they can be phoned and done by phone straight away, without waiting for a link.", "Fill in with them now, or send the link from their page.", { only: [R.PI, R.FC, R.TRA, R.SUP] }],
     ],
   },
   {
     id: "communications", group: "The sample and contact", title: "Communications", path: "/admin/communications",
-    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP],
+    roles: [R.PI, R.FC, R.CRA, R.KII, R.SUP, R.TRA],
     purpose: "Every message to and from participants in one place: WhatsApp, SMS and email the portal sent, with what happened to each one; WhatsApp messages and email replies received; and the events around them (invitations, the link opened, consent, the questionnaire submitted, follow-ups and calls). A Contact RA sees their own cases, a KII RA the KII records. It replaced Conversations.",
     rows: [
       ["Channel cards (WhatsApp, SMS, Email)", "Whether each channel is switched on, what is holding it back, and the last seven days' messages.", "WhatsApp shows how many templates Meta has approved: until they are, WhatsApp messages the study sends first are refused.", "Select “N of 6 templates approved” for each template's status; select Not delivered to list the conversations whose last message failed."],

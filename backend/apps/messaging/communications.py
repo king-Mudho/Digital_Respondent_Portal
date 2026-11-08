@@ -52,7 +52,7 @@ PAGE_SIZE = 20
 # The sizes the list offers (2026-10-14), as on the registers' "Show: N per page"; anything else falls back to PAGE_SIZE.
 PAGE_SIZES = (10, 20, 50, 100, 200)
 NOT_DELIVERED = [ProviderStatus.UNDELIVERED, ProviderStatus.FAILED]
-WRITE_ROLES = {"PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "KII_RA"}
+WRITE_ROLES = {"PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "KII_RA", "TELEPHONE_RA"}
 SEE_ALL_ROLES = {"PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"}
 
 # Twilio's error codes in words a coordinator can act on.
@@ -96,7 +96,7 @@ def visible_cases(user):
     cases = SampleCase.objects.select_related("organisation")
     if role in SEE_ALL_ROLES:
         return cases
-    if role == "CONTACT_RA":
+    if role in ("CONTACT_RA", "TELEPHONE_RA"):  # their assigned cases (Research Assistant (calls) since 2026-11-08)
         return cases.filter(assigned_ra=user)
     return cases.none()
 
@@ -106,6 +106,8 @@ def visible_records(user):
 
     if role_of(user) in SEE_ALL_ROLES | {"KII_RA"}:
         return KIIRecord.objects.all()
+    if role_of(user) == "TELEPHONE_RA":  # only the informants assigned to them (2026-11-08)
+        return KIIRecord.objects.filter(assigned_ra=user)
     return KIIRecord.objects.none()
 
 
@@ -541,7 +543,7 @@ def call_options(user, subject, kind: str) -> dict:
     """What the call buttons need: every number with its WhatsApp and tel: links, and what a call can be logged as.
     WhatsApp voice and video calls are made in the caller's own WhatsApp (the business number cannot start a video
     call), then logged here like a phone call (apps/contacts/calls.log_call)."""
-    from apps.contacts.models import CALL_CHANNELS, ContactOutcome
+    from apps.contacts.models import CALL_CHANNELS, MESSAGE_CHANNELS, ContactOutcome
 
     card_people = contact_card(subject, kind)["people"]
     numbers, seen = [], set()
@@ -552,8 +554,8 @@ def call_options(user, subject, kind: str) -> dict:
                 seen.add(key)
                 numbers.append({**n, "person": p["name"]})
     return {"can_log": can_write(user), "ident": getattr(subject, "sample_id", None) or subject.kii_id, "numbers": numbers,
-            "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices],
-            "channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS]}
+            "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices if v != ContactOutcome.ADMINISTERED],
+            "channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS + MESSAGE_CHANNELS]}
 
 
 # --- Sending -------------------------------------------------------------------------------------------------------

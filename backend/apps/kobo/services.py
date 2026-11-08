@@ -288,6 +288,12 @@ def _store_payload(kobo_submission_uuid: str, payload: dict) -> str:
     return relative_path.replace("\\", "/")
 
 
+def ra_from_payload(payload: dict, sample_id: str):
+    from apps.ra.administer import ra_from_payload as read
+
+    return read(payload, sample_id)
+
+
 def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> ReconciliationLog:
     """The actual source of truth for QUAN submission status -- never
     removed or "optimised away" in favour of webhook-only sync
@@ -375,6 +381,8 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
                 raw_payload_ref=raw_payload_ref,
                 payload_content_hash=content_hash,
                 qa_status=QAStatus.PENDING,
+                # The RA who filled it in with the respondent, from the stamp only the portal can sign (2026-11-08).
+                ra=ra_from_payload(payload, sample_case.sample_id),
             )
             new_submissions += 1
             _advance_token_on_submission(sample_case, TokenStatus.SUBMITTED)
@@ -403,6 +411,11 @@ def reconcile(triggered_by: str = ReconciliationTrigger.MANUAL) -> Reconciliatio
             from apps.qa.services import evaluate_submission
 
             evaluate_submission(submission)
+
+    # Every completion is credited to the RA who earned it (apps/ra/credit.py, 2026-11-08).
+    from apps.ra.credit import refresh as refresh_ra_credits
+
+    refresh_ra_credits()
 
     log = ReconciliationLog.objects.create(
         run_started_at=run_started_at,

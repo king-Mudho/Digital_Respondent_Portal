@@ -15,6 +15,9 @@ class Role(models.Model):
     KII_RA = "KII_RA"
     DOCUMENTARY_RA = "DOCUMENTARY_RA"
     ANALYST = "ANALYST"
+    # The telephone RAs who phone both Main-400 respondents and key informants, on the cases and KII records assigned
+    # to them (PI, 8 Nov 2026; apps/ra).
+    TELEPHONE_RA = "TELEPHONE_RA"
 
     NAME_CHOICES = [
         (PI_ADMIN, "PI / System Admin"),
@@ -25,6 +28,7 @@ class Role(models.Model):
         (KII_RA, "KII RA"),
         (DOCUMENTARY_RA, "Documentary RA"),
         (ANALYST, "Data Analyst"),
+        (TELEPHONE_RA, "Research Assistant (calls)"),
     ]
 
     name = models.CharField(max_length=32, choices=NAME_CHOICES, unique=True)

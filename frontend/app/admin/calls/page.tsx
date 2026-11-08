@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { AdministerForm } from "@/components/admin/AdministerForm";
 import { IfScreen, WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 
-type Stage = "started" | "consented" | "opened" | "not_opened";
+type Stage = "started" | "consented" | "opened" | "not_opened" | "no_link";
 
 interface Person {
   name: string;
@@ -47,6 +48,8 @@ interface CallItem {
   calls: number;
   last_call: LastCall | null;
   detail_path: string;
+  /** The research assistant these people are assigned to (2026-11-08). */
+  assigned_to?: string;
 }
 
 interface CallList {
@@ -56,14 +59,17 @@ interface CallList {
   stage_labels: Record<Stage, string>;
   studies: ("main" | "kii")[];
   outcomes: { value: string; label: string }[];
+  /** Calls, and WhatsApp/SMS/email messages sent from the caller's own phone (2026-11-08). */
+  call_channels?: { value: string; label: string }[];
 }
 
-const STAGES: Stage[] = ["started", "consented", "opened", "not_opened"];
+const STAGES: Stage[] = ["started", "consented", "opened", "not_opened", "no_link"];
 const STAGE_STYLE: Record<Stage, string> = {
   started: "bg-success text-white",
   consented: "bg-header text-white",
   opened: "bg-accent text-white",
   not_opened: "bg-bg border border-border",
+  no_link: "bg-bg border border-dashed border-border",
 };
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : "");
@@ -151,7 +157,7 @@ export default function CallsPage() {
         <div className="space-y-3">
           <p className="text-sm text-text-muted">{items.length} to call</p>
           {items.map((item) => (
-            <CallCard key={`${item.kind}-${item.id}`} item={item} outcomes={data?.outcomes ?? []} />
+            <CallCard key={`${item.kind}-${item.id}`} item={item} outcomes={data?.outcomes ?? []} channels={data?.call_channels ?? []} />
           ))}
         </div>
       )}
@@ -159,9 +165,19 @@ export default function CallsPage() {
   );
 }
 
-function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: string; label: string }[] }) {
+function CallCard({
+  item,
+  outcomes,
+  channels,
+}: {
+  item: CallItem;
+  outcomes: { value: string; label: string }[];
+  channels: { value: string; label: string }[];
+}) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [administering, setAdministering] = useState(false);
+  const [channel, setChannel] = useState("PHONE");
   const [outcome, setOutcome] = useState("");
   const [notes, setNotes] = useState("");
   const [callBack, setCallBack] = useState("");
@@ -172,7 +188,7 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
     mutationFn: () =>
       adminFetch(`/calls/${item.kind}/${item.id}/`, {
         method: "POST",
-        body: JSON.stringify({ outcome, notes, next_action_date: callBack || null }),
+        body: JSON.stringify({ outcome, notes, next_action_date: callBack || null, channel }),
       }),
     onSuccess: () => {
       setError(null);
@@ -198,6 +214,7 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
             </p>
             <p className="font-semibold">{item.organisation}</p>
             <p className="text-xs text-text-muted">{[item.sector, item.location].filter(Boolean).join(" · ")}</p>
+            {item.assigned_to && <p className="text-xs">Assigned to <span className="font-medium">{item.assigned_to}</span></p>}
           </div>
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STAGE_STYLE[item.stage]}`}>{item.stage_label}</span>
         </div>
@@ -237,9 +254,15 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
         </div>
 
         <p className="text-xs text-text-muted">
-          Link sent {day(item.link_sent)} by {item.link_channel}
-          {item.link_opened ? ` · opened ${day(item.link_opened)}` : " · not opened yet"}
-          {item.link_expires ? ` · ${expired ? "expired" : "works until"} ${day(item.link_expires)}` : ""}
+          {item.link_sent ? (
+            <>
+              Link sent {day(item.link_sent)} by {item.link_channel}
+              {item.link_opened ? ` · opened ${day(item.link_opened)}` : " · not opened yet"}
+              {item.link_expires ? ` · ${expired ? "expired" : "works until"} ${day(item.link_expires)}` : ""}
+            </>
+          ) : (
+            "No link sent yet: phone them, then fill in the form with them or send the link from their page"
+          )}
           {` · ${item.reminders} reminder${item.reminders === 1 ? "" : "s"} · ${item.calls} call${item.calls === 1 ? "" : "s"} logged`}
         </p>
         {expired && (
@@ -254,6 +277,16 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
         )}
 
         <WriteOnly note={null}>
+          {administering && (
+            <AdministerForm
+              kind={item.kind}
+              ident={item.id}
+              onDone={() => {
+                setAdministering(false);
+                queryClient.invalidateQueries({ queryKey: ["calls"] });
+              }}
+            />
+          )}
           {open ? (
             <form
               className="space-y-2 rounded-md border border-border p-3"
@@ -266,6 +299,16 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
                 log.mutate();
               }}
             >
+              {channels.length > 0 && (
+                <label className="block text-sm">
+                  How you contacted them
+                  <select value={channel} onChange={(e) => setChannel(e.target.value)} className="mt-1 block min-h-11 w-full rounded-md border border-border bg-bg px-2">
+                    {channels.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
               <label className="block text-sm">
                 What happened
                 <select value={outcome} onChange={(e) => setOutcome(e.target.value)} className="mt-1 block min-h-11 w-full rounded-md border border-border bg-bg px-2">
@@ -293,7 +336,14 @@ function CallCard({ item, outcomes }: { item: CallItem; outcomes: { value: strin
               </div>
             </form>
           ) : (
-            <Button variant="outline" onClick={() => setOpen(true)}>Log a call</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setOpen(true)}>Log a call</Button>
+              {!administering && (
+                <Button variant="outline" onClick={() => setAdministering(true)}>
+                  {item.kind === "main" ? "Fill in with them now" : "Interview them now"}
+                </Button>
+              )}
+            </div>
           )}
         </WriteOnly>
       </Card>
