@@ -130,6 +130,10 @@ class _Ref:
 def _link_records(key: str, payloads: list[dict]) -> None:
     if key == "kii":
         _complete_kii_coding(payloads)
+    elif key == "experts":  # an expert's questionnaire in KoboToolbox completes them (apps/experts, 2026-11-08)
+        from apps.experts.services import mark_completed_from_kobo
+
+        mark_completed_from_kobo(copies.record_label("experts", p) for p in payloads)
     elif key == "documents":
         _unlock_deleted_document_codings(payloads)
 

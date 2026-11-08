@@ -159,6 +159,20 @@ class CanUseCalls(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanManageExperts(BasePermission):
+    """The ABI expert panel (apps/experts, 2026-11-08): the PI and Field Coordinator register and invite experts; the
+    Supervisor reads. The panel holds identifiable contact and consent details, which the protocol restricts to the
+    authorised research team, so the Analyst does not see it (the questionnaire itself carries only Expert IDs)."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
 class CanViewPilot(BasePermission):
     """The ZAS 2026 pilot strand (apps/kobo/pilot.py, 2026-11-08): the PI, Field Coordinator, Analyst and Supervisor
     see the pilot records (a summary that identifies nobody, never the answers); only the PI syncs them from

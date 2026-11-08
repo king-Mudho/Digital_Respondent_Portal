@@ -135,6 +135,20 @@ const screens = [
   },
 
   {
+    id: "experts", group: "Key Informant Interviews", title: "Expert panel (ABI)", path: "/admin/experts · /admin/experts/{Expert ID}",
+    roles: [R.PI, R.FC, R.SUP],
+    purpose: "The twelve experts who rate the 16 candidate ABI indicators (Stage 1 of the ABI validation protocol): who they are, their panel area against its target, and how far each has got. Each expert has a personal link: they read the information, consent, and the KoboToolbox questionnaire opens with only their Expert ID filled in.",
+    rows: [
+      ["Completed / panel-area cards", "Completed questionnaires of the 12, and for each panel area its target, how many are registered, invited and completed.", "The protocol asks for 3 in finance, 3 in agribusiness, 2 each in economics, methods and food systems.", "Read only."],
+      ["Invitations are closed (banner)", "Says why no link can be sent: the ethics approval reference isn't recorded yet, or 12 experts have completed.", "The questionnaire is distributed only after the required approval, and the panel stops at 12.", "Register experts meanwhile; links can be sent once it opens."],
+      ["Register an expert", "Name, panel area, position, institution, experience, WhatsApp, phone, email, any conflict of interest.", "Their details stay here; the questionnaire only ever sees the Expert ID (E01, E02…).", "The expert appears with the next Expert ID, as Prospect.", w],
+      ["Send the link (expert's page)", "Issues their personal link and code, with the message ready for WhatsApp and email.", "Each expert gets their own link, so their consent and questionnaire match them.", "Open WhatsApp (the chat opens with the message) or Email from study address. A new link replaces the old one.", w],
+      ["Record that they declined", "Closes an expert who declined by phone or in person.", "So nobody chases them, and no link is sent again.", "Status becomes Declined.", w],
+      ["Status", "Prospect → Invited → Consented (on their link) → Completed (their questionnaire arrived in KoboToolbox).", "Consent and completion come only from the expert, never set by hand.", "Completed counts towards the 12 on the dashboards."],
+      ["Link history → Withdraw", "Every link issued, when it was first opened; Withdraw stops a link working.", "If a link was sent to the wrong person.", "The link shows Withdrawn.", w],
+    ],
+  },
+  {
     id: "pilot", group: "Completed forms and exports", title: "ZAS 2026 pilot", path: "/admin/pilot",
     roles: [R.PI, R.FC, R.AN, R.SUP],
     purpose: "The Zimbabwe Agricultural Show pilot (25–31 August 2026), held beside the main study: its questionnaires, KIIs and coded documents, counted next to the main figures on the dashboards (shown as “main + pilot”) and never part of the Main-400 sample or its exports. The answers stay in KoboToolbox; this screen shows a summary that identifies nobody.",

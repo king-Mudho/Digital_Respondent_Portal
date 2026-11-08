@@ -30,6 +30,9 @@ interface ExecutiveDashboard {
   quan_pilot?: number;
   kii_pilot?: number;
   documents_pilot?: number;
+  /** The ABI expert content-validation panel (2026-11-08). */
+  experts_completed?: number;
+  experts_target?: number;
   days_remaining_to_data_lock: number;
   fieldwork_expenditure_to_date: string;
   highest_risk_coverage_gaps: Array<Record<string, unknown>>;
@@ -59,7 +62,7 @@ export default function ExecutiveDashboardPage() {
         <p className="text-text-muted">Loading…</p>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {(
               [
                 ["QUAN completed", withPilot(data.quan_completed, data.quan_pilot), data.quan_target],
@@ -69,6 +72,9 @@ export default function ExecutiveDashboardPage() {
             ).map(([label, count, target]) => (
               <StatCard key={label} label={label} value={`${count.total} / ${target}`} sublabel={count.split || undefined} />
             ))}
+            {data.experts_target ? (
+              <StatCard label="ABI experts completed" value={`${data.experts_completed ?? 0} / ${data.experts_target}`} />
+            ) : null}
             <StatCard
               label="Days to data lock"
               value={data.days_remaining_to_data_lock}

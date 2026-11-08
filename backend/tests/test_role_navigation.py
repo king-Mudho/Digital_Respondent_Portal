@@ -25,7 +25,7 @@ EXPECTED_SCREENS = {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
         "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost", "export",
-        "pilot",
+        "pilot", "experts",
     },
     Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups", "conversations", "calls"},
     Role.QUAN_QA_RA: {"dashboard_qa", "kobo_submissions", "qa_queue", "qa_exceptions"},
@@ -39,7 +39,7 @@ EXPECTED_SCREENS = {
         "dashboard_executive", "dashboard_sampling", "reports", "dashboard_contact", "dashboard_qa",
         "dashboard_kii_documents", "sample_register", "organisations", "appointments", "follow_ups", "conversations",
         "calls", "kobo_submissions", "qa_queue", "qa_exceptions", "kii_register", "documents", "reserve", "cost",
-        "pilot",
+        "pilot", "experts",
     },
 }
 
@@ -129,6 +129,7 @@ SCREEN_ENDPOINTS = {
     "reports": "/api/v1/reports/overview/",
     "kobo_submissions": "/api/v1/kobo/forms/",
     "pilot": "/api/v1/pilot/",
+    "experts": "/api/v1/experts/",
     "qa_queue": "/api/v1/qa/queue/",
     "qa_exceptions": "/api/v1/qa/exceptions/",
     "kii_register": "/api/v1/kii/",

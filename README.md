@@ -344,9 +344,9 @@ UX only; the permission classes remain the real boundary.
 
 | Role | Screens | Lands on |
 |---|---|---|
-| PI / Admin | 23 (everything) | `/admin/dashboard` |
-| Field Coordinator | 21 (no Audit Log or Research Clearance) | `/admin/dashboard` |
-| Supervisor (read-only) | 20 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
+| PI / Admin | 24 (everything) | `/admin/dashboard` |
+| Field Coordinator | 22 (no Audit Log or Research Clearance) | `/admin/dashboard` |
+| Supervisor (read-only) | 21 (no Audit Log, Export or Research Clearance) | `/admin/dashboard` |
 | Analyst (read-only) | 8 (Executive, Sampling, Reports, Contact, KII/Doc dashboards, ZAS 2026 pilot, Cost, Export) | `/admin/dashboard` |
 | Contact RA | 5 (Main-400 Register, Appointments, Follow-ups, Communications, Calls) — only its assigned cases | `/admin/sample` |
 | QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
@@ -496,6 +496,23 @@ letters) so a respondent can check the study is real before answering anything.
     called / not called, with counts.
   - **Contact card:** shows every number with Phone, WhatsApp and Copy links, gatekeepers, the organisation's details,
     the contacts found publicly, and where they stand (link, consent, calls, the last message read).
+- **Expert panel (ABI)** (`/admin/experts`, 8 Nov 2026). This is Stage 1 of the ABI validation protocol: twelve experts,
+  across five panel areas with targets of 3/3/2/2/2 (`EXPERT_PANEL_TARGETS`), rate the 16 candidate ABI indicators.
+  `apps/experts` mirrors the KII self-service flow, in its own tables.
+  - **Staff side:** the PI or Field Coordinator registers each expert (coded IDs E01, E02, …) and sends a personal
+    link. WhatsApp opens the chat with the message ready (no approved template exists for experts); email goes from
+    the study address.
+  - **Expert side (`/ex/<token>`):** the expert reads the information, then gives consent on the portal; all three
+    section-B statements must be ticked. The KoboToolbox questionnaire then opens with only `part_a/EXPERT_ID` filled
+    in, never the name. `services.kobo_url` is the single consent gate (AGENTS.md rule 6).
+  - **Completion:** the form sync completes a consented expert when their submission arrives (form key `experts` on
+    Form PDFs).
+  - **When invitations open:** only once `EXPERT_ETHICS_REFERENCE` is set, because the instrument is distributed
+    "only after required approval". Once `EXPERT_TARGET` (12) experts have completed, no new link is issued.
+  - **Who sees it:** the Supervisor reads; the Analyst does not see the panel, because it holds identifiable contacts.
+  - **The form:** `deploy/kobo/build_expert_form.py` builds the XLSForm from `apps/experts/instrument.py`. It refuses
+    to build if any rule-2 word appears; for that reason three words differ from the draft, for PI sign-off. Section F
+    (I-CVI analysis) stays with the researcher: the portal collects ratings and computes no ABI score (rule 3).
 - **ZAS 2026 pilot** (`/admin/pilot`, 8 Nov 2026). The Zimbabwe Agricultural Show pilot (25–31 Aug 2026) is held as
   its own strand beside the main study (PI decision). Its forms are different from the main study's, and its
   respondents were recruited at the Show rather than drawn from the Main-400 frame.

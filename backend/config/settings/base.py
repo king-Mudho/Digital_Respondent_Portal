@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.kobo",
     "apps.messaging",
     "apps.kii",
+    "apps.experts",
     "apps.evidence",
     "apps.qa",
     "apps.dashboards",
@@ -252,6 +253,10 @@ KOBO_DOCUMENTS_FORM_URL = env("KOBO_DOCUMENTS_FORM_URL", default="")
 # consent already being GIVEN, since unlike a document this identifies a
 # person (docs/13_KII_MODULE.md).
 KOBO_KII_FORM_URL = env("KOBO_KII_FORM_URL", default="")
+# The ABI expert content-validation questionnaire (apps/experts, 2026-11-08): its KoboToolbox project and web-form
+# link, set once the XLSForm in deploy/kobo/ is deployed.
+KOBO_EXPERT_ASSET_UID = env("KOBO_EXPERT_ASSET_UID", default="")
+KOBO_EXPERT_FORM_URL = env("KOBO_EXPERT_FORM_URL", default="")
 KOBO_RECONCILIATION_INTERVAL_MINUTES = env.int(
     "KOBO_RECONCILIATION_INTERVAL_MINUTES", default=15
 )
@@ -267,6 +272,15 @@ DOCUMENT_MAX_UPLOAD_MB = env.int("DOCUMENT_MAX_UPLOAD_MB", default=60)
 # file was coded and submitted; it replaced the planned 50-75 range. 121 since 8 Nov 2026: the 108 main-study
 # documents plus the 13 coded in the ZAS 2026 pilot. A methodology number, so config, not a literal.
 DOCUMENT_TARGET = env.int("DOCUMENT_TARGET", default=121)
+# The ABI expert content-validation panel (apps/experts; ABI validation protocol 4.1, PI 8 Nov 2026): 12 completed
+# expert questionnaires, by panel area. Once EXPERT_TARGET experts have completed, no new invitation is issued.
+# Invitations go out only once EXPERT_ETHICS_REFERENCE holds the approval reference: the questionnaire and protocol
+# both say they are distributed only after the required approval.
+EXPERT_TARGET = env.int("EXPERT_TARGET", default=12)
+EXPERT_PANEL_TARGETS = env.dict("EXPERT_PANEL_TARGETS", cast={"value": int}, default={
+    "FINANCE": 3, "AGRIBUSINESS": 3, "ECONOMICS": 2, "METHODS": 2, "FOOD_SYSTEMS": 2,
+})
+EXPERT_ETHICS_REFERENCE = env("EXPERT_ETHICS_REFERENCE", default="")
 # The Zimbabwe Agricultural Show pilot (ZAS 2026), held as its own strand beside the main study (PI, 8 Nov 2026;
 # apps/kobo/pilot.py): key:strand:asset_uid, comma-separated. Its counts are shown next to the main study's, never in
 # them.

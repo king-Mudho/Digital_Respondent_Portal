@@ -92,6 +92,11 @@ SCREENS = {
     ),
     # PDF copies of completed Kobo forms; each role sees only its own form
     # (kobo.submission_copies.FORMS), enforced server-side per request.
+    # The ABI expert content-validation panel (apps/experts, 2026-11-08).
+    "experts": (
+        "/admin/experts", "Expert panel (ABI)",
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.SUPERVISOR_READONLY},
+    ),
     # The Zimbabwe Agricultural Show pilot, held beside the main study (PI, 8 Nov 2026; apps/kobo/pilot.py).
     "pilot": (
         "/admin/pilot", "ZAS 2026 pilot",
@@ -151,7 +156,7 @@ NAV_GROUPS = [
                     "dashboard_kii_documents", "reports"]),
     ("Reaching respondents", ["calls", "follow_ups", "conversations", "appointments"]),
     ("Main 400 sample", ["sample_register", "organisations", "reserve"]),
-    ("KII & documents", ["kii_register", "documents"]),
+    ("KII, experts & documents", ["kii_register", "experts", "documents"]),
     ("Quality & data", ["qa_queue", "qa_exceptions", "kobo_submissions", "pilot"]),
     ("Administration", ["cost", "export", "audit", "clearance_documents"]),
 ]
@@ -167,6 +172,7 @@ UNIVERSAL_PATHS = ("/admin/account",)
 CHILD_PATH_PARENTS = {
     "/admin/sample/": "sample_register",
     "/admin/kii/": "kii_register",
+    "/admin/experts/": "experts",
     "/admin/documents/": "documents",
     "/admin/proit/": "sample_register",
 }

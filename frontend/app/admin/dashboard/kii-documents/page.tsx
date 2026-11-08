@@ -16,6 +16,8 @@ interface KIIDocumentDashboard {
   documents_target: number;
   kii_pilot?: number;
   documents_pilot?: number;
+  experts_completed?: number;
+  experts_target?: number;
 }
 
 /** docs/16_DASHBOARDS_AND_REPORTING.md "KII/document dashboard" -- counts
@@ -34,7 +36,7 @@ export default function KIIDocumentDashboardPage() {
         <p className="text-text-muted">Loading…</p>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {(
               [
                 ["KII completed", withPilot(data.kii_completed, data.kii_pilot), data.kii_target],
@@ -43,6 +45,9 @@ export default function KIIDocumentDashboardPage() {
             ).map(([label, count, target]) => (
               <StatCard key={label} label={label} value={`${count.total} / ${target}`} sublabel={count.split || undefined} />
             ))}
+            {data.experts_target ? (
+              <StatCard label="ABI experts completed" value={`${data.experts_completed ?? 0} / ${data.experts_target}`} />
+            ) : null}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>

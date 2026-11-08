@@ -49,6 +49,14 @@ FORMS = {
         "record_fallbacks": ("DOC_ID",),
         "roles": {"PI_ADMIN", "FIELD_COORDINATOR", "DOCUMENTARY_RA", "SUPERVISOR_READONLY"},
     },
+    # The ABI expert content-validation questionnaire (apps/experts, 2026-11-08).
+    "experts": {
+        "title": "ABI Expert Content-Validation Questionnaire (Round 1)",
+        "asset_setting": "KOBO_EXPERT_ASSET_UID",
+        "record_field": "part_a/EXPERT_ID",
+        "record_fallbacks": ("EXPERT_ID",),
+        "roles": {"PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"},
+    },
 }
 READ_ONLY_ROLES = {"SUPERVISOR_READONLY"}
 

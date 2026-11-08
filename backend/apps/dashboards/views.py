@@ -17,6 +17,7 @@ from api.permissions import CanViewKIIDocumentDashboard, IsAnalystOrAdmin, IsQAO
 from apps.contacts.models import Appointment, ContactEvent, Respondent
 from apps.costs.models import CostEvent
 from apps.evidence.models import DocumentQAStatus, DocumentRecord
+from apps.experts.services import completed_count as expert_completed
 from apps.invitations.models import InvitationToken, TokenStatus
 from apps.kii.models import KIIRecord, KIIStatus
 from apps.kobo.models import QAStatus as SubmissionQAStatus
@@ -74,6 +75,8 @@ class ExecutiveDashboardView(APIView):
             "documents_target": settings.DOCUMENT_TARGET,
             # The ZAS 2026 pilot strand, shown beside the main study's figures, never inside them (2026-11-08).
             "quan_pilot": pilot["quan"], "kii_pilot": pilot["kii"], "documents_pilot": pilot["documents"],
+            # The ABI expert content-validation panel (2026-11-08).
+            "experts_completed": expert_completed(), "experts_target": settings.EXPERT_TARGET,
             "days_remaining_to_data_lock": days_remaining,
             "fieldwork_expenditure_to_date": str(total_cost),
             "highest_risk_coverage_gaps": gaps,
@@ -177,6 +180,7 @@ class KIIDocumentDashboardView(APIView):
             "documents_by_qa_status": documents_by_qa_status,
             "documents_target": settings.DOCUMENT_TARGET,
             "kii_pilot": pilot_counts()["kii"], "documents_pilot": pilot_counts()["documents"],
+            "experts_completed": expert_completed(), "experts_target": settings.EXPERT_TARGET,
         })
 
 

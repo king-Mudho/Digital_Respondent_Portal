@@ -23,20 +23,22 @@ def record_consent(
     sample_case=None,
     respondent=None,
     kii_record=None,
+    expert=None,
 ) -> ConsentRecord:
     """Record a consent decision, for a SampleCase (respondent flow) or a
     KIIRecord (KII participants who often have no SampleCase at all -- see
     the model docstring). A later row for the same (subject, consent_type)
     supersedes the prior one -- never mutated in place, preserving the full
     audit trail."""
-    if sample_case is None and kii_record is None:
-        raise ValueError("One of sample_case/kii_record is required.")
+    if sample_case is None and kii_record is None and expert is None:
+        raise ValueError("One of sample_case/kii_record/expert is required.")
 
     now = timezone.now()
     record = ConsentRecord.objects.create(
         sample_case=sample_case,
         respondent=respondent,
         kii_record=kii_record,
+        expert=expert,
         consent_type=consent_type,
         information_sheet_version=information_sheet_version,
         decision=decision,
@@ -52,12 +54,14 @@ def record_consent(
             "decision": decision,
             "sample_id": getattr(sample_case, "sample_id", None),
             "kii_id": getattr(kii_record, "kii_id", None),
+            "expert_id": getattr(expert, "expert_id", None),
         },
     )
     return record
 
 
 def latest_consent(subject, consent_type: str) -> ConsentRecord | None:
+    from apps.experts.models import ExpertRecord
     from apps.kii.models import KIIRecord
     from apps.sampling.models import SampleCase
 
@@ -66,8 +70,10 @@ def latest_consent(subject, consent_type: str) -> ConsentRecord | None:
         filters["kii_record"] = subject
     elif isinstance(subject, SampleCase):
         filters["sample_case"] = subject
+    elif isinstance(subject, ExpertRecord):
+        filters["expert"] = subject
     else:
-        raise TypeError("subject must be a SampleCase or KIIRecord.")
+        raise TypeError("subject must be a SampleCase, KIIRecord or ExpertRecord.")
     return ConsentRecord.objects.filter(**filters).order_by("-timestamp").first()
 
 

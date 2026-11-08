@@ -43,6 +43,11 @@ class ConsentRecord(models.Model):
         "kii.KIIRecord", null=True, blank=True, on_delete=models.CASCADE,
         related_name="consent_records",
     )
+    # An ABI validation-panel expert (apps/experts, 2026-11-08).
+    expert = models.ForeignKey(
+        "experts.ExpertRecord", null=True, blank=True, on_delete=models.CASCADE,
+        related_name="consent_records",
+    )
     consent_type = models.CharField(max_length=16, choices=ConsentType.choices)
     information_sheet_version = models.CharField(max_length=32)
     decision = models.CharField(max_length=16, choices=ConsentDecision.choices)
@@ -54,8 +59,8 @@ class ConsentRecord(models.Model):
     def clean(self):
         if self.decision == ConsentDecision.WITHDRAWN and not self.withdrawn_at:
             raise ValidationError("withdrawn_at must be set when decision=WITHDRAWN.")
-        if not self.sample_case_id and not self.kii_record_id:
-            raise ValidationError("At least one of sample_case/kii_record must be set.")
+        if not self.sample_case_id and not self.kii_record_id and not self.expert_id:
+            raise ValidationError("One of sample_case/kii_record/expert must be set.")
 
     class Meta:
         ordering = ["-timestamp"]
