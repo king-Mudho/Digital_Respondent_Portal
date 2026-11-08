@@ -16,14 +16,23 @@ GROUP = "part_a"
 EXPERT_ID_FIELD = "EXPERT_ID"
 EXPERT_ID_PATH = f"{GROUP}/{EXPERT_ID_FIELD}"
 
-# Shown in the form and on the portal's information page. The three [INSERT ...] values are the PI's to fill in
-# before the form goes to experts (the questionnaire leaves them blank pending ethics approval).
+# Shown in the form and on the portal's information page (filled in 8 Nov 2026 from the study's clearance letters:
+# the CUT Research Ethics Clearance Letter of 24 August 2026, the Ministry of Agriculture, Mechanisation and Water
+# Resources Development clearance J/122 of 23 September 2026, and the confirmation of PhD supervision of 20 August
+# 2026). The supervision letter gives no personal email or phone for the supervisor and asks that contact go through
+# Chinhoyi University of Technology channels, so the Graduate Business School's contact is given.
 #
 # Three words differ from the PI's draft, because "approved" may not appear anywhere a participant reads it (AGENTS.md
 # rule 2): "the approved ethics protocol" -> "the ethics protocol for this study"; "the approved information sheet" ->
-# "the study's information sheet"; "[INSERT APPROVED CONTACT]" -> "[INSERT SUPERVISOR CONTACT]". For PI sign-off.
-ETHICS_LINE = ("Ethics reference: [INSERT APPROVAL NUMBER]    Research contact: [INSERT INSTITUTIONAL EMAIL]    "
-               "Supervisor contact: [INSERT SUPERVISOR CONTACT]")
+# "the study's information sheet"; "[INSERT APPROVED CONTACT]" -> the supervisor's details. For PI sign-off.
+ETHICS_LINE = (
+    "Ethics clearance: Chinhoyi University of Technology Research Ethics Clearance, 24 August 2026 — Chairperson, "
+    "University Research Committee (Research Ethics): Dr M. C. Mwando, gbs@cut.ac.zw, +263 6721 29447. "
+    "Ministry of Agriculture, Mechanisation and Water Resources Development clearance: Ref J/122, 23 September 2026.\n"
+    "Research contact: Happyson Saina, 0773943709, abffst.research@gmail.com.\n"
+    "Supervisor: Dr L. Chikazhe, PhD Research Supervisor, Graduate Business School, Chinhoyi University of Technology "
+    "(contact through the Graduate Business School: gbs@cut.ac.zw, +263 6721 29447)."
+)
 
 INFORMATION = [
     ("Purpose", "This exercise assesses the relevance, clarity and practical observability of 16 candidate indicators "

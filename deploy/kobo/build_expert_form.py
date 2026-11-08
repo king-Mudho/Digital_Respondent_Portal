@@ -130,8 +130,9 @@ readme = wb.create_sheet("README")
 for line in [
     "ABF-FST — ABI expert content-validation questionnaire, Round 1 (instrument version 1.0, 6 November 2026)",
     "",
-    "Before deploying: replace the three [INSERT ...] values in part_a / info_ethics (ethics approval number, research",
-    "email, supervisor contact) — the questionnaire says it is distributed only after the required approval.",
+    "Ethics, Ministry clearance, research contact and supervisor (part_a / info_ethics) are filled in from the study's",
+    "clearance letters: CUT Research Ethics Clearance 24 Aug 2026; Ministry clearance J/122, 23 Sep 2026; supervision",
+    "confirmation (Dr L. Chikazhe), 20 Aug 2026.",
     "",
     "Deploy as a NEW KoboToolbox project, then give the portal its asset UID and web-form link:",
     "   KOBO_EXPERT_ASSET_UID and KOBO_EXPERT_FORM_URL on the server (deploy/configure-kobo.sh).",
