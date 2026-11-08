@@ -59,6 +59,8 @@ ACTION_LABELS: dict[str, str] = {
     "invitation.emailed": "Invitation emailed",
     "invitation.issued": "Invitation issued",
     "invitation.reopened": "Replaced invitation link reopened",
+    "invitation.renewed": "Invitation link renewed (on a Research Assistant's list)",
+    "kii_invitation.renewed": "KII invitation link renewed (on a Research Assistant's list)",
     "invitation.sms_sent": "Invitation sent by SMS (Twilio)",
     "invitation.whatsapp_sent": "Invitation sent by WhatsApp (Twilio)",
     "invitation.revoked": "Invitation revoked",

@@ -266,7 +266,7 @@ function CallCard({
           {` · ${item.reminders} reminder${item.reminders === 1 ? "" : "s"} · ${item.calls} call${item.calls === 1 ? "" : "s"} logged`}
         </p>
         {expired && (
-          <p className="text-xs text-danger">This link has expired: issue a new one from the {item.kind === "main" ? "case" : "KII record"} page before asking them to continue.</p>
+          <p className="text-xs text-danger">This link has expired. Links on a Research Assistant&apos;s list are renewed every morning at 05:30, so this one is not on such a list or cannot be renewed: issue a new one from the {item.kind === "main" ? "case" : "KII record"} page before asking them to continue.</p>
         )}
         {item.last_call && (
           <p className="text-xs">

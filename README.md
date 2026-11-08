@@ -681,6 +681,7 @@ celery -A config beat --loglevel=info
 | `DATABASE_URL` | `postgres://user:pass@host:5432/dbname` |
 | `JWT_SIGNING_KEY`, `JWT_ACCESS_TOKEN_LIFETIME_MINUTES`, `JWT_REFRESH_TOKEN_LIFETIME_DAYS` | Auth token config |
 | `INVITATION_TOKEN_BYTES`, `INVITATION_TOKEN_EXPIRY_DAYS` | Invitation token generation |
+| `INVITATION_AUTO_RENEW`, `INVITATION_RENEW_WITHIN_DAYS` | Nightly renewal of the links on the Research Assistants' call lists (on; links due within 2 days) |
 | `KOBO_API_BASE_URL` | Kobo server, e.g. `https://kf.kobotoolbox.org` |
 | `KOBO_API_TOKEN` | Kobo API token — **server-side only, never sent to the frontend** |
 | `KOBO_ASSET_UID` | The Main Study Questionnaire asset UID |
@@ -866,6 +867,20 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### Links on the Research Assistants' call lists no longer run out (8 Nov 2026)
+
+When the open Main-400 and KII work was split between the two Research Assistants (calls), 198 of the 205 live
+Main-400 links and all 130 live KII links had passed their 14-day date, so nearly every call would have opened on "This
+link has expired". Nothing renewed a link: the only way on was a new invitation, which stops the link already sent
+from working and has to be sent again. `apps/invitations/renewal.py` now moves the date of the link the person already
+has, so the WhatsApp or email they were sent works again and nothing is sent. It runs every morning at 05:30
+(`renew_call_list_links_task`, switched off by `INVITATION_AUTO_RENEW=false`) and on demand with
+`manage.py renew_invitation_links [--apply]`. A link is renewed only while it is still open (not submitted,
+superseded or revoked), its case is at S05–S07 or an activated Reserve (never a LOCKED one: `is_invitable()`) or its
+KII record is still INVITED, it is not a duplicate, nobody declined or withdrew, and it is assigned to a Research
+Assistant (calls) — which also leaves the PI's held duplicates as they are, since they were kept off those lists.
+Each renewal is audited (`invitation.renewed` / `kii_invitation.renewed`) with the old and new dates.
 
 ### Automatic replacement never closes a case that asked for a call (26 Oct 2026)
 

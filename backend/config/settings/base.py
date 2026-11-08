@@ -210,6 +210,11 @@ CORS_ALLOWED_ORIGINS = env.list(
 # (AGENTS.md ground rule 7).
 INVITATION_TOKEN_BYTES = env.int("INVITATION_TOKEN_BYTES", default=32)
 INVITATION_TOKEN_EXPIRY_DAYS = env.int("INVITATION_TOKEN_EXPIRY_DAYS", default=14)
+# Links of people on a Research Assistant's call list are renewed each night before they run out, so the link the
+# person already has keeps working (invitations.renewal, PI request 8 Nov 2026). A renewed link runs for another
+# INVITATION_TOKEN_EXPIRY_DAYS. Set INVITATION_AUTO_RENEW=false to stop the nightly run.
+INVITATION_AUTO_RENEW = env.bool("INVITATION_AUTO_RENEW", default=True)
+INVITATION_RENEW_WITHIN_DAYS = env.float("INVITATION_RENEW_WITHIN_DAYS", default=2)
 
 # --- PROIT (docs: ABF-FST_PROIT_v1.0_Portal_Deployment_Tool) ---------------
 # The tool's own status line is "DEPLOYMENT-READY CONTROLLED ADD-ON --
