@@ -52,6 +52,8 @@ interface CallItem {
   assigned_to?: string;
   /** They answered YES to the study's introduction and were sent this link for it (2026-11-12). */
   said_yes?: boolean;
+  /** False when nothing shows the working link was ever sent to them or opened (2026-11-12). */
+  link_on_record?: boolean;
 }
 
 interface CallList {
@@ -229,6 +231,12 @@ function CallCard({
             </p>
             <p className="font-semibold">{item.organisation}</p>
             <p className="text-xs text-text-muted">{[item.sector, item.location].filter(Boolean).join(" · ")}</p>
+            {item.link_on_record === false && (
+              <p className="text-xs text-danger">
+                No record that this link was sent to them. Ask whether they have it; if not, send a new invitation from
+                the case page before reminding them.
+              </p>
+            )}
             {item.assigned_to && <p className="text-xs">Assigned to <span className="font-medium">{item.assigned_to}</span></p>}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1">

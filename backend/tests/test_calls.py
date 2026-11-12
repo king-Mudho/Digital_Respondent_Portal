@@ -178,3 +178,49 @@ def test_said_yes_lists_only_those_who_answered_yes_and_hold_the_link(pi, main_c
     assert {i["id"] for i in only["results"]} == {yes.sample_id, informant.kii_id}
     assert only["said_yes_count"] == 2 and only["stage_counts"]["opened"] == 1 and only["stage_counts"]["not_opened"] == 1
     assert [i["id"] for i in pi.get(URL, {"said_yes": "1", "study": "main"}).json()["results"]] == [yes.sample_id]
+
+
+def test_a_link_nobody_was_sent_is_flagged_until_it_is_sent_or_opened(pi, main_case, organisation, stratum):
+    """12 Nov 2026 (SID-2026-000385): a replacement link was issued and never sent, the portal showed a working link,
+    and the respondent held a dead one. Calls now says so, and a by-hand send is recorded."""
+    from apps.messaging.models import ProviderMessage
+
+    unsent = _invited(main_case)
+    opened = _invited(_another_case(organisation, stratum, "Opened Ltd"), TokenStatus.OPENED, name="Olga Open")
+    refused = _invited(_another_case(organisation, stratum, "Refused Ltd"), name="Rudo Refused")
+    delivered = _invited(_another_case(organisation, stratum, "Delivered Ltd"), name="Dan Delivered")
+    by_hand = _invited(_another_case(organisation, stratum, "By Hand Ltd"), name="Hope Hand")
+    informant = _kii()
+
+    def token(case):
+        return InvitationToken.objects.get(sample_case=case)
+
+    for case, status in ((refused, "UNDELIVERED"), (delivered, "DELIVERED")):
+        ProviderMessage.objects.create(channel="WHATSAPP", purpose="INVITATION", provider="TWILIO", to_masked="+263 ... 567",
+                                       to_hash="d" * 64, body="x", status=status, sample_case=case, invitation_token=token(case))
+    assert pi.post(f"/api/v1/invitations/{token(by_hand).pk}/sent-by-hand/", {"channel": "whatsapp"}, format="json").status_code == 200
+    assert AuditEvent.objects.filter(action="invitation.sent_by_hand", object_id=str(token(by_hand).pk)).count() == 1
+
+    flags = {i["id"]: i["link_on_record"] for i in pi.get(URL).json()["results"]}
+    assert flags == {unsent.sample_id: False, refused.sample_id: False, opened.sample_id: True, delivered.sample_id: True,
+                     by_hand.sample_id: True, informant.kii_id: False}
+
+    kii_token = KIIInvitationToken.objects.get(kii_record=informant)
+    assert pi.post(f"/api/v1/kii-invitations/{kii_token.pk}/sent-by-hand/", {"channel": "EMAIL"}, format="json").status_code == 200
+    assert {i["id"]: i["link_on_record"] for i in pi.get(URL, {"study": "kii"}).json()["results"]} == {informant.kii_id: True}
+
+
+def test_who_may_record_a_by_hand_send(main_case, organisation, stratum):
+    mine = _invited(main_case)
+    token = InvitationToken.objects.get(sample_case=mine)
+    url = f"/api/v1/invitations/{token.pk}/sent-by-hand/"
+    assert _client(Role.ANALYST, "hand_analyst").post(url, {"channel": "SMS"}, format="json").status_code == 403
+    ra = _client(Role.CONTACT_RA, "hand_ra")
+    assert ra.post(url, {"channel": "SMS"}, format="json").status_code == 403  # not assigned to them
+    main_case.assigned_ra = ra.user
+    main_case.save(update_fields=["assigned_ra"])
+    assert ra.post(url, {"channel": "carrier pigeon"}, format="json").status_code == 400
+    assert ra.post(url, {"channel": "SMS"}, format="json").status_code == 200
+    InvitationToken.objects.filter(pk=token.pk).update(status=TokenStatus.REVOKED)
+    assert ra.post(url, {"channel": "SMS"}, format="json").status_code == 409
+    assert AuditEvent.objects.filter(action="invitation.sent_by_hand").count() == 1

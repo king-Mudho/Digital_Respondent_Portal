@@ -10,6 +10,7 @@ from .views import (
     InvitationEmailView,
     InvitationIssueView,
     InvitationRevokeView,
+    InvitationSentByHandView,
     InvitationTextView,
     InvitationValidateView,
 )
@@ -24,6 +25,7 @@ urlpatterns = [
     path("invitations/whatsapp-queue/", WhatsAppQueueView.as_view(), name="whatsapp-queue"),
     path("invitations/whatsapp-queue/<str:sample_id>/prepare/", WhatsAppPrepareView.as_view(), name="whatsapp-prepare"),
     path("invitations/<int:token_id>/revoke/", InvitationRevokeView.as_view(), name="revoke"),
+    path("invitations/<int:token_id>/sent-by-hand/", InvitationSentByHandView.as_view(), name="sent-by-hand"),
     path("invitations/<int:token_id>/send-email/", InvitationEmailView.as_view(), name="send-email"),
     path("invitations/<int:token_id>/send-sms/", InvitationTextView.as_view(channel="SMS"), name="send-sms"),
     path("invitations/<int:token_id>/send-whatsapp/", InvitationTextView.as_view(channel="WHATSAPP"), name="send-whatsapp"),

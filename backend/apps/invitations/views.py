@@ -196,6 +196,33 @@ class InvitationTextView(APIView):
         return Response(result)
 
 
+class InvitationSentByHandView(APIView):
+    """POST /api/v1/invitations/{token_id}/sent-by-hand/ {channel: WHATSAPP|SMS|EMAIL} -- the send panel's by-hand
+    buttons (the sender's own WhatsApp, SMS or email app) record that the link was sent that way (12 Nov 2026).
+    Until then such a send left no trace, so a link sent by hand looked the same as one never sent
+    (apps/invitations/delivery.py). Same people as the other send endpoints."""
+
+    permission_classes = [CanManageContact]
+
+    def post(self, request, token_id):
+        from .batch import OPEN_STATUSES
+        from .delivery import BY_HAND_CHANNELS, record_by_hand
+
+        try:
+            token = InvitationToken.objects.select_related("sample_case").get(pk=token_id)
+        except InvitationToken.DoesNotExist:
+            return Response({"error": {"code": "not_found", "message": "No such invitation.", "field_errors": {}}}, status=404)
+        _require_assigned(request.user, token.sample_case)
+        channel = str(request.data.get("channel", "")).upper()
+        if channel not in BY_HAND_CHANNELS:
+            return Response({"error": {"code": "invalid_channel", "message": "Choose WhatsApp, SMS or email.", "field_errors": {}}}, status=400)
+        if token.status not in OPEN_STATUSES:
+            return Response({"error": {"code": "invitation_not_open", "message": "This invitation is no longer open. Send a new one.",
+                                       "field_errors": {}}}, status=409)
+        record_by_hand(token, channel=channel, user=request.user)
+        return Response({"recorded": channel})
+
+
 class InvitationRevokeView(APIView):
     """POST /api/v1/invitations/{token_id}/revoke/ -- internal."""
 

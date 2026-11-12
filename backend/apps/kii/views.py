@@ -252,6 +252,27 @@ class KIIInvitationTextView(APIView):
         return Response(result)
 
 
+class KIIInvitationSentByHandView(APIView):
+    """POST /api/v1/kii-invitations/{token_id}/sent-by-hand/ {channel: WHATSAPP|SMS|EMAIL} -- the by-hand send buttons
+    record that the link was sent that way (12 Nov 2026, apps/invitations/delivery.py)."""
+
+    permission_classes = [CanManageKII]
+
+    def post(self, request, token_id):
+        from apps.invitations.delivery import BY_HAND_CHANNELS, record_by_hand
+
+        from .batch import OPEN_STATUSES
+
+        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id)
+        channel = str(request.data.get("channel", "")).upper()
+        if channel not in BY_HAND_CHANNELS:
+            return _error("invalid_channel", "Choose WhatsApp, SMS or email.")
+        if token.status not in OPEN_STATUSES:
+            return _error("invitation_not_open", "This invitation is no longer open. Send a new one.", status=409)
+        record_by_hand(token, channel=channel, user=request.user)
+        return Response({"recorded": channel})
+
+
 class KIIInvitationRevokeView(APIView):
     """POST /api/v1/kii-invitations/{token_id}/revoke/."""
 

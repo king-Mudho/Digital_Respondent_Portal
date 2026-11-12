@@ -65,6 +65,7 @@ export function InvitationSendPanel({
   const [emailResult, setEmailResult] = useState<string | null>(null);
   const [textResult, setTextResult] = useState<Partial<Record<TextChannel, string>>>({});
   const [textSent, setTextSent] = useState<Partial<Record<TextChannel, boolean>>>({});
+  const [handNote, setHandNote] = useState<string | null>(null);
   const m = invitation.messages;
   const preview = channel === "email" ? `Subject: ${m.email_subject}\n\n${m.email_body}` : m[channel];
 
@@ -94,6 +95,13 @@ export function InvitationSendPanel({
     onError: (err, via) =>
       setTextResult((r) => ({ ...r, [via]: err instanceof ApiError ? err.message : `The ${TEXT_LABEL[via]} could not be sent.` })),
   });
+  // The by-hand buttons open the sender's own WhatsApp, SMS or email app. The portal cannot see that message, so
+  // it records that the link was sent this way (2026-11-12): until then such a link looked like one never sent.
+  const byHand = (via: "WHATSAPP" | "SMS" | "EMAIL") => {
+    adminFetch(`${base}/sent-by-hand/`, { method: "POST", body: JSON.stringify({ channel: via }) }).catch(() => {
+      setHandNote("The portal could not record that you sent this by hand. Log it under Contact timeline.");
+    });
+  };
   const textOn: TextChannel[] = [
     ...(invitation.sms_configured ? (["sms"] as const) : []),
     ...(invitation.whatsapp_configured ? (["whatsapp"] as const) : []),
@@ -155,12 +163,12 @@ export function InvitationSendPanel({
         shown again once you leave this page.
       </p>
       <div className="flex flex-wrap gap-2">
-        <a href={wa} target="_blank" rel="noopener noreferrer" className={linkClass}>Send via WhatsApp</a>
+        <a href={wa} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={() => byHand("WHATSAPP")}>Send via WhatsApp</a>
         <Button onClick={() => sendEmail.mutate()} disabled={!!emailBlocked || sendEmail.isPending || sendEmail.isSuccess}>
           {sendEmail.isPending ? "Sending…" : sendEmail.isSuccess ? "Emailed" : "Email from study address"}
         </Button>
-        <a href={mailto} className={linkClass}>Open in email app</a>
-        <a href={sms} className={linkClass}>Send by SMS</a>
+        <a href={mailto} className={linkClass} onClick={() => byHand("EMAIL")}>Open in email app</a>
+        <a href={sms} className={linkClass} onClick={() => byHand("SMS")}>Send by SMS</a>
         <Button
           variant="outline"
           onClick={() => {
@@ -211,6 +219,7 @@ export function InvitationSendPanel({
             : "No mobile number on file (a landline can't receive SMS); your messages app will ask for one. Use this on a phone.")}
       </p>
       {emailResult && <p className="text-sm">{emailResult}</p>}
+      {handNote && <p className="text-sm text-danger">{handNote}</p>}
       <p className="text-text-muted text-xs">After sending, log it under Contact timeline.</p>
     </div>
   );

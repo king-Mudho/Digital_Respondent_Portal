@@ -916,6 +916,16 @@ calling, so `RA_NEW_LINK_ASSIGNEE` names the account whose list every newly issu
 (`apps/ra/assignment.py`, called from `issue_invitation()` and `issue_kii_invitation()`, audited as `ra.assigned`).
 It leaves work already on an active calling RA, and cases marked as duplicates, where they are.
 
+**A working link nobody holds (12 Nov 2026).** SID-2026-000385 said YES on 14 Oct and was sent a link. Two more were
+issued from the case page on 19 Oct and never sent, which switched off the one they held; the nightly renewal kept
+the last alive, and a reminder to "use the link you were sent" got "The link is no longer available". It went
+unnoticed because issuing and sending are separate steps and a send from the sender's own WhatsApp, SMS or email app
+left no trace, so an unsent link looked like any other. `apps/invitations/delivery.py` now says which links have
+evidence of reaching the person (a portal message not refused or undelivered, a send in the audit log, or the
+respondent opening it); Calls warns on the rest (`link_on_record`); and the send panel's by-hand buttons record
+`invitation.sent_by_hand` / `kii_invitation.sent_by_hand` (`POST .../sent-by-hand/`). Reminders are unchanged: whether
+a case with no send on record should still be reminded is the PI's call.
+
 ### Long names no longer cost the introduction or the thank-you (21 Oct 2026)
 
 Meta caps a WhatsApp template's body at 1,024 characters once its variables are filled in. Twilio accepts the request

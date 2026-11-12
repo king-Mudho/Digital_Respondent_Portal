@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 
 from apps.audit.utils import log_action
+from apps.invitations.delivery import on_record
 from apps.invitations.models import InvitationToken
 from apps.kii.models import KIIInvitationToken
 from apps.messaging.communications import visible_cases, visible_records
@@ -121,6 +122,7 @@ def _main_items(user):
     cases = list(cases)
     reminders = _reminder_counts("sample_case_id", [c.id for c in cases])
     yes = _said_yes("sample_case_id")
+    sent = on_record([t for c in cases for t in c.invitation_tokens.all()])
     for c in cases:
         tokens = list(c.invitation_tokens.all())
         token = min(tokens, key=lambda t: STAGE_ORDER.index(MAIN_STAGE[t.status]))
@@ -139,6 +141,7 @@ def _main_items(user):
             "public_contacts": str((org.metadata or {}).get("public_contacts") or ""),
             "reminders": reminders.get(c.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}",
             "assigned_to": _ra_name(c.assigned_ra), "said_yes": c.id in yes,
+            "link_on_record": any(t.pk in sent for t in tokens),
         }
     yield from _main_without_link(user, events)
 
@@ -170,6 +173,7 @@ def _main_without_link(user, events):
             "public_contacts": str((org.metadata or {}).get("public_contacts") or ""), "reminders": 0, "calls": n_calls,
             "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}", "assigned_to": _ra_name(c.assigned_ra),
             "said_yes": False,  # a YES is answered with the link, so a case with no link has not said it
+            "link_on_record": True,  # no link: nothing to have gone astray
         }
 
 
@@ -182,6 +186,7 @@ def _kii_items(user):
                    .prefetch_related(events, Prefetch("invitation_tokens", queryset=KIIInvitationToken.objects.filter(status__in=KII_STAGE))))
     reminders = _reminder_counts("kii_record_id", [r.id for r in records])
     yes = _said_yes("kii_record_id")
+    sent = on_record([t for r in records for t in r.invitation_tokens.all()], kii=True)
     pools = {"CORE_60": "Core 60", "RESERVE_30": "Reserve 30", "ADDITIONAL": "Additional"}
     for r in records:
         tokens = list(r.invitation_tokens.all())
@@ -199,6 +204,7 @@ def _kii_items(user):
             "public_contacts": str(meta.get("public_contacts") or ""),
             "reminders": reminders.get(r.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/kii/{r.pk}",
             "assigned_to": _ra_name(r.assigned_ra), "said_yes": r.id in yes,
+            "link_on_record": any(t.pk in sent for t in tokens),
         }
     # Assigned informants nobody has invited yet (2026-11-08).
     waiting = (visible_records(user).exclude(assigned_ra=None).filter(status__in=["PROSPECT", "INVITED"])
@@ -215,6 +221,7 @@ def _kii_items(user):
                                                    _numbers(r.whatsapp_number, r.phone), r.email)],
             "public_contacts": str(meta.get("public_contacts") or ""), "reminders": 0, "calls": n_calls, "last_call": last,
             "detail_path": f"/admin/kii/{r.pk}", "assigned_to": _ra_name(r.assigned_ra), "said_yes": False,
+            "link_on_record": True,
         }
 
 
