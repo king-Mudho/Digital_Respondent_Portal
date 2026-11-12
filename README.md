@@ -700,7 +700,7 @@ celery -A config beat --loglevel=info
 | `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
 | `COMMUNICATION_BLOCKED_PHRASES`, `COMMUNICATION_MAX_LENGTH` | Words a message written in Communications may never contain (AGENTS.md rule 2), and its maximum length |
 | `RA_ASSIST_CREDIT_DAYS` | How many days before a respondent's own submission an RA's logged call or message still earns an "assisted" credit (14) |
-| `RA_NEW_LINK_ASSIGNEE` | Username of the Research Assistant (calls) whose call list every newly issued link goes on. Empty (the default) assigns nobody |
+| `RA_NEW_LINK_ASSIGNEE` | Username(s), comma-separated, of the Research Assistants (calls) whose call lists newly issued links go on: each link to whichever has the least open work. Empty (the default) assigns nobody |
 | `WHATSAPP_IMAGE_MAX_MB`, `WHATSAPP_MEDIA_MAX_MB`, `WHATSAPP_MEDIA_LINK_MINUTES`, `WHATSAPP_MEDIA_FILES_PER_SEND`, `WHATSAPP_MEDIA_THROTTLE_RATE` | Files sent on WhatsApp from Communications: picture and other size limits (5 / 16 MB, WhatsApp's own), how long Twilio's signed link to a file works (60 minutes), files per send (10), and the link's throttle |
 | `LOGIN_THROTTLE_RATE`, `RESPONDENT_THROTTLE_RATE` | Sign-in and respondent-flow rate limits (defaults 30/min and 120/min) |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_SMS_FROM`, `TWILIO_WHATSAPP_FROM` | SMS and WhatsApp through Twilio (optional; each channel is offered only once its own values are set); set with `deploy/configure-twilio.sh` |
@@ -911,9 +911,11 @@ counts that screen too.
 
 **Said YES, and one calling RA (12 Nov 2026).** The PI wanted to phone first the people who replied YES to the
 introduction and were sent their link for it. Calls marks them "Said YES" and has a filter for them
-(`?said_yes=1`: an ACCEPTED `Outreach` on the case or KII record). One Research Assistant (calls) now does all the
-calling, so `RA_NEW_LINK_ASSIGNEE` names the account whose list every newly issued link goes on
+(`?said_yes=1`: an ACCEPTED `Outreach` on the case or KII record). So that nobody given a link is left on
+no call list, `RA_NEW_LINK_ASSIGNEE` names the Research Assistant (calls) accounts whose lists newly issued links go on
 (`apps/ra/assignment.py`, called from `issue_invitation()` and `issue_kii_invitation()`, audited as `ra.assigned`).
+It began that morning as one name, when one RA did all the calling; the second came back that afternoon, so it takes
+several names and gives each link to whichever has the least open work, alternating while their lists are level.
 It leaves work already on an active calling RA, and cases marked as duplicates, where they are.
 
 **A working link nobody holds (12 Nov 2026).** SID-2026-000385 said YES on 14 Oct and was sent a link. Two more were

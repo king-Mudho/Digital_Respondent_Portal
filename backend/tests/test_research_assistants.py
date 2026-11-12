@@ -315,3 +315,39 @@ def test_a_link_leaves_another_calling_ras_work_and_held_duplicates_where_they_a
     issue_invitation(moved, channel="WHATSAPP", issued_by=None)
     moved.refresh_from_db()
     assert moved.assigned_ra.username == "chido"  # the shared Contact RA account phones nobody
+
+
+def test_new_links_are_shared_between_the_named_ras_shorter_list_first(main_case, organisation, stratum, settings):
+    """PI, 12 Nov 2026: with two calling RAs, links alternate while their lists are level and a shorter list catches up
+    first. Main-400 cases and KII records are counted separately."""
+    from apps.invitations.services import issue_invitation
+    from apps.kii.services import create_kii_record, issue_kii_invitation
+    from apps.sampling.services import create_organisation, create_sample_case
+
+    first, second = _caller("chido"), _caller("geyi")
+    settings.RA_NEW_LINK_ASSIGNEE = "chido, geyi, somebody-who-left"
+
+    def _case(name, assigned=None):
+        org = create_organisation(province=organisation.province, name=name, entity_type="Private Limited Company",
+                                  district="Harare", actor_family=organisation.actor_family, value_chain="Horticulture",
+                                  size_class=organisation.size_class)
+        case = create_sample_case(organisation=org, stratum=stratum, sample_type="MAIN", year=2026)
+        case.assigned_ra = assigned
+        case.save()
+        return case
+
+    for n in range(2):  # the first named starts two cases ahead
+        _case(f"Already Chido {n} Ltd", assigned=first)
+    got = []
+    for case in [main_case, *[_case(f"New {n} Ltd") for n in range(4)]]:
+        issue_invitation(case, channel="WHATSAPP", issued_by=None)
+        case.refresh_from_db()
+        got.append(case.assigned_ra.username)
+    assert got == ["geyi", "geyi", "chido", "geyi", "chido"]  # geyi catches up, then they alternate, chido first on a tie
+
+    record = create_kii_record(participant_name="Tendai Moyo", participant_role="Director", stakeholder_category="Bank",
+                               phone="0772000001", metadata={"organisation_name": "Agri Bank"})
+    issue_kii_invitation(record)
+    record.refresh_from_db()
+    assert record.assigned_ra == first  # no KII work on either yet: the Main-400 counts above play no part
+    assert second.pk != first.pk
