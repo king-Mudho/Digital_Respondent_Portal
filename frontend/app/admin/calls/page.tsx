@@ -50,6 +50,8 @@ interface CallItem {
   detail_path: string;
   /** The research assistant these people are assigned to (2026-11-08). */
   assigned_to?: string;
+  /** They answered YES to the study's introduction and were sent this link for it (2026-11-12). */
+  said_yes?: boolean;
 }
 
 interface CallList {
@@ -57,6 +59,8 @@ interface CallList {
   count: number;
   stage_counts: Record<Stage, number>;
   stage_labels: Record<Stage, string>;
+  /** How many of the people listed (before the stage filter) said YES to the introduction (2026-11-12). */
+  said_yes_count?: number;
   studies: ("main" | "kii")[];
   outcomes: { value: string; label: string }[];
   /** Calls, and WhatsApp/SMS/email messages sent from the caller's own phone (2026-11-08). */
@@ -84,10 +88,13 @@ export default function CallsPage() {
   const [stage, setStage] = useState<Stage | "all">("all");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
+  const [saidYes, setSaidYes] = useState(false);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["calls", study, stage, search],
+    queryKey: ["calls", study, stage, search, saidYes],
     queryFn: () =>
-      adminFetch<CallList>(`/calls/?${new URLSearchParams({ study, stage, q: search }).toString()}`),
+      adminFetch<CallList>(
+        `/calls/?${new URLSearchParams({ study, stage, q: search, ...(saidYes ? { said_yes: "1" } : {}) }).toString()}`,
+      ),
   });
   const items = data?.results ?? [];
   const total = data ? STAGES.reduce((n, s) => n + (data.stage_counts[s] ?? 0), 0) : 0;
@@ -111,6 +118,14 @@ export default function CallsPage() {
             ))}
           </div>
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={saidYes ? "primary" : "outline"} onClick={() => setSaidYes(!saidYes)} aria-pressed={saidYes}>
+            Said YES and has the link ({data?.said_yes_count ?? 0})
+          </Button>
+          <span className="text-xs text-text-muted">
+            People who replied YES to the study&apos;s introduction and were sent their link for it.
+          </span>
+        </div>
         <div className="flex flex-wrap gap-2" role="group" aria-label="How far they got">
           <Button variant={stage === "all" ? "primary" : "outline"} onClick={() => setStage("all")} aria-pressed={stage === "all"}>
             All ({total})
@@ -216,7 +231,12 @@ function CallCard({
             <p className="text-xs text-text-muted">{[item.sector, item.location].filter(Boolean).join(" · ")}</p>
             {item.assigned_to && <p className="text-xs">Assigned to <span className="font-medium">{item.assigned_to}</span></p>}
           </div>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STAGE_STYLE[item.stage]}`}>{item.stage_label}</span>
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {item.said_yes && (
+              <span className="rounded-full border border-success px-2 py-0.5 text-xs font-semibold text-success">Said YES</span>
+            )}
+            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STAGE_STYLE[item.stage]}`}>{item.stage_label}</span>
+          </div>
         </div>
 
         <div className="space-y-2">

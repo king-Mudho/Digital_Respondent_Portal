@@ -286,6 +286,9 @@ EXPERT_TARGET = env.int("EXPERT_TARGET", default=12)
 # Research assistants are paid per completion they administered or assisted (apps/ra, PI 8 Nov 2026). A respondent's
 # own completion is "assisted" by the RA whose call or message came last within this many days before it.
 RA_ASSIST_CREDIT_DAYS = env.int("RA_ASSIST_CREDIT_DAYS", default=14)
+# The username of the Research Assistant (calls) whose call list every newly issued link goes on (apps/ra/assignment.py,
+# PI 12 Nov 2026: one RA now does all the calling). Empty switches it off.
+RA_NEW_LINK_ASSIGNEE = env.str("RA_NEW_LINK_ASSIGNEE", default="")
 EXPERT_PANEL_TARGETS = env.dict("EXPERT_PANEL_TARGETS", cast={"value": int}, default={
     "FINANCE": 3, "AGRIBUSINESS": 3, "ECONOMICS": 2, "METHODS": 2, "FOOD_SYSTEMS": 2,
 })

@@ -307,6 +307,10 @@ def issue_kii_invitation(
         user=issued_by,
     )
     advance_on_self_service(kii_record, SELF_SERVICE_INVITED)
+    # Everyone given a link goes on the calling RA's list (PI, 12 Nov 2026); off unless RA_NEW_LINK_ASSIGNEE is set.
+    from apps.ra.assignment import assign_on_link
+
+    assign_on_link(kii_record, issued_by=issued_by)
     return raw_token, raw_manual_code, token
 
 

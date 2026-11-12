@@ -13,8 +13,9 @@ def _error(exc: CallError) -> Response:
 
 
 class CallListView(APIView):
-    """GET /api/v1/calls/?study=all|main|kii&stage=all|started|consented|opened|not_opened&q= -- everyone whose link
-    was sent but who has not finished, closest to finishing first, with every contact on file. Rows are scoped to
+    """GET /api/v1/calls/?study=all|main|kii&stage=all|started|consented|opened|not_opened&q=&said_yes=1 -- everyone
+    whose link was sent but who has not finished, closest to finishing first, with every contact on file; said_yes=1
+    keeps those who answered YES to the introduction and were sent their link for it. Rows are scoped to
     what this user may see (a Contact RA their assigned cases, a KII RA the KII records)."""
 
     permission_classes = [CanUseCalls]
@@ -22,7 +23,8 @@ class CallListView(APIView):
     def get(self, request):
         p = request.query_params
         study = p.get("study", "all") if p.get("study") in ("all", "main", "kii") else "all"
-        return Response(call_list(request.user, study=study, stage=p.get("stage", "all"), q=p.get("q", "")))
+        return Response(call_list(request.user, study=study, stage=p.get("stage", "all"), q=p.get("q", ""),
+                                  said_yes=p.get("said_yes") in ("1", "true")))
 
 
 class CallLogView(APIView):

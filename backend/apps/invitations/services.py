@@ -135,6 +135,10 @@ def issue_invitation(
         user=issued_by,
     )
     _advance_to_invitation_sent(sample_case)
+    # Everyone given a link goes on the calling RA's list (PI, 12 Nov 2026); off unless RA_NEW_LINK_ASSIGNEE is set.
+    from apps.ra.assignment import assign_on_link
+
+    assign_on_link(sample_case, issued_by=issued_by)
     return raw_token, raw_manual_code, token
 
 

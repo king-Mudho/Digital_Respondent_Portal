@@ -235,3 +235,83 @@ def test_open_work_moves_from_the_shared_account_to_an_ra_reserves_included(team
     assert activated_reserve_case.assigned_ra == team["rudo"]
     assert pi.post("/api/v1/ra/assign-main/", {"ra_id": team["pi"].id, "from": "unassigned"}, format="json").status_code == 400
     assert _client(team["rudo"]).post("/api/v1/ra/assign-main/", {"ra_id": team["rudo"].id, "from": "unassigned"}, format="json").status_code == 403
+
+
+# --- Everyone given a link goes on the calling RA's list (apps/ra/assignment.py, PI 12 Nov 2026) --------------------
+
+def _caller(username="chido", role="TELEPHONE_RA", active=True):
+    from apps.accounts.models import Role, User
+
+    r, _ = Role.objects.get_or_create(name=role)
+    return User.objects.create_user(username=username, password="x", role=r, is_active=active)
+
+
+def test_a_newly_issued_link_puts_the_case_and_the_kii_record_on_the_named_ras_list(main_case, settings):
+    from apps.audit.models import AuditEvent
+    from apps.invitations.services import issue_invitation
+    from apps.kii.services import create_kii_record, issue_kii_invitation
+
+    ra = _caller()
+    settings.RA_NEW_LINK_ASSIGNEE = "chido"
+    record = create_kii_record(participant_name="Tendai Moyo", participant_role="Director", stakeholder_category="Bank",
+                               phone="0772000001", metadata={"organisation_name": "Agri Bank"})
+    issue_invitation(main_case, channel="WHATSAPP", issued_by=None)
+    issue_kii_invitation(record)
+    main_case.refresh_from_db(), record.refresh_from_db()
+    assert main_case.assigned_ra == ra and record.assigned_ra == ra
+    logged = [e.metadata for e in AuditEvent.objects.filter(action="ra.assigned")]
+    assert {m["study"] for m in logged} == {"QUAN", "KII"} and all(m["to"] == "chido" and m["from"] == "unassigned" for m in logged)
+
+
+def test_a_link_assigns_nobody_while_the_setting_is_empty_or_names_no_calling_ra(main_case, settings):
+    from apps.invitations.services import issue_invitation
+
+    _caller()
+    issue_invitation(main_case, channel="WHATSAPP", issued_by=None)  # RA_NEW_LINK_ASSIGNEE is empty by default
+    main_case.refresh_from_db()
+    assert main_case.assigned_ra is None
+    for username, role, active in (("gone", "TELEPHONE_RA", False), ("analyst1", "ANALYST", True)):
+        _caller(username, role, active)
+        settings.RA_NEW_LINK_ASSIGNEE = username
+        issue_invitation(main_case, channel="WHATSAPP", issued_by=None)
+        main_case.refresh_from_db()
+        assert main_case.assigned_ra is None
+    settings.RA_NEW_LINK_ASSIGNEE = "nobody-by-this-name"
+    issue_invitation(main_case, channel="WHATSAPP", issued_by=None)
+    main_case.refresh_from_db()
+    assert main_case.assigned_ra is None
+
+
+def test_a_link_leaves_another_calling_ras_work_and_held_duplicates_where_they_are(main_case, organisation, stratum, settings):
+    from apps.invitations.services import issue_invitation
+    from apps.sampling.services import create_organisation, create_sample_case
+
+    _caller()
+    other = _caller("second_caller")
+    shared = _caller("shared_contact", role="CONTACT_RA")
+    settings.RA_NEW_LINK_ASSIGNEE = "chido"
+    main_case.assigned_ra = other
+    main_case.save(update_fields=["assigned_ra"])
+    issue_invitation(main_case, channel="WHATSAPP", issued_by=None)
+    main_case.refresh_from_db()
+    assert main_case.assigned_ra == other  # already on an active calling RA's list
+
+    def _case(name, **fields):
+        org = create_organisation(province=organisation.province, name=name, entity_type="Private Limited Company",
+                                  district="Harare", actor_family=organisation.actor_family, value_chain="Horticulture",
+                                  size_class=organisation.size_class)
+        case = create_sample_case(organisation=org, stratum=stratum, sample_type="MAIN", year=2026)
+        for field, value in fields.items():
+            setattr(case, field, value)
+        case.save()
+        return case
+
+    held = _case("Held Duplicate Ltd", metadata={"duplicate_of": "SID-2026-000001"})
+    issue_invitation(held, channel="WHATSAPP", issued_by=None)
+    held.refresh_from_db()
+    assert held.assigned_ra is None  # the PI keeps held duplicates off the call lists
+
+    moved = _case("Shared Account Ltd", assigned_ra=shared)
+    issue_invitation(moved, channel="WHATSAPP", issued_by=None)
+    moved.refresh_from_db()
+    assert moved.assigned_ra.username == "chido"  # the shared Contact RA account phones nobody

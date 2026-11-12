@@ -152,3 +152,29 @@ def test_who_may_log_a_call(main_case, organisation, stratum):
     pi = _client(Role.PI_ADMIN, "calls_pi2")
     assert pi.post(f"{URL}main/{other.sample_id}/", {"outcome": "MAYBE"}, format="json").status_code == 400
     assert not ContactEvent.objects.exists()
+
+
+def test_said_yes_lists_only_those_who_answered_yes_and_hold_the_link(pi, main_case, organisation, stratum):
+    """PI, 12 Nov 2026: phone the people who said YES to the introduction and were sent the link. A person invited
+    without being asked, or one who said NO, is not among them."""
+    from django.utils import timezone
+
+    from apps.messaging.models import Outreach, OutreachStatus
+
+    yes = _invited(main_case, TokenStatus.OPENED)
+    plain = _invited(_another_case(organisation, stratum, "Never Asked Ltd"), name="Sam Sent")
+    declined = _invited(_another_case(organisation, stratum, "Said No Ltd"), name="Nora No")
+    informant = _kii()
+    Outreach.objects.create(sample_case=yes, status=OutreachStatus.ACCEPTED, number_hash="a" * 64, channel="WHATSAPP", intro_sent_at=timezone.now())
+    Outreach.objects.create(sample_case=declined, status=OutreachStatus.DECLINED, number_hash="b" * 64, channel="WHATSAPP", intro_sent_at=timezone.now())
+    Outreach.objects.create(kii_record=informant, status=OutreachStatus.ACCEPTED, number_hash="c" * 64, channel="WHATSAPP", intro_sent_at=timezone.now())
+
+    everyone = pi.get(URL).json()
+    assert everyone["count"] == 4 and everyone["said_yes_count"] == 2
+    assert {i["id"]: i["said_yes"] for i in everyone["results"]} == {
+        yes.sample_id: True, plain.sample_id: False, declined.sample_id: False, informant.kii_id: True}
+
+    only = pi.get(URL, {"said_yes": "1"}).json()
+    assert {i["id"] for i in only["results"]} == {yes.sample_id, informant.kii_id}
+    assert only["said_yes_count"] == 2 and only["stage_counts"]["opened"] == 1 and only["stage_counts"]["not_opened"] == 1
+    assert [i["id"] for i in pi.get(URL, {"said_yes": "1", "study": "main"}).json()["results"]] == [yes.sample_id]

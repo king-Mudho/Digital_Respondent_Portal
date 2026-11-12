@@ -96,6 +96,15 @@ def _ra_name(user):
     return (user.get_full_name() or user.username) if user else ""
 
 
+def _said_yes(field: str) -> set:
+    """The cases (or KII records) that answered YES to the study's introduction and were sent their link in reply
+    (messaging.outreach, an ACCEPTED Outreach) -- people who asked for the link, so the first ones to phone
+    (PI, 12 Nov 2026)."""
+    from apps.messaging.models import Outreach, OutreachStatus
+
+    return set(Outreach.objects.filter(status=OutreachStatus.ACCEPTED).exclude(**{field: None}).values_list(field, flat=True))
+
+
 def _main_items(user):
     from apps.sampling.models import SampleType
 
@@ -111,6 +120,7 @@ def _main_items(user):
                                Prefetch("invitation_tokens", queryset=InvitationToken.objects.filter(status__in=MAIN_STAGE))))
     cases = list(cases)
     reminders = _reminder_counts("sample_case_id", [c.id for c in cases])
+    yes = _said_yes("sample_case_id")
     for c in cases:
         tokens = list(c.invitation_tokens.all())
         token = min(tokens, key=lambda t: STAGE_ORDER.index(MAIN_STAGE[t.status]))
@@ -128,7 +138,7 @@ def _main_items(user):
             "link_channel": token.get_channel_display(), "people": people,
             "public_contacts": str((org.metadata or {}).get("public_contacts") or ""),
             "reminders": reminders.get(c.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}",
-            "assigned_to": _ra_name(c.assigned_ra),
+            "assigned_to": _ra_name(c.assigned_ra), "said_yes": c.id in yes,
         }
     yield from _main_without_link(user, events)
 
@@ -159,6 +169,7 @@ def _main_without_link(user, events):
                                p.email, " ".join(x for x in (p.gatekeeper_name, p.gatekeeper_contact) if x)) for p in c.respondents.all()],
             "public_contacts": str((org.metadata or {}).get("public_contacts") or ""), "reminders": 0, "calls": n_calls,
             "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}", "assigned_to": _ra_name(c.assigned_ra),
+            "said_yes": False,  # a YES is answered with the link, so a case with no link has not said it
         }
 
 
@@ -170,6 +181,7 @@ def _kii_items(user):
                    .select_related("organisation", "assigned_ra")
                    .prefetch_related(events, Prefetch("invitation_tokens", queryset=KIIInvitationToken.objects.filter(status__in=KII_STAGE))))
     reminders = _reminder_counts("kii_record_id", [r.id for r in records])
+    yes = _said_yes("kii_record_id")
     pools = {"CORE_60": "Core 60", "RESERVE_30": "Reserve 30", "ADDITIONAL": "Additional"}
     for r in records:
         tokens = list(r.invitation_tokens.all())
@@ -186,7 +198,7 @@ def _kii_items(user):
             "people": [_person(name, r.participant_role, _numbers(r.whatsapp_number, r.phone), r.email)],
             "public_contacts": str(meta.get("public_contacts") or ""),
             "reminders": reminders.get(r.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/kii/{r.pk}",
-            "assigned_to": _ra_name(r.assigned_ra),
+            "assigned_to": _ra_name(r.assigned_ra), "said_yes": r.id in yes,
         }
     # Assigned informants nobody has invited yet (2026-11-08).
     waiting = (visible_records(user).exclude(assigned_ra=None).filter(status__in=["PROSPECT", "INVITED"])
@@ -202,13 +214,14 @@ def _kii_items(user):
             "link_channel": "", "people": [_person("" if is_placeholder(r) else r.participant_name, r.participant_role,
                                                    _numbers(r.whatsapp_number, r.phone), r.email)],
             "public_contacts": str(meta.get("public_contacts") or ""), "reminders": 0, "calls": n_calls, "last_call": last,
-            "detail_path": f"/admin/kii/{r.pk}", "assigned_to": _ra_name(r.assigned_ra),
+            "detail_path": f"/admin/kii/{r.pk}", "assigned_to": _ra_name(r.assigned_ra), "said_yes": False,
         }
 
 
-def call_list(user, *, study: str = "all", stage: str = "all", q: str = "") -> dict:
+def call_list(user, *, study: str = "all", stage: str = "all", q: str = "", said_yes: bool = False) -> dict:
     """Everyone to call, closest to finishing first (then the oldest link), with counts per study and stage for the
-    filters -- counted before the stage filter, so each chip shows what choosing it would list."""
+    filters -- counted before the stage filter, so each chip shows what choosing it would list. `said_yes` keeps only
+    the people who answered YES to the introduction and hold the link they were sent for it."""
     items = []
     if study in ("all", "main"):
         items += list(_main_items(user))
@@ -224,13 +237,16 @@ def call_list(user, *, study: str = "all", stage: str = "all", q: str = "") -> d
             return needle in text or (len(digits) >= 4 and digits in numbers)
 
         items = [i for i in items if matches(i)]
+    said_yes_count = sum(1 for i in items if i["said_yes"])
+    if said_yes:
+        items = [i for i in items if i["said_yes"]]
     counts = {s: sum(1 for i in items if i["stage"] == s) for s in STAGE_ORDER}
     if stage in STAGE_LABELS:
         items = [i for i in items if i["stage"] == stage]
     items.sort(key=lambda i: (STAGE_ORDER.index(i["stage"]), i["link_sent"] or "", i["id"]))
     return {
         "results": [{**i, "stage_label": STAGE_LABELS[i["stage"]]} for i in items],
-        "count": len(items), "stage_counts": counts, "stage_labels": STAGE_LABELS,
+        "count": len(items), "stage_counts": counts, "stage_labels": STAGE_LABELS, "said_yes_count": said_yes_count,
         "studies": [s for s, qs in (("main", visible_cases(user)), ("kii", visible_records(user))) if qs.exists()],
         "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices if v != ContactOutcome.ADMINISTERED],
         "call_channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS + MESSAGE_CHANNELS],
