@@ -316,3 +316,55 @@ def test_the_combined_pdf_is_served_only_at_the_keyed_address(marked, settings):
     assert anon.get("/api/v1/study-letters/wrong-key/ABF-FST-Study-Information.pdf").status_code == 404
     resp = anon.get("/api/v1/study-letters/s3cret-key/ABF-FST-Study-Information.pdf")
     assert resp.status_code == 200 and resp["Content-Type"] == "application/pdf"
+
+
+# --- The PI's send-as-it-is decision (19 Nov 2026) --------------------------------------------------------------------
+
+def test_the_pi_can_record_that_a_document_goes_as_it_is_with_a_reason(people, docs, main_case):
+    pi = _client(people["pi"])
+    url = f"/api/v1/clearance-documents/{docs['Old brief'].pk}/"
+    assert pi.patch(url, {"wording_exception": True, "wording_exception_reason": ""}, format="json").status_code == 400
+    granted = pi.patch(url, {"wording_exception": True,
+                             "wording_exception_reason": "Reviewed and agreed to go to respondents unchanged"}, format="json")
+    assert granted.status_code == 200 and granted.json()["has_wording_exception"] is True
+    assert granted.json()["forbidden_phrase"] == "loan approval"  # still shown: the decision does not hide the word
+    assert pi.patch(url, {"in_study_brief": True}, format="json").status_code == 200
+    event = AuditEvent.objects.get(action="clearance.wording_exception_granted")
+    assert event.metadata["phrase"] == "loan approval" and event.user == people["pi"]
+    # ...and it is then sent.
+    main_case.assigned_ra = people["rudo"]
+    main_case.save(update_fields=["assigned_ra"])
+    Respondent.objects.create(sample_case=main_case, full_name="Jane Doe", email="jane@farmco.co.zw")
+    sent = _client(people["rudo"]).post("/api/v1/study-brief/", {"kind": "main", "id": main_case.sample_id, "channel": "EMAIL"},
+                                        format="json")
+    assert sent.status_code == 201 and [n for n, _, _ in mail.outbox[0].attachments] == ["Old_brief.pdf"]
+
+
+def test_only_the_pi_records_it(people, docs):
+    for who in ("rudo", "sup"):
+        resp = _client(people[who]).patch(f"/api/v1/clearance-documents/{docs['Old brief'].pk}/",
+                                          {"wording_exception": True, "wording_exception_reason": "I think it is fine"},
+                                          format="json")
+        assert resp.status_code == 403
+    docs["Old brief"].refresh_from_db()
+    assert not docs["Old brief"].has_wording_exception
+
+
+def test_a_replaced_file_loses_the_decision_and_is_checked_again(people, docs):
+    pi = _client(people["pi"])
+    url = f"/api/v1/clearance-documents/{docs['Old brief'].pk}/"
+    pi.patch(url, {"wording_exception": True, "wording_exception_reason": "Reviewed and agreed as it is"}, format="json")
+    pi.patch(url, {"in_study_brief": True}, format="json")
+    upload = SimpleUploadedFile("v2.pdf", _text_pdf("now with a guarantee"), content_type="application/pdf")
+    replaced = pi.post(f"{url}file/", {"file": upload}, format="multipart").json()
+    assert replaced["has_wording_exception"] is False and replaced["in_study_brief"] is False
+
+
+def test_withdrawing_the_decision_stops_the_document_being_sent(people, docs):
+    pi = _client(people["pi"])
+    url = f"/api/v1/clearance-documents/{docs['Old brief'].pk}/"
+    pi.patch(url, {"wording_exception": True, "wording_exception_reason": "Reviewed and agreed as it is"}, format="json")
+    pi.patch(url, {"in_study_brief": True}, format="json")
+    withdrawn = pi.patch(url, {"wording_exception": False}, format="json").json()
+    assert withdrawn["has_wording_exception"] is False and withdrawn["in_study_brief"] is False
+    assert AuditEvent.objects.filter(action="clearance.wording_exception_withdrawn").exists()

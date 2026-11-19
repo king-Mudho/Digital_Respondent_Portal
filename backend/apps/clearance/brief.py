@@ -13,7 +13,8 @@ them to the person they are talking to, from that person's case or KII record, o
 
 Every document sent is checked for the phrases a participant must never see (AGENTS.md rule 2,
 COMMUNICATION_BLOCKED_PHRASES): when it is marked for sending, and again every time it is sent, so a file replaced
-later cannot slip through. A document that fails is never sent. Nothing here asks for or records consent: this is
+later cannot slip through. A document that fails is never sent -- unless the PI has recorded, for that exact file, that
+it goes as it is (a wording exception, with a reason; 19 Nov 2026). A replaced file loses the exception. Nothing here asks for or records consent: this is
 information before taking part, like the introduction itself, and a participant who withdrew is never sent anything.
 """
 
@@ -59,7 +60,10 @@ def document_text(doc: ClearanceDocument) -> str:
         if filename.lower().endswith(".pdf") or (content_type or "").endswith("pdf"):
             from pypdf import PdfReader
 
-            text = "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+            try:
+                text = "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
+            except Exception:  # a damaged PDF must not take the Research Clearance screen down with it
+                text = ""
         _text_cache[key] = text
     return _text_cache[key]
 
@@ -69,6 +73,12 @@ def blocked_phrase_in(doc: ClearanceDocument) -> str:
     from apps.messaging.communications import _blocked_phrase
 
     return _blocked_phrase(" ".join(f"{doc.title} {doc.description} {document_text(doc)}".split()))
+
+
+def unexcused_phrase(doc: ClearanceDocument) -> str:
+    """The forbidden phrase that stops this document being sent: blocked_phrase_in(), unless the PI recorded that this
+    exact file goes as it is (ClearanceDocument.has_wording_exception). "" when it may be sent."""
+    return "" if doc.has_wording_exception else blocked_phrase_in(doc)
 
 
 def brief_documents() -> list[ClearanceDocument]:
@@ -83,7 +93,7 @@ def _checked_documents() -> list[ClearanceDocument]:
         raise BriefError("no_documents", "No study documents are set up for sending yet. The PI chooses them on "
                                          "Research Clearance (\"Send to participants who ask about the study\").", 409)
     for doc in docs:
-        phrase = blocked_phrase_in(doc)
+        phrase = unexcused_phrase(doc)
         if phrase:
             raise BriefError("blocked_phrase", f"\"{doc.title}\" contains \"{phrase}\", which participants must never be "
                                                "shown. Nothing was sent. The PI needs to replace that document.", 409)
@@ -95,7 +105,7 @@ def brief_pack() -> bytes | None:
     from pypdf import PdfReader, PdfWriter
 
     docs = [d for d in brief_documents() if d.file_name.lower().endswith(".pdf") or (d.file_content_type or "").endswith("pdf")]
-    if not docs or any(blocked_phrase_in(d) for d in docs):
+    if not docs or any(unexcused_phrase(d) for d in docs):
         return None
     key = tuple((d.pk, d.file_ref) for d in docs)
     if key not in _pack_cache:
@@ -199,7 +209,7 @@ def summary(user, kind: str, ident: str) -> dict:
     subject = resolve(user, kind, ident)
     who = _recipients(subject)
     docs = brief_documents()
-    blocked = {d.pk: blocked_phrase_in(d) for d in docs}
+    blocked = {d.pk: unexcused_phrase(d) for d in docs}
     problem = ""
     if not docs:
         problem = "No study documents are set up for sending yet. The PI chooses them on Research Clearance."

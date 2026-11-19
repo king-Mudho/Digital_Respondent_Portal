@@ -40,7 +40,11 @@ any agent (human or AI) that modifies this codebase.
 2. **Never use "approved", "loan approval", "credit rating", "bankability score" or
    "guarantee" anywhere a respondent can see it.** This portal is a data-collection
    instrument for an unvalidated research framework, not a financing product. See
-   `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`.
+   `docs/18_DATA_PRIVACY_AND_COMPLIANCE.md`. The one exception is a study document the PI
+   has reviewed and recorded, file by file, as sent to participants unchanged
+   (`ClearanceDocument` wording exception, 19 Nov 2026): it carries who decided, when and
+   why, is audited, and is void for any replacement file. Never grant it on the PI's behalf
+   without their instruction, and never widen it to text the portal itself writes.
 3. **The ABI bankability score is never computed or shown inside this portal.** The
    scoring engine is a separate, sibling application (`agribusiness-bankability/`) and is
    explicitly Phase 4 / post-validation for this study — see

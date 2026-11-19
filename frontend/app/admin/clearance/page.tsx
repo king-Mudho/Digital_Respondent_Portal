@@ -35,6 +35,13 @@ interface ClearanceDocument {
   active: boolean;
   /** Sent to a participant who asks to read about the study (apps/clearance/brief.py, 19 Nov 2026). */
   in_study_brief: boolean;
+  /** A word participants must never see that the document contains (AGENTS.md rule 2), or "". */
+  forbidden_phrase: string;
+  /** The PI recorded that this exact file is sent as it is anyway (19 Nov 2026). */
+  has_wording_exception: boolean;
+  wording_exception_reason: string;
+  wording_exception_by_name: string;
+  wording_exception_at: string | null;
   has_file: boolean;
   file_name: string;
 }
@@ -68,7 +75,13 @@ export default function ClearanceDocumentsPage() {
   });
 
   const patch = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: Partial<Pick<ClearanceDocument, "is_public" | "active" | "in_study_brief">> }) =>
+    mutationFn: ({ id, body }: {
+      id: number;
+      body: Partial<Pick<ClearanceDocument, "is_public" | "active" | "in_study_brief">> & {
+        wording_exception?: boolean;
+        wording_exception_reason?: string;
+      };
+    }) =>
       adminFetch<ClearanceDocument>(`/clearance-documents/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: invalidate,
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save that change."),
@@ -187,6 +200,9 @@ export default function ClearanceDocumentsPage() {
                     </label>
                   </div>
                 </div>
+                {doc.forbidden_phrase && (
+                  <WordingDecision doc={doc} onSave={(body) => patch.mutate({ id: doc.id, body })} />
+                )}
                 {doc.is_public && !doc.has_file && (
                   <p className="text-xs text-danger">Shown to respondents is on, but no file is attached yet -- nobody sees it until one is.</p>
                 )}
@@ -221,5 +237,59 @@ export default function ClearanceDocumentsPage() {
         )}
       </Card>
     </AdminShell>
+  );
+}
+
+
+/**
+ * A document holding a word participants must never see (AGENTS.md rule 2) is not sent to them -- unless the PI records
+ * that this exact file goes as it is, with a reason (19 Nov 2026). A replaced file loses the decision.
+ */
+function WordingDecision({
+  doc,
+  onSave,
+}: {
+  doc: ClearanceDocument;
+  onSave: (body: { wording_exception: boolean; wording_exception_reason?: string }) => void;
+}) {
+  const [reason, setReason] = useState("");
+  if (doc.has_wording_exception) {
+    return (
+      <div className="text-xs space-y-1">
+        <p>
+          Contains &ldquo;{doc.forbidden_phrase}&rdquo;. Sent as it is by decision of {doc.wording_exception_by_name}
+          {doc.wording_exception_at ? `, ${new Date(doc.wording_exception_at).toLocaleDateString()}` : ""}:{" "}
+          <span className="italic">{doc.wording_exception_reason}</span>
+        </p>
+        <button type="button" className="underline" onClick={() => onSave({ wording_exception: false })}>
+          Withdraw this decision
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="text-xs space-y-1">
+      <p className="text-danger">
+        Contains &ldquo;{doc.forbidden_phrase}&rdquo;, which participants are not normally shown, so it can&rsquo;t be sent
+        to them. To send this file as it is, record who reviewed it and why.
+      </p>
+      <div className="flex flex-wrap gap-2 items-center">
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. Reviewed by the PI and supervisors, agreed to send unchanged"
+          className="min-w-64 flex-1 rounded-md border border-border px-2 py-1"
+          aria-label="Reason for sending as it is"
+        />
+        <button
+          type="button"
+          className="rounded-md border border-border px-2 py-1 disabled:opacity-50"
+          disabled={reason.trim().length < 10}
+          onClick={() => onSave({ wording_exception: true, wording_exception_reason: reason.trim() })}
+        >
+          Send as it is (PI decision)
+        </button>
+      </div>
+    </div>
   );
 }

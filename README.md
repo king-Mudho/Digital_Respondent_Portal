@@ -452,6 +452,12 @@ letters) so a respondent can check the study is real before answering anything.
   its text, title or description holds a phrase participants must never see (`COMMUNICATION_BLOCKED_PHRASES`,
   AGENTS.md rule 2) — when it is switched on, when its file is replaced (it is switched off again), and at every
   send. Never sent to a participant who withdrew, and only for people the sender may see.
+  - **The PI's send-as-it-is decision (19 Nov 2026).** The PI reviewed the three study documents filed that day and
+    agreed they go to respondents unchanged, restricted words included. Research Clearance shows each document's
+    restricted word, and the PI can record **Send as it is (PI decision)** with a reason. The decision is stored with who
+    made it and when (`wording_exception_*`), is audited (`clearance.wording_exception_granted` / `_withdrawn`), and
+    holds only for the file it was given for: a replaced file is checked again. Withdrawing it stops the document
+    being sent.
 - Deployed 1 Oct 2026; see `docs/27_AGENT_EXECUTION_PLAN.md`'s "Research Clearance screen"
   section for the build record, including an open question about which supervision
   letter(s) to publish.

@@ -48,6 +48,19 @@ class ClearanceDocument(models.Model):
     # Sent to a participant who asks for information about the study (PI, 19 Nov 2026; apps/clearance/brief.py). Off by
     # default, and refused for a document containing a phrase participants must never see (AGENTS.md rule 2).
     in_study_brief = models.BooleanField(default=False)
+    # The PI's recorded decision that this exact file is sent as it is although it contains one of those phrases
+    # (19 Nov 2026: the study documents were reviewed and agreed to go to respondents unchanged). Tied to the file it
+    # was given for: a replaced file is checked afresh. Granting and withdrawing it are audited.
+    wording_exception_file_ref = models.CharField(max_length=255, blank=True)
+    wording_exception_reason = models.CharField(max_length=500, blank=True)
+    wording_exception_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    wording_exception_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def has_wording_exception(self) -> bool:
+        return bool(self.wording_exception_file_ref) and self.wording_exception_file_ref == self.file_ref
     display_order = models.PositiveIntegerField(default=0)
 
     created_by = models.ForeignKey(

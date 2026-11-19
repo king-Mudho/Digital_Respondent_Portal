@@ -81,21 +81,57 @@ class ClearanceDocumentDetailView(APIView):
         return Response(ClearanceDocumentSerializer(get_object_or_404(ClearanceDocument, pk=pk)).data)
 
     def patch(self, request, pk):
-        from .brief import blocked_phrase_in
+        from django.utils import timezone
+
+        from .brief import blocked_phrase_in, unexcused_phrase
 
         doc = get_object_or_404(ClearanceDocument, pk=pk)
         before = {"is_public": doc.is_public, "active": doc.active, "in_study_brief": doc.in_study_brief}
         serializer = ClearanceDocumentSerializer(doc, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        # The PI's recorded decision that this exact file is sent as it is (AGENTS.md rule 2's exception, 19 Nov 2026).
+        if "wording_exception" in request.data:
+            if request.data.get("wording_exception") in (True, "true", "1", 1):
+                reason = str(request.data.get("wording_exception_reason", "")).strip()
+                phrase = blocked_phrase_in(doc) if doc.file_ref else ""
+                if not doc.file_ref:
+                    return Response({"error": {"code": "no_file", "message": "Upload the document's file first.",
+                                               "field_errors": {}}}, status=400)
+                if not phrase:
+                    return Response({"error": {"code": "not_needed", "message": "This document has no word that needs "
+                                               "an exception.", "field_errors": {}}}, status=400)
+                if len(reason) < 10:
+                    return Response({"error": {"code": "reason_required", "message": "Say who reviewed it and why it is "
+                                               "sent as it is.", "field_errors": {}}}, status=400)
+                doc.wording_exception_file_ref, doc.wording_exception_reason = doc.file_ref, reason[:500]
+                doc.wording_exception_by, doc.wording_exception_at = request.user, timezone.now()
+                doc.save(update_fields=["wording_exception_file_ref", "wording_exception_reason", "wording_exception_by",
+                                        "wording_exception_at", "updated_at"])
+                log_action("clearance.wording_exception_granted", doc, {"phrase": phrase, "reason": reason[:500],
+                                                                       "file_name": doc.file_name, "user_id": request.user.id},
+                           user=request.user)
+            elif doc.wording_exception_file_ref:
+                doc.wording_exception_file_ref, doc.wording_exception_reason = "", ""
+                doc.wording_exception_by, doc.wording_exception_at = None, None
+                doc.save(update_fields=["wording_exception_file_ref", "wording_exception_reason", "wording_exception_by",
+                                        "wording_exception_at", "updated_at"])
+                log_action("clearance.wording_exception_withdrawn", doc, {"user_id": request.user.id}, user=request.user)
+                if doc.in_study_brief and unexcused_phrase(doc):
+                    doc.in_study_brief = False
+                    doc.save(update_fields=["in_study_brief", "updated_at"])
+                    log_action("clearance.study_brief_changed", doc, {"in_study_brief": False, "user_id": request.user.id},
+                               user=request.user)
+                    before["in_study_brief"] = False
         if serializer.validated_data.get("in_study_brief") and not doc.in_study_brief:
             if not doc.file_ref:
                 return Response({"error": {"code": "no_file", "message": "Upload the document's file first.",
                                            "field_errors": {}}}, status=400)
-            phrase = blocked_phrase_in(doc)
+            phrase = unexcused_phrase(doc)
             if phrase:  # AGENTS.md rule 2: participants never see it, even in a sentence that denies it
                 return Response({"error": {"code": "blocked_phrase", "message": (
                     f"This document contains \"{phrase}\", which participants must never be shown, so it can't be sent to "
-                    "them. Replace it with a version without that word."), "field_errors": {}}}, status=409)
+                    "them. Replace it with a version without that word, or record that the PI agreed to send it as it "
+                    "is."), "field_errors": {}}}, status=409)
         serializer.save()
         if doc.is_public != before["is_public"]:
             log_action("clearance.visibility_changed", doc, {"is_public": doc.is_public, "user_id": request.user.id})
@@ -141,9 +177,9 @@ class ClearanceDocumentFileView(APIView):
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         log_action("clearance.file_uploaded", doc, {"filename": doc.file_name, "user_id": request.user.id})
         if doc.in_study_brief:
-            from .brief import blocked_phrase_in
+            from .brief import unexcused_phrase
 
-            phrase = blocked_phrase_in(doc)
+            phrase = unexcused_phrase(doc)  # a new file never carries the old file's wording exception
             if phrase:  # a replaced file is checked too; it stops being sent rather than reaching a participant
                 doc.in_study_brief = False
                 doc.save(update_fields=["in_study_brief", "updated_at"])

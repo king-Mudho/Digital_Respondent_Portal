@@ -24,6 +24,8 @@ ACTION_LABELS: dict[str, str] = {
     "clearance.file_viewed_by_respondent": "Clearance document viewed by a respondent",
     "clearance.study_brief_changed": "Clearance document's send-to-participants setting changed",
     "clearance.visibility_changed": "Clearance document shown-to-respondents setting changed",
+    "clearance.wording_exception_granted": "Clearance document to be sent as it is despite a restricted word (PI decision)",
+    "clearance.wording_exception_withdrawn": "Clearance document's send-as-it-is decision withdrawn",
     "consent.recorded": "Consent recorded",
     "consent.withdrawn": "Consent withdrawn",
     "consent.withdrawal_processed": "Participation withdrawn",
