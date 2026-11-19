@@ -114,3 +114,28 @@ def looks_like_contact_text(full_name: str) -> bool:
     return bool(re.search(r"\d{3}|@", text)) or bool(
         re.search(r"\b(contacts?|institutional|to verify|not visible)\b", text, re.I)
     )
+
+
+PUBLIC_CONTACT_LABELS = {"website": "Website", "office_location": "Office", "other_emails": "Other emails",
+                         "other_phones": "Other phones"}
+
+
+def public_contacts_text(value) -> str:
+    """The public contacts the contact finder accepted onto an organisation or KII record, one readable line each
+    ("Website: https://..."). They are stored as {kind: {value, source, accepted_at, accepted_by}}; until 19 Nov 2026
+    Calls and the Communications contact card printed that dictionary as it was, source URLs and user ids included."""
+    if not value:
+        return ""
+    if isinstance(value, str):
+        return value.strip()
+    if not isinstance(value, dict):
+        return str(value)
+    lines = []
+    for kind, entry in value.items():
+        shown = entry.get("value") if isinstance(entry, dict) else entry
+        if isinstance(shown, (list, tuple)):
+            shown = ", ".join(str(v) for v in shown if v)
+        shown = str(shown or "").strip()
+        if shown:
+            lines.append(f"{PUBLIC_CONTACT_LABELS.get(kind, kind.replace('_', ' ').capitalize())}: {shown}")
+    return "\n".join(lines)

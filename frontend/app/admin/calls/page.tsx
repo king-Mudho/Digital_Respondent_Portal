@@ -279,7 +279,7 @@ function CallCard({
               {p.gatekeeper && <p className="text-xs">Gatekeeper: {p.gatekeeper}</p>}
             </div>
           ))}
-          {item.public_contacts && <p className="text-xs text-text-muted">Other public contacts: {item.public_contacts}</p>}
+          {item.public_contacts && <p className="text-xs text-text-muted whitespace-pre-wrap break-words">Other public contacts:{"\n"}{item.public_contacts}</p>}
         </div>
 
         <p className="text-xs text-text-muted">

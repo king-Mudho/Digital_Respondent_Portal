@@ -30,6 +30,7 @@ from django.db.models import Exists, OuterRef, Q, Subquery
 from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone
 
+from apps.contacts.contact_text import public_contacts_text
 from apps.audit.utils import log_action
 
 from . import outbound
@@ -516,7 +517,7 @@ def contact_card(subject, kind: str) -> dict:
                 "assigned_to": subject.assigned_ra.username if subject.assigned_ra_id else "",
                 "page": f"/admin/sample/{subject.sample_id}", "people": people,
                 "details": [{"label": k, "value": str(v)} for k, v in details if v],
-                "public_contacts": str(meta.get("public_contacts") or ""),
+                "public_contacts": public_contacts_text(meta.get("public_contacts")),
                 "source_url": str(meta.get("official_source_url") or ""),
                 "other_emails": [], "progress": _progress(subject, kind)}
     from apps.contacts.kii_finder import other_emails
@@ -533,7 +534,7 @@ def contact_card(subject, kind: str) -> dict:
                         "whatsapp": subject.whatsapp_number, "email": subject.email, "eligible": None, "gatekeeper": "",
                         "numbers": _dial(subject.whatsapp_number, subject.phone)}],
             "details": [{"label": k, "value": str(v)} for k, v in details if v],
-            "public_contacts": str(meta.get("public_contacts") or ""),
+            "public_contacts": public_contacts_text(meta.get("public_contacts")),
             "source_url": str(meta.get("verification_source_url") or meta.get("public_evidence_url") or ""),
             "other_emails": [e for e in other_emails(subject) if e and e != subject.email],
             "progress": _progress(subject, kind)}

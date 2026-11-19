@@ -23,6 +23,7 @@ from apps.kii.models import KIIInvitationToken
 from apps.messaging.communications import visible_cases, visible_records
 from apps.messaging.models import MessagePurpose, ProviderMessage
 
+from .contact_text import public_contacts_text
 from .models import CALL_CHANNELS, MESSAGE_CHANNELS, ContactChannel, ContactEvent, ContactOutcome
 
 STAGE_LABELS = {
@@ -138,7 +139,7 @@ def _main_items(user):
             "sector": org.get_actor_family_display(), "stage": MAIN_STAGE[token.status],
             "link_sent": _when(token.issued_at), "link_opened": _when(token.first_opened_at), "link_expires": _when(token.expires_at),
             "link_channel": token.get_channel_display(), "people": people,
-            "public_contacts": str((org.metadata or {}).get("public_contacts") or ""),
+            "public_contacts": public_contacts_text((org.metadata or {}).get("public_contacts")),
             "reminders": reminders.get(c.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}",
             "assigned_to": _ra_name(c.assigned_ra), "said_yes": c.id in yes,
             "link_on_record": any(t.pk in sent for t in tokens),
@@ -170,7 +171,7 @@ def _main_without_link(user, events):
             "people": [_person(p.full_name, p.get_role_category_display() if p.role_category else "",
                                _numbers(p.whatsapp_number, p.phone, p.gatekeeper_contact if not p.gatekeeper_name else ""),
                                p.email, " ".join(x for x in (p.gatekeeper_name, p.gatekeeper_contact) if x)) for p in c.respondents.all()],
-            "public_contacts": str((org.metadata or {}).get("public_contacts") or ""), "reminders": 0, "calls": n_calls,
+            "public_contacts": public_contacts_text((org.metadata or {}).get("public_contacts")), "reminders": 0, "calls": n_calls,
             "last_call": last, "detail_path": f"/admin/sample/{c.sample_id}", "assigned_to": _ra_name(c.assigned_ra),
             "said_yes": False,  # a YES is answered with the link, so a case with no link has not said it
             "link_on_record": True,  # no link: nothing to have gone astray
@@ -201,7 +202,7 @@ def _kii_items(user):
             "link_sent": _when(token.issued_at), "link_opened": _when(token.first_opened_at), "link_expires": _when(token.expires_at),
             "link_channel": token.get_channel_display(),
             "people": [_person(name, r.participant_role, _numbers(r.whatsapp_number, r.phone), r.email)],
-            "public_contacts": str(meta.get("public_contacts") or ""),
+            "public_contacts": public_contacts_text(meta.get("public_contacts")),
             "reminders": reminders.get(r.id, 0), "calls": n_calls, "last_call": last, "detail_path": f"/admin/kii/{r.pk}",
             "assigned_to": _ra_name(r.assigned_ra), "said_yes": r.id in yes,
             "link_on_record": any(t.pk in sent for t in tokens),
@@ -219,7 +220,7 @@ def _kii_items(user):
             "sector": r.stakeholder_category, "stage": "no_link", "link_sent": None, "link_opened": None, "link_expires": None,
             "link_channel": "", "people": [_person("" if is_placeholder(r) else r.participant_name, r.participant_role,
                                                    _numbers(r.whatsapp_number, r.phone), r.email)],
-            "public_contacts": str(meta.get("public_contacts") or ""), "reminders": 0, "calls": n_calls, "last_call": last,
+            "public_contacts": public_contacts_text(meta.get("public_contacts")), "reminders": 0, "calls": n_calls, "last_call": last,
             "detail_path": f"/admin/kii/{r.pk}", "assigned_to": _ra_name(r.assigned_ra), "said_yes": False,
             "link_on_record": True,
         }

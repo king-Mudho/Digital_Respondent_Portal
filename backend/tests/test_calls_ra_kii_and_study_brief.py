@@ -385,3 +385,26 @@ def test_outside_the_window_the_pdf_goes_on_the_approved_template(people, marked
     assert twilio[0]["ContentSid"] == "HXstudyinfo" and "Jane Doe" in twilio[0]["ContentVariables"]
     message = ProviderMessage.objects.get()
     assert message.is_template and message.purpose == MessagePurpose.STUDY_INFO
+
+
+# --- Other public contacts are shown readably on Calls and Communications (19 Nov 2026) ------------------------------
+
+def test_public_contacts_read_as_lines_not_a_raw_dictionary():
+    from apps.contacts.contact_text import public_contacts_text
+
+    stored = {"website": {"value": "https://www.fertilizer.co.zw/", "source": "https://x", "accepted_at": "2026-10-14", "accepted_by": 6},
+              "office_location": {"value": "Bindura", "source": "https://y", "accepted_at": "2026-10-14", "accepted_by": 6},
+              "other_emails": {"value": ["a@x.co.zw", "b@x.co.zw"], "source": "", "accepted_at": "", "accepted_by": 6}}
+    assert public_contacts_text(stored) == ("Website: https://www.fertilizer.co.zw/\nOffice: Bindura\n"
+                                            "Other emails: a@x.co.zw, b@x.co.zw")
+    assert public_contacts_text(None) == "" and public_contacts_text("0772 111 222") == "0772 111 222"
+
+
+def test_calls_shows_them_readably(people, records):
+    record = records["mine"]
+    record.metadata = {**record.metadata, "public_contacts": {"website": {"value": "https://cbz.co.zw", "source": "s",
+                                                                          "accepted_at": "t", "accepted_by": 6}}}
+    record.save(update_fields=["metadata"])
+    rows = _client(people["rudo"]).get("/api/v1/calls/", {"study": "kii"}).json()["results"]
+    shown = [r["public_contacts"] for r in rows if r["id"] == record.kii_id]
+    assert shown == ["Website: https://cbz.co.zw"]
