@@ -368,3 +368,20 @@ def test_withdrawing_the_decision_stops_the_document_being_sent(people, docs):
     withdrawn = pi.patch(url, {"wording_exception": False}, format="json").json()
     assert withdrawn["has_wording_exception"] is False and withdrawn["in_study_brief"] is False
     assert AuditEvent.objects.filter(action="clearance.wording_exception_withdrawn").exists()
+
+
+# --- The PDF on a Meta-approved template outside the 24-hour window (19 Nov 2026) -------------------------------------
+
+def test_outside_the_window_the_pdf_goes_on_the_approved_template(people, marked, jane, twilio, settings, monkeypatch):
+    settings.TWILIO_WA_CONTENT_STUDY_INFO = "HXstudyinfo"
+    body = {"kind": "main", "id": jane.sample_id, "channel": "WHATSAPP"}
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXstudyinfo", "status": "pending"}])
+    waiting = _client(people["rudo"]).post("/api/v1/study-brief/", body, format="json")
+    assert waiting.status_code == 409 and waiting.json()["error"]["code"] == "window_closed" and not twilio
+    monkeypatch.setattr(tw, "template_approvals", lambda **kw: [{"sid": "HXstudyinfo", "status": "approved"}])
+    assert _client(people["rudo"]).get(f"/api/v1/study-brief/?kind=main&id={jane.sample_id}").json()["whatsapp_template_ready"]
+    sent = _client(people["rudo"]).post("/api/v1/study-brief/", body, format="json")
+    assert sent.status_code == 201, sent.json()
+    assert twilio[0]["ContentSid"] == "HXstudyinfo" and "Jane Doe" in twilio[0]["ContentVariables"]
+    message = ProviderMessage.objects.get()
+    assert message.is_template and message.purpose == MessagePurpose.STUDY_INFO

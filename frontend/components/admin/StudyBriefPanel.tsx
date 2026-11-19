@@ -13,6 +13,8 @@ interface BriefInfo {
   whatsapp_to: string;
   whatsapp_to_name: string;
   whatsapp_window_open: boolean;
+  /** The Meta-approved PDF template: lets the study number send outside the 24-hour window. */
+  whatsapp_template_ready: boolean;
   whatsapp_configured: boolean;
   email_to: string;
   email_configured: boolean;
@@ -100,11 +102,11 @@ export function StudyBriefPanel({ target, compact = false }: { target: BriefTarg
                 {data.whatsapp_to && data.whatsapp_configured && (
                   <Button
                     variant="outline"
-                    disabled={send.isPending || !data.whatsapp_window_open}
+                    disabled={send.isPending || !(data.whatsapp_window_open || data.whatsapp_template_ready)}
                     onClick={() => send.mutate("WHATSAPP")}
-                    title={data.whatsapp_window_open ? "" : "Only within 24 hours of their own last WhatsApp message"}
+                    title={data.whatsapp_window_open || data.whatsapp_template_ready ? "" : "Only within 24 hours of their own last WhatsApp message"}
                   >
-                    WhatsApp from the study number
+                    WhatsApp from the study number (PDF)
                   </Button>
                 )}
                 {data.email_to && data.email_configured && (
@@ -124,7 +126,7 @@ export function StudyBriefPanel({ target, compact = false }: { target: BriefTarg
                   </a>
                 )}
               </div>
-              {data.whatsapp_to && data.whatsapp_configured && !data.whatsapp_window_open && (
+              {data.whatsapp_to && data.whatsapp_configured && !data.whatsapp_window_open && !data.whatsapp_template_ready && (
                 <p className="text-xs text-text-muted">
                   The study number can write to them only within 24 hours of their own last WhatsApp message. Use Send from
                   my phone instead.

@@ -189,6 +189,23 @@ def message_text(subject, *, with_link: bool) -> str:
     return text.replace("{link}", brief_url()).strip()
 
 
+def template_ready() -> bool:
+    """Whether the study number can send the documents outside the 24-hour window: the PDF template
+    (TWILIO_WA_CONTENT_STUDY_INFO) is configured and Meta's answer is a definite yes."""
+    from apps.messaging import twilio_client as tw
+
+    return tw.content_approved((getattr(settings, "TWILIO_WA_CONTENT_STUDY_INFO", "") or "").strip())
+
+
+def template_greeting(subject) -> str:
+    """{{1}} of the PDF template: the person's name where one is on file, else "<organisation> team"."""
+    from apps.invitations.messages import _greeting_name
+
+    who = _recipients(subject)
+    name = _greeting_name((who.get("whatsapp_to_name") or "").strip())
+    return (name or f"{_org(subject)} team").strip()[:60]
+
+
 def _ident(subject) -> dict:
     return {"kii_id": subject.kii_id} if hasattr(subject, "kii_id") else {"sample_id": subject.sample_id}
 
@@ -225,6 +242,8 @@ def summary(user, kind: str, ident: str) -> dict:
         "problem": problem,
         "whatsapp_to": whatsapp, "whatsapp_to_name": who.get("whatsapp_to_name") or "",
         "whatsapp_window_open": bool(whatsapp) and reply_window_open(number_hash(whatsapp)),
+        # Outside the window the study number sends the PDF on the Meta-approved template instead (19 Nov 2026).
+        "whatsapp_template_ready": template_ready(),
         "whatsapp_configured": tw.credentials_set() and bool((settings.TWILIO_WHATSAPP_FROM or "").strip()) and bool(brief_url()),
         "email_to": who.get("email_to") or "", "email_configured": outbound.email_configured(),
         "by_hand_link": f"https://wa.me/{whatsapp}?text={quote(by_hand_text)}" if whatsapp and by_hand_text and not problem else "",
@@ -251,17 +270,25 @@ def send(user, kind: str, ident: str, channel: str) -> dict:
             number = who.get("whatsapp_to") or ""
             if not number:
                 raise BriefError("no_mobile", "No WhatsApp number is on file for this person.")
-            if not reply_window_open(number_hash(number)):
+            in_window = reply_window_open(number_hash(number))
+            if not in_window and not template_ready():
                 raise BriefError("window_closed", "WhatsApp only lets the study number write to someone within 24 hours of "
                                                   "their own last message. Use \"Send from my phone\" instead.", 409)
             url = brief_url()
             if not url or brief_pack() is None:
                 raise BriefError("no_pdf", "The documents can't be sent on WhatsApp from the study number (they need to be "
                                            "PDFs, and STUDY_LETTERS_KEY set). Send them by email or from your phone.", 409)
-            message = outbound.send(channel=MessageChannel.WHATSAPP, number=number, purpose=MessagePurpose.STUDY_INFO,
-                                    wa_media_url=url, wa_text=message_text(subject, with_link=False), user=user,
-                                    record_text=f"[Document: {BRIEF_NAME}] " + message_text(subject, with_link=False),
-                                    **_links(subject))
+            if in_window:  # free text with the PDF attached, inside the conversation the person opened
+                message = outbound.send(channel=MessageChannel.WHATSAPP, number=number, purpose=MessagePurpose.STUDY_INFO,
+                                        wa_media_url=url, wa_text=message_text(subject, with_link=False), user=user,
+                                        record_text=f"[Document: {BRIEF_NAME}] " + message_text(subject, with_link=False),
+                                        **_links(subject))
+            else:  # the Meta-approved template: the same PDF, as a document above a short message
+                greeting = template_greeting(subject)
+                message = outbound.send(channel=MessageChannel.WHATSAPP, number=number, purpose=MessagePurpose.STUDY_INFO,
+                                        wa_content=settings.TWILIO_WA_CONTENT_STUDY_INFO.strip(), wa_variables={1: greeting},
+                                        user=user, record_text=f"[Document: {BRIEF_NAME}] Study information for {greeting}",
+                                        **_links(subject))
         else:
             attachments = []
             for doc in docs:

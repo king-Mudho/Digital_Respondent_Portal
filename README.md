@@ -452,6 +452,10 @@ letters) so a respondent can check the study is real before answering anything.
   its text, title or description holds a phrase participants must never see (`COMMUNICATION_BLOCKED_PHRASES`,
   AGENTS.md rule 2) — when it is switched on, when its file is replaced (it is switched off again), and at every
   send. Never sent to a participant who withdrew, and only for people the sender may see.
+  - **Outside the 24-hour window (19 Nov 2026).** The study number sends the same PDF on a Meta-approved template
+    (`TWILIO_WA_CONTENT_STUDY_INFO`, `abffst_study_info`: the PDF as a document above a short message, `{{1}}` the
+    person's name or "<organisation> team"). It is used only once Meta's answer is a definite yes
+    (`content_approved`); until then the button stays off and "Send from my phone" is the route.
   - **The PI's send-as-it-is decision (19 Nov 2026).** The PI reviewed the three study documents filed that day and
     agreed they go to respondents unchanged, restricted words included. Research Clearance shows each document's
     restricted word, and the PI can record **Send as it is (PI decision)** with a reason. The decision is stored with who

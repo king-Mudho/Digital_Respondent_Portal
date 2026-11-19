@@ -433,6 +433,10 @@ TWILIO_WA_CONTENT_KII_INTRO_LETTERS = env("TWILIO_WA_CONTENT_KII_INTRO_LETTERS",
 # with buttons for the findings summary, a workshop invitation or both. Sent only once Meta has approved it; until
 # then the thank-you goes by email where there is an address (apps/messaging/thanks.py).
 TWILIO_WA_CONTENT_THANK_YOU = env("TWILIO_WA_CONTENT_THANK_YOU", default="")
+# The study information documents as a PDF above a short message (19 Nov 2026, apps/clearance/brief.py): how the
+# study number sends them to someone outside WhatsApp's 24-hour window. {{1}} who; the PDF is the fixed
+# ABF-FST-Study-Information.pdf address. Used only once Meta has approved it.
+TWILIO_WA_CONTENT_STUDY_INFO = env("TWILIO_WA_CONTENT_STUDY_INFO", default="")
 # The study's clearance letters as one PDF at https://<APP_DOMAIN>/api/v1/study-letters/<key>/ABF-FST-Study-Letters.pdf,
 # for WhatsApp to show above the introduction (2026-10-19). Blank = not served. Any long random string.
 STUDY_LETTERS_KEY = env("STUDY_LETTERS_KEY", default="")
