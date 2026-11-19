@@ -28,8 +28,9 @@ EXPECTED_SCREENS = {
         "pilot", "experts", "ra_team",
     },
     Role.CONTACT_RA: {"sample_register", "appointments", "follow_ups", "conversations", "calls"},
-    # The two telephone RAs (2026-11-08): their own work, on both studies, assigned to them.
-    Role.TELEPHONE_RA: {"my_work", "sample_register", "appointments", "follow_ups", "conversations", "calls"},
+    # The two telephone RAs (2026-11-08): their own work, on both studies, assigned to them -- and the KII Register
+    # for the key informants assigned to them (19 Nov 2026).
+    Role.TELEPHONE_RA: {"my_work", "sample_register", "appointments", "follow_ups", "conversations", "calls", "kii_register"},
     Role.QUAN_QA_RA: {"dashboard_qa", "kobo_submissions", "qa_queue", "qa_exceptions"},
     Role.KII_RA: {"dashboard_kii_documents", "kobo_submissions", "kii_register", "conversations", "calls"},
     Role.DOCUMENTARY_RA: {"dashboard_kii_documents", "kobo_submissions", "documents"},

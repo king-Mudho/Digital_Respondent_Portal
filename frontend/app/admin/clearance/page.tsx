@@ -33,6 +33,8 @@ interface ClearanceDocument {
   description: string;
   is_public: boolean;
   active: boolean;
+  /** Sent to a participant who asks to read about the study (apps/clearance/brief.py, 19 Nov 2026). */
+  in_study_brief: boolean;
   has_file: boolean;
   file_name: string;
 }
@@ -66,7 +68,7 @@ export default function ClearanceDocumentsPage() {
   });
 
   const patch = useMutation({
-    mutationFn: ({ id, body }: { id: number; body: Partial<Pick<ClearanceDocument, "is_public" | "active">> }) =>
+    mutationFn: ({ id, body }: { id: number; body: Partial<Pick<ClearanceDocument, "is_public" | "active" | "in_study_brief">> }) =>
       adminFetch<ClearanceDocument>(`/clearance-documents/${id}/`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess: invalidate,
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save that change."),
@@ -176,6 +178,12 @@ export default function ClearanceDocumentsPage() {
                       <input type="checkbox" checked={doc.active}
                         onChange={(e) => patch.mutate({ id: doc.id, body: { active: e.target.checked } })} />
                       Active
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs"
+                      title="Research assistants can send it to someone who asks to read about the study first. Refused if it contains a word participants must never see.">
+                      <input type="checkbox" checked={doc.in_study_brief}
+                        onChange={(e) => patch.mutate({ id: doc.id, body: { in_study_brief: e.target.checked } })} />
+                      Send to participants who ask about the study
                     </label>
                   </div>
                 </div>

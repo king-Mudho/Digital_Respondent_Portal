@@ -255,7 +255,8 @@ def call_list(user, *, study: str = "all", stage: str = "all", q: str = "", said
         "results": [{**i, "stage_label": STAGE_LABELS[i["stage"]]} for i in items],
         "count": len(items), "stage_counts": counts, "stage_labels": STAGE_LABELS, "said_yes_count": said_yes_count,
         "studies": [s for s, qs in (("main", visible_cases(user)), ("kii", visible_records(user))) if qs.exists()],
-        "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices if v != ContactOutcome.ADMINISTERED],
+        "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices
+                      if v not in (ContactOutcome.ADMINISTERED, ContactOutcome.STUDY_INFO_SENT)],
         "call_channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS + MESSAGE_CHANNELS],
     }
 

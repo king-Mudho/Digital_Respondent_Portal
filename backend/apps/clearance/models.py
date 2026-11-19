@@ -45,6 +45,9 @@ class ClearanceDocument(models.Model):
     # For retiring a superseded letter without losing the record of it having existed (never delete outright
     # once it has been public -- docs/18 audit-trail convention).
     active = models.BooleanField(default=True)
+    # Sent to a participant who asks for information about the study (PI, 19 Nov 2026; apps/clearance/brief.py). Off by
+    # default, and refused for a document containing a phrase participants must never see (AGENTS.md rule 2).
+    in_study_brief = models.BooleanField(default=False)
     display_order = models.PositiveIntegerField(default=0)
 
     created_by = models.ForeignKey(

@@ -172,16 +172,20 @@ export default function KIIRegisterPage() {
             }}
             placeholder="Search KII ID, name, role or phone"
           />
-          <WriteOnly note={null}>
+          {/* Registering informants is the KII RA's and coordinator's; the Research Assistant (calls) works its own. */}
+          <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA"]}>
             <Link href="/admin/kii/new">
               <Button>New KII record</Button>
             </Link>
-          </WriteOnly>
+          </IfRole>
         </div>
       </div>
       <ReconciliationQueuePanel />
       <KiiUnansweredPanel />
-      <KiiContactBatchPanel />
+      {/* The contact search costs money per run (CanManageKII): not the Research Assistant (calls)'s. */}
+      <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA", "SUPERVISOR_READONLY"]}>
+        <KiiContactBatchPanel />
+      </IfRole>
       {/* Batch invitations are the PI's and Field Coordinator's tool, as on the Sample screen; the endpoint refuses everyone else. */}
       <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR"]}>
         <KiiInvitationBatchPanel />

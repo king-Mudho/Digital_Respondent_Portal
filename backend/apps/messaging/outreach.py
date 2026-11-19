@@ -913,13 +913,16 @@ def unanswered(*, assigned_to=None) -> list[dict]:
     } for o in items.order_by("intro_sent_at")]
 
 
-def kii_unanswered() -> list[dict]:
+def kii_unanswered(*, assigned_to=None) -> list[dict]:
     """KII informants asked first who never answered after the reminder, or whose introduction never arrived, and who
-    are still waiting (not invited by hand since): the KII Register's list of people to phone."""
+    are still waiting (not invited by hand since): the KII Register's list of people to phone. `assigned_to` narrows it
+    to one research assistant's informants."""
     from apps.contacts.kii_finder import organisation_name
 
     items = (Outreach.objects.filter(status__in=[OutreachStatus.NO_REPLY, OutreachStatus.NOT_DELIVERED],
                                      kii_record__status="PROSPECT").select_related("kii_record").order_by("intro_sent_at"))
+    if assigned_to is not None:
+        items = items.filter(kii_record__assigned_ra=assigned_to)
     return [{
         "kii_id": o.kii_record.kii_id, "kii_record_id": o.kii_record_id, "organisation": organisation_name(o.kii_record),
         "status": o.status, "status_label": o.get_status_display(), "asked_on": timezone.localtime(o.intro_sent_at).date(),

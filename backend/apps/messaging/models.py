@@ -90,6 +90,8 @@ class MessagePurpose(models.TextChoices):
     MESSAGE = "MESSAGE", "Message written by the team"
     # Thanking a participant who completed the questionnaire or interview (PI, 18 Oct 2026; apps/messaging/thanks.py).
     THANK_YOU = "THANK_YOU", "Thank you for taking part"
+    # The study's information documents, sent to someone who asked for them (PI, 19 Nov 2026; apps/clearance/brief.py).
+    STUDY_INFO = "STUDY_INFO", "Study information documents"
     OTHER = "OTHER", "Other"
 
 

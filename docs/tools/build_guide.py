@@ -31,7 +31,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 9 &mdash; 8 November 2026"
+REVISION = "Revision 10 &mdash; 19 November 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
@@ -47,7 +47,11 @@ REVISION_NOTE = (
     "experts who rate the 16 ABI indicators and sends each a personal link; they consent on the portal before the "
     "questionnaire opens, and their submission completes them. Revision 9: a Research Assistant (calls) role for the "
     "telephone RAs, who see only their assigned Main-400 cases and KII records, can fill the form in with a respondent "
-    "on a call, and are credited with each completion they administered or assisted (My work; Research assistants)."
+    "on a call, and are credited with each completion they administered or assisted (My work; Research assistants). "
+    "Revision 10 (19 November 2026): the Research Assistant (calls) also opens the KII Register and its own KII "
+    "records, sends them the introduction or their link, and uses the interview sheet; and anyone who phones "
+    "participants can send them the study information documents when they ask to read about the study first "
+    "(Send study information, on a case, a KII record and each Calls row)."
 )
 
 # ---------------------------------------------------------------- palette --
@@ -474,9 +478,12 @@ nav_rows = [
      "and read-only throughout.", "Executive Dashboard"],
     ["Analyst", "6", "Executive, Sampling, Contact and KII/Document dashboards; Cost; "
      "Export. Read-only.", "Executive Dashboard"],
-    ["Contact RA", "2", "Main-400 Register; Appointments.", "Main-400 Register"],
+    ["Contact RA", "5", "Main-400 Register; Appointments; Follow-ups; Communications; Calls (its assigned cases).",
+     "Main-400 Register"],
+    ["Research Assistant (calls)", "7", "My work; Calls; Follow-ups; Communications; Appointments; Main-400 "
+     "Register; KII Register (its assigned cases and KII records).", "My work"],
     ["QUAN/Kobo QA RA", "2", "QA Dashboard; QA Queue.", "QA Dashboard"],
-    ["KII RA", "2", "KII/Document Dashboard; KII Register.", "KII/Document Dashboard"],
+    ["KII RA", "5", "KII/Document Dashboard; Form PDFs; KII Register; Communications; Calls.", "KII/Document Dashboard"],
     ["Documentary RA", "2", "KII/Document Dashboard; Documents.", "KII/Document Dashboard"],
 ]
 story.append(data_table(
@@ -741,6 +748,15 @@ story.append(P("The list of Key Informant Interview records, a button to create 
                "and coding progress. A KII cannot be marked Completed with a recording "
                "unless recording consent was captured first — this is enforced by the "
                "system, not just a reminder."))
+story.append(P("<b>Research Assistant (calls).</b> Sees only the KII records assigned to it. On its own records it "
+               "can correct contact details, send the introduction (ask first) or the personal link, and use the "
+               "interview sheet. Status, consent, transcript and coding stay with the KII RA. To interview an "
+               "informant on the phone, use <b>Interview them now</b> on Calls."))
+story.append(P("<b>Send study information.</b> When someone on the phone asks to read about the study first, use "
+               "<b>Send study information</b> on their case, KII record or Calls row. It sends the documents the PI "
+               "chose on Research Clearance: on WhatsApp from the study number (only within 24 hours of their own "
+               "last WhatsApp message), by email with the documents attached, or from your own WhatsApp with a link "
+               "(the portal records that you sent it). It does not replace consent, which is still asked on their link."))
 
 story.append(h2("5.11 Documents"))
 story.append(P("The documentary-evidence corpus, a button to add a new record, and a "

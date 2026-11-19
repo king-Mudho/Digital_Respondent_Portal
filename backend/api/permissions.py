@@ -130,6 +130,51 @@ class CanManageKII(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanViewKIIRecords(BasePermission):
+    """The KII Register and a KII record's own page (list, detail, correcting its details). The KII RA, PI and Field
+    Coordinator as before, and since 19 Nov 2026 the Research Assistant (calls), who phones key informants as well as
+    Main-400 respondents and needs the record in front of them on the call -- limited to the records assigned to them
+    by apps.kii.views (a record assigned to someone else 404s). Supervisor reads. Status, consent, transcript and
+    coding stay CanManageKII: they are the KII RA's interview work, not a caller's."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA", "TELEPHONE_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanInviteKII(BasePermission):
+    """Asking a key informant first, sending them their personal link, and the list of informants who never answered:
+    the KII RA, PI and Field Coordinator, and the Research Assistant (calls) for the records assigned to them (19 Nov
+    2026; scoped per record by communications.visible_records). Supervisor reads."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA", "TELEPHONE_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
+class CanSendStudyBrief(BasePermission):
+    """Sending a participant the study's information documents when they ask for them (19 Nov 2026,
+    apps/clearance/brief.py): everyone who contacts participants -- PI, Field Coordinator, Contact RA, KII RA and the
+    Research Assistant (calls) -- each only for the people they may see (communications.visible_cases /
+    visible_records). Supervisor reads what would be sent but never sends."""
+
+    def has_permission(self, request, view):
+        role = _authenticated_role(request)
+        if role is None:
+            return False
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "CONTACT_RA", "KII_RA", "TELEPHONE_RA"}:
+            return True
+        return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
+
+
 class CanUseCommunications(BasePermission):
     """Communications (apps/messaging/communications.py, 2026-10-12): the people who contact participants -- PI, Field
     Coordinator, Contact RA (their assigned Main-400 cases) and KII RA (KII records); Supervisor reads. Which
@@ -224,14 +269,15 @@ class CanManageDocuments(BasePermission):
 
 class CanRunInterviewVerification(BasePermission):
     """Verifying a locked pre-interview profile WITH the respondent, during or straight after the interview:
-    the coordinator and PI, the KII RA (their interviews) and the Contact RA (their assigned cases -- the view
-    scopes that). Supervisor may read."""
+    the coordinator and PI, the KII RA (their interviews), the Contact RA (their assigned cases) and, since 19 Nov
+    2026, the Research Assistant (calls) (their assigned cases and KII records) -- the views scope that. Supervisor
+    may read."""
 
     def has_permission(self, request, view):
         role = _authenticated_role(request)
         if role is None:
             return False
-        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA", "CONTACT_RA"}:
+        if role in ADMIN_ROLES | {"FIELD_COORDINATOR", "KII_RA", "CONTACT_RA", "TELEPHONE_RA"}:
             return True
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 

@@ -554,7 +554,8 @@ def call_options(user, subject, kind: str) -> dict:
                 seen.add(key)
                 numbers.append({**n, "person": p["name"]})
     return {"can_log": can_write(user), "ident": getattr(subject, "sample_id", None) or subject.kii_id, "numbers": numbers,
-            "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices if v != ContactOutcome.ADMINISTERED],
+            "outcomes": [{"value": v, "label": label} for v, label in ContactOutcome.choices
+                      if v not in (ContactOutcome.ADMINISTERED, ContactOutcome.STUDY_INFO_SENT)],
             "channels": [{"value": c.value, "label": c.label} for c in CALL_CHANNELS + MESSAGE_CHANNELS]}
 
 

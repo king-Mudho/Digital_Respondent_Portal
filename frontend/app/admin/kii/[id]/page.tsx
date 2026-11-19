@@ -4,6 +4,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
+import { StudyBriefPanel } from "@/components/admin/StudyBriefPanel";
 import { KiiContactFinderPanel } from "@/components/admin/ContactFinderPanel";
 import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
@@ -74,6 +75,10 @@ const CODING_OPTIONS = ["NOT_STARTED", "IN_PROGRESS", "COMPLETE"];
  * participation/recording consent capture, transcript and coding status --
  * docs/13_KII_MODULE.md.
  */
+/** The roles that run the interview itself -- status, consent, transcript and coding (CanManageKII). The Research
+ * Assistant (calls) opens its assigned records to phone and send links, but this is the KII RA's work (19 Nov 2026). */
+const INTERVIEW_ROLES = ["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA", "SUPERVISOR_READONLY"];
+
 export default function KIIDetailPage() {
   const params = useParams<{ id: string }>();
   const queryClient = useQueryClient();
@@ -84,9 +89,10 @@ export default function KIIDetailPage() {
   const [details, setDetails] = useState<Record<string, string> | null>(null);
   const [detailsSaved, setDetailsSaved] = useState(false);
 
-  const { data: record, isLoading } = useQuery({
+  const { data: record, isLoading, isError } = useQuery({
     queryKey: ["kii-record", params.id],
     queryFn: () => adminFetch<KIIRecord>(`/kii/${params.id}/`),
+    retry: false,
   });
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["kii-record", params.id] });
@@ -168,6 +174,15 @@ export default function KIIDetailPage() {
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "Could not save the details."),
   });
+
+  if (isError) {
+    // A record that does not exist, or (for a Research Assistant (calls)) is not assigned to them, 404s.
+    return (
+      <AdminShell backHref="/admin/kii" backLabel="KII Register">
+        <p className="text-danger text-sm">This KII record was not found, or it is not assigned to you.</p>
+      </AdminShell>
+    );
+  }
 
   if (isLoading || !record) {
     return (
@@ -308,6 +323,20 @@ export default function KIIDetailPage() {
         </WriteOnly>
       </Card>
 
+      <IfRole roles={["TELEPHONE_RA"]}>
+        <Card className="space-y-1 mb-4">
+          <p className="text-sm">
+            Status: <span className="font-medium">{record.status}</span> · Participation consent:{" "}
+            {record.participation_consent_decision ?? "Not recorded"}
+          </p>
+          <p className="text-xs text-text-muted">
+            To interview them now, use Calls (it records their verbal consent and opens the KII Guide with you as the
+            interviewer). Status, transcript and coding are the KII RA&rsquo;s.
+          </p>
+        </Card>
+      </IfRole>
+
+      <IfRole roles={INTERVIEW_ROLES}>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="space-y-3">
           <h3 className="font-medium">Status: {record.status}</h3>
@@ -449,6 +478,11 @@ export default function KIIDetailPage() {
           </WriteOnly>
         </Card>
       </div>
+      </IfRole>
+
+      <div className="mt-4">
+        <StudyBriefPanel target={{ kind: "kii", id: record.kii_id }} />
+      </div>
 
       {/* CanManageKII: the PI, Field Coordinator and KII RA search and decide; the Supervisor reads. */}
       <div className="my-4">
@@ -471,7 +505,7 @@ export default function KIIDetailPage() {
           <PreProfilePanel kiiRecordId={record.id} />
         </IfRole>
         {/* The KII RA verifies the locked profile with the participant; the profile itself is the coordinator's. */}
-        <IfRole roles={["KII_RA"]}>
+        <IfRole roles={["KII_RA", "TELEPHONE_RA"]}>
           <InterviewSheet kiiRecordId={record.id} />
         </IfRole>
       </div>

@@ -126,9 +126,11 @@ SCREENS = {
         "/admin/qa/exceptions", "QA Exceptions",
         {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.QUAN_QA_RA, Role.SUPERVISOR_READONLY},
     ),
+    # The Research Assistant (calls) since 19 Nov 2026: it phones key informants too, and reads and works the records
+    # assigned to it (CanViewKIIRecords / CanInviteKII, scoped in apps.kii.views).
     "kii_register": (
         "/admin/kii", "KII Register",
-        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.KII_RA, Role.SUPERVISOR_READONLY},
+        {Role.PI_ADMIN, Role.FIELD_COORDINATOR, Role.KII_RA, Role.TELEPHONE_RA, Role.SUPERVISOR_READONLY},
     ),
     "documents": (
         "/admin/documents", "Documents",

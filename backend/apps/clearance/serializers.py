@@ -13,7 +13,7 @@ class ClearanceDocumentSerializer(serializers.ModelSerializer):
         model = ClearanceDocument
         fields = [
             "id", "title", "issuing_body", "document_type", "document_type_display", "reference_number",
-            "issue_date", "description", "is_public", "active", "display_order",
+            "issue_date", "description", "is_public", "active", "in_study_brief", "display_order",
             "has_file", "file_name", "file_size", "file_uploaded_at", "created_at", "updated_at",
         ]
         read_only_fields = ["id", "file_name", "file_size", "file_uploaded_at", "created_at", "updated_at"]

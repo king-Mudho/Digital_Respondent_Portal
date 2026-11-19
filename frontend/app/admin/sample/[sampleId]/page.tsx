@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
+import { StudyBriefPanel } from "@/components/admin/StudyBriefPanel";
 import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
 import { IntroductionPanel } from "@/components/admin/IntroductionPanel";
@@ -601,8 +602,9 @@ export default function SampleCaseDetailPage() {
         <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
           <PreProfilePanel sampleCaseId={sampleCase.id} />
         </IfRole>
-        {/* A Contact RA running an assisted interview verifies the locked profile with the respondent. */}
-        <IfRole roles={["CONTACT_RA"]}>
+        {/* A Contact RA or Research Assistant (calls) running an assisted interview verifies the locked profile with
+            the respondent. */}
+        <IfRole roles={["CONTACT_RA", "TELEPHONE_RA"]}>
           <InterviewSheet sampleCaseId={sampleCase.id} />
         </IfRole>
 
@@ -616,6 +618,8 @@ export default function SampleCaseDetailPage() {
         </IfRole>
 
         <RespondentsPanel sampleId={sampleCase.sample_id} />
+
+        <StudyBriefPanel target={{ kind: "main", id: sampleCase.sample_id }} />
 
         <InvitationsPanel
           sampleId={sampleCase.sample_id}

@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import CanManageKII
+from api.permissions import CanInviteKII, CanManageKII, CanViewKIIRecords
 from api.phone_search import PhoneSearchFilter
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
@@ -33,10 +33,24 @@ from .services import (
 )
 
 
-class KIIRecordListCreateView(generics.ListCreateAPIView):
-    """GET/POST /api/v1/kii/ (docs/06_API_ARCHITECTURE.md)."""
+def visible_kii_records(user):
+    """The KII records this user may open: every one for the PI, Field Coordinator, KII RA and Supervisor; only those
+    assigned to them for a Research Assistant (calls) (19 Nov 2026). The one scoping rule, shared with Communications
+    and Calls (apps.messaging.communications.visible_records)."""
+    from apps.messaging.communications import visible_records
 
-    permission_classes = [CanManageKII]
+    return visible_records(user)
+
+
+def _visible_record_or_404(request, **lookup) -> KIIRecord:
+    return get_object_or_404(visible_kii_records(request.user), **lookup)
+
+
+class KIIRecordListCreateView(generics.ListCreateAPIView):
+    """GET/POST /api/v1/kii/ (docs/06_API_ARCHITECTURE.md). A Research Assistant (calls) lists only the records assigned
+    to it, and never creates one (registering informants is the KII RA's and coordinator's)."""
+
+    permission_classes = [CanViewKIIRecords]
     serializer_class = KIIRecordSerializer
     filterset_fields = ["status", "stakeholder_category", "transcript_status", "coding_status"]
     search_fields = [
@@ -48,16 +62,30 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
     # KIIRecord has no Meta.ordering -- an unordered queryset makes
     # PageNumberPagination's page boundaries arbitrary, so a record can
     # appear on two pages or on none.
-    queryset = KIIRecord.objects.select_related("participation_consent", "recording_consent").order_by("kii_id")
+
+    def get_queryset(self):
+        return (visible_kii_records(self.request.user)
+                .select_related("participation_consent", "recording_consent").order_by("kii_id"))
+
+    def create(self, request, *args, **kwargs):
+        from apps.ra.roles import assigned_kii_only
+
+        if assigned_kii_only(request.user):
+            return _error("forbidden", "Your role works the KII records assigned to it; it does not register new ones.", 403)
+        return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
         serializer.save(kii_id=generate_kii_id())
 
 
 class KIIRecordDetailView(generics.RetrieveUpdateAPIView):
-    permission_classes = [CanManageKII]
+    """A Research Assistant (calls) opens and corrects only the records assigned to it (anyone else's 404s)."""
+
+    permission_classes = [CanViewKIIRecords]
     serializer_class = KIIRecordSerializer
-    queryset = KIIRecord.objects.select_related("participation_consent", "recording_consent")
+
+    def get_queryset(self):
+        return visible_kii_records(self.request.user).select_related("participation_consent", "recording_consent")
 
 
 def _error(code, message, status=400):
@@ -180,19 +208,20 @@ class KIIInvitationIssueView(APIView):
     """GET /api/v1/kii-invitations/?kii_id=<id> -- invitation history.
     POST /api/v1/kii-invitations/ -- issue a new self-service token."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def get(self, request):
         kii_id = request.query_params.get("kii_id")
         if not kii_id:
             return _error("kii_id_required", "kii_id is required.")
-        tokens = KIIInvitationToken.objects.filter(kii_record__kii_id=kii_id).order_by("-issued_at")
+        record = _visible_record_or_404(request, kii_id=kii_id)
+        tokens = KIIInvitationToken.objects.filter(kii_record=record).order_by("-issued_at")
         return Response({"results": KIIInvitationTokenSerializer(tokens, many=True).data})
 
     def post(self, request):
         kii_id = request.data.get("kii_id")
         channel = request.data.get("channel", "WHATSAPP")
-        record = get_object_or_404(KIIRecord, kii_id=kii_id)
+        record = _visible_record_or_404(request, kii_id=kii_id)
 
         raw_token, raw_code, token = issue_kii_invitation(record, channel=channel, issued_by=request.user)
 
@@ -214,10 +243,11 @@ class KIIInvitationIssueView(APIView):
 class KIIInvitationEmailView(APIView):
     """POST /api/v1/kii-invitations/{token_id}/send-email/ {link, manual_code}."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def post(self, request, token_id):
-        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id)
+        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id,
+                                  kii_record__in=visible_kii_records(request.user))
         try:
             result = email_kii_invitation(token, link=str(request.data.get("link", "")),
                                           manual_code=str(request.data.get("manual_code", "")), user=request.user)
@@ -237,13 +267,14 @@ def _kii_text_channels() -> dict:
 class KIIInvitationTextView(APIView):
     """POST /api/v1/kii-invitations/{token_id}/send-sms/ or /send-whatsapp/ {link, manual_code} (2026-10-07)."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
     channel = "SMS"
 
     def post(self, request, token_id):
         from .messages import text_kii_invitation
 
-        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id)
+        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id,
+                                  kii_record__in=visible_kii_records(request.user))
         try:
             result = text_kii_invitation(token, channel=self.channel, link=str(request.data.get("link", "")),
                                          manual_code=str(request.data.get("manual_code", "")), user=request.user)
@@ -256,14 +287,15 @@ class KIIInvitationSentByHandView(APIView):
     """POST /api/v1/kii-invitations/{token_id}/sent-by-hand/ {channel: WHATSAPP|SMS|EMAIL} -- the by-hand send buttons
     record that the link was sent that way (12 Nov 2026, apps/invitations/delivery.py)."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def post(self, request, token_id):
         from apps.invitations.delivery import BY_HAND_CHANNELS, record_by_hand
 
         from .batch import OPEN_STATUSES
 
-        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id)
+        token = get_object_or_404(KIIInvitationToken.objects.select_related("kii_record"), pk=token_id,
+                                  kii_record__in=visible_kii_records(request.user))
         channel = str(request.data.get("channel", "")).upper()
         if channel not in BY_HAND_CHANNELS:
             return _error("invalid_channel", "Choose WhatsApp, SMS or email.")
@@ -276,10 +308,10 @@ class KIIInvitationSentByHandView(APIView):
 class KIIInvitationRevokeView(APIView):
     """POST /api/v1/kii-invitations/{token_id}/revoke/."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def post(self, request, token_id):
-        token = get_object_or_404(KIIInvitationToken, pk=token_id)
+        token = get_object_or_404(KIIInvitationToken, pk=token_id, kii_record__in=visible_kii_records(request.user))
         revoke_kii_invitation(token, request.data.get("reason", ""), revoked_by=request.user)
         return Response({"status": "revoked"})
 

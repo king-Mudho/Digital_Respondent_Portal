@@ -352,7 +352,7 @@ UX only; the permission classes remain the real boundary.
 | QUAN/Kobo QA RA | 4 (QA Dashboard, Form PDFs, QA Queue, QA Exceptions) | `/admin/dashboard/qa` |
 | KII RA | 5 (KII/Doc Dashboard, Form PDFs, KII Register, Communications, Calls) — KII records only | `/admin/dashboard/kii-documents` |
 | Documentary RA | 3 (KII/Doc Dashboard, Form PDFs, Documents) | `/admin/dashboard/kii-documents` |
-| Research Assistant (calls) | 6 (My work, Calls, Follow-ups, Communications, Appointments, Main-400 Register) — only the Main-400 cases and KII records assigned to it | `/admin/my-work` |
+| Research Assistant (calls) | 7 (My work, Calls, Follow-ups, Communications, Appointments, Main-400 Register, KII Register) — only the Main-400 cases and KII records assigned to it | `/admin/my-work` |
 
 The three RA roles are deliberately **not** interchangeable — see
 [Notable fixes](#notable-fixes) for the over-grant this replaced. Read-only roles see
@@ -443,6 +443,15 @@ letters) so a respondent can check the study is real before answering anything.
   switched back off; the admin UI disables the button, but the server is the actual
   boundary. Retiring one means switching `is_public`/`active` off, not erasing the record
   of what respondents were shown.
+- **Study information for someone who asks (19 Nov 2026, `apps/clearance/brief.py`).** A third switch, **Send to
+  participants who ask about the study** (`in_study_brief`), marks documents a research assistant can send to a person
+  who wants to read about the study before taking part. "Send study information" on a case, a KII record and each
+  Calls row sends them by WhatsApp from the study number (one combined PDF, only within 24 hours of the person's own
+  last WhatsApp message), by email with each document attached, or from the RA's own WhatsApp with a link to the PDF
+  (recorded as a contact). The wording is the `study_brief_message` template. A document is refused for sending if
+  its text, title or description holds a phrase participants must never see (`COMMUNICATION_BLOCKED_PHRASES`,
+  AGENTS.md rule 2) — when it is switched on, when its file is replaced (it is switched off again), and at every
+  send. Never sent to a participant who withdrew, and only for people the sender may see.
 - Deployed 1 Oct 2026; see `docs/27_AGENT_EXECUTION_PLAN.md`'s "Research Clearance screen"
   section for the build record, including an open question about which supervision
   letter(s) to publish.
@@ -502,6 +511,12 @@ letters) so a respondent can check the study is real before answering anything.
   - **Their role:** a role of its own, Research Assistant (calls). Each RA sees only the Main-400 cases (activated
     Reserves included) and KII records assigned to them. The scoping lives in `apps/ra/roles.py`, and every
     "assigned only" check calls it.
+  - **What they can open (19 Nov 2026):** everything a Contact RA has for a Main-400 case, and the KII Register and
+    their own KII records' pages, so the whole record is in front of them on a call. On a KII record they correct
+    contact details, send the "ask first" introduction or the personal link, and use the interview sheet; they never
+    register a record or change status, consent, transcript or coding, which stay the KII RA's (`CanManageKII`).
+    `CanViewKIIRecords` and `CanInviteKII` admit them; `communications.visible_records` scopes every KII endpoint to
+    their records (anyone else's 404s).
   - **Assigning work:** the PI or Field Coordinator assigns work on Research assistants, taking it from the
     unassigned cases or from another account.
   - **Calls:** RAs work from Calls, which adds an "Assigned, no link yet" stage and a log for calls and for messages
@@ -868,6 +883,21 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### The Research Assistant (calls) sees its key informants' records; study information on request (19 Nov 2026)
+
+The Research Assistants (calls) phone both Main-400 respondents and key informants, but the KII Register and KII record
+pages were the KII RA's alone: a calls RA phoning an informant had only the Calls card, could not send them a link or
+the introduction, did not see the informants who never answered, and had no interview sheet. It now has all of those
+for its own records (see "Research assistants" above). Also from the Contact RA's screens, it gains the WhatsApp
+queue on the Main-400 Register and the interview sheet on a case.
+
+Participants on the phone often asked to be sent something to read about the study first. "Send study information"
+does that (see "Research Clearance" above). Two things found on the way: switching a clearance document inactive was
+never audited (only "shown to respondents" was), so on 19 Nov the Ethics Clearance letter was found switched off with no
+record of who did it — `clearance.active_changed` now records it; and all three study documents filed that day hold a
+phrase participants must never see ("loan approval" in the respondent brief and the concept note, "approved" in the
+RA guide), so none can be sent until reworded.
 
 ### Links on the Research Assistants' call lists no longer run out (8 Nov 2026)
 

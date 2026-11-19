@@ -79,7 +79,8 @@ def test_an_ra_sees_only_the_cases_and_kii_records_assigned_to_them(team, work):
     assert list(visible_records(team["tino"])) == []
     me = _client(team["rudo"]).get("/api/v1/auth/me/").json()
     assert me["landing_path"] == "/admin/my-work"
-    assert {s["id"] for s in me["screens"]} == {"my_work", "calls", "follow_ups", "conversations", "appointments", "sample_register"}
+    assert {s["id"] for s in me["screens"]} == {"my_work", "calls", "follow_ups", "conversations", "appointments", "sample_register",
+                                                "kii_register"}  # the KII Register since 19 Nov 2026
     assert _client(team["rudo"]).get("/api/v1/ra/team/").status_code == 403
     # KII records go only to a Research Assistant (calls).
     assert _assign_kii(_client(team["pi"]), team["fc"], [work["other_kii"].kii_id]).status_code == 400

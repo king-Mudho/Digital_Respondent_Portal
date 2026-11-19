@@ -21,7 +21,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import IsAdminOnly
+from api.permissions import CanSendStudyBrief, IsAdminOnly
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.audit.utils import log_action
 from apps.invitations.services import TokenValidationError, validate_token
@@ -81,13 +81,29 @@ class ClearanceDocumentDetailView(APIView):
         return Response(ClearanceDocumentSerializer(get_object_or_404(ClearanceDocument, pk=pk)).data)
 
     def patch(self, request, pk):
+        from .brief import blocked_phrase_in
+
         doc = get_object_or_404(ClearanceDocument, pk=pk)
-        before_public = doc.is_public
+        before = {"is_public": doc.is_public, "active": doc.active, "in_study_brief": doc.in_study_brief}
         serializer = ClearanceDocumentSerializer(doc, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
+        if serializer.validated_data.get("in_study_brief") and not doc.in_study_brief:
+            if not doc.file_ref:
+                return Response({"error": {"code": "no_file", "message": "Upload the document's file first.",
+                                           "field_errors": {}}}, status=400)
+            phrase = blocked_phrase_in(doc)
+            if phrase:  # AGENTS.md rule 2: participants never see it, even in a sentence that denies it
+                return Response({"error": {"code": "blocked_phrase", "message": (
+                    f"This document contains \"{phrase}\", which participants must never be shown, so it can't be sent to "
+                    "them. Replace it with a version without that word."), "field_errors": {}}}, status=409)
         serializer.save()
-        if doc.is_public != before_public:
+        if doc.is_public != before["is_public"]:
             log_action("clearance.visibility_changed", doc, {"is_public": doc.is_public, "user_id": request.user.id})
+        # Until 19 Nov 2026 only is_public was audited, so a letter switched inactive left no trace of who did it.
+        if doc.active != before["active"]:
+            log_action("clearance.active_changed", doc, {"active": doc.active, "user_id": request.user.id})
+        if doc.in_study_brief != before["in_study_brief"]:
+            log_action("clearance.study_brief_changed", doc, {"in_study_brief": doc.in_study_brief, "user_id": request.user.id})
         return Response(ClearanceDocumentSerializer(doc).data)
 
     def delete(self, request, pk):
@@ -124,6 +140,15 @@ class ClearanceDocumentFileView(APIView):
         except ClearanceFileError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
         log_action("clearance.file_uploaded", doc, {"filename": doc.file_name, "user_id": request.user.id})
+        if doc.in_study_brief:
+            from .brief import blocked_phrase_in
+
+            phrase = blocked_phrase_in(doc)
+            if phrase:  # a replaced file is checked too; it stops being sent rather than reaching a participant
+                doc.in_study_brief = False
+                doc.save(update_fields=["in_study_brief", "updated_at"])
+                log_action("clearance.study_brief_changed", doc, {"in_study_brief": False, "blocked_phrase": phrase,
+                                                                  "user_id": request.user.id})
         return Response(ClearanceDocumentSerializer(doc).data)
 
     def get(self, request, pk):
@@ -204,13 +229,59 @@ class StudyLettersPackView(APIView):
     throttle_classes = [RespondentRateThrottle]
 
     def get(self, request, key, filename):
+        from .brief import BRIEF_NAME, brief_pack
+
         expected = (getattr(settings, "STUDY_LETTERS_KEY", "") or "").strip()
-        if not expected or not hmac.compare_digest(key, expected) or filename != PACK_NAME:
+        if not expected or not hmac.compare_digest(key, expected) or filename not in (PACK_NAME, BRIEF_NAME):
             return Response({"error": {"code": "not_found", "message": "Not found.", "field_errors": {}}}, status=404)
-        pack = letters_pack()
+        # The same key also serves the study information documents (19 Nov 2026, apps/clearance/brief.py).
+        pack = letters_pack() if filename == PACK_NAME else brief_pack()
         if pack is None:
             return Response({"error": {"code": "not_found", "message": "Not found.", "field_errors": {}}}, status=404)
         response = HttpResponse(pack, content_type="application/pdf")
-        response["Content-Disposition"] = f'inline; filename="{PACK_NAME}"'
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
         response["Cache-Control"] = "public, max-age=3600"
         return response
+
+
+# --- Study information for a participant who asks (19 Nov 2026, apps/clearance/brief.py) ----------------------------
+
+class StudyBriefView(APIView):
+    """GET /api/v1/study-brief/?kind=main|kii&id=<sample_id|kii_id> -- what would be sent to this person and how.
+    POST /api/v1/study-brief/ {kind, id, channel: WHATSAPP|EMAIL} -- send it from the study number or address.
+    Only for a person this user may contact (communications.visible_cases / visible_records)."""
+
+    permission_classes = [CanSendStudyBrief]
+
+    def get(self, request):
+        from .brief import BriefError, summary
+
+        try:
+            return Response(summary(request.user, request.query_params.get("kind", ""), request.query_params.get("id", "")))
+        except BriefError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+
+    def post(self, request):
+        from .brief import BriefError, send
+
+        try:
+            return Response(send(request.user, str(request.data.get("kind", "")), str(request.data.get("id", "")),
+                                 str(request.data.get("channel", "")).upper()), status=201)
+        except BriefError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)
+
+
+class StudyBriefByHandView(APIView):
+    """POST /api/v1/study-brief/sent-by-hand/ {kind, id} -- the research assistant sent the documents' link from their
+    own WhatsApp; recorded on the person's timeline."""
+
+    permission_classes = [CanSendStudyBrief]
+
+    def post(self, request):
+        from .brief import BriefError, record_by_hand
+
+        try:
+            return Response(record_by_hand(request.user, str(request.data.get("kind", "")), str(request.data.get("id", ""))),
+                            status=201)
+        except BriefError as exc:
+            return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=exc.status)

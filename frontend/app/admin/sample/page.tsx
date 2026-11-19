@@ -782,7 +782,7 @@ export default function SampleRegisterPage() {
         </IfRole>
       )}
       {sampleType === "MAIN" && (
-        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "SUPERVISOR_READONLY"]}>
+        <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "CONTACT_RA", "TELEPHONE_RA", "SUPERVISOR_READONLY"]}>
           <WhatsAppQueuePanel />
         </IfRole>
       )}

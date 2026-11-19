@@ -379,10 +379,15 @@ def _error(code, message, status=400):
 
 
 def _scoped_profile_or_404(request, profile):
-    """A Contact RA only reaches the pre-profile of a case assigned to them (404, so its existence is not leaked)."""
+    """A Contact RA only reaches the pre-profile of a case assigned to them, and a Research Assistant (calls) (19 Nov 2026)
+    only that of a case or KII record assigned to them (404, so its existence is not leaked)."""
     role = getattr(request.user.role, "name", None)
     if role == "CONTACT_RA":
         if profile.sample_case_id is None or profile.sample_case.assigned_ra_id != request.user.id:
+            raise Http404
+    if role == "TELEPHONE_RA":
+        subject = profile.sample_case if profile.sample_case_id else profile.kii_record
+        if subject is None or subject.assigned_ra_id != request.user.id:
             raise Http404
     if role == "KII_RA" and profile.kii_record_id is None:
         raise Http404
@@ -653,6 +658,8 @@ class ReconciliationQueueView(APIView):
         rows = []
         profiles = (PreProfile.objects.filter(prepopulation_locked_at__isnull=False, kii_record__status=KIIStatus.COMPLETED)
                     .exclude(reconciliation_status__in=["RECONCILED", "UNRESOLVED"]).select_related("kii_record"))
+        if getattr(request.user.role, "name", None) == "TELEPHONE_RA":  # only its own informants (19 Nov 2026)
+            profiles = profiles.filter(kii_record__assigned_ra=request.user)
         for profile in profiles:
             state = reconciliation_state(profile)
             if not state["total"] or state["complete"]:

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { AdministerForm } from "@/components/admin/AdministerForm";
 import { IfScreen, WriteOnly } from "@/components/admin/RoleGate";
+import { StudyBriefPanel } from "@/components/admin/StudyBriefPanel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
@@ -371,6 +372,8 @@ function CallCard({
                   {item.kind === "main" ? "Fill in with them now" : "Interview them now"}
                 </Button>
               )}
+              {/* Someone on the phone who asks to read about the study first (19 Nov 2026). */}
+              <StudyBriefPanel target={{ kind: item.kind, id: item.id }} compact />
             </div>
           )}
         </WriteOnly>

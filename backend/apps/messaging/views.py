@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import CanManageContact, CanManageKII, CanUseCommunications
+from api.permissions import CanInviteKII, CanManageContact, CanUseCommunications
 from api.throttling import TwilioWebhookThrottle, WhatsAppMediaThrottle
 from apps.sampling.models import SampleCase
 
@@ -188,26 +188,25 @@ def _outreach_rows(outreaches) -> list[dict]:
 class KIIOutreachView(APIView):
     """GET /api/v1/kii-outreach/?kii_id= -- a KII record's introductions and the replies received.
     POST /api/v1/kii-outreach/ {kii_id} -- send the KII "ask first" introduction (2026-10-14). The same roles that may
-    send a KII link: PI, Field Coordinator and KII RA (CanManageKII)."""
+    send a KII link: PI, Field Coordinator, KII RA, and the Research Assistant (calls) for its assigned records
+    (CanInviteKII, 19 Nov 2026)."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def get(self, request):
-        from apps.kii.models import KIIRecord
-
+        from .communications import visible_records
         from .models import Outreach
         from .outreach import intro_channel
 
-        record = get_object_or_404(KIIRecord, kii_id=request.query_params.get("kii_id"))
+        record = get_object_or_404(visible_records(request.user), kii_id=request.query_params.get("kii_id"))
         outreaches = Outreach.objects.filter(kii_record=record).prefetch_related("messages")
         return Response({"intro_channel": intro_channel(kii=True), "results": _outreach_rows(outreaches)})
 
     def post(self, request):
-        from apps.kii.models import KIIRecord
-
+        from .communications import visible_records
         from .outreach import OutreachError, send_kii_introduction
 
-        record = get_object_or_404(KIIRecord, kii_id=request.data.get("kii_id"))
+        record = get_object_or_404(visible_records(request.user), kii_id=request.data.get("kii_id"))
         try:
             outreach = send_kii_introduction(record, user=request.user)
         except OutreachError as exc:
@@ -217,14 +216,17 @@ class KIIOutreachView(APIView):
 
 class KIIOutreachUnansweredView(APIView):
     """GET /api/v1/kii-outreach/unanswered/ -- KII informants asked first who never answered (after the reminder) or
-    whose introduction never arrived: the KII Register's list of people to phone."""
+    whose introduction never arrived: the KII Register's list of people to phone. A Research Assistant (calls) sees only
+    the informants assigned to it."""
 
-    permission_classes = [CanManageKII]
+    permission_classes = [CanInviteKII]
 
     def get(self, request):
+        from apps.ra.roles import assigned_kii_only
+
         from .outreach import kii_unanswered
 
-        rows = kii_unanswered()
+        rows = kii_unanswered(assigned_to=request.user if assigned_kii_only(request.user) else None)
         return Response({"count": len(rows), "results": rows})
 
 

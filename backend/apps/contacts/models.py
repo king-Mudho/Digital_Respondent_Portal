@@ -68,6 +68,8 @@ class ContactOutcome(models.TextChoices):
     COMPLETED = "COMPLETED", "Completed"
     # The RA filled in the form with them, opened from the portal (apps/ra/administer.py, 2026-11-08).
     ADMINISTERED = "ADMINISTERED", "Filled in the form with them"
+    # The RA sent the study's information documents from their own WhatsApp (apps/clearance/brief.py, 19 Nov 2026).
+    STUDY_INFO_SENT = "STUDY_INFO_SENT", "Sent the study information"
 
 
 # Contacts an RA logs that are not calls: a WhatsApp message, SMS or email sent from their own phone (2026-11-08).
