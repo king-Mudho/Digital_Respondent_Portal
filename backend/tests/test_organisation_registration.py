@@ -163,3 +163,29 @@ def test_organisation_detail_requires_field_coordinator_or_admin(organisation):
     assert resp.status_code == 403
     organisation.refresh_from_db()
     assert organisation.name != "Should not land"
+
+
+def test_correcting_an_organisation_is_audited_and_keeps_its_former_name(db):
+    """20 Nov 2026: a register organisation renamed from the Organisations screen left no trace of who did it or what
+    it had been called."""
+    from rest_framework.test import APIClient
+
+    from apps.accounts.models import Role, User
+    from apps.audit.models import AuditEvent
+    from apps.sampling.services import create_organisation
+
+    role, _ = Role.objects.get_or_create(name=Role.FIELD_COORDINATOR)
+    fc = User.objects.create_user(username="fc_rename", password="x", role=role)
+    org = create_organisation(province="HARARE", name="Suncrest Chickens", district="Harare", actor_family="PRODUCER_PRIMARY",
+                              size_class="SME")
+    client = APIClient()
+    client.force_authenticate(fc)
+    resp = client.patch(f"/api/v1/organisations/{org.pk}/", {"name": "Golden Chicks Ltd"}, format="json")
+    assert resp.status_code == 200 and resp.data["name"] == "Golden Chicks Ltd"
+    org.refresh_from_db()
+    assert [f["name"] for f in org.metadata["former_names"]] == ["Suncrest Chickens"]
+    event = AuditEvent.objects.get(action="sampling.organisation_updated")
+    assert event.metadata["from"] == "Suncrest Chickens" and event.metadata["to"] == "Golden Chicks Ltd" and event.user == fc
+    # Saving without a change records nothing.
+    client.patch(f"/api/v1/organisations/{org.pk}/", {"name": "Golden Chicks Ltd"}, format="json")
+    assert AuditEvent.objects.filter(action="sampling.organisation_updated").count() == 1

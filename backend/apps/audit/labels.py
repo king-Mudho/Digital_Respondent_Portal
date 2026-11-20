@@ -163,6 +163,8 @@ ACTION_LABELS: dict[str, str] = {
     "sampling.bulk_workflow_transition": "Cases moved forward in bulk",
     "sampling.invalid_workflow_transition": "Invalid workflow transition attempted",
     "sampling.organisation_registered": "Organisation registered from a registration list",
+    "sampling.organisation_renamed": "Organisation renamed (by the PI's instruction)",
+    "sampling.organisation_updated": "Organisation details corrected",
     "sampling.status_caught_up": "Case status brought up to what its respondent had already done",
     "sampling.status_reset_after_test_cleanup": "Case status reset (test cleanup)",
     "sampling.status_reset_fresh_start": "Case returned to S03 for a fresh start (new outreach line)",

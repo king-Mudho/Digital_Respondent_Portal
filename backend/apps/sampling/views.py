@@ -198,13 +198,36 @@ class OrganisationDetailView(generics.RetrieveUpdateAPIView):
     def get_serializer_class(self):
         return OrganisationSerializer if self.request.method == "GET" else OrganisationUpdateSerializer
 
+    EDITABLE = ("name", "entity_type", "district", "value_chain")
+
     def update(self, request, *args, **kwargs):
+        from django.utils import timezone
+
+        from apps.audit.utils import log_action
+
+        organisation = self.get_object()
+        before = {f: getattr(organisation, f) for f in self.EDITABLE}
         super().update(request, *args, **kwargs)
+        organisation.refresh_from_db()
+        changed = [f for f in self.EDITABLE if getattr(organisation, f) != before[f]]
+        if changed:
+            # Until 20 Nov 2026 an edit here left no trace, so a register organisation could be renamed with nobody able
+            # to say who did it or what it was called. The old name is now kept on the record, and every change audited.
+            if "name" in changed:
+                meta = dict(organisation.metadata or {})
+                meta.setdefault("former_names", []).append(
+                    {"name": before["name"], "until": timezone.now().isoformat(), "by": request.user.username})
+                organisation.metadata = meta
+                organisation.save(update_fields=["metadata", "updated_at"])
+            log_action("sampling.organisation_updated", organisation, {
+                "master_id": organisation.master_id, "fields": changed, "user_id": request.user.id,
+                **({"from": before["name"], "to": organisation.name} if "name" in changed else {}),
+            }, user=request.user)
         # Always answer with the full read shape, including the fields the
         # update serializer deliberately left out -- the screen re-renders
         # from this response and needs province/actor_family/size_class to
         # keep showing them.
-        return Response(OrganisationSerializer(self.get_object()).data)
+        return Response(OrganisationSerializer(organisation).data)
 
 
 class ReserveActivateView(APIView):
