@@ -39,6 +39,8 @@ interface Organisation {
   value_chain: string;
   size_class: string;
   verification_status: string;
+  /** Its existing sample case(s); "Create sample case" is offered only when there is none (22 Nov 2026). */
+  sample_ids?: string[];
 }
 
 const EMPTY_ORG_FORM = {
@@ -338,15 +340,23 @@ export default function OrganisationsPage() {
                               <button onClick={() => startEditing(org)} className="text-header underline text-xs">
                                 Edit
                               </button>
-                              <button
-                                onClick={() => {
-                                  setCaseType("MAIN");
-                                  setJustCreated(org);
-                                }}
-                                className="text-header underline text-xs"
-                              >
-                                Create sample case
-                              </button>
+                              {org.sample_ids && org.sample_ids.length > 0 ? (
+                                org.sample_ids.map((sid) => (
+                                  <Link key={sid} href={`/admin/sample/${sid}`} className="text-header underline text-xs font-mono">
+                                    {sid}
+                                  </Link>
+                                ))
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setCaseType("MAIN");
+                                    setJustCreated(org);
+                                  }}
+                                  className="text-header underline text-xs"
+                                >
+                                  Create sample case
+                                </button>
+                              )}
                             </div>
                           </WriteOnly>
                         </td>

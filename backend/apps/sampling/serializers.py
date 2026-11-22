@@ -4,13 +4,20 @@ from .models import Organisation, SampleCase
 
 
 class OrganisationSerializer(serializers.ModelSerializer):
+    # The sample case(s) the organisation already has, so the Organisations screen offers "Create sample case" only
+    # where there is none (22 Nov 2026).
+    sample_ids = serializers.SerializerMethodField()
+
     class Meta:
         model = Organisation
         fields = [
             "id", "master_id", "name", "entity_type", "province", "district",
-            "actor_family", "value_chain", "size_class", "verification_status",
+            "actor_family", "value_chain", "size_class", "verification_status", "sample_ids",
         ]
-        read_only_fields = ["id", "master_id"]
+        read_only_fields = ["id", "master_id", "sample_ids"]
+
+    def get_sample_ids(self, obj):
+        return sorted(c.sample_id for c in obj.sample_cases.all())
 
 
 class OrganisationUpdateSerializer(serializers.ModelSerializer):

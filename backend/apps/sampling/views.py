@@ -73,6 +73,15 @@ class SampleCaseListCreateView(generics.ListCreateAPIView):
         # organisation + sample case" admin UI can skip that step entirely.
         data = dict(request.data)
         organisation_id = data.get("organisation")
+        # One sample case per organisation (22 Nov 2026): the Organisations screen offered "Create sample case" on every
+        # row, including the 875 organisations already in the sample, so one click made a second questionnaire case
+        # for the same organisation. Main and Reserve are different organisations, never two cases of one.
+        org_ref = str(request.data.get("organisation") or "")
+        existing = SampleCase.objects.filter(organisation_id=org_ref).values_list("sample_id", flat=True).first()             if org_ref.isdigit() else None
+        if existing:
+            return Response({"error": {"code": "already_sampled", "message": (
+                f"This organisation already has sample case {existing}. Open that case instead of creating another."),
+                "field_errors": {}}}, status=409)
         if not data.get("stratum") and organisation_id:
             organisation = get_object_or_404(Organisation, pk=organisation_id)
             data["stratum"] = resolve_stratum_for_organisation(organisation).id
@@ -175,7 +184,7 @@ class OrganisationListCreateView(generics.ListCreateAPIView):
     phone_search_fields = ["sample_cases__respondents__phone", "sample_cases__respondents__whatsapp_number"]
 
     def get_queryset(self):
-        return Organisation.objects.order_by("name")
+        return Organisation.objects.prefetch_related("sample_cases").order_by("name")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

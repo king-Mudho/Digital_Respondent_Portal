@@ -189,3 +189,27 @@ def test_correcting_an_organisation_is_audited_and_keeps_its_former_name(db):
     # Saving without a change records nothing.
     client.patch(f"/api/v1/organisations/{org.pk}/", {"name": "Golden Chicks Ltd"}, format="json")
     assert AuditEvent.objects.filter(action="sampling.organisation_updated").count() == 1
+
+
+def test_an_organisation_gets_one_sample_case_and_the_screen_shows_it(db):
+    """22 Nov 2026: "Create sample case" sat on every row of the Organisations screen, including organisations already in
+    the sample, so one click made a second questionnaire case for the same organisation."""
+    from rest_framework.test import APIClient
+
+    from apps.accounts.models import Role, User
+    from apps.sampling.models import SampleCase
+    from apps.sampling.services import create_organisation
+
+    role, _ = Role.objects.get_or_create(name=Role.PI_ADMIN)
+    client = APIClient()
+    client.force_authenticate(User.objects.create_user(username="pi_onecase", password="x", role=role))
+    org = create_organisation(province="HARARE", name="One Case Farm", district="Harare", actor_family="PRODUCER_PRIMARY",
+                              size_class="SME")
+    first = client.post("/api/v1/sample-cases/", {"organisation": org.pk, "sample_type": "MAIN"}, format="json")
+    assert first.status_code == 201
+    second = client.post("/api/v1/sample-cases/", {"organisation": org.pk, "sample_type": "MAIN"}, format="json")
+    assert second.status_code == 409 and second.data["error"]["code"] == "already_sampled"
+    assert SampleCase.objects.filter(organisation=org).count() == 1
+    listed = client.get("/api/v1/organisations/", {"search": "One Case Farm"}).data
+    rows = listed["results"] if isinstance(listed, dict) else listed
+    assert rows[0]["sample_ids"] == [first.data["sample_id"]]
