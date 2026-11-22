@@ -344,3 +344,62 @@ def content_waiting(sid: str, *, approvals=None) -> str:
         if row["sid"] == sid and row["status"] not in ("approved", "unknown"):
             return row["status"]
     return ""
+
+
+BALANCE_CACHE_SECONDS = 600
+
+
+def account_balance(*, get=None, today=None) -> dict:
+    """What is left on the study's Twilio account and how fast it is being spent (22 Nov 2026), for the Cost screen:
+    the balance, this month's and the last 7 days' spending (all of it, and WhatsApp alone), the daily average over
+    those 7 days, and how many days the balance lasts at that rate. Read-only, cached ten minutes. {"error": ...} when
+    Twilio cannot be asked; never raises."""
+    from datetime import timedelta
+
+    from django.core.cache import cache
+    from django.utils import timezone
+
+    if not credentials_set():
+        return {"configured": False}
+    cached = cache.get("twilio-balance")
+    if cached is not None:
+        return cached
+    get = get or requests.get
+    sid = _account()[0]
+    base = f"https://api.twilio.com/2010-04-01/Accounts/{sid}"
+    today = today or timezone.localdate()
+    month_start, week_start = today.replace(day=1), today - timedelta(days=6)
+
+    def spent(category: str, start) -> tuple[float, int]:
+        response = get(f"{base}/Usage/Records.json", auth=_account(), timeout=15,
+                       params={"Category": category, "StartDate": start.isoformat(), "EndDate": today.isoformat()})
+        rows = (response.json() or {}).get("usage_records", []) if response.ok else []
+        return (round(sum(float(r.get("price") or 0) for r in rows), 2), int(sum(float(r.get("count") or 0) for r in rows)))
+
+    try:
+        response = get(f"{base}/Balance.json", auth=_account(), timeout=15)
+        if not response.ok:
+            return {"configured": True, "error": f"Twilio answered {response.status_code}."}
+        body = response.json() or {}
+        balance = round(float(body.get("balance") or 0), 2)
+        month_total, _ = spent("totalprice", month_start)
+        week_total, _ = spent("totalprice", week_start)
+        month_wa, month_wa_count = spent("channels-whatsapp", month_start)
+        week_wa, week_wa_count = spent("channels-whatsapp", week_start)
+    except (requests.RequestException, ValueError, TypeError) as exc:
+        return {"configured": True, "error": f"Twilio could not be reached ({type(exc).__name__})."}
+    per_day = round(week_total / 7, 2)
+    days_left = int(balance // per_day) if per_day > 0 else None
+    low = balance < settings.TWILIO_BALANCE_WARN_USD or (days_left is not None and days_left < settings.TWILIO_BALANCE_WARN_DAYS)
+    result = {
+        "configured": True, "error": "", "balance": balance, "currency": (body.get("currency") or "USD").upper(),
+        "spent_this_month": month_total, "spent_last_7_days": week_total,
+        "whatsapp_this_month": month_wa, "whatsapp_messages_this_month": month_wa_count,
+        "whatsapp_last_7_days": week_wa, "whatsapp_messages_last_7_days": week_wa_count,
+        "per_day": per_day, "days_left": days_left,
+        "runs_out_on": (today + timedelta(days=days_left)).isoformat() if days_left is not None else None,
+        "low": low, "warn_usd": settings.TWILIO_BALANCE_WARN_USD, "warn_days": settings.TWILIO_BALANCE_WARN_DAYS,
+        "read_at": timezone.now().isoformat(),
+    }
+    cache.set("twilio-balance", result, BALANCE_CACHE_SECONDS)
+    return result

@@ -408,6 +408,10 @@ TWILIO_SMS_DAILY_MAX = env.int("TWILIO_SMS_DAILY_MAX", default=150)
 # The study's own ceiling on different people sent a WhatsApp template in 24 hours (PI decision, 2026-10-14: 500).
 # Meta's own limit for the number applies on top and is read from Twilio (twilio_client.meta_messaging_limit).
 TWILIO_WHATSAPP_DAILY_MAX = env.int("TWILIO_WHATSAPP_DAILY_MAX", default=500)
+# The Cost screen warns when the Twilio balance falls below this many US dollars, or below this many days at the last
+# 7 days' rate of spending (22 Nov 2026, twilio_client.account_balance). When it runs out WhatsApp stops.
+TWILIO_BALANCE_WARN_USD = env.float("TWILIO_BALANCE_WARN_USD", default=5.0)
+TWILIO_BALANCE_WARN_DAYS = env.int("TWILIO_BALANCE_WARN_DAYS", default=7)
 # Twilio's price per SMS segment to Zimbabwe (checked 2026-10-07), for the cost estimate shown before a batch.
 TWILIO_SMS_SEGMENT_PRICE_USD = env.float("TWILIO_SMS_SEGMENT_PRICE_USD", default=0.3212)
 # Appended to every SMS when set. Two-way SMS is not available in Zimbabwe, so a respondent cannot reply STOP; the

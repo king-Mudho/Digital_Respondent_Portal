@@ -208,6 +208,18 @@ class CostDashboardView(APIView):
         })
 
 
+class TwilioBalanceView(APIView):
+    """GET /api/v1/dashboards/twilio-balance/ -- the Twilio balance, recent spending and how long it lasts (22 Nov 2026,
+    twilio_client.account_balance). The same people who see the Cost screen."""
+
+    permission_classes = [IsAnalystOrAdmin]
+
+    def get(self, request):
+        from apps.messaging.twilio_client import account_balance
+
+        return Response(account_balance())
+
+
 class ReportsOverviewView(APIView):
     """GET /api/v1/reports/overview/?range=7|30|90|all -- the Reports screen's
     analytics in one payload (apps.dashboards.reports). Counts and rates

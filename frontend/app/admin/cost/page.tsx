@@ -139,6 +139,7 @@ export default function CostDashboardPage() {
   return (
     <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
       <h2 className="mb-4 text-xl font-semibold">Cost Dashboard</h2>
+      <TwilioBalanceCard />
       {isLoading || !data ? (
         <p className="text-text-muted">Loading…</p>
       ) : (
@@ -347,5 +348,88 @@ export default function CostDashboardPage() {
         </div>
       )}
     </AdminShell>
+  );
+}
+
+interface TwilioBalance {
+  configured: boolean;
+  error?: string;
+  balance?: number;
+  currency?: string;
+  spent_this_month?: number;
+  spent_last_7_days?: number;
+  whatsapp_this_month?: number;
+  whatsapp_messages_this_month?: number;
+  per_day?: number;
+  days_left?: number | null;
+  runs_out_on?: string | null;
+  low?: boolean;
+  warn_usd?: number;
+  warn_days?: number;
+  read_at?: string;
+}
+
+/**
+ * What is left on the study's Twilio account (WhatsApp and SMS) and how fast it is being spent (22 Nov 2026,
+ * backend twilio_client.account_balance). When the balance runs out WhatsApp stops, including the link sent after
+ * someone replies YES, so the card turns red below the configured levels.
+ */
+function TwilioBalanceCard() {
+  const { data, isError } = useQuery({
+    queryKey: ["twilio-balance"],
+    queryFn: () => adminFetch<TwilioBalance>("/dashboards/twilio-balance/"),
+    refetchInterval: 10 * 60 * 1000,
+  });
+  if (isError) return <p className="mb-6 text-sm text-danger">The Twilio balance could not be loaded.</p>;
+  if (!data || !data.configured) return null;
+  if (data.error) return <p className="mb-6 text-sm text-text-muted">Twilio balance: {data.error}</p>;
+  const usd = (v?: number) => `$${(v ?? 0).toFixed(2)}`;
+  return (
+    <Card className={`mb-6 space-y-3 ${data.low ? "border-danger" : ""}`} aria-label="Twilio balance">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="font-medium">Twilio balance (WhatsApp and SMS)</h3>
+        {data.read_at && (
+          <span className="text-xs text-text-muted">Read from Twilio {new Date(data.read_at).toLocaleTimeString()}</span>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div>
+          <p className="text-xs text-text-muted">Left</p>
+          <p className={`text-2xl font-semibold ${data.low ? "text-danger" : ""}`}>
+            {usd(data.balance)} <span className="text-sm font-normal">{data.currency}</span>
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-text-muted">Spent this month</p>
+          <p className="text-lg font-medium">{usd(data.spent_this_month)}</p>
+          <p className="text-xs text-text-muted">
+            WhatsApp {usd(data.whatsapp_this_month)} · {data.whatsapp_messages_this_month} messages
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-text-muted">Last 7 days</p>
+          <p className="text-lg font-medium">{usd(data.spent_last_7_days)}</p>
+          <p className="text-xs text-text-muted">about {usd(data.per_day)} a day</p>
+        </div>
+        <div>
+          <p className="text-xs text-text-muted">Lasts</p>
+          <p className="text-lg font-medium">{data.days_left == null ? "—" : `about ${data.days_left} days`}</p>
+          {data.runs_out_on && (
+            <p className="text-xs text-text-muted">until around {new Date(data.runs_out_on).toLocaleDateString()}</p>
+          )}
+        </div>
+      </div>
+      {data.low ? (
+        <p className="text-sm text-danger" role="alert">
+          Low balance: top up on Twilio soon. When it runs out, WhatsApp stops, including the link sent after someone
+          replies YES.
+        </p>
+      ) : (
+        <p className="text-xs text-text-muted">
+          At the last 7 days&rsquo; rate; a bulk send uses more in one day. Warns below {usd(data.warn_usd)} or{" "}
+          {data.warn_days} days.
+        </p>
+      )}
+    </Card>
   );
 }

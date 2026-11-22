@@ -9,6 +9,7 @@ from .views import (
     QADashboardView,
     ReportsOverviewView,
     SamplingDashboardView,
+    TwilioBalanceView,
 )
 
 app_name = "dashboards"
@@ -20,6 +21,7 @@ urlpatterns = [
     path("dashboards/qa/", QADashboardView.as_view(), name="qa"),
     path("dashboards/kii-documents/", KIIDocumentDashboardView.as_view(), name="kii-documents"),
     path("dashboards/cost/", CostDashboardView.as_view(), name="cost"),
+    path("dashboards/twilio-balance/", TwilioBalanceView.as_view(), name="twilio-balance"),
     path("reports/overview/", ReportsOverviewView.as_view(), name="reports-overview"),
     path("export/analysis/", AnalysisExportView.as_view(), name="export-analysis"),
     path("export/operational/", OperationalExportView.as_view(), name="export-operational"),
