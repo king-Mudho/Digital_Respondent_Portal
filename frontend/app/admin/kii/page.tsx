@@ -146,15 +146,28 @@ function KiiContactBatchPanel() {
  * land in Phase 7 alongside the rest of the KII module's build-out
  * (docs/27_AGENT_EXECUTION_PLAN.md Phase 7).
  */
+/** The KII statuses (backend apps/kii/models.py KIIStatus), for the register's Status filter (22 Nov 2026). */
+const STATUS_FILTER: [string, string][] = [
+  ["", "All statuses"],
+  ["PROSPECT", "Prospect (not yet contacted)"],
+  ["INVITED", "Invited"],
+  ["SCHEDULED", "Scheduled"],
+  ["COMPLETED", "Completed"],
+  ["DECLINED", "Declined"],
+  ["NO_SHOW", "No show"],
+];
+
 export default function KIIRegisterPage() {
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("");
   const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["kii-records", search, page, pageSize],
+    queryKey: ["kii-records", search, status, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<KIIRecord>>(
-        `/kii/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : ""),
+        `/kii/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : "") +
+          (status ? `&status=${status}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
@@ -172,6 +185,22 @@ export default function KIIRegisterPage() {
             }}
             placeholder="Search KII ID, name, role or phone"
           />
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-text-muted">Status</span>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1); // page 3 of everyone is rarely page 3 of one status
+              }}
+              className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+              aria-label="Filter by status"
+            >
+              {STATUS_FILTER.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
           {/* Registering informants is the KII RA's and coordinator's; the Research Assistant (calls) works its own. */}
           <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA"]}>
             <Link href="/admin/kii/new">
@@ -199,7 +228,11 @@ export default function KIIRegisterPage() {
           <p className="text-text-muted">Loading…</p>
         ) : data.results.length === 0 ? (
           <p className="text-text-muted text-sm">
-            {search ? `No KII records match "${search}".` : "No KII records yet."}
+            {search
+              ? `No KII records match "${search}"${status ? " with that status" : ""}.`
+              : status
+                ? "No KII records have that status."
+                : "No KII records yet."}
           </p>
         ) : (
           <>
