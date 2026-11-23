@@ -65,7 +65,7 @@ function TeamView() {
               <th className="px-3 py-2 text-right">KIIs<span className="block font-normal">administered / assisted</span></th>
               <th className="px-3 py-2 text-right">Passed QA</th>
               <th className="px-3 py-2 text-right">Total completed</th>
-              <th className="px-3 py-2 text-right">Commission<span className="block font-normal">at {usd(data.commission_usd)} each</span></th>
+              <th className="px-3 py-2 text-right">Commission<span className="block font-normal">at {usd(data.commission_usd)} each, after QA</span></th>
             </tr>
           </thead>
           <tbody>
@@ -84,7 +84,7 @@ function TeamView() {
                 <td className="px-3 py-2 text-right tabular-nums">{m.credits.kii_administered} / {m.credits.kii_assisted}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{m.credits.quan_qa_passed}</td>
                 <td className="px-3 py-2 text-right text-lg font-semibold tabular-nums">{m.credits.total}</td>
-                <td className="px-3 py-2 text-right text-lg font-semibold tabular-nums text-success">{usd(m.credits.earned_usd)}</td>
+                <td className="px-3 py-2 text-right tabular-nums"><span className="text-lg font-semibold text-success">{usd(m.credits.earned_usd)}</span>{m.credits.awaiting_qa > 0 && <span className="block text-xs text-text-muted">{m.credits.awaiting_qa} awaiting QA</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -95,7 +95,7 @@ function TeamView() {
           Also filled in by staff who are not RAs: {data.others.map((o) => `${o.name} (${o.total})`).join(", ")}.
         </p>
       )}
-      <p className="text-sm">Commission earned by everyone in this period: <b className="tabular-nums">{usd(data.earned_usd)}</b></p>
+      <p className="text-sm">Commission earned by everyone in this period: <b className="tabular-nums">{usd(data.earned_usd)}</b><span className="text-xs text-text-muted"> (questionnaires once they pass QA; interviews when completed)</span></p>
       <p className="text-xs text-text-muted">{data.uncredited} completion{data.uncredited === 1 ? "" : "s"} in this period had no RA involved.</p>
 
       <WriteOnly note={null}>

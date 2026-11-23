@@ -58,10 +58,19 @@ def rate() -> Decimal:
     return Decimal(str(settings.RA_COMMISSION_USD)).quantize(Decimal("0.01"))
 
 
-def amount_for(kind: str, ra_id, current) -> Decimal:
-    """What a credit earns: nothing without an RA; otherwise the amount it already holds, or today's rate the first
-    time it is credited -- so a later change of RA_COMMISSION_USD never rewrites what was already earned."""
-    if kind == CreditKind.UNCREDITED or ra_id is None:
+def payable(quan_submission=None) -> bool:
+    """Whether a completion is paid at all (PI, 23 Nov 2026): a questionnaire only once it has passed QA; a KII, which
+    has no QA step, always."""
+    from apps.kobo.models import QAStatus
+
+    return quan_submission is None or quan_submission.qa_status == QAStatus.QA_PASSED
+
+
+def amount_for(kind: str, ra_id, current, *, is_payable: bool = True) -> Decimal:
+    """What a credit earns: nothing without an RA or before it is payable (a questionnaire not yet QA-passed, or
+    rejected); otherwise the amount it already holds, or today's rate the first time it becomes payable -- so a
+    later change of RA_COMMISSION_USD never rewrites what was already earned."""
+    if kind == CreditKind.UNCREDITED or ra_id is None or not is_payable:
         return Decimal("0.00")
     return current if current else rate()
 
@@ -92,7 +101,8 @@ def refresh() -> dict:
                      **_decide(administered_by=r.interviewer, kii_record=r, submitted_at=at)}))
     for key, values in jobs:
         credit = SubmissionCredit.objects.filter(**key).first()
-        values["amount_usd"] = amount_for(values["kind"], getattr(values["ra"], "pk", None), credit.amount_usd if credit else None)
+        values["amount_usd"] = amount_for(values["kind"], getattr(values["ra"], "pk", None), credit.amount_usd if credit else None,
+                                          is_payable=payable(key.get("quan_submission")))
         if credit is None:
             credit = SubmissionCredit.objects.create(**key, **values)
             created += 1
@@ -107,6 +117,13 @@ def refresh() -> dict:
             if before != (credit.ra_id, credit.kind):
                 log_action("ra_credit.changed", credit, {"study": credit.study, "kind": credit.kind,
                                                          "ra": credit.ra.username if credit.ra_id else None}, user=None)
+    # An overridden credit keeps the PI's RA and kind, but is still paid only once its questionnaire passes QA.
+    for credit in SubmissionCredit.objects.exclude(overridden_at=None).select_related("quan_submission"):
+        amount = amount_for(credit.kind, credit.ra_id, credit.amount_usd, is_payable=payable(credit.quan_submission))
+        if amount != credit.amount_usd:
+            credit.amount_usd = amount
+            credit.save(update_fields=["amount_usd", "updated_at"])
+            updated += 1
     return {"created": created, "updated": updated}
 
 
@@ -119,7 +136,7 @@ def override(credit: SubmissionCredit, *, ra, kind: str, reason: str, user) -> S
         raise ValueError("Choose an RA for an administered or assisted credit, or none for no credit.")
     before = {"ra": credit.ra.username if credit.ra_id else None, "kind": credit.kind}
     credit.ra, credit.kind = ra, kind
-    credit.amount_usd = amount_for(kind, getattr(ra, "pk", None), credit.amount_usd)
+    credit.amount_usd = amount_for(kind, getattr(ra, "pk", None), credit.amount_usd, is_payable=payable(credit.quan_submission))
     credit.overridden_by, credit.overridden_at, credit.override_reason = user, timezone.now(), reason
     credit.save()
     log_action("ra_credit.overridden", credit, {"before": before, "after": {"ra": ra.username if ra else None, "kind": kind},
@@ -136,13 +153,15 @@ def summary(credits) -> list[dict]:
         row = rows.setdefault(c.ra_id, {"ra_id": c.ra_id, "username": c.ra.username, "name": c.ra.get_full_name() or c.ra.username,
                                         "role": getattr(c.ra.role, "name", ""), "quan_administered": 0, "quan_assisted": 0,
                                         "kii_administered": 0, "kii_assisted": 0, "quan_qa_passed": 0, "total": 0,
-                                        "earned_usd": Decimal("0.00")})
+                                        "earned_usd": Decimal("0.00"), "awaiting_qa": 0})
         key = f"{c.study.lower()}_{'administered' if c.kind == CreditKind.ADMINISTERED else 'assisted'}"
         row[key] += 1
         row["total"] += 1
         row["earned_usd"] += c.amount_usd
         if c.study == Study.QUAN and c.quan_submission and c.quan_submission.qa_status == "QA_PASSED":
             row["quan_qa_passed"] += 1
+        elif c.study == Study.QUAN and c.quan_submission and c.quan_submission.qa_status in ("PENDING", "QUERY"):
+            row["awaiting_qa"] += 1  # earns once it passes
     for row in rows.values():
         row["earned_usd"] = float(row["earned_usd"])
     return sorted(rows.values(), key=lambda r: (-r["total"], r["name"]))

@@ -53,8 +53,15 @@ function MyWorkView() {
         <p className="text-3xl font-semibold tabular-nums text-success">{usd(t?.earned_usd)}</p>
         <p className="text-xs text-text-muted">
           {t?.total ?? 0} completion{(t?.total ?? 0) === 1 ? "" : "s"} credited to you in the period below, at{" "}
-          {usd(data.commission_usd)} each. Set the dates to your pay period.
+          {usd(data.commission_usd)} each. A questionnaire earns once it has passed QA; an interview when it is completed. Set
+          the dates to your pay period.
         </p>
+        {(t?.awaiting_qa ?? 0) > 0 && (
+          <p className="text-xs font-medium">
+            {t?.awaiting_qa} questionnaire{t?.awaiting_qa === 1 ? " is" : "s are"} waiting for QA: another{" "}
+            {usd((t?.awaiting_qa ?? 0) * data.commission_usd)} once {t?.awaiting_qa === 1 ? "it passes" : "they pass"}.
+          </p>
+        )}
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -97,7 +104,7 @@ function MyWorkView() {
           <span className="font-medium text-text">Administered:</span> you opened the form with <em>Fill in with them now</em> on
           Calls and completed it with them. <span className="font-medium text-text">Assisted:</span> they completed it themselves,
           and your call or message (logged on Calls, or sent from Communications) was the last one before it, within{" "}
-          {data.assist_days} days. Each completion credited to you earns {usd(data.commission_usd)}. Log every call,
+          {data.assist_days} days. Each completion credited to you earns {usd(data.commission_usd)}, a questionnaire once it has passed QA. Log every call,
           including ones from your own phone, or it can&apos;t count.
         </p>
       </Card>

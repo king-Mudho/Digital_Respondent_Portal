@@ -27,8 +27,10 @@ export interface CreditTotals {
   kii_assisted: number;
   quan_qa_passed: number;
   total: number;
-  /** Commission earned in the period, US$. */
+  /** Commission earned in the period, US$ (questionnaires only once QA-passed). */
   earned_usd: number;
+  /** Credited questionnaires still pending or queried in QA: they earn once they pass. */
+  awaiting_qa: number;
 }
 
 export interface Workload {

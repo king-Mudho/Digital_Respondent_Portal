@@ -53,7 +53,8 @@ REVISION_NOTE = (
     "participants can send them the study information documents when they ask to read about the study first "
     "(Send study information, on a case, a KII record and each Calls row). Revision 11: the PI can record, on Research "
     "Clearance, that a study document is sent to participants as it is even though it contains a restricted word. "
-    "Revision 12 (23 November 2026): each completion credited to a research assistant earns a commission of US$2.50; "
+    "Revision 12 (23 November 2026): each completion credited to a research assistant earns a commission of US$2.50 "
+    "(a questionnaire once it has passed QA; an interview when it is completed); "
     "My work shows the RA what they have earned for the dates chosen, and Research assistants and the pay sheet show "
     "everyone's."
 )

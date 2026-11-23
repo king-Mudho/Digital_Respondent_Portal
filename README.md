@@ -543,7 +543,9 @@ letters) so a respondent can check the study is real before answering anything.
     The PI's own calls never credit an RA. Credits refresh after every reconciliation and KII sync. The PI can
     override one with a reason (audited); an overridden credit is never recomputed.
   - **Commission** (PI, 23 Nov 2026): each administered or assisted credit earns `RA_COMMISSION_USD` (US$2.50);
-    an uncredited one earns nothing. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
+    an uncredited one earns nothing. A questionnaire earns only once it has passed QA: nothing while pending or
+    queried, nothing if rejected (`credit.payable()`); a KII, which has no QA step, earns when it completes. My work
+    shows how many of an RA's questionnaires are still waiting for QA. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
     first credited, so changing the rate pays new completions at the new rate and never rewrites what was earned. A
     PI override moves the amount with the credit.
   - **Seeing the numbers:** an RA sees their own completions and commission earned on My work, for the dates they
@@ -729,7 +731,7 @@ celery -A config beat --loglevel=info
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `DEFAULT_FROM_EMAIL`, `STUDY_REPLY_TO_EMAIL` | Outgoing mail for emailed form PDFs, sent as abffst.research@gmail.com with a Gmail App Password; set with `deploy/configure-email.sh` |
 | `EMAIL_IMAP_HOST`, `EMAIL_IMAP_PORT`, `EMAIL_INBOX_FOLDER`, `EMAIL_SENT_FOLDER`, `EMAIL_INBOX_POLL_MINUTES`, `EMAIL_INBOX_BACKFILL_DAYS`, `EMAIL_INBOX_MAX_PER_RUN` | Reading replies from the study mailbox into Communications (blank host = off; read-only; only mail from or to an address on a record is copied); set with `deploy/configure-email-inbox.sh` |
 | `COMMUNICATION_BLOCKED_PHRASES`, `COMMUNICATION_MAX_LENGTH` | Words a message written in Communications may never contain (AGENTS.md rule 2), and its maximum length |
-| `RA_COMMISSION_USD` | What an RA earns per completion credited to them, administered or assisted, in US$ (2.50). New completions only: each credit keeps the amount it was recorded at |
+| `RA_COMMISSION_USD` | What an RA earns per completion credited to them, administered or assisted, in US$ (2.50) -- a questionnaire only once QA-passed. New completions only: each credit keeps the amount it was recorded at |
 | `RA_ASSIST_CREDIT_DAYS` | How many days before a respondent's own submission an RA's logged call or message still earns an "assisted" credit (14) |
 | `RA_NEW_LINK_ASSIGNEE` | Username(s), comma-separated, of the Research Assistants (calls) whose call lists newly issued links go on: each link to whichever has the least open work. Empty (the default) assigns nobody |
 | `WHATSAPP_IMAGE_MAX_MB`, `WHATSAPP_MEDIA_MAX_MB`, `WHATSAPP_MEDIA_LINK_MINUTES`, `WHATSAPP_MEDIA_FILES_PER_SEND`, `WHATSAPP_MEDIA_THROTTLE_RATE` | Files sent on WhatsApp from Communications: picture and other size limits (5 / 16 MB, WhatsApp's own), how long Twilio's signed link to a file works (60 minutes), files per send (10), and the link's throttle |

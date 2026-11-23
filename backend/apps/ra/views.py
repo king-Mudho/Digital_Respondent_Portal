@@ -121,7 +121,7 @@ class TeamView(APIView):
                  "role_label": u.role.get_name_display(), "workload": _workload(u),
                  "credits": summary.get(u.id, {"quan_administered": 0, "quan_assisted": 0, "kii_administered": 0,
                                                "kii_assisted": 0, "quan_qa_passed": 0, "total": 0,
-                                               "earned_usd": 0.0})} for u in ras]
+                                               "earned_usd": 0.0, "awaiting_qa": 0})} for u in ras]
         others = [r for ra_id, r in summary.items() if ra_id not in {u.id for u in ras}]  # e.g. the PI administered one
         return Response({
             "team": team, "others": others,
