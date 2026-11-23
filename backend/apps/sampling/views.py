@@ -137,6 +137,11 @@ class SampleCaseDetailView(generics.RetrieveUpdateAPIView):
         # OrganisationDetailView instead, never through this endpoint.
         for locked_field in ("organisation", "stratum", "sample_type"):
             serializer.validated_data.pop(locked_field, None)
+        # A case an RA found stays with them (PI, 23 Nov 2026), on this page as in every bulk move.
+        finder = serializer.instance.found_by
+        if "assigned_ra" in serializer.validated_data and finder is not None and serializer.validated_data["assigned_ra"] != finder:
+            raise DRFValidationError({"assigned_ra": [
+                f"{finder.get_full_name() or finder.username} found this organisation, so it stays with them."]})
         serializer.save()
 
 

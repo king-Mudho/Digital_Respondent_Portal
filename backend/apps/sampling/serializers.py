@@ -50,6 +50,8 @@ class SampleCaseSerializer(serializers.ModelSerializer):
     organisation_master_id = serializers.CharField(source="organisation.master_id", read_only=True)
     stratum_code = serializers.CharField(source="stratum.code", read_only=True)
     assigned_ra_username = serializers.CharField(source="assigned_ra.username", read_only=True, default=None)
+    # Who found this organisation (PI, 23 Nov 2026): set only through /ra/assign-main/ {"found": true}, by the PI.
+    found_by_username = serializers.CharField(source="found_by.username", read_only=True, default=None)
     # So the case detail page can show which Reserve backs this case up
     # without a second request per row.
     matched_case_sample_id = serializers.CharField(
@@ -66,7 +68,7 @@ class SampleCaseSerializer(serializers.ModelSerializer):
             "stratum", "stratum_code", "sample_type", "matched_case",
             "matched_case_sample_id", "matched_case_organisation_name", "status",
             "workflow_status", "activation_reason", "activated_by", "activated_at",
-            "activation_evidence_note", "assigned_ra", "assigned_ra_username",
+            "activation_evidence_note", "assigned_ra", "assigned_ra_username", "found_by_username",
         ]
         # status/workflow_status/activation_* are read-only here on purpose: they
         # must only ever change through sampling.services.transition_workflow_status()

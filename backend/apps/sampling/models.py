@@ -257,6 +257,11 @@ class SampleCase(models.Model):
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="assigned_sample_cases",
     )
+    # The research assistant who found this organisation and its contact (PI, 23 Nov 2026). Set by the PI; a completion is
+    # then credited to them (apps/ra/credit.py), and no bulk move or new-link rotation gives it to anyone else.
+    found_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="found_sample_cases",
+    )
     # Losslessly preserves register-provenance fields with no dedicated model
     # field (source Sample_ID, Priority, QUAN Eligibility, Desk Verification
     # Gate, Verification Evidence, Selection Method, Deployment Status, etc.

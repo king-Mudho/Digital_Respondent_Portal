@@ -31,7 +31,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 13 &mdash; 23 November 2026"
+REVISION = "Revision 14 &mdash; 23 November 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
@@ -59,7 +59,9 @@ REVISION_NOTE = (
     "everyone's. Revision 13: a completed key informant interview now has a quality check too, which the PI records "
     "on the KII record (Pass QA, Query or Reject); the RA's commission for it is paid once it is QA passed. The KII "
     "record also shows which Research Assistant (calls) it is assigned to, and the PI and Field Coordinator can "
-    "change it there; the KII Register shows and filters both."
+    "change it there; the KII Register shows and filters both. Revision 14: the PI can record that a research "
+    "assistant found an organisation or informant and its contact; a completion is then credited to them, and the "
+    "record is never moved to anyone else."
 )
 
 # ---------------------------------------------------------------- palette --

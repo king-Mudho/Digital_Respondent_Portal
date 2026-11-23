@@ -65,6 +65,8 @@ def assign_on_link(subject, *, issued_by=None) -> bool:
     """Put the Main-400 case or KII record whose link was just issued on a named RA's call list. True if it moved."""
     if "duplicate_of" in (subject.metadata or {}):
         return False
+    if subject.found_by_id is not None:  # found by an RA: stays with them (PI, 23 Nov 2026)
+        return False
     current = subject.assigned_ra
     if current is not None and current.is_active and getattr(current.role, "name", "") == TELEPHONE_RA:
         return False

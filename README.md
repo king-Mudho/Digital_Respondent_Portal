@@ -554,7 +554,14 @@ letters) so a respondent can check the study is real before answering anything.
   - **Assigning a KII from its own page** (23 Nov 2026): the KII record page shows the assigned Research Assistant
     (calls) and lets the PI and Field Coordinator change it, through the same audited `/ra/assign-kii/`
     (`GET /ra/callers/` lists the accounts). The register shows who each record is assigned to and filters by it.
-    Neither the QA status nor the assignment can be changed by a PATCH to the record. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
+    Neither the QA status nor the assignment can be changed by a PATCH to the record.
+  - **Who found it** (PI, 23 Nov 2026): `SampleCase.found_by` / `KIIRecord.found_by` record the research assistant
+    who found an organisation or informant and its contact. The PI sets it (`{"found": true}` with named ids on
+    `/ra/assign-main/` or `/ra/assign-kii/`, audited `ra.finder_recorded`; the "found this informant" box on a KII
+    record). A completion is then credited to the finder whoever else called (administered if they filled it in,
+    otherwise assisted), still paid only once QA passes; and nothing found is ever moved to anyone else -- not by
+    the bulk moves, `bulk_assign_cases()`, the new-link rotation, or the sample case page's own assignment
+    (`keep_with_finder()`). Earlier records marked `credit_to` in metadata were carried over by the migration. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
     first credited, so changing the rate pays new completions at the new rate and never rewrites what was earned. A
     PI override moves the amount with the credit.
   - **Seeing the numbers:** an RA sees their own completions and commission earned on My work, for the dates they

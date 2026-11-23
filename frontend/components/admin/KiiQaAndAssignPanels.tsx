@@ -6,6 +6,7 @@ import { IfRole, WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
+import { useAdminUser } from "@/lib/auth/session";
 
 export interface Caller {
   id: number;
@@ -41,37 +42,54 @@ export const QA_TONE: Record<string, string> = {
  * Which Research Assistant (calls) phones this informant (23 Nov 2026), set from the record's own page through
  * /ra/assign-kii/ -- the same audited assignment as the Research assistants screen. PI and Field Coordinator assign;
  * the Supervisor sees it. A completed or declined interview is not reassigned (its credit is settled on Research
- * assistants instead).
+ * assistants instead). The PI can also record that the RA found this informant: the completion is then theirs, and
+ * the record is never moved to anyone else.
  */
 export function KiiAssignPanel({
   kiiId,
   status,
   assignedRa,
   assignedRaName,
+  foundBy,
+  foundByName,
   onChanged,
 }: {
   kiiId: string;
   status: string;
   assignedRa: number | null;
   assignedRaName: string;
+  foundBy: number | null;
+  foundByName: string;
   onChanged: () => void;
 }) {
+  const me = useAdminUser();
+  const isPI = me?.role === "PI_ADMIN";
   const { data: callers } = useCallers();
   const [choice, setChoice] = useState<string | null>(null);
+  const [found, setFound] = useState<boolean | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const closed = status === "COMPLETED" || status === "DECLINED";
   const selected = choice ?? (assignedRa ? String(assignedRa) : "");
+  const isFound = found ?? foundBy !== null;
+  const foundChanged = found !== null && found !== (foundBy !== null);
+  // Someone else found it: only the PI (by clearing "found") can move it.
+  const lockedToFinder = foundBy !== null && !isPI;
 
   const assign = useMutation({
     mutationFn: (raId: number | null) =>
       adminFetch<{ count: number }>("/ra/assign-kii/", {
         method: "POST",
-        body: JSON.stringify({ ra_id: raId, kii_ids: [kiiId] }),
+        body: JSON.stringify({ ra_id: raId, kii_ids: [kiiId], ...(isPI && foundChanged ? { found: isFound } : {}) }),
       }),
     onSuccess: (data, raId) => {
       setChoice(null);
+      setFound(null);
       if (data.count === 0) {
-        setMessage("Not changed: a completed or declined interview keeps the Research Assistant it had.");
+        setMessage(
+          foundBy !== null
+            ? `Not changed: ${foundByName} found this informant, so it stays with them.`
+            : "Not changed: a completed or declined interview keeps the Research Assistant it had.",
+        );
       } else {
         const name = callers?.find((c) => c.id === raId)?.name;
         setMessage(raId ? `Assigned to ${name ?? "the Research Assistant"}. It is on their Calls list now.` : "Unassigned.");
@@ -91,6 +109,12 @@ export function KiiAssignPanel({
           <span className="text-text-muted">Not assigned to a Research Assistant.</span>
         )}
       </p>
+      {foundBy !== null && (
+        <p className="text-xs">
+          <span className="font-medium">{foundByName}</span> found this informant: a completed interview is credited to
+          them, and the record is never moved to anyone else.
+        </p>
+      )}
       <WriteOnly note={null}>
         {closed ? (
           <p className="text-xs text-text-muted">
@@ -118,12 +142,30 @@ export function KiiAssignPanel({
             </label>
             <Button
               variant="outline"
-              disabled={assign.isPending || selected === (assignedRa ? String(assignedRa) : "")}
+              disabled={assign.isPending || lockedToFinder || (selected === (assignedRa ? String(assignedRa) : "") && !foundChanged)}
               onClick={() => assign.mutate(selected ? Number(selected) : null)}
             >
               {assign.isPending ? "Saving…" : "Save"}
             </Button>
           </div>
+        )}
+        {!closed && isPI && (
+          <label className="flex items-start gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={isFound}
+              disabled={!selected}
+              onChange={(e) => {
+                setFound(e.target.checked);
+                setMessage(null);
+              }}
+              className="mt-0.5"
+            />
+            <span>
+              This Research Assistant found this informant. A completed interview is credited to them, and the record is
+              never moved to anyone else.
+            </span>
+          </label>
         )}
       </WriteOnly>
       {message && <p className="text-sm" role="status">{message}</p>}

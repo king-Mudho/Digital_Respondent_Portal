@@ -66,7 +66,7 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return (visible_kii_records(self.request.user)
-                .select_related("participation_consent", "recording_consent", "assigned_ra", "qa_by").order_by("kii_id"))
+                .select_related("participation_consent", "recording_consent", "assigned_ra", "found_by", "qa_by").order_by("kii_id"))
 
     def create(self, request, *args, **kwargs):
         from apps.ra.roles import assigned_kii_only
@@ -87,7 +87,7 @@ class KIIRecordDetailView(generics.RetrieveUpdateAPIView):
 
     def get_queryset(self):
         return visible_kii_records(self.request.user).select_related("participation_consent", "recording_consent",
-                                                                      "assigned_ra", "qa_by")
+                                                                      "assigned_ra", "found_by", "qa_by")
 
 
 def _error(code, message, status=400):

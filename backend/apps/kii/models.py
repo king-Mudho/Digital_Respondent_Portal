@@ -99,6 +99,11 @@ class KIIRecord(models.Model):
     assigned_ra = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="assigned_kii_records",
     )
+    # The research assistant who found this informant and its contact (PI, 23 Nov 2026). Set by the PI; a completion is
+    # then credited to them (apps/ra/credit.py), and no bulk move or new-link rotation gives it to anyone else.
+    found_by = models.ForeignKey(
+        "accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="found_kii_records",
+    )
     interviewer = models.ForeignKey(
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="conducted_kiis",

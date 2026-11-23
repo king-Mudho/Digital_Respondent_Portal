@@ -42,6 +42,13 @@ def last_ra_contact(*, sample_case=None, kii_record=None, before):
 
 
 def _decide(*, administered_by, sample_case=None, kii_record=None, submitted_at) -> dict:
+    subject = sample_case if sample_case is not None else kii_record
+    finder = getattr(subject, "found_by", None)
+    if finder is not None:
+        # The PI recorded who found this organisation or informant (23 Nov 2026): the completion is theirs, whoever
+        # else touched it -- administered if they filled it in themselves, otherwise assisted.
+        return {"ra": finder, "kind": CreditKind.ADMINISTERED if administered_by == finder else CreditKind.ASSISTED,
+                "evidence": "Found this respondent and their contact (recorded by the PI)", "evidence_at": None}
     if administered_by is not None:
         return {"ra": administered_by, "kind": CreditKind.ADMINISTERED, "evidence": "Filled in with the respondent from the portal",
                 "evidence_at": submitted_at}
@@ -94,10 +101,10 @@ def refresh() -> dict:
     overridden_q = set(SubmissionCredit.objects.exclude(overridden_at=None).exclude(quan_submission=None).values_list("quan_submission_id", flat=True))
     overridden_k = set(SubmissionCredit.objects.exclude(overridden_at=None).exclude(kii_record=None).values_list("kii_record_id", flat=True))
     jobs = []
-    for s in QUANSubmission.objects.exclude(pk__in=overridden_q).select_related("sample_case", "ra"):
+    for s in QUANSubmission.objects.exclude(pk__in=overridden_q).select_related("sample_case__found_by", "ra"):
         jobs.append(({"quan_submission": s}, {"study": Study.QUAN, "sample_case": s.sample_case, "submitted_at": s.submitted_at,
                      **_decide(administered_by=s.ra, sample_case=s.sample_case, submitted_at=s.submitted_at)}))
-    for r in KIIRecord.objects.filter(status=KIIStatus.COMPLETED).exclude(pk__in=overridden_k).select_related("interviewer"):
+    for r in KIIRecord.objects.filter(status=KIIStatus.COMPLETED).exclude(pk__in=overridden_k).select_related("interviewer", "found_by"):
         at = _kii_submitted_at(r)
         jobs.append(({"kii_record": r}, {"study": Study.KII, "sample_case": None, "submitted_at": at,
                      **_decide(administered_by=r.interviewer, kii_record=r, submitted_at=at)}))

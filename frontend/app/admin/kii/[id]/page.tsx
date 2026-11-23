@@ -41,6 +41,8 @@ interface KIIRecord {
   coding_url: string | null;
   assigned_ra: number | null;
   assigned_ra_name: string;
+  found_by: number | null;
+  found_by_name: string;
   qa_status: string;
   qa_note: string;
   qa_by_name: string;
@@ -337,6 +339,8 @@ export default function KIIDetailPage() {
           status={record.status}
           assignedRa={record.assigned_ra}
           assignedRaName={record.assigned_ra_name}
+          foundBy={record.found_by}
+          foundByName={record.found_by_name}
           onChanged={invalidate}
         />
       </IfRole>

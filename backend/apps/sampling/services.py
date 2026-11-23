@@ -542,6 +542,9 @@ def bulk_assign_cases(*, to_user, from_user=None, from_unassigned=False, provinc
         cases = cases.exclude(assigned_ra=to_user)
     else:
         cases = cases.exclude(assigned_ra__isnull=True)
+    from apps.ra.views import keep_with_finder
+
+    cases = keep_with_finder(cases, to_user)  # a case an RA found stays with them (PI, 23 Nov 2026)
     ids = list(cases.order_by("sample_id").values_list("sample_id", flat=True))
     if limit is not None:
         ids = ids[:limit]

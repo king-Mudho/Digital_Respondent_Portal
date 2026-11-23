@@ -17,6 +17,27 @@ from .models import CreditKind, Study, SubmissionCredit
 from .roles import RA_ROLES, TELEPHONE_RA
 
 
+def keep_with_finder(queryset, to):
+    """Leave out what an RA found (found_by) unless it is going to that same RA (PI, 23 Nov 2026): no bulk move,
+    unassignment or share-out takes a found organisation or informant from the person who found it."""
+    from django.db.models import Q
+
+    return queryset.filter(Q(found_by=None) | Q(found_by=to)) if to is not None else queryset.filter(found_by=None)
+
+
+def _record_finder(request, model, field, ids, ra):
+    """{"found": true|false} with named ids: the PI records (or clears) that `ra` found them. Audited."""
+    if getattr(request.user.role, "name", "") != "PI_ADMIN":
+        return _error("forbidden", "Only the PI records who found a respondent.", 403)
+    if request.data.get("found") and ra is None:
+        return _error("invalid_input", "Choose the research assistant who found them.")
+    found_by = ra if request.data.get("found") else None
+    model.objects.filter(**{f"{field}__in": ids}).update(found_by=found_by)
+    log_action("ra.finder_recorded", request.user, {field: ids, "found_by": found_by.username if found_by else None},
+               user=request.user)
+    return None
+
+
 def _error(code, message, status=400):
     return Response({"error": {"code": code, "message": message, "field_errors": {}}}, status=status)
 
@@ -173,6 +194,10 @@ class AssignMainView(APIView):
             if ra is None:
                 return _error("invalid_input", "Cases go to an active Contact RA or Research Assistant (calls) account.")
         cases = open_main_work().order_by("sample_id")
+        if "found" in data and not isinstance(data.get("sample_ids"), list):
+            return _error("invalid_input", "Name the cases whose finder you are recording.")
+        if not data.get("found"):
+            cases = keep_with_finder(cases, ra)
         if isinstance(data.get("sample_ids"), list):
             cases = cases.filter(sample_id__in=data["sample_ids"])
         elif data.get("from") == "unassigned":
@@ -189,6 +214,10 @@ class AssignMainView(APIView):
         if not data.get("preview"):
             from apps.sampling.models import SampleCase
 
+            if "found" in data:
+                refused = _record_finder(request, SampleCase, "sample_id", ids, ra)
+                if refused:
+                    return refused
             SampleCase.objects.filter(sample_id__in=ids).update(assigned_ra=ra)
             log_action("ra.assigned", request.user, {"study": "QUAN", "to": ra.username if ra else None,
                                                      "from": data.get("from"), "sample_ids": ids}, user=request.user)
@@ -212,6 +241,10 @@ class AssignKIIView(APIView):
             if ra is None:
                 return _error("invalid_input", "KII records go to an active Research Assistant (calls) account.")
         records = KIIRecord.objects.exclude(status__in=[KIIStatus.COMPLETED, KIIStatus.DECLINED]).order_by("kii_id")
+        if "found" in data and not isinstance(data.get("kii_ids"), list):
+            return _error("invalid_input", "Name the KII records whose finder you are recording.")
+        if not data.get("found"):
+            records = keep_with_finder(records, ra)
         if isinstance(data.get("kii_ids"), list):
             records = records.filter(kii_id__in=data["kii_ids"])
         elif data.get("from_unassigned"):
@@ -224,6 +257,10 @@ class AssignKIIView(APIView):
             return _error("invalid_input", "The number of records must be a number.")
         ids = list(records.values_list("kii_id", flat=True)[:limit] if limit else records.values_list("kii_id", flat=True))
         if not data.get("preview"):
+            if "found" in data:
+                refused = _record_finder(request, KIIRecord, "kii_id", ids, ra)
+                if refused:
+                    return refused
             KIIRecord.objects.filter(kii_id__in=ids).update(assigned_ra=ra, updated_at=timezone.now())
             log_action("ra.assigned", request.user, {"study": "KII", "to": ra.username if ra else None, "kii_ids": ids},
                        user=request.user)

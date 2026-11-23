@@ -31,6 +31,7 @@ interface SampleCaseDetail {
   workflow_status: string | null;
   assigned_ra: number | null;
   assigned_ra_username: string | null;
+  found_by_username?: string | null;
   matched_case: number | null;
   matched_case_sample_id: string | null;
   matched_case_organisation_name: string | null;
@@ -417,6 +418,12 @@ function AssignedRaPanel({ sampleCase }: { sampleCase: SampleCaseDetail }) {
             ? `Currently: ${sampleCase.assigned_ra_username}`
             : "Unassigned"}
         </span>
+        {sampleCase.found_by_username && (
+          <span className="block w-full text-xs">
+            Found by <span className="font-medium">{sampleCase.found_by_username}</span>: a completion is credited to them,
+            and the case stays with them.
+          </span>
+        )}
       </div>
     </Card>
   );

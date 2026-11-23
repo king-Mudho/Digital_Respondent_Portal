@@ -101,6 +101,7 @@ ACTION_LABELS: dict[str, str] = {
     "ra.administered": "RA filled in the form with the respondent (questionnaire or KII)",
     "ra.assigned": "Work assigned to a research assistant",
     "kii.qa_decided": "KII quality check recorded",
+    "ra.finder_recorded": "Research assistant recorded as having found a respondent",
     "ra.pay_sheet_downloaded": "Research assistants' completions downloaded as a pay sheet (CSV)",
     "ra_credit.recorded": "Completed submission credited to an RA (or to no RA)",
     "ra_credit.changed": "Credit for a completed submission recomputed from new evidence",
