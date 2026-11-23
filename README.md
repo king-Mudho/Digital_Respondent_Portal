@@ -543,9 +543,18 @@ letters) so a respondent can check the study is real before answering anything.
     The PI's own calls never credit an RA. Credits refresh after every reconciliation and KII sync. The PI can
     override one with a reason (audited); an overridden credit is never recomputed.
   - **Commission** (PI, 23 Nov 2026): each administered or assisted credit earns `RA_COMMISSION_USD` (US$2.50);
-    an uncredited one earns nothing. A questionnaire earns only once it has passed QA: nothing while pending or
-    queried, nothing if rejected (`credit.payable()`); a KII, which has no QA step, earns when it completes. My work
-    shows how many of an RA's questionnaires are still waiting for QA. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
+    an uncredited one earns nothing. A questionnaire or a KII earns only once it has passed QA: nothing while
+    pending or queried, nothing if rejected (`credit.payable()`). My work shows how many of an RA's completions are
+    still waiting for QA.
+  - **KII QA** (PI, 23 Nov 2026): a completed interview carries `KIIRecord.qa_status` (Pending, Query, QA passed,
+    Rejected), set only through `POST /api/v1/kii/{id}/qa/` (`kii.services.record_kii_qa()`), which only the PI may
+    call (`CanQAKII`) -- not the RA who did the interview. Only a COMPLETED record is checked; a query or rejection
+    needs a note; each decision is audited (`kii.qa_decided`). Interviews completed before this was added start as
+    Pending. The KII register filters by QA and shows it.
+  - **Assigning a KII from its own page** (23 Nov 2026): the KII record page shows the assigned Research Assistant
+    (calls) and lets the PI and Field Coordinator change it, through the same audited `/ra/assign-kii/`
+    (`GET /ra/callers/` lists the accounts). The register shows who each record is assigned to and filters by it.
+    Neither the QA status nor the assignment can be changed by a PATCH to the record. The amount is stored on the credit (`SubmissionCredit.amount_usd`) when it is
     first credited, so changing the rate pays new completions at the new rate and never rewrites what was earned. A
     PI override moves the amount with the credit.
   - **Seeing the numbers:** an RA sees their own completions and commission earned on My work, for the dates they

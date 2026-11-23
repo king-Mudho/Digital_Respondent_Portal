@@ -39,6 +39,16 @@ class CodingStatus(models.TextChoices):
     COMPLETE = "COMPLETE", "Complete"
 
 
+class KIIQAStatus(models.TextChoices):
+    """The PI's quality check of a completed interview (PI, 23 Nov 2026), the same four outcomes as a questionnaire's
+    (apps/kobo QAStatus). An RA's commission for a KII is paid only once it is QA_PASSED (apps/ra/credit.py)."""
+
+    PENDING = "PENDING", "Pending"
+    QUERY = "QUERY", "Query"
+    QA_PASSED = "QA_PASSED", "QA passed"
+    REJECTED = "REJECTED", "Rejected"
+
+
 class KIIRecord(models.Model):
     """Participant-identifying fields are access-controlled the same way as
     contacts.Respondent -- never in an aggregate dashboard payload or the
@@ -93,6 +103,11 @@ class KIIRecord(models.Model):
         "accounts.User", null=True, blank=True, on_delete=models.SET_NULL,
         related_name="conducted_kiis",
     )
+    # QA of the completed interview (PI, 23 Nov 2026): set only through services.record_kii_qa(), audited.
+    qa_status = models.CharField(max_length=16, choices=KIIQAStatus.choices, default=KIIQAStatus.PENDING)
+    qa_note = models.CharField(max_length=500, blank=True)
+    qa_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    qa_at = models.DateTimeField(null=True, blank=True)
     # Pointer into the secure controlled file store -- never the file itself
     # (docs/13_KII_MODULE.md).
     recording_reference = models.CharField(max_length=512, blank=True)

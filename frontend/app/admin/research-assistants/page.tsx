@@ -95,7 +95,7 @@ function TeamView() {
           Also filled in by staff who are not RAs: {data.others.map((o) => `${o.name} (${o.total})`).join(", ")}.
         </p>
       )}
-      <p className="text-sm">Commission earned by everyone in this period: <b className="tabular-nums">{usd(data.earned_usd)}</b><span className="text-xs text-text-muted"> (questionnaires once they pass QA; interviews when completed)</span></p>
+      <p className="text-sm">Commission earned by everyone in this period: <b className="tabular-nums">{usd(data.earned_usd)}</b><span className="text-xs text-text-muted"> (each completion once it passes QA)</span></p>
       <p className="text-xs text-text-muted">{data.uncredited} completion{data.uncredited === 1 ? "" : "s"} in this period had no RA involved.</p>
 
       <WriteOnly note={null}>

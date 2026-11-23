@@ -172,6 +172,27 @@ def advance_coding_status(record: KIIRecord, new_status: str) -> KIIRecord:
 
 # --- KoboToolbox KII Guide: prefilled interview link ------------------------
 
+def record_kii_qa(record: KIIRecord, qa_status: str, *, note: str = "", user) -> KIIRecord:
+    """The PI's QA decision on a completed interview (PI, 23 Nov 2026). Only a COMPLETED record is checked; a query or
+    a rejection says why. Audited. The RA's commission for it follows (apps/ra/credit.py payable())."""
+    from .models import KIIQAStatus
+
+    note = (note or "").strip()[:500]
+    if record.status != KIIStatus.COMPLETED:
+        raise InvalidKIITransition("Only a completed interview goes through QA.")
+    if qa_status not in KIIQAStatus.values:
+        raise InvalidKIITransition("Choose Pending, Query, QA passed or Rejected.")
+    if qa_status in (KIIQAStatus.QUERY, KIIQAStatus.REJECTED) and not note:
+        raise InvalidKIITransition("Write what needs looking at, or why it is rejected.")
+    before = record.qa_status
+    record.qa_status, record.qa_note = qa_status, note
+    record.qa_by, record.qa_at = user, timezone.now()
+    record.save(update_fields=["qa_status", "qa_note", "qa_by", "qa_at", "updated_at"])
+    log_action("kii.qa_decided", record, {"kii_id": record.kii_id, "from": before, "to": qa_status, "note": note},
+               user=user)
+    return record
+
+
 def kii_form_is_configured() -> bool:
     return bool((settings.KOBO_KII_FORM_URL or "").strip())
 

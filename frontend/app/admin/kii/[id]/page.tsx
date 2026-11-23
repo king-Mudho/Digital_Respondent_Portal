@@ -9,6 +9,7 @@ import { KiiContactFinderPanel } from "@/components/admin/ContactFinderPanel";
 import { DeliveryList, InvitationSendPanel, type Delivery, type IssuedInvitation } from "@/components/admin/InvitationSendPanel";
 import { KoboFormPanel } from "@/components/admin/KoboFormPanel";
 import { InterviewSheet } from "@/components/admin/InterviewSheet";
+import { KiiAssignPanel, KiiQaPanel } from "@/components/admin/KiiQaAndAssignPanels";
 import { IntroductionPanel } from "@/components/admin/IntroductionPanel";
 import { PreProfilePanel } from "@/components/admin/PreProfilePanel";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,12 @@ interface KIIRecord {
   recording_consent_decision: string | null;
   kii_form_configured: boolean;
   coding_url: string | null;
+  assigned_ra: number | null;
+  assigned_ra_name: string;
+  qa_status: string;
+  qa_note: string;
+  qa_by_name: string;
+  qa_at: string | null;
 }
 
 interface KIIInvitationTokenEntry {
@@ -322,6 +329,28 @@ export default function KIIDetailPage() {
           </div>
         </WriteOnly>
       </Card>
+
+      {/* Who phones them: the PI and Field Coordinator assign here; the Supervisor sees it (CanManageRATeam). */}
+      <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"]}>
+        <KiiAssignPanel
+          kiiId={record.kii_id}
+          status={record.status}
+          assignedRa={record.assigned_ra}
+          assignedRaName={record.assigned_ra_name}
+          onChanged={invalidate}
+        />
+      </IfRole>
+
+      {record.status === "COMPLETED" && (
+        <KiiQaPanel
+          recordId={record.id}
+          qaStatus={record.qa_status}
+          qaNote={record.qa_note}
+          qaByName={record.qa_by_name}
+          qaAt={record.qa_at}
+          onChanged={invalidate}
+        />
+      )}
 
       <IfRole roles={["TELEPHONE_RA"]}>
         <Card className="space-y-1 mb-4">

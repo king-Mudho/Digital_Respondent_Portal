@@ -53,7 +53,7 @@ export function CreditList({
                 {c.evidence}
                 {c.override_reason && <span className="block text-text">“{c.override_reason}”</span>}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{c.amount_usd ? usd(c.amount_usd) : c.kind !== "UNCREDITED" && c.study === "QUAN" && c.qa_status !== "Rejected" ? <span className="text-xs text-text-muted">after QA</span> : "—"}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{c.amount_usd ? usd(c.amount_usd) : c.kind !== "UNCREDITED" && c.qa_status !== "Rejected" ? <span className="text-xs text-text-muted">after QA</span> : "—"}</td>
               {action && <td className="px-3 py-2 text-right">{action(c)}</td>}
             </tr>
           ))}

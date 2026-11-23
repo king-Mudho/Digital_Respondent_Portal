@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.permissions import CanInviteKII, CanManageKII, CanViewKIIRecords
+from api.permissions import CanInviteKII, CanManageKII, CanQAKII, CanViewKIIRecords
 from api.phone_search import PhoneSearchFilter
 from api.throttling import PerTokenThrottle, RespondentRateThrottle
 from apps.consent.models import ConsentDecision, ConsentMethod, ConsentType
@@ -21,6 +21,7 @@ from .services import (
     KIIRecordingConsentRequired,
     KIITokenValidationError,
     advance_coding_status,
+    record_kii_qa,
     advance_transcript_status,
     generate_kii_id,
     issue_kii_invitation,
@@ -52,7 +53,7 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
 
     permission_classes = [CanViewKIIRecords]
     serializer_class = KIIRecordSerializer
-    filterset_fields = ["status", "stakeholder_category", "transcript_status", "coding_status"]
+    filterset_fields = ["status", "stakeholder_category", "transcript_status", "coding_status", "qa_status", "assigned_ra"]
     search_fields = [
         "kii_id", "participant_name", "participant_role",
         "stakeholder_category", "organisation__name",
@@ -65,7 +66,7 @@ class KIIRecordListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         return (visible_kii_records(self.request.user)
-                .select_related("participation_consent", "recording_consent").order_by("kii_id"))
+                .select_related("participation_consent", "recording_consent", "assigned_ra", "qa_by").order_by("kii_id"))
 
     def create(self, request, *args, **kwargs):
         from apps.ra.roles import assigned_kii_only
@@ -85,7 +86,8 @@ class KIIRecordDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = KIIRecordSerializer
 
     def get_queryset(self):
-        return visible_kii_records(self.request.user).select_related("participation_consent", "recording_consent")
+        return visible_kii_records(self.request.user).select_related("participation_consent", "recording_consent",
+                                                                      "assigned_ra", "qa_by")
 
 
 def _error(code, message, status=400):
@@ -167,6 +169,21 @@ class KIICodingStatusView(APIView):
         record = get_object_or_404(KIIRecord, pk=pk)
         try:
             advance_coding_status(record, request.data.get("coding_status"))
+        except InvalidKIITransition as exc:
+            return _error("invalid_transition", str(exc))
+        return Response(KIIRecordSerializer(record).data)
+
+
+class KIIQADecisionView(APIView):
+    """POST /api/v1/kii/{id}/qa/ {"qa_status", "note"} -- the PI's QA of a completed interview (23 Nov 2026). The RA's
+    commission for it is paid only once it is QA passed."""
+
+    permission_classes = [CanQAKII]
+
+    def post(self, request, pk):
+        record = get_object_or_404(KIIRecord, pk=pk)
+        try:
+            record_kii_qa(record, request.data.get("qa_status"), note=request.data.get("note", ""), user=request.user)
         except InvalidKIITransition as exc:
             return _error("invalid_transition", str(exc))
         return Response(KIIRecordSerializer(record).data)

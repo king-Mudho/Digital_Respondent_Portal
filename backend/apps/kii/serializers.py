@@ -21,6 +21,10 @@ class KIIRecordSerializer(serializers.ModelSerializer):
     # different people who can fix it.
     kii_form_configured = serializers.SerializerMethodField()
     coding_url = serializers.SerializerMethodField()
+    # Who phones them, and the PI's QA of the interview (23 Nov 2026): shown here, changed only through
+    # /ra/assign-kii/ and /kii/{id}/qa/, never by a PATCH to the record.
+    assigned_ra_name = serializers.SerializerMethodField()
+    qa_by_name = serializers.SerializerMethodField()
 
     class Meta:
         model = KIIRecord
@@ -30,6 +34,7 @@ class KIIRecordSerializer(serializers.ModelSerializer):
             "interview_date", "duration_minutes", "interviewer", "transcript_status", "coding_status",
             "thematic_coverage_tags", "field_notes", "participation_consent_decision",
             "recording_consent_decision", "kii_form_configured", "coding_url",
+            "assigned_ra", "assigned_ra_name", "qa_status", "qa_note", "qa_by_name", "qa_at",
         ]
         # status/transcript_status/coding_status are read-only here on purpose (found
         # 2026-10-01 while adding the record-details edit screen, never exploited): a
@@ -43,6 +48,7 @@ class KIIRecordSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id", "kii_id", "kii_form_configured", "coding_url",
             "status", "transcript_status", "coding_status",
+            "assigned_ra", "assigned_ra_name", "qa_status", "qa_note", "qa_by_name", "qa_at",
         ]
 
     def _is_list_context(self) -> bool:
@@ -56,6 +62,14 @@ class KIIRecordSerializer(serializers.ModelSerializer):
         # with_rows). Only the single-record detail page needs this field;
         # `self.parent` is the ListSerializer when DRF is rendering a list.
         return isinstance(self.parent, serializers.ListSerializer)
+
+    def get_assigned_ra_name(self, obj):
+        ra = obj.assigned_ra
+        return (ra.get_full_name() or ra.username) if ra else ""
+
+    def get_qa_by_name(self, obj):
+        user = obj.qa_by
+        return (user.get_full_name() or user.username) if user else ""
 
     def get_kii_form_configured(self, obj):
         if self._is_list_context():

@@ -218,6 +218,14 @@ class CanManageExperts(BasePermission):
         return role == "SUPERVISOR_READONLY" and request.method in READ_ONLY_METHODS
 
 
+class CanQAKII(BasePermission):
+    """QA of a completed key informant interview (PI, 23 Nov 2026): the PI passes, queries or rejects it, which is what
+    releases the RA's commission for it. Nobody else -- not the RA who did the interview, not the Supervisor."""
+
+    def has_permission(self, request, view):
+        return _authenticated_role(request) in ADMIN_ROLES
+
+
 class CanManageRATeam(BasePermission):
     """The Research assistants screen (apps/ra, 2026-11-08): the PI and Field Coordinator assign work to the RAs and
     see every RA's completions and credits; the Supervisor reads; only the PI overrides a credit (checked in the

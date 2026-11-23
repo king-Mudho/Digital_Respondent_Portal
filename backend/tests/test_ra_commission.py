@@ -2,8 +2,8 @@
 settings.RA_COMMISSION_USD. Under test:
 
 - an administered or assisted completion earns the rate; one with no RA earns nothing;
-- a questionnaire earns only once it has passed QA (PI, 23 Nov 2026): nothing while pending or queried, nothing if
-  rejected, and the rate when it passes; a KII, with no QA step, earns when it completes;
+- a questionnaire or a KII earns only once it has passed QA (PI, 23 Nov 2026): nothing while pending or queried,
+  nothing if rejected, and the rate when it passes; the PI passes a KII on its own page;
 - each credit keeps the amount it was first credited at, so changing the rate pays new completions only;
 - the PI's override moves the amount with the credit, and taking a credit away takes its amount away;
 - My work shows an RA their own total and nobody else's; the team screen and pay sheet show every RA's.
@@ -96,12 +96,24 @@ def test_a_rejected_questionnaire_earns_nothing(team, work):
     assert (c.ra, c.amount_usd) == (team["rudo"], Decimal("0.00"))
 
 
-def test_a_kii_earns_when_it_completes(team, work):
+def test_a_kii_earns_only_once_the_pi_passes_its_qa(team, work):
     record = work["kii"]
     record.interviewer, record.status = team["rudo"], KIIStatus.COMPLETED
     record.save(update_fields=["interviewer", "status"])
     credit.refresh()
-    assert SubmissionCredit.objects.get(kii_record=record).amount_usd == Decimal("2.50")
+    c = SubmissionCredit.objects.get(kii_record=record)
+    assert (c.ra, c.amount_usd) == (team["rudo"], Decimal("0.00"))  # completed, QA pending
+    assert _client(team["rudo"]).get("/api/v1/ra/my-work/").json()["totals"]["awaiting_qa"] == 1
+    url = f"/api/v1/kii/{record.pk}/qa/"
+    assert _client(team["pi"]).post(url, {"qa_status": "QA_PASSED"}, format="json").status_code == 200
+    credit.refresh()
+    c.refresh_from_db()
+    assert c.amount_usd == Decimal("2.50")
+    assert _client(team["pi"]).post(url, {"qa_status": "REJECTED", "note": "Recording is of a different person"},
+                                    format="json").status_code == 200
+    credit.refresh()
+    c.refresh_from_db()
+    assert c.amount_usd == Decimal("0.00")
 
 
 def test_an_overridden_questionnaire_is_still_paid_only_after_qa(team, work):

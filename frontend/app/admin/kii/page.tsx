@@ -9,6 +9,8 @@ import { KiiInvitationBatchPanel } from "@/components/admin/KiiInvitationBatchPa
 import { KiiUnansweredPanel } from "@/components/admin/KiiUnansweredPanel";
 import { ReconciliationQueuePanel } from "@/components/admin/ReconciliationQueuePanel";
 import { ResearchImportPanel } from "@/components/admin/ResearchImportPanel";
+import { QA_LABEL, QA_TONE, useCallers } from "@/components/admin/KiiQaAndAssignPanels";
+import { useAdminUser } from "@/lib/auth/session";
 import { Pagination, usePaging, SearchBox, type Paginated } from "@/components/admin/Pagination";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,6 +24,8 @@ interface KIIRecord {
   status: string;
   transcript_status: string;
   coding_status: string;
+  assigned_ra_name: string;
+  qa_status: string;
 }
 
 interface KiiBatchInfo {
@@ -157,23 +161,46 @@ const STATUS_FILTER: [string, string][] = [
   ["NO_SHOW", "No show"],
 ];
 
+/** QA of completed interviews (23 Nov 2026): choosing one narrows the register to completed interviews. */
+const QA_FILTER: [string, string][] = [
+  ["", "Any QA"],
+  ["PENDING", "Awaiting QA"],
+  ["QUERY", "Query"],
+  ["QA_PASSED", "QA passed"],
+  ["REJECTED", "Rejected"],
+];
+
 export default function KIIRegisterPage() {
+  return (
+    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
+      <KIIRegister />
+    </AdminShell>
+  );
+}
+
+function KIIRegister() {
+  const me = useAdminUser();
+  const managesTeam = ["PI_ADMIN", "FIELD_COORDINATOR", "SUPERVISOR_READONLY"].includes(me?.role ?? "");
+  const { data: callers } = useCallers(managesTeam);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
+  const [qa, setQa] = useState("");
+  const [assignee, setAssignee] = useState("");
   const { page, setPage, pageSize, setPageSize } = usePaging();
 
   const { data, isLoading } = useQuery({
-    queryKey: ["kii-records", search, status, page, pageSize],
+    queryKey: ["kii-records", search, status, qa, assignee, page, pageSize],
     queryFn: () =>
       adminFetch<Paginated<KIIRecord>>(
         `/kii/?page=${page}&page_size=${pageSize}` + (search ? `&search=${encodeURIComponent(search)}` : "") +
-          (status ? `&status=${status}` : ""),
+          (qa ? `&status=COMPLETED&qa_status=${qa}` : status ? `&status=${status}` : "") +
+          (assignee ? `&assigned_ra=${assignee}` : ""),
       ),
     placeholderData: keepPreviousData,
   });
 
   return (
-    <AdminShell backHref="/admin/dashboard" backLabel="Dashboard">
+    <>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
         <h2 className="font-semibold text-xl">KII Register</h2>
         <div className="flex items-center gap-3 flex-wrap">
@@ -188,7 +215,8 @@ export default function KIIRegisterPage() {
           <label className="flex items-center gap-2 text-sm">
             <span className="text-text-muted">Status</span>
             <select
-              value={status}
+              value={qa ? "COMPLETED" : status}
+              disabled={!!qa}
               onChange={(e) => {
                 setStatus(e.target.value);
                 setPage(1); // page 3 of everyone is rarely page 3 of one status
@@ -201,6 +229,41 @@ export default function KIIRegisterPage() {
               ))}
             </select>
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-text-muted">QA</span>
+            <select
+              value={qa}
+              onChange={(e) => {
+                setQa(e.target.value);
+                setPage(1);
+              }}
+              className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+              aria-label="Filter completed interviews by QA"
+            >
+              {QA_FILTER.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
+          {managesTeam && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-text-muted">Assigned to</span>
+              <select
+                value={assignee}
+                onChange={(e) => {
+                  setAssignee(e.target.value);
+                  setPage(1);
+                }}
+                className="min-h-11 rounded-md border border-border bg-surface px-2 text-sm"
+                aria-label="Filter by Research Assistant"
+              >
+                <option value="">Anyone</option>
+                {(callers ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
           {/* Registering informants is the KII RA's and coordinator's; the Research Assistant (calls) works its own. */}
           <IfRole roles={["PI_ADMIN", "FIELD_COORDINATOR", "KII_RA"]}>
             <Link href="/admin/kii/new">
@@ -229,9 +292,9 @@ export default function KIIRegisterPage() {
         ) : data.results.length === 0 ? (
           <p className="text-text-muted text-sm">
             {search
-              ? `No KII records match "${search}"${status ? " with that status" : ""}.`
-              : status
-                ? "No KII records have that status."
+              ? `No KII records match "${search}"${status || qa || assignee ? " with those filters" : ""}.`
+              : status || qa || assignee
+                ? "No KII records match those filters."
                 : "No KII records yet."}
           </p>
         ) : (
@@ -243,6 +306,8 @@ export default function KIIRegisterPage() {
                 <th className="py-2 pr-4">KII ID</th>
                 <th className="py-2 pr-4">Stakeholder category</th>
                 <th className="py-2 pr-4">Status</th>
+                <th className="py-2 pr-4">QA</th>
+                <th className="py-2 pr-4">Assigned to</th>
                 <th className="py-2 pr-4">Transcript</th>
                 <th className="py-2 pr-4">Coding</th>
                 <th className="py-2"></th>
@@ -254,6 +319,16 @@ export default function KIIRegisterPage() {
                   <td className="py-2 pr-4 font-mono text-xs">{k.kii_id}</td>
                   <td className="py-2 pr-4">{k.stakeholder_category}</td>
                   <td className="py-2 pr-4">{k.status}</td>
+                  <td className="py-2 pr-4">
+                    {k.status === "COMPLETED" ? (
+                      <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold ${QA_TONE[k.qa_status] ?? QA_TONE.PENDING}`}>
+                        {QA_LABEL[k.qa_status] ?? k.qa_status}
+                      </span>
+                    ) : (
+                      <span className="text-text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">{k.assigned_ra_name || <span className="text-text-muted">—</span>}</td>
                   <td className="py-2 pr-4">{k.transcript_status}</td>
                   <td className="py-2 pr-4">{k.coding_status}</td>
                   <td className="py-2">
@@ -270,6 +345,6 @@ export default function KIIRegisterPage() {
           </>
         )}
       </Card>
-    </AdminShell>
+    </>
   );
 }

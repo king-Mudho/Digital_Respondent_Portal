@@ -100,6 +100,7 @@ ACTION_LABELS: dict[str, str] = {
     "communication.sent": "Message written in Communications and sent (WhatsApp, SMS or email)",
     "ra.administered": "RA filled in the form with the respondent (questionnaire or KII)",
     "ra.assigned": "Work assigned to a research assistant",
+    "kii.qa_decided": "KII quality check recorded",
     "ra.pay_sheet_downloaded": "Research assistants' completions downloaded as a pay sheet (CSV)",
     "ra_credit.recorded": "Completed submission credited to an RA (or to no RA)",
     "ra_credit.changed": "Credit for a completed submission recomputed from new evidence",

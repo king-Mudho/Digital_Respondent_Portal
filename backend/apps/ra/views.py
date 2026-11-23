@@ -39,7 +39,7 @@ def _credit_row(c: SubmissionCredit) -> dict:
     else:
         from apps.contacts.kii_finder import organisation_name
 
-        ref, org, qa = c.kii_record.kii_id, organisation_name(c.kii_record), ""
+        ref, org, qa = c.kii_record.kii_id, organisation_name(c.kii_record), c.kii_record.get_qa_status_display()
     return {
         "id": c.id, "study": c.study, "study_label": c.get_study_display(), "ref": ref, "organisation": org,
         "submitted_at": c.submitted_at, "kind": c.kind, "kind_label": c.get_kind_display(),
@@ -228,6 +228,19 @@ class AssignKIIView(APIView):
             log_action("ra.assigned", request.user, {"study": "KII", "to": ra.username if ra else None, "kii_ids": ids},
                        user=request.user)
         return Response({"count": len(ids), "kii_ids": ids})
+
+
+class CallersView(APIView):
+    """GET /api/v1/ra/callers/ -- the active Research Assistant (calls) accounts, to assign a KII record to from its
+    own page (23 Nov 2026). PI, Field Coordinator; Supervisor reads."""
+
+    permission_classes = [CanManageRATeam]
+
+    def get(self, request):
+        from apps.accounts.models import User
+
+        callers = User.objects.filter(role__name=TELEPHONE_RA, is_active=True).order_by("first_name", "username")
+        return Response([{"id": u.id, "username": u.username, "name": u.get_full_name() or u.username} for u in callers])
 
 
 class CreditOverrideView(APIView):

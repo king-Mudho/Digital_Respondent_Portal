@@ -12,6 +12,7 @@ from .views import (
     KIIInvitationTextView,
     KIIInvitationValidateView,
     KIIKoboRedirectView,
+    KIIQADecisionView,
     KIIRecordDetailView,
     KIIRecordListCreateView,
     KIIStatusTransitionView,
@@ -27,6 +28,7 @@ urlpatterns = [
     path("kii/<int:pk>/consent/", KIIConsentView.as_view(), name="consent"),
     path("kii/<int:pk>/transcript-status/", KIITranscriptStatusView.as_view(), name="transcript-status"),
     path("kii/<int:pk>/coding-status/", KIICodingStatusView.as_view(), name="coding-status"),
+    path("kii/<int:pk>/qa/", KIIQADecisionView.as_view(), name="qa"),
     # KII self-service invitation (2026-10-01) -- public respondent-facing
     # surface under kii-invitations/, parallel to apps.invitations.urls'
     # invitations/ (see apps/kii/services.py for why it's a separate model
