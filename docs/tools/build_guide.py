@@ -31,7 +31,7 @@ OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ABF-FST_Digital_
 # copy can be told apart from an earlier one. Deliberately not today's date
 # at build time: rebuilding an unchanged guide should not look like a new
 # revision.
-REVISION = "Revision 11 &mdash; 19 November 2026"
+REVISION = "Revision 12 &mdash; 23 November 2026"
 REVISION_NOTE = (
     "The documentary-evidence target is now 108 coded documents (PI, 25 October 2026), replacing the planned "
     "50&ndash;75 range: every register entry with a file was coded and submitted. Supersedes Revision 3 of "
@@ -52,7 +52,10 @@ REVISION_NOTE = (
     "records, sends them the introduction or their link, and uses the interview sheet; and anyone who phones "
     "participants can send them the study information documents when they ask to read about the study first "
     "(Send study information, on a case, a KII record and each Calls row). Revision 11: the PI can record, on Research "
-    "Clearance, that a study document is sent to participants as it is even though it contains a restricted word."
+    "Clearance, that a study document is sent to participants as it is even though it contains a restricted word. "
+    "Revision 12 (23 November 2026): each completion credited to a research assistant earns a commission of US$2.50; "
+    "My work shows the RA what they have earned for the dates chosen, and Research assistants and the pay sheet show "
+    "everyone's."
 )
 
 # ---------------------------------------------------------------- palette --

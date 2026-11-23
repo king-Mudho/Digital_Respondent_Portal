@@ -1,6 +1,6 @@
 "use client";
 
-import { CREDIT_TONE, type CreditRow } from "@/lib/api/ra";
+import { CREDIT_TONE, usd, type CreditRow } from "@/lib/api/ra";
 
 /** Completed submissions with who earned each one: the record RAs are paid from. `action` adds a control per row. */
 export function CreditList({
@@ -26,6 +26,7 @@ export function CreditList({
             {showRA && <th className="px-3 py-2">Research assistant</th>}
             <th className="px-3 py-2">Credit</th>
             <th className="px-3 py-2">Evidence</th>
+            <th className="px-3 py-2 text-right">Commission</th>
             {action && <th className="px-3 py-2" />}
           </tr>
         </thead>
@@ -52,6 +53,7 @@ export function CreditList({
                 {c.evidence}
                 {c.override_reason && <span className="block text-text">“{c.override_reason}”</span>}
               </td>
+              <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{c.amount_usd ? usd(c.amount_usd) : "—"}</td>
               {action && <td className="px-3 py-2 text-right">{action(c)}</td>}
             </tr>
           ))}

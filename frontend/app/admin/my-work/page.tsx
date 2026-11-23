@@ -7,7 +7,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { CreditList } from "@/components/admin/CreditList";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
-import { firstOfMonth, periodQuery, type MyWork } from "@/lib/api/ra";
+import { firstOfMonth, periodQuery, usd, type MyWork } from "@/lib/api/ra";
 
 const SHORTCUTS = [
   { href: "/admin/calls", label: "Calls", text: "Everyone assigned to you, closest to finishing first. Phone them, fill in the form with them, log each call." },
@@ -47,6 +47,15 @@ function MyWorkView() {
         <h2 className="text-xl font-semibold">My work</h2>
         <p className="text-sm text-text-muted">{data.name} · the people assigned to you and the forms credited to you.</p>
       </div>
+
+      <Card className="space-y-1 border-success">
+        <p className="text-xs uppercase tracking-wide text-text-muted">Commission earned</p>
+        <p className="text-3xl font-semibold tabular-nums text-success">{usd(t?.earned_usd)}</p>
+        <p className="text-xs text-text-muted">
+          {t?.total ?? 0} completion{(t?.total ?? 0) === 1 ? "" : "s"} credited to you in the period below, at{" "}
+          {usd(data.commission_usd)} each. Set the dates to your pay period.
+        </p>
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="space-y-1">
@@ -88,7 +97,8 @@ function MyWorkView() {
           <span className="font-medium text-text">Administered:</span> you opened the form with <em>Fill in with them now</em> on
           Calls and completed it with them. <span className="font-medium text-text">Assisted:</span> they completed it themselves,
           and your call or message (logged on Calls, or sent from Communications) was the last one before it, within{" "}
-          {data.assist_days} days. Log every call, including ones from your own phone, or it can&apos;t count.
+          {data.assist_days} days. Each completion credited to you earns {usd(data.commission_usd)}. Log every call,
+          including ones from your own phone, or it can&apos;t count.
         </p>
       </Card>
 

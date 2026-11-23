@@ -286,6 +286,10 @@ EXPERT_TARGET = env.int("EXPERT_TARGET", default=12)
 # Research assistants are paid per completion they administered or assisted (apps/ra, PI 8 Nov 2026). A respondent's
 # own completion is "assisted" by the RA whose call or message came last within this many days before it.
 RA_ASSIST_CREDIT_DAYS = env.int("RA_ASSIST_CREDIT_DAYS", default=14)
+# What an RA earns per completion credited to them, administered or assisted, in US$ (PI, 23 Nov 2026). Each credit
+# keeps the amount it was recorded at (SubmissionCredit.amount_usd), so changing this pays new completions at the new
+# rate without rewriting what was already earned.
+RA_COMMISSION_USD = env.float("RA_COMMISSION_USD", default=2.50)
 # The Research Assistant (calls) accounts whose call lists newly issued links go on (apps/ra/assignment.py, PI 12 Nov
 # 2026): one username, or several separated by commas -- each link then goes to whichever has the least open work, so
 # they alternate while level. Empty switches it off.

@@ -16,6 +16,8 @@ export interface CreditRow {
   overridden: boolean;
   override_reason: string;
   overridden_by: string;
+  /** The commission this completion earns its RA (0 with no RA). */
+  amount_usd: number;
 }
 
 export interface CreditTotals {
@@ -25,6 +27,8 @@ export interface CreditTotals {
   kii_assisted: number;
   quan_qa_passed: number;
   total: number;
+  /** Commission earned in the period, US$. */
+  earned_usd: number;
 }
 
 export interface Workload {
@@ -42,6 +46,8 @@ export interface MyWork {
   totals: (CreditTotals & { name: string }) | null;
   credits: CreditRow[];
   assist_days: number;
+  /** Commission per credited completion, US$ (settings.RA_COMMISSION_USD). */
+  commission_usd: number;
 }
 
 export interface TeamMember {
@@ -63,6 +69,9 @@ export interface Team {
   /** Accounts holding open Main-400 work (cases and activated Reserves), to move it from. */
   main_holders?: { id: number; username: string; count: number }[];
   assist_days: number;
+  commission_usd: number;
+  /** Commission earned by everyone in the period, US$. */
+  earned_usd: number;
   can_override: boolean;
 }
 
@@ -71,6 +80,11 @@ export const CREDIT_TONE: Record<CreditRow["kind"], string> = {
   ASSISTED: "bg-header text-white",
   UNCREDITED: "bg-bg border border-border text-text-muted",
 };
+
+/** US$2.50 */
+export function usd(amount: number | undefined): string {
+  return `US$${(amount ?? 0).toFixed(2)}`;
+}
 
 /** ?since=&until= for a pay period; "" for all time. */
 export function periodQuery(since: string, until: string): string {

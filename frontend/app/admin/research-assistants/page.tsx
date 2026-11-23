@@ -8,7 +8,7 @@ import { WriteOnly } from "@/components/admin/RoleGate";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
-import { firstOfMonth, periodQuery, type CreditRow, type Team } from "@/lib/api/ra";
+import { firstOfMonth, periodQuery, usd, type CreditRow, type Team } from "@/lib/api/ra";
 
 /**
  * The research assistants (backend apps/ra, 2026-11-08): who is assigned what, how many forms each one administered
@@ -65,11 +65,12 @@ function TeamView() {
               <th className="px-3 py-2 text-right">KIIs<span className="block font-normal">administered / assisted</span></th>
               <th className="px-3 py-2 text-right">Passed QA</th>
               <th className="px-3 py-2 text-right">Total completed</th>
+              <th className="px-3 py-2 text-right">Commission<span className="block font-normal">at {usd(data.commission_usd)} each</span></th>
             </tr>
           </thead>
           <tbody>
             {data.team.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-3 text-text-muted">No RA accounts yet.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-3 text-text-muted">No RA accounts yet.</td></tr>
             )}
             {data.team.map((m) => (
               <tr key={m.id} className="border-b border-border last:border-0">
@@ -83,6 +84,7 @@ function TeamView() {
                 <td className="px-3 py-2 text-right tabular-nums">{m.credits.kii_administered} / {m.credits.kii_assisted}</td>
                 <td className="px-3 py-2 text-right tabular-nums">{m.credits.quan_qa_passed}</td>
                 <td className="px-3 py-2 text-right text-lg font-semibold tabular-nums">{m.credits.total}</td>
+                <td className="px-3 py-2 text-right text-lg font-semibold tabular-nums text-success">{usd(m.credits.earned_usd)}</td>
               </tr>
             ))}
           </tbody>
@@ -93,6 +95,7 @@ function TeamView() {
           Also filled in by staff who are not RAs: {data.others.map((o) => `${o.name} (${o.total})`).join(", ")}.
         </p>
       )}
+      <p className="text-sm">Commission earned by everyone in this period: <b className="tabular-nums">{usd(data.earned_usd)}</b></p>
       <p className="text-xs text-text-muted">{data.uncredited} completion{data.uncredited === 1 ? "" : "s"} in this period had no RA involved.</p>
 
       <WriteOnly note={null}>

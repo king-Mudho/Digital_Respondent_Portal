@@ -40,6 +40,8 @@ class SubmissionCredit(models.Model):
     overridden_by = models.ForeignKey("accounts.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     overridden_at = models.DateTimeField(null=True, blank=True)
     override_reason = models.CharField(max_length=300, blank=True)
+    # The commission this completion earns its RA (settings.RA_COMMISSION_USD when it was first credited; 0 with no RA).
+    amount_usd = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -46,6 +46,7 @@ def _credit_row(c: SubmissionCredit) -> dict:
         "ra": c.ra.username if c.ra_id else "", "ra_name": (c.ra.get_full_name() or c.ra.username) if c.ra_id else "",
         "evidence": c.evidence, "qa_status": qa, "overridden": c.overridden_at is not None, "override_reason": c.override_reason,
         "overridden_by": c.overridden_by.username if c.overridden_by_id else "",
+        "amount_usd": float(c.amount_usd),
     }
 
 
@@ -84,7 +85,7 @@ class MyWorkView(APIView):
         summary = credits.summary(mine)
         return Response({"name": request.user.get_full_name() or request.user.username, "workload": _workload(request.user),
                          "totals": summary[0] if summary else None, "credits": [_credit_row(c) for c in mine],
-                         "assist_days": credits.settings.RA_ASSIST_CREDIT_DAYS})
+                         "assist_days": credits.settings.RA_ASSIST_CREDIT_DAYS, "commission_usd": float(credits.rate())})
 
 
 class TeamView(APIView):
@@ -104,12 +105,13 @@ class TeamView(APIView):
             response["Content-Disposition"] = 'attachment; filename="ABF-FST_RA_completions.csv"'
             writer = csv.writer(response)
             writer.writerow(["Submitted", "Study", "Case / KII", "Organisation", "Research assistant", "Credit", "Evidence",
-                             "QA status", "Changed by PI"])
+                             "QA status", "Changed by PI",
+                             "Commission (US$)"])
             for c in period:
                 row = _credit_row(c)
                 writer.writerow([timezone.localtime(c.submitted_at).strftime("%Y-%m-%d %H:%M"), row["study_label"], row["ref"],
                                  row["organisation"], row["ra_name"] or "-", row["kind_label"], row["evidence"], row["qa_status"],
-                                 row["override_reason"]])
+                                 row["override_reason"], f"{c.amount_usd:.2f}"])
             log_action("ra.pay_sheet_downloaded", request.user, {"since": request.query_params.get("since"),
                                                                  "until": request.query_params.get("until")}, user=request.user)
             return response
@@ -118,7 +120,8 @@ class TeamView(APIView):
         team = [{"id": u.id, "username": u.username, "name": u.get_full_name() or u.username, "role": u.role.name,
                  "role_label": u.role.get_name_display(), "workload": _workload(u),
                  "credits": summary.get(u.id, {"quan_administered": 0, "quan_assisted": 0, "kii_administered": 0,
-                                               "kii_assisted": 0, "quan_qa_passed": 0, "total": 0})} for u in ras]
+                                               "kii_assisted": 0, "quan_qa_passed": 0, "total": 0,
+                                               "earned_usd": 0.0})} for u in ras]
         others = [r for ra_id, r in summary.items() if ra_id not in {u.id for u in ras}]  # e.g. the PI administered one
         return Response({
             "team": team, "others": others,
@@ -132,6 +135,8 @@ class TeamView(APIView):
                              for h in open_main_work().exclude(assigned_ra=None).values("assigned_ra", "assigned_ra__username")
                              .annotate(n=Count("id")).order_by("-n")],
             "assist_days": credits.settings.RA_ASSIST_CREDIT_DAYS,
+            "commission_usd": float(credits.rate()),
+            "earned_usd": float(sum((c.amount_usd for c in period), credits.Decimal("0.00"))),
             "can_override": getattr(request.user.role, "name", "") == "PI_ADMIN",
         })
 
