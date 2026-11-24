@@ -28,6 +28,7 @@ ACTION_LABELS: dict[str, str] = {
     "clearance.wording_exception_withdrawn": "Clearance document's send-as-it-is decision withdrawn",
     "consent.recorded": "Consent recorded",
     "consent.withdrawn": "Consent withdrawn",
+    "consent.test_voided": "Consent entered during a test voided (recorded as withdrawn)",
     "consent.withdrawal_processed": "Participation withdrawn",
     "contacts.batch_started": "Contact search started for a batch of cases",
     "contacts.call_logged": "Phone call logged (Calls screen)",
@@ -42,6 +43,7 @@ ACTION_LABELS: dict[str, str] = {
     "contacts.search_failed": "Contact search failed",
     "contacts.search_started": "Contact search started",
     "contacts.respondent_updated": "Respondent contact details updated",
+    "contacts.respondent_removed": "Respondent entered in error removed",
     "document.ai_draft_edited": "AI draft edited",
     "document.ai_draft_generated": "AI draft generated",
     "document.authenticity_assessed": "Document authenticity assessed",
@@ -171,6 +173,7 @@ ACTION_LABELS: dict[str, str] = {
     "sampling.status_reset_after_test_cleanup": "Case status reset (test cleanup)",
     "sampling.status_reset_fresh_start": "Case returned to S03 for a fresh start (new outreach line)",
     "sampling.status_reset_after_referral": "Case returned to S03: said no but passed us to someone else",
+    "sampling.status_reset_new_contact": "Case returned to S03: reopened with a new contact an RA found",
 }
 
 # Keys checked in this order for the one-line "detail" summary; the first match found wins, then any
