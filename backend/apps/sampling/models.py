@@ -288,6 +288,13 @@ class SampleCase(models.Model):
     def __str__(self):
         return self.sample_id
 
+    @property
+    def respondent_facing_name(self) -> str:
+        """The name the respondent sees on their link page and in the study's messages to them. The organisation's
+        register name, unless the PI recorded another (metadata "addressed_as", 25 Nov 2026): a respondent may not
+        want a link to call them by their employer's name. The register name stays what is sampled and analysed."""
+        return str((self.metadata or {}).get("addressed_as") or "").strip() or self.organisation.name
+
 
 class ReplacementTrigger(models.TextChoices):
     """What makes a Main case "did not take part" for automatic replacement, and the authorised reason it records."""

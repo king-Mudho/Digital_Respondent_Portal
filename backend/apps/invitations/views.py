@@ -66,7 +66,7 @@ class InvitationValidateView(APIView):
         except TokenValidationError as exc:
             return Response({"error": {"code": exc.code, "message": str(exc), "field_errors": {}}}, status=400)
 
-        org_name = token.sample_case.organisation.name
+        org_name = token.sample_case.respondent_facing_name
         return Response({
             "status": "valid",
             "organisation_name_confirmation": f"Please confirm: is this {org_name}?",

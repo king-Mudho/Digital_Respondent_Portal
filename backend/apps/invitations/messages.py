@@ -69,7 +69,7 @@ def _greeting_name(name: str) -> str:
 
 def build_messages(*, sample_case, link: str, manual_code: str, expires_at, to_name: str = "", letters=()) -> dict:
     expires = timezone.localtime(expires_at).strftime("%d %B %Y").lstrip("0")
-    org = sample_case.organisation.name
+    org = sample_case.respondent_facing_name
     name = _greeting_name(to_name)
 
     # The organisation is named first (PI request, 2026-10-06), so whoever reads it -- and whoever sent it, scrolling
@@ -180,7 +180,7 @@ def text_invitation(token, *, channel: str, link: str, manual_code: str, user) -
         message = outbound.send(
             channel=channel, number=number, purpose=MessagePurpose.INVITATION, sms_body=text["sms"],
             wa_content=settings.TWILIO_WA_CONTENT_INVITATION.strip(),
-            wa_variables={1: case.organisation.name, 2: link, 3: expires, 4: manual_code},
+            wa_variables={1: case.respondent_facing_name, 2: link, 3: expires, 4: manual_code},
             user=user, sample_case=case, invitation_token=token,
             record_text=text["whatsapp"], redact_link=link, redact_code=manual_code,
         )

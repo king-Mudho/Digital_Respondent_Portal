@@ -34,6 +34,26 @@ def test_validate_endpoint_returns_minimal_payload(client, issued_token):
     assert "stratum" not in body
 
 
+def test_link_page_uses_the_name_the_respondent_asked_for(client, main_case):
+    """A respondent who doesn't want to be called by their employer's name (Econet Mutare, 25 Nov 2026) sees the name
+    the PI recorded -- on the link page and in the thank-you -- while the organisation keeps its register name."""
+    from apps.invitations.messages import build_messages
+    from apps.messaging.thanks import _names
+    from django.utils import timezone
+
+    main_case.metadata = {**(main_case.metadata or {}), "addressed_as": "Delphine Birira"}
+    main_case.save(update_fields=["metadata"])
+    raw_token, _, _ = issue_invitation(main_case)
+    body = client.get(f"/api/v1/invitations/validate/?t={raw_token}").json()
+    assert body["organisation_name_confirmation"] == "Please confirm: is this Delphine Birira?"
+    assert "Test Organisation" not in body["organisation_name_confirmation"]
+    msgs = build_messages(sample_case=main_case, link="https://x/i/t", manual_code="ABC", expires_at=timezone.now())
+    assert "Delphine Birira" in msgs["whatsapp"] and "Test Organisation" not in msgs["whatsapp"]
+    assert _names(main_case)[0] == "Delphine Birira"
+    main_case.organisation.refresh_from_db()
+    assert main_case.organisation.name.startswith("Test Organisation")
+
+
 def test_validate_endpoint_rejects_bad_token(client, db):
     response = client.get("/api/v1/invitations/validate/?t=garbage")
     assert response.status_code == 400

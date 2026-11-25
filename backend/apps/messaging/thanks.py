@@ -119,7 +119,7 @@ def _names(target) -> tuple[str, str, str]:
         return _kii_addressee(target), greeting, "key informant interview"
     from apps.invitations.messages import _greeting_name, recipients
 
-    org = target.organisation.name
+    org = target.respondent_facing_name
     name = _greeting_name(recipients(target)["email_to_name"])
     return org, name or f"{org} team", "questionnaire"
 

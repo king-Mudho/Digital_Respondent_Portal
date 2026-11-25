@@ -225,7 +225,7 @@ def _intro_content(*, kii: bool, greeting: str) -> tuple[str, str, str]:
 
 
 def _send_intro(case, number: str, channel: str, *, reminder: bool, user):
-    org = case.organisation.name
+    org = case.respondent_facing_name
     if channel == MessageChannel.WHATSAPP:
         reminder_ready = reminder and not tw.template_waiting("TWILIO_WA_CONTENT_INTRO_REMINDER")
         if reminder_ready:
