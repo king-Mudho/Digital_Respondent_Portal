@@ -73,3 +73,13 @@ def test_a_reason_is_required_and_only_ra_accounts_can_be_changed(team, work):
     assert _status(_client(team["pi"]), team["fc"], False).status_code == 404
     assert _status(_client(team["pi"]), tino, False).status_code == 400  # already paused
     assert User.objects.get(pk=tino.pk).is_active is False
+
+
+def test_my_work_shows_the_pi_the_paused_ras_and_never_an_ra(team, work):
+    tino = team["tino"]
+    tino.is_active = False
+    tino.save(update_fields=["is_active"])
+    pi_body = _client(team["pi"]).get("/api/v1/ra/my-work/").json()
+    assert tino.id in [p["id"] for p in pi_body["paused"]]
+    ra_body = _client(team["rudo"]).get("/api/v1/ra/my-work/").json()
+    assert "paused" not in ra_body

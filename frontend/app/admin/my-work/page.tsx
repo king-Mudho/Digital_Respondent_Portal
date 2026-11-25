@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { CreditList } from "@/components/admin/CreditList";
+import { PausedList } from "@/components/admin/PausedRAs";
 import { Card } from "@/components/ui/card";
 import { adminFetch } from "@/lib/api/admin";
 import { firstOfMonth, periodQuery, usd, type MyWork } from "@/lib/api/ra";
@@ -88,6 +89,8 @@ function MyWorkView() {
           <p className="text-xs text-text-muted">{w.calls_7d} calls and {w.contacts_7d} contacts logged in the last 7 days</p>
         </Card>
       </div>
+
+      {data.paused && data.paused.length > 0 && <PausedList paused={data.paused} canChange />}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {SHORTCUTS.map((s) => (

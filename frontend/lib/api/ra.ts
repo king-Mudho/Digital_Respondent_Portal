@@ -50,6 +50,8 @@ export interface MyWork {
   assist_days: number;
   /** Commission per credited completion, US$ (settings.RA_COMMISSION_USD). */
   commission_usd: number;
+  /** The PI only: paused research assistants, to reactivate (25 Nov 2026). Never sent to an RA. */
+  paused?: PausedRA[];
 }
 
 export interface TeamMember {

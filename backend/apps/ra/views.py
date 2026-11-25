@@ -104,9 +104,14 @@ class MyWorkView(APIView):
         credits.refresh()
         mine = _period(request, _credits_qs().filter(ra=request.user))
         summary = credits.summary(mine)
-        return Response({"name": request.user.get_full_name() or request.user.username, "workload": _workload(request.user),
-                         "totals": summary[0] if summary else None, "credits": [_credit_row(c) for c in mine],
-                         "assist_days": credits.settings.RA_ASSIST_CREDIT_DAYS, "commission_usd": float(credits.rate())})
+        body = {"name": request.user.get_full_name() or request.user.username, "workload": _workload(request.user),
+                "totals": summary[0] if summary else None, "credits": [_credit_row(c) for c in mine],
+                "assist_days": credits.settings.RA_ASSIST_CREDIT_DAYS, "commission_usd": float(credits.rate())}
+        if getattr(request.user.role, "name", "") == "PI_ADMIN":
+            # The PI sees the paused RAs here too (25 Nov 2026), to reactivate them. An RA never gets this key: My work
+            # shows them only their own.
+            body["paused"] = _paused_ras({r["ra_id"]: r for r in credits.summary(_credits_qs())})
+        return Response(body)
 
 
 class TeamView(APIView):
