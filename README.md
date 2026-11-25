@@ -918,6 +918,16 @@ works):
 
 ## Notable fixes
 
+### A paused research assistant is told to contact the PI (25 Nov 2026)
+
+The PI deactivated the call RAs who weren't contacting organisations and asked that they contact him to be
+reactivated. Django refuses an inactive account the same way it refuses a wrong password, so a paused RA saw
+"Invalid username or password" and would go hunting for a typo. Nobody had noticed because the two RAs deactivated on
+24 Nov had no reason to sign in again. Sign-in (`accounts.views.PausedAwareTokenSerializer`) now answers a deactivated
+account that gives its **correct** password with 403 `account_paused`: "Your account is paused. Please contact the PI
+to have it reactivated." A wrong password still gets the ordinary refusal, so the message reveals nothing about which
+usernames exist, and a paused account is still never issued a token (`tests/test_paused_account_signin.py`).
+
 ### A delivered WhatsApp no longer shows as Sent (25 Nov 2026)
 
 Communications showed two delivered WhatsApp messages as Sent. Twilio reports "sent" and "delivered" for a message

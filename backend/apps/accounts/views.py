@@ -1,8 +1,10 @@
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from rest_framework.exceptions import AuthenticationFailed, PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from api.navigation import (
@@ -19,6 +21,30 @@ from api.throttling import LoginRateThrottle
 from .models import Role, User
 
 
+class AccountPaused(PermissionDenied):
+    default_code = "account_paused"
+    default_detail = "Your account is paused. Please contact the PI to have it reactivated."
+
+
+class PausedAwareTokenSerializer(TokenObtainPairSerializer):
+    """A deactivated account that gives its correct password is told it is paused (PI, 25 Nov 2026).
+
+    The PI pauses research assistants who are not calling, and they're to contact him to be reactivated. Django
+    refuses an inactive user exactly as it refuses a wrong password, so the paused RA saw "Invalid username or
+    password" and would go looking for a typo. The paused message appears only after the password checks out, so it
+    tells a stranger nothing about which usernames exist. Being paused still never issues a token.
+    """
+
+    def validate(self, attrs):
+        try:
+            return super().validate(attrs)
+        except AuthenticationFailed:
+            user = User.objects.filter(username=attrs.get(self.username_field)).first()
+            if user is not None and not user.is_active and user.check_password(attrs.get("password") or ""):
+                raise AccountPaused()
+            raise
+
+
 class InternalTokenObtainView(TokenObtainPairView):
     """POST /api/v1/auth/token/ -- internal sign-in.
 
@@ -30,6 +56,7 @@ class InternalTokenObtainView(TokenObtainPairView):
     """
 
     throttle_classes = [LoginRateThrottle]
+    serializer_class = PausedAwareTokenSerializer
 
 
 class CurrentUserView(APIView):

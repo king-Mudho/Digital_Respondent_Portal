@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
         { status: 502 },
       );
     }
+    if (upstream.status === 403) {
+      // A paused (deactivated) account that gave its correct password: tell them to contact the PI rather than
+      // send them looking for a typo. The backend only says this after the password checks out.
+      const body = await upstream.json().catch(() => null);
+      if (body?.error?.code === "account_paused") {
+        return NextResponse.json({ error: { code: "account_paused", message: body.error.message } }, { status: 403 });
+      }
+    }
     return NextResponse.json({ error: { code: "invalid_credentials", message: "Invalid username or password." } }, { status: 401 });
   }
 
