@@ -143,7 +143,9 @@ class TeamView(APIView):
                  "credits": summary.get(u.id, {"quan_administered": 0, "quan_assisted": 0, "kii_administered": 0,
                                                "kii_assisted": 0, "quan_qa_passed": 0, "total": 0,
                                                "earned_usd": 0.0, "awaiting_qa": 0})} for u in ras]
-        others = [r for ra_id, r in summary.items() if ra_id not in {u.id for u in ras}]  # e.g. the PI administered one
+        paused = _paused_ras(summary)
+        not_others = {u.id for u in ras} | {p["id"] for p in paused}
+        others = [r for ra_id, r in summary.items() if ra_id not in not_others]  # e.g. the PI administered one
         return Response({
             "team": team, "others": others,
             "uncredited": period.filter(kind=CreditKind.UNCREDITED).count(),
@@ -159,7 +161,83 @@ class TeamView(APIView):
             "commission_usd": float(credits.rate()),
             "earned_usd": float(sum((c.amount_usd for c in period), credits.Decimal("0.00"))),
             "can_override": getattr(request.user.role, "name", "") == "PI_ADMIN",
+            # Deactivated RAs (PI, 25 Nov 2026): shown apart, in red, so the PI can see who is paused and reactivate them.
+            "paused": paused,
+            "can_change_status": getattr(request.user.role, "name", "") == "PI_ADMIN",
         })
+
+
+def _paused_ras(summary) -> list:
+    """The deactivated RA accounts, with when and why the PI paused each and what they still hold (25 Nov 2026)."""
+    from apps.accounts.models import User
+    from apps.audit.models import AuditEvent
+
+    out = []
+    for u in User.objects.filter(role__name__in=RA_ROLES, is_active=False).select_related("role").order_by("username"):
+        ev = (AuditEvent.objects.filter(action="accounts.user_deactivated", object_type="User", object_id=str(u.pk))
+              .order_by("-created_at").first())
+        totals = summary.get(u.id, {})
+        out.append({
+            "id": u.id, "username": u.username, "name": u.get_full_name() or u.username, "role": u.role.name,
+            "role_label": u.role.get_name_display(),
+            "paused_at": ev.created_at.isoformat() if ev else None,
+            "paused_reason": (ev.metadata or {}).get("reason", "") if ev else "",
+            "last_login": u.last_login.isoformat() if u.last_login else None,
+            "workload": _workload(u), "open": _open_held(u),
+            "total": totals.get("total", 0), "earned_usd": totals.get("earned_usd", 0.0),
+        })
+    return out
+
+
+def _open_held(user) -> dict:
+    """Open work still on this account that is not theirs by finding it (found_by): what pausing would strand."""
+    from apps.kii.models import KIIRecord, KIIStatus
+
+    return {
+        "main": open_main_work().filter(assigned_ra=user).exclude(found_by=user).count(),
+        "kii": KIIRecord.objects.filter(assigned_ra=user).exclude(status__in=[KIIStatus.COMPLETED, KIIStatus.DECLINED])
+        .exclude(found_by=user).count(),
+    }
+
+
+class AccountStatusView(APIView):
+    """POST /api/v1/ra/accounts/<id>/status/ {active: true|false, reason} -- the PI pauses or reactivates a research
+    assistant (25 Nov 2026). The PI paused the call RAs who weren't contacting organisations; they contact him to be
+    reactivated and given work. Only the PI; a reason is required and both directions are audited.
+
+    Pausing is refused while the RA still holds open work they didn't find themselves -- it would sit on an account
+    nobody can sign in to, and no respondent would be called. Move it first (Give work, below). Reactivating gives no
+    work by itself.
+    """
+
+    permission_classes = [CanManageRATeam]
+
+    def post(self, request, pk):
+        from apps.accounts.models import User
+
+        if getattr(request.user.role, "name", "") != "PI_ADMIN":
+            return _error("forbidden", "Only the PI pauses or reactivates a research assistant.", 403)
+        ra = get_object_or_404(User.objects.select_related("role"), pk=pk, role__name__in=RA_ROLES)
+        active = request.data.get("active")
+        if not isinstance(active, bool):
+            return _error("invalid_input", "Say whether the account is to be active (true) or paused (false).")
+        reason = str(request.data.get("reason") or "").strip()
+        if not reason:
+            return _error("invalid_input", "Give a reason; it goes in the audit log.")
+        name = ra.get_full_name() or ra.username
+        if ra.is_active == active:
+            return _error("invalid_input", f"{name} is already {'active' if active else 'paused'}.")
+        if not active:
+            held = _open_held(ra)
+            if held["main"] or held["kii"]:
+                return _error("has_open_work", f"{name} still holds {held['main']} open Main-400 case(s) and {held['kii']} open "
+                                               "KII record(s). Give them to another research assistant first.", 409)
+        ra.is_active = active
+        ra.save(update_fields=["is_active"])
+        log_action("accounts.user_reactivated" if active else "accounts.user_deactivated", ra,
+                   {"role": ra.role.name, "reason": reason[:500], "username": ra.username, "user_id": request.user.id},
+                   user=request.user)
+        return Response({"id": ra.id, "username": ra.username, "is_active": ra.is_active})
 
 
 CLOSED_WORKFLOW = ["S08", "S09", "S10", "S11", "S12", "S13", "S14"]

@@ -918,6 +918,17 @@ works):
 
 ## Notable fixes
 
+### Paused research assistants are shown in red, and the PI reactivates them from the screen (25 Nov 2026)
+
+After the PI paused the call RAs who weren't contacting organisations, the Research assistants screen simply stopped
+listing them, so there was no way to see who was paused or to bring one back without a shell on the server.
+The screen now lists them apart in a red **Paused research assistants** panel: when and why each was paused, when they
+last signed in, and what is still on their account. The PI reactivates one there, or pauses an active RA, with a
+reason; both are audited (`accounts.user_reactivated` / `accounts.user_deactivated`) through
+`POST /api/v1/ra/accounts/<id>/status/`. Only the PI may do it -- the Field Coordinator and Supervisor reach the screen
+and are refused. An RA still holding open work they did not find themselves cannot be paused (409): it would sit on an
+account nobody can sign in to. Reactivating gives no work by itself (`tests/test_ra_account_status.py`).
+
 ### A paused research assistant is told to contact the PI (25 Nov 2026)
 
 The PI deactivated the call RAs who weren't contacting organisations and asked that they contact him to be

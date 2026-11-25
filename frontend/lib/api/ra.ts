@@ -75,6 +75,26 @@ export interface Team {
   /** Commission earned by everyone in the period, US$. */
   earned_usd: number;
   can_override: boolean;
+  /** Deactivated RA accounts (25 Nov 2026): shown in red, for the PI to reactivate. */
+  paused?: PausedRA[];
+  /** Only the PI pauses or reactivates an RA. */
+  can_change_status?: boolean;
+}
+
+export interface PausedRA {
+  id: number;
+  username: string;
+  name: string;
+  role: string;
+  role_label: string;
+  paused_at: string | null;
+  paused_reason: string;
+  last_login: string | null;
+  workload: Workload;
+  /** Open work still on the account that they did not find themselves. */
+  open: { main: number; kii: number };
+  total: number;
+  earned_usd: number;
 }
 
 export const CREDIT_TONE: Record<CreditRow["kind"], string> = {

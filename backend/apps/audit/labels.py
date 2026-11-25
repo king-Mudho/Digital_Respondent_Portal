@@ -11,6 +11,8 @@ later without an entry here still shows something readable (its code, unslugifie
 
 ACTION_LABELS: dict[str, str] = {
     "accounts.email_changed": "Account email changed",
+    "accounts.user_deactivated": "Research assistant's account paused (deactivated) by the PI",
+    "accounts.user_reactivated": "Research assistant's account reactivated by the PI",
     "accounts.staff_accounts_created": "Staff accounts created",
     "clearance.active_changed": "Clearance document switched active or inactive",
     "clearance.document_created": "Clearance document added",
