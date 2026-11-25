@@ -386,6 +386,8 @@ def recheck_statuses(*, now=None, fetch=None) -> int:
             logger.warning("Could not recheck message %s with Twilio: %s", message.pk, exc)
             continue
         before = message.status
+        if TWILIO_STATUS.get(str(data.get("status") or "").lower()) == before:
+            continue  # still what the portal shows: nothing to apply, and nothing worth a log line
         record_status({"MessageSid": message.provider_sid, "MessageStatus": data.get("status") or "",
                        "ErrorCode": data.get("error_code") or "", "ErrorMessage": data.get("error_message") or ""})
         message.refresh_from_db(fields=["status"])
