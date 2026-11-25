@@ -49,3 +49,11 @@ def sync_study_mailbox():
     from .mailbox import sync_mailbox
 
     return sync_mailbox()
+
+
+@shared_task
+def recheck_twilio_statuses():
+    """Asks Twilio for messages still showing Queued/Sent, in case a delivery report was lost (outbound.py, 25 Nov 2026)."""
+    from .outbound import recheck_statuses
+
+    return recheck_statuses()

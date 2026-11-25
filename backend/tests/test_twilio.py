@@ -174,6 +174,87 @@ def test_a_signed_report_updates_the_message_and_never_moves_it_backwards(twilio
     assert message.status == ProviderStatus.DELIVERED
 
 
+def test_sent_and_delivered_reported_in_the_same_instant_leave_it_delivered(twilio, main_case, transactional_db, monkeypatch):
+    """25 Nov 2026: Twilio reported "sent" and "delivered" for a reply in the same second and the two callbacks ran side by
+    side. Both read the message while it was QUEUED, the forward-only check passed for both, and "sent" saved last -- the
+    portal showed Sent for a delivered message. The "sent" report is held just after it has read the message; the
+    "delivered" one then runs. Without the row lock it reads QUEUED too and is overwritten."""
+    import threading
+
+    from django.db import connection
+
+    from apps.messaging import outbound
+
+    message = _message(main_case)
+    has_read, go = threading.Event(), threading.Event()
+
+    class HeldAtSent(dict):
+        def get(self, key, default=None):
+            if key == "sent":
+                has_read.set()
+                go.wait(5)
+            return super().get(key, default)
+
+    monkeypatch.setattr(outbound, "TWILIO_STATUS", HeldAtSent(outbound.TWILIO_STATUS))
+
+    def report(status):
+        try:
+            outbound.record_status({"MessageSid": "SM9", "MessageStatus": status})
+        finally:
+            connection.close()
+
+    sent = threading.Thread(target=report, args=("sent",))
+    sent.start()
+    assert has_read.wait(5)
+    delivered = threading.Thread(target=report, args=("delivered",))
+    delivered.start()
+    delivered.join(0.5)  # with the lock it is still waiting here; without it, it has already saved DELIVERED
+    go.set()
+    sent.join(5); delivered.join(5)
+    message.refresh_from_db()
+    assert message.status == ProviderStatus.DELIVERED
+
+
+def test_a_message_whose_report_never_came_is_rechecked_with_twilio(twilio, main_case, settings):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.messaging.outbound import recheck_statuses
+
+    settings.TWILIO_STATUS_RECHECK_AFTER_MINUTES, settings.TWILIO_STATUS_RECHECK_WITHIN_HOURS = 15, 72
+    now = timezone.now()
+    lost = _message(main_case, status=ProviderStatus.SENT)
+    fresh = _message(main_case, provider_sid="SM10", status=ProviderStatus.SENT)
+    old = _message(main_case, provider_sid="SM11", status=ProviderStatus.SENT)
+    done = _message(main_case, provider_sid="SM12", status=ProviderStatus.DELIVERED)
+    email = _message(main_case, provider_sid="<x@mail>", channel="EMAIL", provider="SMTP", status=ProviderStatus.SENT)
+    ProviderMessage.objects.filter(pk__in=[lost.pk, done.pk, email.pk]).update(created_at=now - timedelta(minutes=20))
+    ProviderMessage.objects.filter(pk=fresh.pk).update(created_at=now - timedelta(minutes=5))
+    ProviderMessage.objects.filter(pk=old.pk).update(created_at=now - timedelta(hours=80))
+    asked = []
+
+    def fetch(sid):
+        asked.append(sid)
+        return {"status": "delivered"}
+
+    assert recheck_statuses(now=now, fetch=fetch) == 1
+    assert asked == ["SM9"]  # not one sent minutes ago, nor days ago, nor one already delivered, nor an email
+    lost.refresh_from_db()
+    assert lost.status == ProviderStatus.DELIVERED
+
+
+def test_twilio_is_asked_for_one_message_by_its_sid(twilio, monkeypatch):
+    calls = []
+
+    def get(url, auth=None, timeout=None):
+        calls.append((url, auth))
+        return Mock(status_code=200, json=Mock(return_value={"sid": "SM9", "status": "delivered"}))
+
+    assert tw.fetch_message("SM9", get=get)["status"] == "delivered"
+    assert calls == [("https://api.twilio.com/2010-04-01/Accounts/ACtest/Messages/SM9.json", ("ACtest", "secret-token"))]
+
+
 def test_an_undelivered_reminder_goes_back_to_a_person_and_is_audited(twilio, main_case):
     from apps.messaging.models import MessageTemplate
 

@@ -417,6 +417,10 @@ TWILIO_WHATSAPP_DAILY_MAX = env.int("TWILIO_WHATSAPP_DAILY_MAX", default=500)
 # 7 days' rate of spending (22 Nov 2026, twilio_client.account_balance). When it runs out WhatsApp stops.
 TWILIO_BALANCE_WARN_USD = env.float("TWILIO_BALANCE_WARN_USD", default=5.0)
 TWILIO_BALANCE_WARN_DAYS = env.int("TWILIO_BALANCE_WARN_DAYS", default=7)
+# A WhatsApp/SMS still showing Queued or Sent this many minutes after sending is checked with Twilio directly, back to
+# this many hours (25 Nov 2026, outbound.recheck_statuses): a lost delivery report no longer leaves it Sent for good.
+TWILIO_STATUS_RECHECK_AFTER_MINUTES = env.int("TWILIO_STATUS_RECHECK_AFTER_MINUTES", default=15)
+TWILIO_STATUS_RECHECK_WITHIN_HOURS = env.int("TWILIO_STATUS_RECHECK_WITHIN_HOURS", default=72)
 # Twilio's price per SMS segment to Zimbabwe (checked 2026-10-07), for the cost estimate shown before a batch.
 TWILIO_SMS_SEGMENT_PRICE_USD = env.float("TWILIO_SMS_SEGMENT_PRICE_USD", default=0.3212)
 # Appended to every SMS when set. Two-way SMS is not available in Zimbabwe, so a respondent cannot reply STOP; the

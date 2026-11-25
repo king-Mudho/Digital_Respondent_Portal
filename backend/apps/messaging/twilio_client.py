@@ -160,6 +160,21 @@ def _post(data: dict, *, post=None, delays=None, sleep=time.sleep) -> dict:
     raise AssertionError("unreachable")  # every path above returns or raises
 
 
+def fetch_message(message_sid: str, *, get=None) -> dict:
+    """Twilio's current record of one message (status, error_code, error_message), for outbound.recheck_statuses()."""
+    get = get or requests.get
+    sid, token = _account()
+    if not (sid and token):
+        raise TwilioError("Twilio is not set up on the server yet (deploy/configure-twilio.sh).")
+    try:
+        response = get(f"{API}/Accounts/{sid}/Messages/{message_sid}.json", auth=(sid, token), timeout=30)
+    except requests.ConnectionError:
+        raise TwilioError("Twilio could not be reached. Try again in a few minutes.")
+    if response.status_code >= 400:
+        raise _friendly(response)
+    return response.json()
+
+
 def send_sms(to_digits: str, body: str, **kwargs) -> dict:
     """One SMS to an international number given as digits (263771234567). Returns Twilio's message (sid, status)."""
     return _post({

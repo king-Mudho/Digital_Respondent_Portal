@@ -10,10 +10,12 @@ What was sent is kept on the ProviderMessage so Communications can show it, with
 replaced (redact()): a link works like a password, and the portal otherwise keeps only its hash.
 """
 
+import logging
 import re
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
 from apps.audit.utils import log_action
@@ -28,6 +30,8 @@ from .models import (
     ProviderMessage,
     ProviderStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 LINK_PLACEHOLDER = "[personal link]"
 CODE_PLACEHOLDER = "[code]"
@@ -321,29 +325,71 @@ def send_email(*, to: str, subject: str, body: str, purpose: str, user=None, in_
 def record_status(params: dict) -> bool:
     """Applies one Twilio status callback. Delivery reports can arrive out of order ("sent" after "delivered"), so a
     message only moves forward; not delivered is final. A reminder Twilio could not deliver is marked FAILED on its
-    MessageLog, which puts it back on Follow-ups for a person rather than counting toward Nonresponse."""
-    message = ProviderMessage.objects.select_related("message_log").filter(provider_sid=params.get("MessageSid") or None).first()
-    if message is None:
-        return False
-    new = TWILIO_STATUS.get(str(params.get("MessageStatus", "")).lower())
-    if new is None or message.status in NOT_DELIVERED or new == message.status:
-        return True
-    if new not in NOT_DELIVERED and PROGRESS.index(new) < PROGRESS.index(message.status):
-        return True
-    message.status = new
-    message.error_code = str(params.get("ErrorCode") or "")[:16]
-    message.error_message = str(params.get("ErrorMessage") or "")[:300]
-    message.save(update_fields=["status", "error_code", "error_message", "updated_at"])
+    MessageLog, which puts it back on Follow-ups for a person rather than counting toward Nonresponse.
+
+    The message is read under a row lock (25 Nov 2026). Twilio often reports "sent" and "delivered" in the same
+    instant, and the two callbacks were handled side by side: each read the message while it was still QUEUED, so the
+    forward-only check passed for both and whichever saved last won -- a delivered reply was left showing Sent. With
+    the lock the second callback waits, sees the first one's status, and the rule holds. A report that changes nothing
+    is logged with what it said, so a dropped one can be traced; recheck_statuses() catches any that never arrive."""
+    sid = params.get("MessageSid") or None
+    reported = str(params.get("MessageStatus", "")).lower()
+    with transaction.atomic():
+        message = ProviderMessage.objects.select_for_update().filter(provider_sid=sid).first()
+        if message is None:
+            logger.warning("Twilio status report for an unknown message %s (%s) ignored", sid, reported)
+            return False
+        new = TWILIO_STATUS.get(reported)
+        if new is None or message.status in NOT_DELIVERED or new == message.status or (
+                new not in NOT_DELIVERED and PROGRESS.index(new) < PROGRESS.index(message.status)):
+            logger.warning("Twilio status report %s for message %s ignored: it is already %s", reported or "(none)",
+                        message.pk, message.status)
+            return True
+        message.status = new
+        message.error_code = str(params.get("ErrorCode") or "")[:16]
+        message.error_message = str(params.get("ErrorMessage") or "")[:300]
+        message.save(update_fields=["status", "error_code", "error_message", "updated_at"])
+        if new in NOT_DELIVERED and message.message_log_id:
+            message.message_log.status = MessageStatus.FAILED
+            message.message_log.save(update_fields=["status"])
     if new in NOT_DELIVERED:
+        # After the lock is released: the SMS fallback for an introduction sends a message of its own.
         if message.purpose == MessagePurpose.INTRODUCTION:
             from .outreach import intro_not_delivered
 
             intro_not_delivered(message)
-        if message.message_log_id:
-            message.message_log.status = MessageStatus.FAILED
-            message.message_log.save(update_fields=["status"])
         log_action("twilio.message_failed", message.sample_case or message.kii_record or message, {
             "channel": message.channel, "purpose": message.purpose, "recipient": message.to_masked,
             "error_code": message.error_code, "provider_message": message.pk,
         })
     return True
+
+
+def recheck_statuses(*, now=None, fetch=None) -> int:
+    """Asks Twilio for the status of every SMS/WhatsApp the portal still shows as Queued or Sent once it is
+    TWILIO_STATUS_RECHECK_AFTER_MINUTES old, back to TWILIO_STATUS_RECHECK_WITHIN_HOURS (25 Nov 2026), and applies the
+    answer exactly as a callback would. A callback Twilio never sent, or the portal lost, would otherwise leave a
+    delivered message showing Sent for good. Returns how many messages changed."""
+    now = now or timezone.now()
+    fetch = fetch or tw.fetch_message
+    if not tw.credentials_set():
+        return 0
+    stale = (ProviderMessage.objects.filter(provider=MessageProvider.TWILIO, status__in=[ProviderStatus.QUEUED, ProviderStatus.SENT],
+                                            created_at__lte=now - timedelta(minutes=settings.TWILIO_STATUS_RECHECK_AFTER_MINUTES),
+                                            created_at__gte=now - timedelta(hours=settings.TWILIO_STATUS_RECHECK_WITHIN_HOURS))
+             .exclude(provider_sid__isnull=True).exclude(provider_sid="").order_by("created_at"))
+    changed = 0
+    for message in stale:
+        try:
+            data = fetch(message.provider_sid)
+        except tw.TwilioError as exc:
+            logger.warning("Could not recheck message %s with Twilio: %s", message.pk, exc)
+            continue
+        before = message.status
+        record_status({"MessageSid": message.provider_sid, "MessageStatus": data.get("status") or "",
+                       "ErrorCode": data.get("error_code") or "", "ErrorMessage": data.get("error_message") or ""})
+        message.refresh_from_db(fields=["status"])
+        if message.status != before:
+            changed += 1
+            logger.warning("Message %s rechecked with Twilio: %s -> %s", message.pk, before, message.status)
+    return changed

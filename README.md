@@ -918,6 +918,19 @@ works):
 
 ## Notable fixes
 
+### A delivered WhatsApp no longer shows as Sent (25 Nov 2026)
+
+Communications showed two delivered WhatsApp messages as Sent. Twilio reports "sent" and "delivered" for a message
+separately, and often in the same second; the two callbacks were handled side by side, each read the message while it
+was still Queued, the "never move backwards" check passed for both, and whichever saved last won — so "sent" could
+overwrite "delivered". It went unnoticed because the rule was tested only with reports arriving one after the other.
+`outbound.record_status()` now reads the message under a row lock, so a second report waits and sees the first one's
+status (the test holds a "sent" report mid-way and fails with the lock removed). A report that changes nothing is
+logged with what it said. And because a report can also simply never arrive — the second message's "delivered" was
+accepted and changed nothing, which the portal kept no record of — `recheck_twilio_statuses` asks Twilio every 15
+minutes about any SMS/WhatsApp still Queued or Sent after `TWILIO_STATUS_RECHECK_AFTER_MINUTES` (15), back to
+`TWILIO_STATUS_RECHECK_WITHIN_HOURS` (72), and applies the answer as a callback would.
+
 ### The Research Assistant (calls) sees its key informants' records; study information on request (19 Nov 2026)
 
 The Research Assistants (calls) phone both Main-400 respondents and key informants, but the KII Register and KII record
