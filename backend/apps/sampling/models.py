@@ -216,6 +216,9 @@ class ActivationReason(models.TextChoices):
     DUPLICATE = "DUPLICATE", "Duplicate"
     REFUSAL = "REFUSAL", "Refusal"
     NONRESPONSE_EXHAUSTED = "NONRESPONSE_EXHAUSTED", "Nonresponse exhausted"
+    # PI decision 27 Nov 2026, four days before data lock: a Reserve contacted alongside its Main, which stays open --
+    # not a replacement. Only through services.activate_reserve_alongside_main(); both may complete (flagged).
+    PI_ALONGSIDE_MAIN = "PI_ALONGSIDE_MAIN", "PI decision: contacted alongside its Main before data lock"
 
 
 class SampleCase(models.Model):

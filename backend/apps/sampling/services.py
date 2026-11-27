@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.audit.utils import log_action
 
 from .models import (
+    ActivationReason,
     PROVINCE_CODE,
     IdentifierSequence,
     Organisation,
@@ -280,6 +281,52 @@ def activate_reserve(reserve_case: SampleCase, *, reason: str, activated_by, evi
          **(audit_extra or {})},
     )
     return reserve_case
+
+
+ALONGSIDE_KEY = "activated_alongside_main"
+OPEN_MAIN_STATES = {"S00", "S01", "S02", "S03", "S04", "S05", "S06", "S07", None, ""}
+
+
+@transaction.atomic
+def activate_reserve_alongside_main(reserve_case: SampleCase, *, authorised_by, note: str) -> SampleCase:
+    """Activate a Reserve while its paired Main stays open (PI decision, 27 Nov 2026).
+
+    Four days before data lock the PI chose to contact the Reserves of Main cases that had not finished, alongside
+    those Main cases rather than instead of them, to reach more completions. It is a change to the sample design, so it
+    is kept apart from replacement: its own recorded reason, the PI named as authoriser, an audit entry, and a flag on
+    the Reserve (ALONGSIDE_KEY) naming the Main it runs beside, so the analysis can tell a pair where both completed.
+    The Main case is not touched. Refused unless: the authoriser is the PI, the Reserve is LOCKED and is the Main's own
+    matched Reserve, the Main is still open (a completed or closed Main needs no Reserve), and neither is a held
+    duplicate.
+    """
+    from apps.accounts.models import Role
+
+    if getattr(getattr(authorised_by, "role", None), "name", None) != Role.PI_ADMIN or not authorised_by.is_active:
+        raise ValueError("Only the PI authorises activating a Reserve alongside its Main.")
+    if not (note or "").strip():
+        raise ValueError("Record why (the PI's decision) in the note.")
+    reserve = SampleCase.objects.select_for_update().get(pk=reserve_case.pk)
+    if reserve.sample_type != SampleType.RESERVE or reserve.status != ReserveStatus.LOCKED:
+        raise ValueError(f"{reserve.sample_id} is not a locked Reserve.")
+    main = SampleCase.objects.select_for_update().filter(sample_type=SampleType.MAIN, matched_case=reserve).first()
+    if main is None:
+        raise ValueError(f"{reserve.sample_id} is not the matched Reserve of any Main case.")
+    if main.workflow_status not in OPEN_MAIN_STATES:
+        raise ValueError(f"{main.sample_id} is no longer open ({main.workflow_status}); its Reserve is not needed alongside it.")
+    if "duplicate_of" in (reserve.metadata or {}) or "duplicate_of" in (main.metadata or {}):
+        raise ValueError("A held duplicate is never activated.")
+    main_before = (main.workflow_status, main.status, main.assigned_ra_id)
+    activate_reserve(reserve, reason=ActivationReason.PI_ALONGSIDE_MAIN, activated_by=authorised_by,
+                     evidence_note=f"Alongside {main.sample_id} ({main.organisation.name}), which stays open. {note}",
+                     audit_extra={"alongside": main.sample_id, "main_workflow_status": main.workflow_status})
+    reserve.metadata = {**(reserve.metadata or {}), ALONGSIDE_KEY: {
+        "main": main.sample_id, "main_workflow_status": main.workflow_status, "at": timezone.now().isoformat(),
+        "authorised_by": authorised_by.username,
+    }}
+    reserve.save(update_fields=["metadata", "updated_at"])
+    main.refresh_from_db()
+    assert (main.workflow_status, main.status, main.assigned_ra_id) == main_before  # the Main is never touched
+    return reserve
 
 
 class InvalidMatchedCase(ValueError):

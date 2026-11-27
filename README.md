@@ -10,7 +10,7 @@ The portal authenticates and routes the study's selected Main-400 respondents (p
 locked Reserve-400), captures consent and eligibility, launches the KoboToolbox
 questionnaire with controlled identifiers, reconciles submissions, and runs the KII,
 documentary-evidence, contact/CRM, QA and fieldwork-cost operations behind the 400 QUAN
-/ 60 KII / 108 document data-collection target. It is **not** a public survey tool and
+/ 60 KII / 123 document data-collection target. It is **not** a public survey tool and
 does **not** expose any ABI bankability score to respondents — see
 `docs/00_PROJECT_MASTER.md` for full project identity and `docs/20_EMBEDDING_WITH_ABI.md`
 for why it is deliberately kept separate from the public ABI self-assessment demo.
@@ -362,7 +362,7 @@ figures and lists on mixed screens but not the forms or buttons
 | Screen | Route | Purpose |
 |---|---|---|
 | A01 | `/admin/login` | Internal sign-in |
-| A02 | `/admin/dashboard` | Executive dashboard — overall progress vs. the 400/60/108 targets, days to data lock, coverage gaps by stratum |
+| A02 | `/admin/dashboard` | Executive dashboard — overall progress vs. the 400/60/123 targets, days to data lock, coverage gaps by stratum |
 | — | `/admin/dashboard/sampling` | Main-400 by province, verified/total by stratum, reserve activations by reason |
 | — | `/admin/dashboard/contact` | Organisations verified, invitations sent/opened, appointments, refusals |
 | — | `/admin/dashboard/qa` | Submissions today/cumulative, QA queue depth, decisions recorded, administration-mode split |
@@ -591,7 +591,7 @@ letters) so a respondent can check the study is real before answering anything.
     `PilotRecord`, never into `SampleCase`, `QUANSubmission`, `KIIRecord` or `DocumentRecord`. The Main-400 sample and
     its exports are untouched.
   - **Dashboards:** every dashboard and Reports figure adds the pilot beside the main figure, shown as "main + pilot".
-    `DOCUMENT_TARGET` is 121: 108 main and 13 pilot documents.
+    `DOCUMENT_TARGET` is 136: 123 main and 13 pilot documents (121 until 26 Nov 2026, when 15 more main-study documents were coded).
   - **Who sees and decides:** the screen shows each record's summary, which identifies nobody, and never the answers.
     The PI, Field Coordinator, Analyst and Supervisor read it; only the PI fetches again or decides which records count
     (a reason is required to leave one out; audited).
@@ -917,6 +917,19 @@ works):
 | "Auto-fill" doesn't appear on a document's page | `ANTHROPIC_API_KEY` isn't set | `deploy/configure-ai-coding.sh` |
 
 ## Notable fixes
+
+### A Reserve can be contacted alongside its Main before data lock (PI decision, 27 Nov 2026)
+
+Four days before data lock, with many Main cases sent a link but not answering, the PI decided to contact the Reserves
+of the unfinished Main cases **alongside** them rather than wait for each Main to fail, to reach more completions.
+That is a change to the sample design -- the register marks every Reserve "activate only for documented
+nonresponse/ineligibility" -- so it is not done through replacement. `sampling.services.activate_reserve_alongside_main()`
+records its own reason (`PI_ALONGSIDE_MAIN`), names the PI as authoriser, audits it (`reserve.activated` with
+`alongside`), and flags the Reserve with `metadata["activated_alongside_main"]` naming its Main, so a pair where both
+complete can be told apart in the analysis. The Main is never touched and can still complete. It refuses a non-PI
+authoriser, a missing reason, a Reserve that isn't the Main's own locked one, a Main that has already finished, and a
+held duplicate. Automatic replacement leaves such a pair alone: it only acts on a Main whose Reserve is still locked
+(`tests/test_reserve_alongside_main.py`).
 
 ### Paused research assistants are shown in red, and the PI reactivates them from the screen (25 Nov 2026)
 
